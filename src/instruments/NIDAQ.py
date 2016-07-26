@@ -3,9 +3,9 @@ import threading
 import os
 import numpy
 import warnings
-from src.core.read_write_functions import get_dll_config_path
+from PyLabControl.src.core.read_write_functions import get_dll_config_path
 
-from src.core.instruments import Instrument, Parameter
+from PyLabControl.src.core import Instrument, Parameter
 
 
 ##############################
