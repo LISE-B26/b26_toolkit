@@ -1,6 +1,6 @@
 import serial
 
-from src.core.instruments import Instrument, Parameter
+from PyLabControl.src.core.instruments import Instrument, Parameter
 
 
 class PiezoController(Instrument):

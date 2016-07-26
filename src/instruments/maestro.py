@@ -1,4 +1,4 @@
-from src.core import Instrument,Parameter
+from PyLabControl.src.core import Instrument,Parameter
 from time import sleep
 # =============== MAESTRO ==================================
 # ==========================================================

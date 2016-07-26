@@ -1,5 +1,5 @@
 import serial
-from PythonLab.src.core import Instrument, Parameter
+from PyLabControl.src.core import Instrument, Parameter
 
 
 class PressureGauge(Instrument):

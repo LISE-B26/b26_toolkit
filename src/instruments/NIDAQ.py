@@ -3,7 +3,7 @@ import threading
 import os
 import numpy
 import warnings
-from PyLabControl.src.core.read_write_functions import get_dll_config_path
+from PyLabControl.src.core.read_write_functions import get_config_value
 
 from PyLabControl.src.core import Instrument, Parameter
 
@@ -54,7 +54,7 @@ class DAQ(Instrument):
         if os.name == 'nt':
             #checks for windows. If not on windows, check for your OS and add
             #the path to the DLL on your machine
-            nidaq = ctypes.WinDLL(get_dll_config_path('NIDAQ_DLL_PATH'))  # load the DLL
+            nidaq = ctypes.WinDLL(get_config_value('NIDAQ_DLL_PATH'))  # load the DLL
             dll_detected = True
         else:
             warnings.warn("NI DAQmx DLL not found. If it should be present, check the path.")

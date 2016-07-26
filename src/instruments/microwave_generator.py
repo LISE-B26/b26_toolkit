@@ -1,7 +1,7 @@
 import visa
 import pyvisa.errors
 
-from src.core import Parameter, Instrument
+from PyLabControl.src.core import Parameter, Instrument
 
 RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MAX = 4050000000 #4.050 GHZ

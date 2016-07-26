@@ -1,4 +1,4 @@
-from src.core import Instrument, Parameter
+from PyLabControl.src.core import Instrument, Parameter
 import time, datetime
 import pandas as pd
 import os

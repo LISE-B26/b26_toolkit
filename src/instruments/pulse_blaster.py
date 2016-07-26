@@ -1,4 +1,4 @@
-from src.core import Instrument, Parameter
+from PyLabControl.src.core import Instrument, Parameter
 from collections import namedtuple
 import numpy as np
 import itertools, ctypes, datetime, time, warnings

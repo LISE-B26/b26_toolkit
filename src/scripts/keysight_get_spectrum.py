@@ -1,6 +1,6 @@
-from b26_toolkit.src.instruments import SpectrumAnalyzer \
+from b26_toolkit.src.instruments import SpectrumAnalyzer
     # , MicrowaveGenerator, CryoStation
-from src.core import Script
+from PyLabControl.src.core import Script
 
 
 class KeysightGetSpectrum(Script):

@@ -1,5 +1,5 @@
 from b26_toolkit.src.instruments import Attocube
-from src.core import Parameter, Script
+from PyLabControl.src.core import Parameter, Script
 
 
 class AttoStep(Script):

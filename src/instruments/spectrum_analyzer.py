@@ -1,4 +1,4 @@
-from src.core import Instrument, Parameter
+from PyLabControl.src.core import Instrument, Parameter
 import visa
 import numpy as np
 import time

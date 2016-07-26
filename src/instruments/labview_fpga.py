@@ -1,5 +1,5 @@
-from src.core import Instrument, Parameter
-from src.labview_fpga_lib.labview_fpga_error_codes import LabviewFPGAException
+from PyLabControl.src.core import Instrument, Parameter
+from src.instruments.labview_fpga_lib.labview_fpga_error_codes import LabviewFPGAException
 import time
 def volt_2_bit(volt):
     """
