@@ -1,7 +1,7 @@
 from collections import deque
 
 from b26_toolkit.src.instruments import NI7845RReadFifo
-from src.core import Script, Parameter
+from PyLabControl.src.core import Script, Parameter
 
 
 class LabviewFpgaTimetrace(Script):

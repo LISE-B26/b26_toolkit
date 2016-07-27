@@ -23,7 +23,7 @@ class SpectrumAnalyzer(Instrument):
             Parameter('stop_frequency', 3e9, float, 'stop frequency of spectrum analyzer frequency range'),
             Parameter('output_on', False, bool, 'toggles the tracking generator'),
             Parameter('connection_timeout', 1000, int, 'the time to wait for a response '
-                                                       'from the spectrum analyzer with each query'),
+                                                       'from the spectrum analyzer with each query (units??)'),
             Parameter('output_power', -20.0, float, 'the output power (in dBm) of the tracking generator')
         ])
 
@@ -238,21 +238,13 @@ if __name__ == '__main__':
         #     }
         # }
         #
-        # spec_anal = SpectrumAnalyzer(settings=sett)
-        # print spec_anal.is_connected()
-        # print spec_anal.mode
-        # spec_anal.mode = 'TrackingGenerator'
-        # print spec_anal.mode
-        #
-        # print('=============')
-        #
-        # print(spec_anal.settings, type(spec_anal.settings))
+        print('creat spectrume analyzer instance:')
+        spec_anal = SpectrumAnalyzer()
+        print spec_anal.is_connected()
+        print spec_anal.mode
+        spec_anal.mode = 'TrackingGenerator'
+        print spec_anal.mode
 
+        print('=============')
 
-    from src.core import Instrument
-    instruments = {}
-    instr, failed = Instrument.load_and_append({'spec':'SpectrumAnalyzer'}, instruments=instruments)
-
-    print(instr['spec'].settings)
-    print(type(instr['spec'].settings))
-
+        print(spec_anal.settings, type(spec_anal.settings))

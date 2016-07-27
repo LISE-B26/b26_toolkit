@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import patches
 
 from b26_toolkit.src.instruments import DAQ
-from src.core import Script, Parameter
+from PyLabControl.src.core import Script, Parameter
 
 
 class SetLaser(Script):
@@ -61,7 +61,7 @@ This script points the laser to a point
 
 
 if __name__ == '__main__':
-    from src.core import Instrument
+    from PyLabControl.src.core import Instrument
 
     instruments, instruments_failed = Instrument.load_and_append({'daq':  'DAQ'})
 

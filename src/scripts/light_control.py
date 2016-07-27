@@ -1,5 +1,5 @@
 from b26_toolkit.src.instruments import MaestroLightControl
-from src.core import Script, Parameter
+from PyLabControl.src.core import Script, Parameter
 
 
 class CameraOn(Script):

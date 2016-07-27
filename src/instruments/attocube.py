@@ -1,5 +1,5 @@
 import ctypes
-import time
+import time, os
 import warnings
 from PyLabControl.src.core.read_write_functions import get_config_value
 from PyLabControl.src.core import Instrument, Parameter
@@ -70,14 +70,16 @@ class Attocube(Instrument):
     def __init__(self, name = None, settings = None):
         #COMMENT_ME
         super(Attocube, self).__init__(name, settings)
+        dll_path = get_config_value('ATTOCUBE_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         try:
+            self.attocube = ctypes.WinDLL(dll_path)
             # self.attocube = ctypes.WinDLL('C:/Users/Experiment/Downloads/attocube/Software/ANC350_Software_v1.5.15/ANC350_DLL/Win_64Bit/src/anc350v2.dll')
-            self.attocube = ctypes.WinDLL(get_config_value('ATTOCUBE_DLL_PATH'))
             dll_detected = True
         except WindowsError:
             # make a fake Attocube instrument
             dll_detected = False
             warnings.warn("Attocube DLL not found. If it should be present, check the path.")
+            print(dll_path)
         if dll_detected == True:
             try:
                 self.pi = PositionerInfo()
@@ -321,6 +323,8 @@ class Attocube(Instrument):
             raise Exception
 
 if __name__ == '__main__':
+    print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+
     a = Attocube()
-    a.update({'x': {'voltage': 20}})
-    print(a.is_connected)
+    # a.update({'x': {'voltage': 20}})
+    print(a, a.is_connected)

@@ -1,6 +1,6 @@
 from b26_toolkit.src.data_processing import correlation, shift_NVs
 from b26_toolkit.src.plotting import plot_fluorescence_new, update_fluorescence
-from src.core import Script, Parameter
+from PyLabControl.src.core import Script, Parameter
 from src.scripts import GalvoScanWithLightControl
 
 

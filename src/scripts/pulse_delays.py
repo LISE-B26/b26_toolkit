@@ -1,7 +1,6 @@
 from b26_toolkit.src.instruments import Pulse
-from src.core import Parameter
-from src.core.scripts import Script
-from src.scripts import ExecutePulseBlasterSequence
+from PyLabControl.src.core import Parameter, Script
+from b26_toolkit.src.scripts import ExecutePulseBlasterSequence
 
 
 class PulseDelays(ExecutePulseBlasterSequence):

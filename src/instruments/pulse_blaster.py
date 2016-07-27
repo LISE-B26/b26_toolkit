@@ -2,7 +2,9 @@ from PyLabControl.src.core import Instrument, Parameter
 from collections import namedtuple
 import numpy as np
 import itertools, ctypes, datetime, time, warnings
-from src.core.read_write_functions import get_dll_config_path
+from PyLabControl.src.core.read_write_functions import get_config_value
+import os
+
 Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
 
 
@@ -58,7 +60,8 @@ class PulseBlaster(Instrument):
     def __init__(self, name=None, settings=None):
         #COMMENT_ME
         super(PulseBlaster, self).__init__(name, settings)
-        self.pb = ctypes.windll.LoadLibrary(get_dll_config_path('PULSEBLASTER_DLL_PATH'))
+        dll_path = get_config_value('PULSEBLASTER_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+        self.pb = ctypes.windll.LoadLibrary(dll_path)
         self.update(self._DEFAULT_SETTINGS)
         self.estimated_runtime = None
         self.sequence_start_time = None

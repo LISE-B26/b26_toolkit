@@ -4,9 +4,9 @@ import numpy as np
 import trackpy as tp
 from matplotlib import patches
 
-from b26_toolkit.src.plotting import plot_fluorescence_new
-from src.core import Script, Parameter
-from src.scripts import GalvoScanWithLightControl, SetLaser
+from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
+from PyLabControl.src.core import Script, Parameter
+from b26_toolkit.src.scripts import GalvoScanWithLightControl, SetLaser
 
 
 class FindMaxCounts2D(Script):

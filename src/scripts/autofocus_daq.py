@@ -4,9 +4,9 @@ import numpy as np
 
 from b26_toolkit.src.data_processing.fit_functions import fit_gaussian, guess_gaussian_parameter
 from b26_toolkit.src.instruments import PiezoController
-from b26_toolkit.src.plotting import plot_fluorescence_new
-from src.core import Parameter, Script
-from src.scripts import GalvoScanWithLightControl
+from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
+from PyLabControl.src.core import Parameter, Script
+from b26_toolkit.src.scripts import GalvoScanWithLightControl
 
 
 class AutoFocus(Script):
