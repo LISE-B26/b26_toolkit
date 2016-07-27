@@ -11,10 +11,9 @@ from stanford_research_esr import StanfordResearch_ESR
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
 # from ni_fpga_polarization_controller import FPGA_PolarizationController, AutoFocusNIFPGA
-
+from find_max_counts_point_2d import FindMaxCounts2D
 
 from atto_scan import AttoStep
-
 
 from pulse_blaster_scripts import CPMG, T1, Rabi
 
@@ -29,15 +28,6 @@ verbose = False
 # except:
 #     if verbose:
 #         print("./src/scripts/__init__ warning! GalvoScan did not load")
-# try:
-#     from legacy_src.old_scripts.GalvoScanWithLightControl import GalvoScanWithLightControl
-# except:
-#     print("./src/scripts/__init__ warning! GalvoScanWithLightControl did not load")
-#
-# try:
-#     from legacy_src.old_scripts.GalvoScanWithTwoRoI import GalvoScanWithTwoRoI
-# except:
-#     print("./src/scripts/__init__ warning! GalvoScanWithTwoRoI did not load")
 # try:
 #     from autofocus import AutoFocusDAQ
 # except:

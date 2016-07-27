@@ -6,7 +6,7 @@ from b26_toolkit.src.data_processing.fit_functions import fit_gaussian, guess_ga
 from b26_toolkit.src.instruments import PiezoController
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 from PyLabControl.src.core import Parameter, Script
-from b26_toolkit.src.scripts import GalvoScanWithLightControl
+from b26_toolkit.src.scripts import GalvoScan
 
 
 class AutoFocus(Script):
@@ -32,7 +32,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         'z_piezo': PiezoController
     }
     _SCRIPTS = {
-        'take_image': GalvoScanWithLightControl
+        'take_image': GalvoScan
     }
 
     def __init__(self, instruments, scripts, name = None, settings = None, log_function = None, data_path = None):

@@ -6,7 +6,7 @@ from matplotlib import patches
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 from PyLabControl.src.core import Script, Parameter
-from b26_toolkit.src.scripts import GalvoScanWithLightControl, SetLaser
+from b26_toolkit.src.scripts import GalvoScan, SetLaser
 
 
 class FindMaxCounts2D(Script):
@@ -32,7 +32,7 @@ Known issues:
 
     _INSTRUMENTS = {}
 
-    _SCRIPTS = {'take_image': GalvoScanWithLightControl, 'set_laser': SetLaser}
+    _SCRIPTS = {'take_image': GalvoScan, 'set_laser': SetLaser}
 
     def __init__(self, scripts, name = None, settings = None, log_function = None, timeout = 1000000000, data_path = None):
 
@@ -84,15 +84,15 @@ Known issues:
             #COMMENT_ME
             return (min_mass - 40)
 
-        self.scripts['take_image'].scripts['acquire_image'].settings['point_a'].update({'x': self.settings['initial_point']['x'], 'y': self.settings['initial_point']['y']})
-        self.scripts['take_image'].scripts['acquire_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
-        self.scripts['take_image'].scripts['acquire_image'].update({'RoI_mode': 'center'})
-        self.scripts['take_image'].scripts['acquire_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
+        self.scripts['take_image'].settings['point_a'].update({'x': self.settings['initial_point']['x'], 'y': self.settings['initial_point']['y']})
+        self.scripts['take_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
+        self.scripts['take_image'].update({'RoI_mode': 'center'})
+        self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
 
         self.scripts['take_image'].run()
 
-        self.data['image_data'] = deepcopy(self.scripts['take_image'].scripts['acquire_image'].data['image_data'])
-        self.data['extent'] = deepcopy(self.scripts['take_image'].scripts['acquire_image'].data['extent'])
+        self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
+        self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
         while True:
             f = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
 
@@ -121,12 +121,6 @@ Known issues:
         self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
         self.scripts['set_laser'].run()
 
-        # if self.settings['save']:
-        #     #COMMENT_ME
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
-        #     self.save_image_to_disk()
 
     def _plot(self, axes_list):
         # COMMENT_ME
@@ -152,14 +146,6 @@ Known issues:
         if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
             self.scripts['take_image']._update_plot(axes_list)
 
-            # # plot marker
-            # maximum_point = self.data['maximum_point']
-            # patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none')
-            # axes_list[0].add_patch(patch)
-            #
-            # initial_point = self.data['initial_point']
-            # patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none')
-            # axes_list[0].add_patch(patch)
 
 
     def get_axes_layout(self, figure_list):
