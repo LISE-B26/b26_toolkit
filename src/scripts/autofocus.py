@@ -8,7 +8,7 @@ from PyQt4.QtCore import pyqtSlot
 from b26_toolkit.src.instruments import PiezoController
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Parameter, Script
-from src.scripts import GalvoScan
+from b26_toolkit.src.scripts import GalvoScan
 # from src.scripts import GalvoScanNIFpga
 
 

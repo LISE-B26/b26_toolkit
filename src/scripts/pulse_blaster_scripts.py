@@ -1,6 +1,5 @@
 import numpy as np
-from src.scripts.exec_pulse_blaster_sequence import ExecutePulseBlasterSequence
-
+from b26_toolkit.src.scripts.exec_pulse_blaster_sequence import ExecutePulseBlasterSequence
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple, update_1d_simple
 from PyLabControl.src.core import Parameter, Script

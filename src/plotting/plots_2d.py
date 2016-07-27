@@ -1,4 +1,3 @@
-import numpy as np
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
 def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None):
