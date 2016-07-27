@@ -6,7 +6,7 @@ from galvo_scan import GalvoScan
 from autofocus import AutoFocusDAQ
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
-from stanford_research_esr import StanfordResearch_ESR
+from esr import StanfordResearch_ESR
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
@@ -134,7 +134,7 @@ verbose = False
 # # ==== import Stanford instruments ESR scripts=================================================================
 # # =============================================================================================================
 try:
-    from stanford_research_esr import StanfordResearch_ESR
+    from esr import StanfordResearch_ESR
 except:
     if verbose:
         print("./src/scripts/__init__ warning! StanfordResearch_ESR did not load")
