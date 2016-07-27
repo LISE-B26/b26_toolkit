@@ -8,6 +8,20 @@ from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, get_lo
 
 
 def fit_esr(freq, ampl):
+    """
+    Returns lorentzian fit parameters for a typical NV esr sweep, giving 4 or 6 parameters depending on if 1 or 2
+    lorentzian dips are detected.
+
+    Args:
+        freq: 1d array of frequencies which were scanned for esr resonance
+        ampl: 1d array of amplitudes corresponding to the frequencies (freq)
+
+    Returns:
+        fit parameters for either a single or double lorentizian peak fit to the data, as figured out by find_nv_peaks.
+        if a single lorentzian was fit, the list [constant_offset, amplitude, center, fwhm] is returned;
+        otherwise, the list [constant_offset, amplitude1, amplitude2, center1, center2, fwhm] is returned
+
+    """
     freq_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
 
     # figure out if one or two peaks
