@@ -44,7 +44,7 @@ This script points the laser to a point
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
-        self.instruments['daq']['instance'].AO_init([self.settings['x_ao_channel'], self.settings['y_ao_channel']], pt)
+        self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         self.instruments['daq']['instance'].AO_run()
         self.instruments['daq']['instance'].AO_waitToFinish()
         self.instruments['daq']['instance'].AO_stop()
