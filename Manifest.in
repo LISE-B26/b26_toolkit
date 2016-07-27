@@ -1,0 +1,4 @@
+include README.rst
+include src/insruments/dll_config.txt
+include src/labview_fpga_lib/makedll.bat
+include src/labview_fpga_lib/README.md
