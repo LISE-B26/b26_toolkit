@@ -52,7 +52,7 @@ def guess_gaussian_parameter(x_values, y_values):
 
 # ========= Lorenzian fit functions =============================
 #===============================================================
-def guess_lorentzian_parameter(x_values, y_values, negative_peak=True):
+def get_lorentzian_fit_starting_values(x_values, y_values, negative_peak=True):
     """
     estimates the parameter for a Lorentzian fit to the data set
     Note that the Lorentzian is assumed to
@@ -89,24 +89,36 @@ def fit_lorentzian(x_values, y_values, starting_params=None, bounds=None):
         a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, fwhm]
 
     """
-    if starting_params is not None and len(starting_params) == 2:
-        starting_params = [
-            np.mean([starting_params[0][0], starting_params[1][0]]),  # offset
-            np.sum([starting_params[0][3], starting_params[1][3]]),  # FWHM
-            starting_params[0][1], starting_params[1][1],  # amplitude
-            starting_params[0][2], starting_params[1][2]  # center
-        ]
-
-        fit_fun = double_lorentzian
-        bounds = []
-    else:
-        fit_fun = lorentzian
 
     # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
     if bounds:
-        return optimize.curve_fit(fit_fun, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+        return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
     else:
-        return optimize.curve_fit(fit_fun, x_values, y_values, p0=starting_params)[0]
+        return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params)[0]
+
+
+def fit_double_lorentzian(x_values, y_values, starting_params=None, bounds=None):
+    """
+    fits to lorenzian or two lorenzians: future fit to arbitrarily many lorenzians
+    Args:
+        x_values: domain of fit function
+        y_values: y-values to fit
+        starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
+        length 4 list of the form [constant_offset, amplitude, center, full_width_half_max] or list of list of length 4
+        which are the estimates for each peak.
+        bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
+                [(offset_lb, amplitude_lb, center_lb, fwhm_lb), (offset_ub, amplitude_ub, center_ub, fwhm_ub)]
+
+    Returns:
+        a length-6 list of [fit_parameters] in the form [constant_offset, amplitude1, amplitude2, center1, center2, fwhm]
+
+    """
+
+    # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
+    if bounds:
+        return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+    else:
+        return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params)[0]
 
 
 def lorentzian(x, constant_offset, amplitude, center, fwhm):

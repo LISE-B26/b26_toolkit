@@ -4,28 +4,38 @@ import numpy as np
 import scipy.signal as signal
 from peakutils.peak import indexes # package required https://pypi.python.org/pypi/PeakUtils
 
-from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, guess_lorentzian_parameter
+from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian
 
 
 def fit_esr(freq, ampl):
-    freqs_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
+    freq_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
 
     # figure out if one or two peaks
-    if freqs_peaks[0] == freqs_peaks[1]:
-        start_vals = guess_lorentzian_parameter(freq, ampl)
-    elif freqs_peaks[0] == 0:
+    if freq_peaks[0] == freq_peaks[1]:
+        start_vals = get_lorentzian_fit_starting_values(freq, ampl)
+    elif freq_peaks[0] == 0:
         print('data too noisy!!')
         # later we can extend this to fit a Lorenzian to each peak, for now we assume it's noisy data..
+        fit = None
     else:
-        center_freq = np.mean(freqs_peaks)
+        center_freq = np.mean(freq_peaks)
         start_vals = []
-        start_vals.append(guess_lorentzian_parameter(freq[freq < center_freq], ampl[freq < center_freq]))
-        start_vals.append(guess_lorentzian_parameter(freq[freq > center_freq], ampl[freq > center_freq]))
+        start_vals.append(get_lorentzian_fit_starting_values(freq[freq < center_freq], ampl[freq < center_freq]))
+        start_vals.append(get_lorentzian_fit_starting_values(freq[freq > center_freq], ampl[freq > center_freq]))
         # we already have a good estimate for the peak position, so update that
-        start_vals[0][2], start_vals[1][2] = freqs_peaks
+        start_vals[0][2], start_vals[1][2] = freq_peaks
+        start_vals = [
+            np.mean([start_vals[0][0], start_vals[1][0]]),  # offset
+            np.sum([start_vals[0][3], start_vals[1][3]]),  # FWHM
+            start_vals[0][1], start_vals[1][1],  # amplitudes
+            start_vals[0][2], start_vals[1][2]  # centers
+        ]
 
     try:
-        fit = fit_lorentzian(freq, ampl, starting_params=start_vals)
+        if len(freq_peaks) == 2:
+            fit = fit_double_lorentzian(freq, ampl, starting_params=start_vals)
+        elif len(freq_peaks) == 1:
+            fit = fit_lorentzian(freq, ampl, starting_params=start_vals)
     except:
         print('XXX ESR fit failed!')
         fit = None

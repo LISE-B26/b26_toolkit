@@ -132,7 +132,7 @@ except:
 # ==== import Stanford instruments ESR scripts=================================================================
 # =============================================================================================================
 try:
-    from StanfordResearch_ESR import StanfordResearch_ESR
+    from stanfordresearch_esr import StanfordResearch_ESR
 except:
     if verbose:
         print("./src/scripts/__init__ warning! StanfordResearch_ESR did not load")
