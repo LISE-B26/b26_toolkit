@@ -6,7 +6,7 @@ from galvo_scan import GalvoScan
 from autofocus import AutoFocusDAQ
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
-from esr import StanfordResearch_ESR
+from esr import ESR
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
@@ -16,9 +16,10 @@ from find_max_counts_point_2d import FindMaxCounts2D
 from atto_scan import AttoStep
 
 from pulse_blaster_scripts import CPMG, T1, Rabi
+from esr_and_rabi import ESRAndRabi
 
 # old imports with try/except
-verbose = False
+# verbose = False
 
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
@@ -133,11 +134,11 @@ verbose = False
 #
 # # ==== import Stanford instruments ESR scripts=================================================================
 # # =============================================================================================================
-try:
-    from esr import StanfordResearch_ESR
-except:
-    if verbose:
-        print("./src/scripts/__init__ warning! StanfordResearch_ESR did not load")
+# try:
+#     from esr import ESR
+# except:
+#     if verbose:
+#         print("./src/scripts/__init__ warning! ESR did not load")
 #
 # # try:
 # #     from legacy_src.old_scripts.ESR_Selected_NVs import ESR_Selected_NVs

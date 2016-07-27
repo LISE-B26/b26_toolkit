@@ -8,7 +8,7 @@ from collections import deque
 from b26_toolkit.src.plotting.plots_1d import plot_esr
 from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr
 
-class StanfordResearch_ESR(Script):
+class ESR(Script):
     # COMMENT_ME
 
     _DEFAULT_SETTINGS = [
@@ -30,7 +30,6 @@ class StanfordResearch_ESR(Script):
 
     def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path = None):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
-
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -49,13 +48,9 @@ class StanfordResearch_ESR(Script):
         self.instruments['daq']['instance'].settings['analog_output']['ao2']['sample_rate'] = sample_rate
         self.instruments['daq']['instance'].settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
-        # move to NV point if given
-        # if not (nv_x is None):
-        #     move_to_NV((nv_x, nv_y))
 
         esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
-        self.data = deque()
-        self.fit_params_list = deque()
+        self.data = {'frequency': [], 'data': [], 'fit_params': []}
 
         # run sweeps
         for scan_num in xrange(0, self.settings['esr_avg']):
@@ -108,17 +103,10 @@ class StanfordResearch_ESR(Script):
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
             fit_params = fit_esr(freq_values, esr_avg)
-            self.data.append({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+            self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)
-        #
-        # if self.settings['save']:
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
-        #
-        #     self.save_image_to_disk()
 
 
     def _calc_progress(self, scan_num):
@@ -130,8 +118,8 @@ class StanfordResearch_ESR(Script):
 
     def _plot(self, axes_list):
         #COMMENT_ME
-        plot_esr(axes_list[0], self.data[-1]['frequency'], self.data[-1]['data'], self.data[-1]['fit_params'])
-
+        # plot_esr(axes_list[0], self.data[-1]['frequency'], self.data[-1]['data'], self.data[-1]['fit_params'])
+        plot_esr(axes_list[0], self.data['frequency'], self.data['data'], self.data['fit_params'])
     def get_axes_layout(self, figure_list):
         """
         returns the axes objects the script needs to plot its data
@@ -144,7 +132,7 @@ class StanfordResearch_ESR(Script):
 
         """
         new_figure_list = [figure_list[1]]
-        return super(StanfordResearch_ESR, self).get_axes_layout(new_figure_list)
+        return super(ESR, self).get_axes_layout(new_figure_list)
 
         # # fit ESR curve to lorentzian and return fit parameters. If initial guess known, put in fit_start_params, otherwise
         # # guesses reasonable initial values.
@@ -168,7 +156,7 @@ class StanfordResearch_ESR(Script):
 if __name__ == '__main__':
     script = {}
     instr = {}
-    script, failed, instr = Script.load_and_append({'StanfordResearch_ESR': 'StanfordResearch_ESR'}, script, instr)
+    script, failed, instr = Script.load_and_append({'ESR': 'ESR'}, script, instr)
 
     print(script)
     print(failed)

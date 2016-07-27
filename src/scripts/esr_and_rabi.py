@@ -1,8 +1,8 @@
-from PyLabControl.src.core import Script, Parameter
-from src.scripts import StanfordResearch_ESR, Rabi
+from PyLabControl.src.core import Script
+from b26_toolkit.src.scripts import ESR, Rabi
 
 
-class ESR_AND_RABI(Script):
+class ESRAndRabi(Script):
     """
     Does both an ESR experiment and a Rabi experiment on an NV, using the reference frequency from the esr data.
     """
@@ -11,7 +11,7 @@ class ESR_AND_RABI(Script):
 
     _INSTRUMENTS = {}
 
-    _SCRIPTS = {'esr': StanfordResearch_ESR, 'rabi': Rabi}
+    _SCRIPTS = {'esr': ESR, 'rabi': Rabi}
 
     def __init__(self, scripts, name = None, settings = None, log_function = None, timeout = 1000000000, data_path = None):
 
@@ -22,24 +22,27 @@ class ESR_AND_RABI(Script):
 
         self.scripts['esr'].run()
 
-        if len(self.scripts['esr'].data['fit_params']) == 4:
-            self.rabi_frequency = self.scripts['esr'].data['fit_params'][2]
-        elif len(self.scripts['esr'].data['fit_params']) == 6:
-            self.rabi_frequency = self.scripts['esr'].data['fit_params'][4]
-        else:
-            raise RuntimeError('Could not get fit parameters from esr script')
+        if self.scripts['esr'].data['fit_params'] is not None:
+            if len(self.scripts['esr'].data['fit_params']) == 4:
+                self.rabi_frequency = self.scripts['esr'].data['fit_params'][2]
+            elif len(self.scripts['esr'].data['fit_params']) == 6:
+                self.rabi_frequency = self.scripts['esr'].data['fit_params'][4]
+            else:
+                raise RuntimeError('Could not get fit parameters from esr script')
 
-        if self.rabi_frequency > self.scripts['esr'].settings['freq_start']:
-            self.lot('Resonance frequency found was below esr sweep range, aborting rabi attempt')
-        elif self.rabi_frequency < self.scripts['esr'].settings['freq_stop']:
-            self.log('Resonance frequency found was above esr sweep range, aborting rabi attempt')
+            if self.rabi_frequency < self.scripts['esr'].settings['freq_start']:
+                self.log('Resonance frequency found ({:0.2e}) was below esr sweep range, aborting rabi attempt'.format(self.rabi_frequency))
+            elif self.rabi_frequency > self.scripts['esr'].settings['freq_stop']:
+                self.log('Resonance frequency found ({:0.2e}) was above esr sweep range, aborting rabi attempt'.format(self.rabi_frequency))
+            else:
+                self.scripts['rabi'].settings['mw_frequency'] = float(self.rabi_frequency)
+                self.scripts['rabi'].run()
         else:
-            self.scripts['rabi'].settings['mw_frequency'] = self.rabi_frequency
-            self.scripts['rabi'].run()
+            self.log('No resonance frequency found skipping rabi attempt')
 
 
     def plot(self, axes_list):
-        if self._current_subscript_stage['current_subscript'] == 'esr':
+        if self._current_subscript_stage['current_subscript'].name == 'esr':
             self.scripts['esr'].plot(axes_list)
-        elif self._current_subscript_stage['current_subscript'] == 'rabi':
+        elif self._current_subscript_stage['current_subscript'].name == 'rabi':
             self.scripts['rabi'].plot(axes_list)
