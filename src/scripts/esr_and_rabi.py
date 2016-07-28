@@ -35,6 +35,7 @@ class ESRAndRabi(Script):
             elif self.rabi_frequency > self.scripts['esr'].settings['freq_stop']:
                 self.log('Resonance frequency found ({:0.2e}) was above esr sweep range, aborting rabi attempt'.format(self.rabi_frequency))
             else:
+                self.log('Starting rabi with frequency {:.4e} Hz'.format(self.rabi_frequency))
                 self.scripts['rabi'].settings['mw_frequency'] = float(self.rabi_frequency)
                 self.scripts['rabi'].run()
         else:

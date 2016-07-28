@@ -11,7 +11,7 @@ from esr import ESR
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
 # from ni_fpga_polarization_controller import FPGA_PolarizationController, AutoFocusNIFPGA
-from find_max_counts_point_2d import FindMaxCounts2D
+from find_nv import FindNV
 
 from atto_scan import AttoStep
 
