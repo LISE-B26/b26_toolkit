@@ -9,7 +9,7 @@ from PyLabControl.src.core import Script, Parameter
 from b26_toolkit.src.scripts import GalvoScan, SetLaser
 
 
-class FindMaxCounts2D(Script):
+class FindNV(Script):
     """
 GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
 resulting in an image in the current field of view of the objective.
@@ -162,7 +162,7 @@ Known issues:
 
         # create a new figure list that contains only figure 1, this assures that the super.get_axes_layout doesn't
         # empty the plot contained on figure 2
-        return super(FindMaxCounts2D, self).get_axes_layout([figure_list[0]])
+        return super(FindNV, self).get_axes_layout([figure_list[0]])
 
 
 
