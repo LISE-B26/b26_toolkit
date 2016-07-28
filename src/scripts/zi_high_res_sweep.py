@@ -4,9 +4,9 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.plotting import plotting
-from src.core import Script, Parameter
-from src.scripts import ZISweeper
+from b26_toolkit.src.plotting.plots_1d import plot_psd
+from PyLabControl.src.core import Script, Parameter
+from b26_toolkit.src.scripts import ZISweeper
 
 
 class ZISweeperHighResolution(Script):
@@ -178,5 +178,5 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
             freq = self.data['frequency']
             freq = freq[np.isfinite(r)]
             r = r[np.isfinite(r)]
-            plotting.plot_psd(freq, r, axes, False)
+            plot_psd(freq, r, axes, False)
 

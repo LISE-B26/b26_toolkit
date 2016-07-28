@@ -2,9 +2,8 @@ import time
 from collections import deque
 
 from b26_toolkit.src.instruments import DAQ
-from b26_toolkit.src.plotting import plot_counts
-from src.core import Parameter
-from src.core.scripts import Script
+from b26_toolkit.src.plotting.plots_1d import plot_counts
+from PyLabControl.src.core import Parameter, Script
 
 
 class Daq_Read_Counter(Script):

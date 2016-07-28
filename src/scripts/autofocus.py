@@ -6,10 +6,10 @@ import scipy as sp
 from PyQt4.QtCore import pyqtSlot
 
 from b26_toolkit.src.instruments import PiezoController
-from b26_toolkit.src.plotting import plot_fluorescence_new, update_fluorescence
-from src.core import Parameter, Script
-from src.scripts import GalvoScan
-from src.scripts import GalvoScanNIFpga
+from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+from PyLabControl.src.core import Parameter, Script
+from b26_toolkit.src.scripts import GalvoScan
+# from src.scripts import GalvoScanNIFpga
 
 
 class AutoFocusGeneric(Script):
@@ -270,7 +270,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     """
 
     _SCRIPTS = {
-        'take_image': GalvoScanNIFpga
+        # 'take_image': GalvoScanNIFpga
     }
 
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
@@ -335,7 +335,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 if __name__ == '__main__':
 
 
-    # from src.core.read_write_functions import load_b26_file
+    # from PyLabControl.src.core.read_write_functions import load_b26_file
     #
     # in_data = load_b26_file('C:\\b26_tmp\\gui_settings.b26')
     #

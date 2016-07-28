@@ -1,8 +1,8 @@
 import numpy as np
 
 from b26_toolkit.src.instruments import DAQ
-from b26_toolkit.src.plotting import plot_fluorescence_new, update_fluorescence
-from src.core import Script, Parameter
+from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+from PyLabControl.src.core import Script, Parameter
 
 
 class GalvoScan(Script):

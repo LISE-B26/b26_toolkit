@@ -7,8 +7,8 @@
 
 import matplotlib.pyplot as plt
 
-from b26_toolkit.src.plotting import plotting
-from src.core import Script
+from b26_toolkit.src.plotting.plots_2d import plot_fluorescence
+from PyLabControl.src.core import Script
 
 
 def galvo_images(data_path, target_path = None):
@@ -31,7 +31,7 @@ def galvo_images(data_path, target_path = None):
         k  = 'image_{:d}'.format(c)
         fig = plt.figure()
         ax = plt.subplot(111)
-        plotting.plot_fluorescence(data[k], extent =[0.02, 0.17, 0.05, -0.10], axes = ax)
+        plot_fluorescence(data[k], extent =[0.02, 0.17, 0.05, -0.10], axes = ax)
         fig.savefig('{:s}/{:s}.png'.format(TARGET_PATH, k))
         fig.close()
 

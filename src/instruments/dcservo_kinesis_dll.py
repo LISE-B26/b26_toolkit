@@ -1,11 +1,12 @@
 # clr is python for .net
 import clr # run pip install pythonnet
-import sys
+import sys, os
 from PyLabControl.src.core.read_write_functions import get_config_value
 
-sys.path.insert(0,get_config_value('KINESIS_DLL_PATH'))
-
-from src.core.instruments import *
+dll_path = get_config_value('KINESIS_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+sys.path.insert(0,dll_path)
+# JG: July 27 2016 uncommented folowing line: don't use import *!
+# from PyLabControl.src.core.instruments import *
 from PyLabControl.src.core import Parameter, Instrument
 
 # ctypes DLL load failed: Probably a C++ dll was provided, which is incompatable with ctypes, possibly due to name

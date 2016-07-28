@@ -1,9 +1,8 @@
 import numpy as np
-from src.scripts.exec_pulse_blaster_sequence import ExecutePulseBlasterSequence
-
+from b26_toolkit.src.scripts.exec_pulse_blaster_sequence import ExecutePulseBlasterSequence
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, MicrowaveGenerator, Pulse
-from b26_toolkit.src.plotting import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple, update_1d_simple
-from src.core import Parameter, Script
+from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple, update_1d_simple
+from PyLabControl.src.core import Parameter, Script
 
 
 class PulsedESR(ExecutePulseBlasterSequence):
@@ -122,11 +121,12 @@ This script applies a microwave pulse at fixed power for varying durations to me
                   'time step increment of rabi pulse duration (in ns)'),
         Parameter('time', 200, float, 'total time of rabi oscillations (in ns)'),
         Parameter('meas_time', 300, float, 'measurement time after rabi sequence (in ns)'),
-        Parameter('delay_init_mw', 0, int, 'delay between initialization and mw (in ns)'),
-        Parameter('delay_mw_readout', 0, int, 'delay between mw and readout (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
+        Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
+        Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+        Parameter('num_averages', 100000, int, 'number of averages'),
         Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
+        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
+        Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
     ]
 
     _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -154,18 +154,17 @@ This script applies a microwave pulse at fixed power for varying durations to me
         tau_list = range(int(max(15, self.settings['time_step'])), int(self.settings['time'] + 15),
                          self.settings['time_step'])
         reset_time = self.settings['reset_time']
-        for tau in tau_list:
 
-            pulse_sequences.append([Pulse('laser', 0, reset_time),
-                                    Pulse('apd_readout', reset_time - self.settings['meas_time'],
-                                          self.settings['meas_time']),
+        for tau in tau_list:
+            pulse_sequences.append([Pulse('laser', 0, reset_time - self.settings['ref_meas_off_time'] - 15 - self.settings['meas_time']),
+                                    Pulse('apd_readout', reset_time - 15 - self.settings['meas_time'],self.settings['meas_time']),
+                                    Pulse('laser', reset_time - 15 - self.settings['meas_time'],self.settings['meas_time']),
                                     Pulse('microwave_i', reset_time + self.settings['delay_init_mw'], tau),
                                     Pulse('laser', reset_time + self.settings['delay_init_mw'] + tau + self.settings[
                                         'delay_mw_readout'], self.settings['meas_time']),
-                                    Pulse('apd_readout',
-                                          reset_time + self.settings['delay_init_mw'] + tau + self.settings[
-                                              'delay_mw_readout'], self.settings['meas_time'])
+                                    Pulse('apd_readout',reset_time + self.settings['delay_init_mw'] + tau + self.settings['delay_mw_readout'], self.settings['meas_time'])
                                     ])
+
 
         end_time_max = 0
         for pulse_sequence in pulse_sequences:
@@ -736,8 +735,7 @@ This script measures the relaxation time of an NV center
         Parameter('meas_time', 300, float, 'measurement time of fluorescence counts (ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
-        Parameter('ref_meas_off_time', 100, int,
-                  'laser off time before taking reference measurement at the end of init (ns)'),
+        Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands')
     ]
 
@@ -772,17 +770,6 @@ This script measures the relaxation time of an NV center
                  Pulse('apd_readout', reset_time + tau, self.settings['meas_time']),
                  Pulse('laser', reset_time + tau, self.settings['meas_time']),
                  ])
-        """
-        # The following would ensure that each pulse sequence in pulse_sequences takes the same total time
-        end_time_max = 0
-        for pulse_sequence in pulse_sequences:
-            for pulse in np.flatten(pulse_sequences):
-                end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
-
-        for pulse_sequence in pulse_sequences:
-            pulse_sequence.append(Pulse('laser', end_time_max + 1000, 15))
-
-        """
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 

@@ -2,7 +2,7 @@ import matplotlib.patches as patches
 import numpy as np
 from matplotlib.collections import PatchCollection
 
-from src.data_processing.fit_functions import lorentzian, double_lorentzian
+from b26_toolkit.src.data_processing.fit_functions import lorentzian, double_lorentzian
 
 
 def plot_psd(freq, psd, axes, clear = True):

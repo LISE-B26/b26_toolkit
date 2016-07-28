@@ -4,8 +4,8 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster
-from b26_toolkit.src.plotting import plot_1d_simple, plot_pulses, update_pulse_plot, update_1d_simple
-from src.core.scripts import Script
+from b26_toolkit.src.plotting.plots_1d import plot_1d_simple, plot_pulses, update_pulse_plot, update_1d_simple
+from PyLabControl.src.core.scripts import Script
 
 MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
@@ -310,7 +310,7 @@ for a given experiment
 
     def stop(self):
         # COMMENT_ME
-        self.instruments['PB']['instance'].stop()
+        # self.instruments['PB']['instance'].stop()
         super(ExecutePulseBlasterSequence, self).stop()
 
 

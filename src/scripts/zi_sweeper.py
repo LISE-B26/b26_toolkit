@@ -2,8 +2,8 @@ from collections import deque
 
 import numpy as np
 
-from b26_toolkit.src.plotting import plotting
-from src.core import Script, Parameter
+from b26_toolkit.src.plotting.plots_1d import plot_psd
+from PyLabControl.src.core import Script, Parameter
 
 
 class ZISweeper(Script):
@@ -119,7 +119,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         freq = self.data[-1]['frequency']
         freq = freq[np.isfinite(r)]
         r = r[np.isfinite(r)]
-        plotting.plot_psd(freq, r, axes)
+        plot_psd(freq, r, axes)
 
 if __name__ == '__main__':
     from b26_toolkit.src.instruments import ZIHF2
