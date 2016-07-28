@@ -139,8 +139,11 @@ class MaestroController(Instrument):
 
 
     def disable(self, chan):
-        #COMMENT_ME
-
+        """
+        Disables the given output channel
+        Args:
+            chan: the channel to disable
+        """
         target = 0
         #
         lsb = target & 0x7f #7 bits for least significant byte
@@ -151,37 +154,54 @@ class MaestroController(Instrument):
         # Record Target value
         self.Targets[chan] = target
 
-    # Set speed of channel
-    # Speed is measured as 0.25microseconds/10milliseconds
-    # For the standard 1ms pulse width change to move a servo between extremes, a speed
-    # of 1 will take 1 minute, and a speed of 60 would take 1 second.
-    # Speed of 0 is unrestricted.
+
     def set_speed(self, chan, speed):
+        """
+        Set speed of channel
+        Speed is measured as 0.25microseconds/10milliseconds
+        For the standard 1ms pulse width change to move a servo between extremes, a speed
+        of 1 will take 1 minute, and a speed of 60 would take 1 second.
+        Speed of 0 is unrestricted.
+        Args:
+            chan: channel on which to set speed
+            speed: movement speed to set in units of 0.25microseconds/10milliseconds
+        """
         lsb = speed & 0x7f #7 bits for least significant byte
         msb = (speed >> 7) & 0x7f #shift 7 and take next 7 bits for msb
         # Send Pololu intro, device number, command, channel, speed lsb, speed msb
         cmd = self.PololuCmd + chr(0x07) + chr(chan) + chr(lsb) + chr(msb)
         self.usb.write(cmd)
 
-    # Set acceleration of channel
-    # This provide soft starts and finishes when servo moves to target position.
-    # Valid values are from 0 to 255. 0=unrestricted, 1 is slowest start.
-    # A value of 1 will take the servo about 3s to move between 1ms to 2ms range.
+
     def set_accel(self, chan, accel):
+        """
+        Set acceleration of channel
+        This provide soft starts and finishes when servo moves to target position.
+        Args:
+            chan: channel on which to set acceleration
+            accel: Valid values are from 0 to 255. 0=unrestricted, 1 is slowest start. A value of 1 will take
+                   the servo about 3s to move between 1ms to 2ms range.
+
+        """
         lsb = accel & 0x7f #7 bits for least significant byte
         msb = (accel >> 7) & 0x7f #shift 7 and take next 7 bits for msb
         # Send Pololu intro, device number, command, channel, accel lsb, accel msb
         cmd = self.PololuCmd + chr(0x09) + chr(chan) + chr(lsb) + chr(msb)
         self.usb.write(cmd)
 
-    # Get the current position of the device on the specified channel
-    # The result is returned in a measure of quarter-microseconds, which mirrors
-    # the Target parameter of setTarget.
-    # This is not reading the true servo position, but the last target position sent
-    # to the servo. If the Speed is set to below the top speed of the servo, then
-    # the position result will align well with the acutal servo position, assuming
-    # it is not stalled or slowed.
     def get_position(self, chan):
+        """
+        Get the current position of the device on the specified channel
+        The result is returned in a measure of quarter-microseconds, which mirrors
+        the Target parameter of setTarget.
+        This is not reading the true servo position, but the last target position sent
+        to the servo. If the Speed is set to below the top speed of the servo, then
+        the position result will align well with the acutal servo position, assuming
+        it is not stalled or slowed.
+        Args:
+            chan: channel on which to get position
+
+        """
         cmd = self.PololuCmd + chr(0x10) + chr(chan)
         self.usb.write(cmd)
         lsb = ord(self.usb.read())
@@ -224,15 +244,17 @@ class MaestroController(Instrument):
     #     cmd = self.PololuCmd + chr(0x24)
     #     self.usb.write(cmd)
 
-    # Stop the current Maestro Script
     def go_home(self):
+        """
+        Stop the current Maestro Script
+        """
         cmd = self.PololuCmd + chr(0x22)
         self.usb.write(cmd)
 
 class MaestroLightControl(MaestroController):
     """
-maestro light controller
-6-channel maestro micro-controller to control the lights in the cold temperature setup
+    MaestroController for use in B26. Includes beamblocks and a filterwheel. To use your own devices, overwrite
+    these values with the correct position specifications.
     """
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM1', ['COM1', 'COM3', 'COM5', 'COM7'], 'com port to which maestro controler is connected'),
@@ -276,6 +298,12 @@ maestro light controller
 
 
     def update(self, settings):
+        """
+        Updates the settings in software and, if applicable, takes an action to modify the hardware, such as opening
+        a beamblock or spinning a filterwheel
+        Args:
+            settings: a dictionary in the standard settings format
+        """
         # call the update_parameter_list to update the parameter list
         super(MaestroLightControl, self).update(settings)
         # now we actually apply these newsettings to the hardware
@@ -298,9 +326,7 @@ maestro light controller
 
 class MaestroBeamBlock(Instrument):
     """
-MaestroBeamBlock:
------------------
-motorized mount with two positions, generally used for blocking ir unblocking beams, but can also be used as a flip mount
+    motorized mount with two positions, generally used for blocking ir unblocking beams, but can also be used as a flip mount
     """
 
     _DEFAULT_SETTINGS = Parameter([
@@ -328,6 +354,11 @@ motorized mount with two positions, generally used for blocking ir unblocking be
         self.update(self.settings)
 
     def update(self, settings):
+        """
+        Updates the settings in software, and if the 'open' setting is changed then open or closes the beamblock
+        Args:
+            settings: a dictionary in the standard settings format
+        """
 
         # call the update_parameter_list to update the parameter list
         super(MaestroBeamBlock, self).update(settings)
@@ -342,14 +373,14 @@ motorized mount with two positions, generally used for blocking ir unblocking be
 
 
     def read_probes(self, key):
-        '''
+        """
         requestes value from the instrument and returns it
         Args:
             key: name of requested value
 
         Returns: reads values from instrument
 
-        '''
+        """
         assert key in self._PROBES.keys()
 
         value = None
@@ -365,13 +396,21 @@ motorized mount with two positions, generally used for blocking ir unblocking be
         return self.maestro._is_connected
 
     def goto(self, position):
+        """
+        Move to the given position
+        Args:
+            position: Position to move to, in proprietary units
+        """
         self.maestro.set_target(self.settings['channel'], position)
         sleep(self.settings['settle_time'])
         self.maestro.disable(self.settings['channel']) # diconnect to avoid piezo from going crazy
 
 
 class MaestroFilterWheel(Instrument):
-
+    """
+    Motorized filter wheel, which turns to different preset positions. By default has four windows, three of which are
+    in use and accessable, but this can be overwritten by changing the defaults.
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('channel', 0, int, 'channel to which motor is connected'),
@@ -403,6 +442,12 @@ class MaestroFilterWheel(Instrument):
 
 
     def update(self, settings):
+        """
+        Updates the settings in software and, if the 'current_position' setting is changed, moves the filter wheel to
+        the new current position
+        Args:
+            settings: a dictionary in the standard settings format
+        """
         # call the update_parameter_list to update the parameter list
         super(MaestroFilterWheel, self).update(settings)
 
@@ -439,6 +484,11 @@ class MaestroFilterWheel(Instrument):
 
 
     def goto(self, position):
+        """
+        Move to the given position
+        Args:
+            position: Position to move to, in proprietary units
+        """
         self.maestro.set_target(self.settings['channel'], position)
         sleep(self.settings['settle_time'])
         self.maestro.disable(self.settings['channel'])  # diconnect to avoid piezo from going crazy

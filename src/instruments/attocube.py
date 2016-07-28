@@ -34,10 +34,11 @@ class Attocube(Instrument):
     '''
     Class to control an attocube using a supplied controller. Has been tested on an
     ANC350 controlling a stack of two ANPx101res and one ANPz101res, but it should
-    work with any controllers supporting the same low level dll commands if the path
-    to the dll is reset.
+    work with any controllers supporting the same low level dll commands.
+    The path to the dll should be set in config.txt in this folder
     Note that we use the 1.5 version of the dll, the 2.0 version cannot be read properly
     and may be written in a non-ctypes compatible language
+    The class communicates with the device over USB.
     '''
 
     _DEFAULT_SETTINGS = Parameter([
@@ -68,7 +69,8 @@ class Attocube(Instrument):
     ])
 
     def __init__(self, name = None, settings = None):
-        #COMMENT_ME
+        # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
+        # and all future calls will fail. If a DLL but no instrument connected, throw an error.
         super(Attocube, self).__init__(name, settings)
         dll_path = get_config_value('ATTOCUBE_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         try:
@@ -79,7 +81,6 @@ class Attocube(Instrument):
             # make a fake Attocube instrument
             dll_detected = False
             warnings.warn("Attocube DLL not found. If it should be present, check the path.")
-            print(dll_path)
         if dll_detected == True:
             try:
                 self.pi = PositionerInfo()

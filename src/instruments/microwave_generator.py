@@ -7,6 +7,10 @@ RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MAX = 4050000000 #4.050 GHZ
 
 class MicrowaveGenerator(Instrument):
+    """
+    This class implements the Stanford Research Systems SG384 microwave generator. The class commuicates with the
+    device over GPIB using pyvisa.
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 27, range(0,31), 'GPIB port on which to connect'),
@@ -115,7 +119,14 @@ class MicrowaveGenerator(Instrument):
             return False
 
     def _param_to_internal(self, param):
-        #COMMENT_ME
+        """
+        Converts settings parameters to the corresponding key used for GPIB commands in the SRS.
+        Args:
+            param: settings parameter, ex. enable_output
+
+        Returns: GPIB command, ex. ENBR
+
+        """
         if param == 'enable_output':
             return 'ENBR'
         elif param == 'frequency':
