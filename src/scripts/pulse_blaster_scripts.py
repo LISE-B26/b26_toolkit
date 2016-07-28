@@ -124,7 +124,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
         Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
+        Parameter('reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
         Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
         Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
     ]
@@ -180,8 +180,9 @@ This script applies a microwave pulse at fixed power for varying durations to me
     #TODO: Test if the following code will add 'Rabi' as a title to main plot in GUI and add a legend
     def _plot(self, axislist):
         #COMMENT_ME
+
         super(Rabi, self)._plot(axislist)
-        axislist[0].set_title('Rabi')
+        axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9))
         axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 

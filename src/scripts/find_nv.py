@@ -23,8 +23,8 @@ Known issues:
                   [Parameter('x', 0, float, 'x-coordinate'),
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
-        Parameter('sweep_range', .02, float, 'voltage range to sweep over to find a max'),
-        Parameter('num_points', 40, int, 'number of points to sweep in the sweep range'),
+        Parameter('sweep_range', .03, float, 'voltage range to sweep over to find a max'),
+        Parameter('num_points', 60, int, 'number of points to sweep in the sweep range'),
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
         Parameter('min_mass', 180, int, 'TEMP: brightness of nv - need to be refined!!'),
         Parameter('number_of_attempts', 1, int, 'Number of times to decrease min_mass if an NV is not found')

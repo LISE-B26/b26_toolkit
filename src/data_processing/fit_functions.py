@@ -389,13 +389,14 @@ def exp_offset(t, ao, tau, offset):
     return np.exp(-t / tau) * ao + offset
 
 
-def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
+def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = False):
     """
     fit to a cosine with an exponential envelope
     Args:
         t: time in ns
         y: counts in kilocounts
         varibale_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
+        return_guess: return also the initial guess parameters that are used in the fit
 
     """
 
@@ -439,5 +440,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
 
     if verbose:
         print('optimization result:', opt)
-
-    return opt.x
+    if return_guess:
+        return opt.x, initial_parameter
+    else:
+        return opt.x
