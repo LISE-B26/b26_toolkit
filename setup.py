@@ -33,7 +33,8 @@ setup(
         'trackpy',
         'pythonnet',
         'pyvisa',
-        'peakutils'
+        'peakutils',
+        'pillow'
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
