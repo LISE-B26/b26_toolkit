@@ -29,11 +29,6 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
     ],
     install_requires=[
-        'pyserial',
-        'trackpy',
-        'pythonnet',
-        'pyvisa',
-        'peakutils',
         'pillow'
     ],
     test_suite='nose.collector',
