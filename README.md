@@ -31,7 +31,7 @@ in the windows commandline interface, where `<file_path>` is a valid path to sav
 The instruments and scripts that were able to be exported will then be located at that file path, and could be imported into the PyLabControl GUI.
 
 
-#### FAQ
+## FAQ
 + **Some instruments seemed to have exported; How can I see what errors occured?**
 
 To see the errors that occur when an instrument does not export, simply try importing that instrument and creating an instance of it.
