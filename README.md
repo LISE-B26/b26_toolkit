@@ -11,8 +11,9 @@ It is distributed under the GPLv3 license. For more information, see LICENSE.txt
 
 
 ## Getting Started
-#Prerequisites
-Before installing b26_tookit, be sure to have PyLabControl installed. Details can be found at https://github.com/LISE-B26/PyLabControl .
+###Prerequisites
+Before installing b26_tookit, be sure to have PyLabControl installed. 
+Details can be found at the PyLabControl Github page,  https://github.com/LISE-B26/PyLabControl .
 
 ### Installation
 The simplest way to install b26_toolkit is with the command-line utility pip. To install simply issue the command
@@ -32,7 +33,6 @@ The instruments and scripts that were able to be exported will then be located a
 
 #### FAQ
 + Some instruments seemed to have exported; How can I see what errors occured?
-
 To see the errors that occur when an instrument does not export, simply try importing that instrument and creating an instance of it.
 For example, while in a python interpreter, one could write
 
@@ -44,9 +44,7 @@ piezo_controller_x = PiezoController('x')
 and see what errors occur. Feel free to reach out to the authors with any difficulties.
 
 + What instruments have been implemented?
-
 For a full list of instruments, see the files in b26_toolkit/src/instruments/ .
 
 + How can we send feedback?
-
 Feel free to create an issue on the issue tracker if you find any bugs, or contact the authors directly.
