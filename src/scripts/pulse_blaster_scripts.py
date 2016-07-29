@@ -795,7 +795,7 @@ This script measures the relaxation time of an NV center
     def _plot(self, axislist):
         super(T1, self)._plot(axislist)
         axislist[0].set_title('T1')
-        axislist[0].legend(labels=('T1 data', 'Ref Fluorescence'), fontsize=8)
+        axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
 
 
 
