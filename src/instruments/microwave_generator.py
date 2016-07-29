@@ -1,3 +1,21 @@
+"""
+    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+
+    Foobar is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Foobar is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 import visa
 import pyvisa.errors
 
@@ -49,7 +67,12 @@ class MicrowaveGenerator(Instrument):
     #     self.srs.close()
 
     def update(self, settings):
-        #COMMENT_ME
+        """
+        Updates the internal settings of the MicrowaveGenerator, and then also updates physical parameters such as
+        frequency, amplitude, modulation type, etc in the hardware
+        Args:
+            settings: a dictionary in the standard settings format
+        """
         super(MicrowaveGenerator, self).update(settings)
         # XXXXX MW ISSUE = START
         # ===========================================
@@ -89,7 +112,6 @@ class MicrowaveGenerator(Instrument):
         }
 
     def read_probes(self, key):
-        #COMMENT_ME
         assert key in self._PROBES.keys()
 
         #query always returns string, need to cast to proper return type
@@ -111,9 +133,8 @@ class MicrowaveGenerator(Instrument):
 
     @property
     def is_connected(self):
-        #COMMENT_ME
         try:
-            self.srs.query('*IDN?') # simple call to check connection
+            self.srs.query('*IDN?') # arbitrary call to check connection, throws exception on failure to get response
             return True
         except pyvisa.errors.VisaIOError:
             return False

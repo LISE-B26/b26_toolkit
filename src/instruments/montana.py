@@ -1,17 +1,34 @@
+"""
+    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+
+    Foobar is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Foobar is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+"""
 from PyLabControl.src.core import Instrument, Parameter
 import time, datetime
 import pandas as pd
 import os
 class CryoStation(Instrument):
-
+    """
+    instrument class to talk to get infos from Montana Cryostation
+    Now this doesn't actually communicate with the Cryostation but only reads data from a log-file
+    """
     _DEFAULT_SETTINGS = Parameter(
         Parameter('path', 'C:/Cryostation/Temperature Data/', str, 'path to log file of cryostation'),
     )
 
-    '''
-    instrument class to talk to get infos from Montana Cryostation
-    Now this doesn't actually communicate with the Cryostation but only reads data from a log-file
-    '''
+
     def __init__(self, name = None, settings = None):
 
         super(CryoStation, self).__init__(name, settings)

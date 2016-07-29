@@ -1,18 +1,14 @@
 from distutils.core import setup
 
 # def readme():
-#     with open('README.rst') as f:
+#     with open('README.md') as f:
 #         return f.read()
 
 setup(
     name='b26_toolkit',
     version='0.1.0',
-    packages=['', 'src', 'src.scripts', 'src.plotting', 'src.instruments', 'src.instruments.labview_fpga_lib',
-              'src.instruments.labview_fpga_lib.old', 'src.instruments.labview_fpga_lib.read_fifo',
-              'src.instruments.labview_fpga_lib.galvo_scan', 'src.instruments.labview_fpga_lib.read_ai_ao',
-              'src.instruments.labview_fpga_lib.pid_loop_simple',
-              'src.instruments.labview_fpga_lib.labview_helper_functions', 'src.data_processing', 'tests',
-              'tests.scripts', 'tests.instruments'],
+    package_dir={'b26_toolkit': ''},
+    packages=['b26_toolkit.src', 'b26_toolkit.src.data_processing', 'b26_toolkit.src.instruments', 'b26_toolkit.src.plotting', 'b26_toolkit.src.scripts', 'b26_toolkit.tests'],
     url='https://github.com/LISE-B26/b26_toolkit',
     license='GPL',
     author='Aaron Kabcenell, Jan Gieseler, and Arthur Safira',
@@ -32,5 +28,5 @@ setup(
         'pillow'
     ],
     test_suite='nose.collector',
-    tests_require=['nose'],
+    tests_require=['nose']
 )
