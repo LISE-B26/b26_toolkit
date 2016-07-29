@@ -28,7 +28,8 @@ from System import Decimal, Double
 class TDC001(Instrument):
     '''
     Class to control the thorlabs TDC001 servo. Note that ALL DLL FUNCTIONS TAKING NUMERIC INPUT REQUIRE A SYSTEM.DECIMAL
-    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api
+    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api.
+    The class communicates with the device over USB.
     '''
 
     _DEFAULT_SETTINGS = Parameter([
@@ -72,6 +73,11 @@ class TDC001(Instrument):
         currentDeviceSettings = self.device.MotorDeviceSettings
 
     def update(self, settings):
+        '''
+        Updates internal settings, as well as the position and velocity set on the physical device
+        Args:
+            settings: A dictionary in the form of settings as seen in default settings
+        '''
         super(TDC001, self).update(settings)
         for key, value in settings.iteritems():
             if key == 'position':
@@ -110,6 +116,9 @@ class TDC001(Instrument):
         self.device.Disconnect()
 
     def goto_home(self):
+        '''
+        Recenters device at the home position. Raises an exception on failure.
+        '''
         try:
             self.device.Home(60000)
         except Exception:
@@ -118,7 +127,7 @@ class TDC001(Instrument):
 
     def _move_servo(self, position, velocity = 0):
         '''
-        Move servo to given position with given maximum velocity
+        Move servo to given position with given maximum velocity. Raises an exception on failure.
         :param position: position in mm, ranges from 0-6
         :param velocity: maximum velocity in mm/s, ranges from 0-2.5
         :PostState: servo has moved
@@ -176,5 +185,6 @@ class TDC001(Instrument):
         return float(str(value))
 
 if __name__ == '__main__':
+    #A test function for the device. Tries to connect to the
     a = TDC001()
     a.is_connected

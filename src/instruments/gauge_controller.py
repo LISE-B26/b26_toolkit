@@ -4,7 +4,7 @@ from PyLabControl.src.core import Instrument, Parameter
 
 class PressureGauge(Instrument):
     """
-    This class implements the AGC100 pressure gauge.
+    This class implements the AGC100 pressure gauge. The class communicates with the device over RS232 using pyserial.
     """
 
     # Translations of the controller's status messages

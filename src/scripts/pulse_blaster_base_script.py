@@ -11,7 +11,7 @@ MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed
                                  #pulseblaster stores this value in 22 bits in its register
 
 
-class ExecutePulseBlasterSequence(Script):
+class PulseBlasterBaseScript(Script):
     '''
 This class is a base class that should be inherited by all classes that utilize the pulseblaster for experiments. The
 _function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
@@ -311,7 +311,7 @@ for a given experiment
     def stop(self):
         # COMMENT_ME
         # self.instruments['PB']['instance'].stop()
-        super(ExecutePulseBlasterSequence, self).stop()
+        super(PulseBlasterBaseScript, self).stop()
 
 
 

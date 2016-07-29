@@ -104,13 +104,13 @@ def fit_double_lorentzian(x_values, y_values, starting_params=None, bounds=None)
         x_values: domain of fit function
         y_values: y-values to fit
         starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
-        length 4 list of the form [constant_offset, amplitude, center, full_width_half_max] or list of list of length 4
-        which are the estimates for each peak.
+        length 6 list of the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
         bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
-                [(offset_lb, amplitude_lb, center_lb, fwhm_lb), (offset_ub, amplitude_ub, center_ub, fwhm_ub)]
+                [(offset_lb, fwhm_lb, amplitude1_lb, amplitude2_lb, center1_lb, center2_lb),
+                (offset_ub, fwhm_ub, amplitude1_ub, amplitude2_ub, center1_ub, center2_ub)]
 
     Returns:
-        a length-6 list of [fit_parameters] in the form [constant_offset, amplitude1, amplitude2, center1, center2, fwhm]
+        a length-6 list of [fit_parameters] in the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
 
     """
 
@@ -389,13 +389,14 @@ def exp_offset(t, ao, tau, offset):
     return np.exp(-t / tau) * ao + offset
 
 
-def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
+def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = False):
     """
     fit to a cosine with an exponential envelope
     Args:
         t: time in ns
         y: counts in kilocounts
         varibale_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
+        return_guess: return also the initial guess parameters that are used in the fit
 
     """
 
@@ -403,7 +404,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
 
     # estimate the decay constant
     t_decay, y_decay = get_decay_data(t, y, wx, verbose)
-    [_, to] = fit_exp_decay(t_decay, y_decay)
+    [_, to] = fit_exp_decay(t_decay, y_decay, )
 
     if varibale_phase:
         initial_parameter = [ax, wx, phi, offset, to]
@@ -422,10 +423,12 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
         """
         if varibale_phase:
             ao, wo, po, offset, to = x
-            sig = ao * np.exp(-t / to) * np.cos(wo * t + po) + offset
+            sig = cose_with_decay(t, ao, wo, po, offset, to)
+            # sig = ao * np.exp(-t / to) * np.cos(wo * t + po) + offset
         else:
             ao, wo, offset, to = x
-            sig = ao * np.exp(-t / to) * np.cos(wo * t) + offset
+            sig = cose_with_decay(t, ao, wo, 0, offset, to)
+            # sig = ao * np.exp(-t / to) * np.cos(wo * t) + offset
         return np.sum((sig - y) ** 2)
 
     opt = optimize.minimize(cost_function_fit, initial_parameter)
@@ -437,5 +440,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False):
 
     if verbose:
         print('optimization result:', opt)
-
-    return opt.x
+    if return_guess:
+        return opt.x, initial_parameter
+    else:
+        return opt.x

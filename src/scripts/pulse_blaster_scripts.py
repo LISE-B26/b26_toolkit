@@ -1,11 +1,11 @@
 import numpy as np
-from b26_toolkit.src.scripts.exec_pulse_blaster_sequence import ExecutePulseBlasterSequence
+from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseScript
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple, update_1d_simple
 from PyLabControl.src.core import Parameter, Script
 
 
-class PulsedESR(ExecutePulseBlasterSequence):
+class PulsedESR(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power and durations for varying frequencies
     """
@@ -110,7 +110,7 @@ This script applies a microwave pulse at fixed power and durations for varying f
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
 
-class Rabi(ExecutePulseBlasterSequence):
+class Rabi(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
     """
@@ -124,7 +124,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
         Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
+        Parameter('reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
         Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
         Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
     ]
@@ -180,12 +180,13 @@ This script applies a microwave pulse at fixed power for varying durations to me
     #TODO: Test if the following code will add 'Rabi' as a title to main plot in GUI and add a legend
     def _plot(self, axislist):
         #COMMENT_ME
+
         super(Rabi, self)._plot(axislist)
-        axislist[0].set_title('Rabi')
+        axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9))
         axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 
-class Rabi_Power_Sweep_Single_Tau(ExecutePulseBlasterSequence):
+class Rabi_Power_Sweep_Single_Tau(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
     """
@@ -341,7 +342,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 #
 #         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
-class Pulsed_ESR_Pulsed_Laser(ExecutePulseBlasterSequence):
+class Pulsed_ESR_Pulsed_Laser(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
     """
@@ -409,7 +410,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
 
 
-class CalibrateMeasurementWindow(ExecutePulseBlasterSequence):
+class CalibrateMeasurementWindow(PulseBlasterBaseScript):
     """
 This script find the optimal duration of the measurment window.
 It applies a pi-pulse and measured the fluorescence counts after for a varying time duration.
@@ -545,7 +546,7 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
         axis3 = axes_list[2]
         update_pulse_plot(axis3, self.pulse_sequences[self.sequence_index])
 
-class CPMG(ExecutePulseBlasterSequence):
+class CPMG(PulseBlasterBaseScript):
     """
 This script runs a CPMG pulse sequence.
     """
@@ -636,7 +637,7 @@ This script runs a CPMG pulse sequence.
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
-class HahnEcho(ExecutePulseBlasterSequence):
+class HahnEcho(PulseBlasterBaseScript):
     """
 This script runs a Hahn-echo sequence for different number of pi pulses. Without pi-pulse this is a Ramsey sequence.
     """
@@ -725,7 +726,7 @@ This script runs a Hahn-echo sequence for different number of pi pulses. Without
         return pulse_sequences, self.settings['num_averages'], [tau], self.settings['meas_time']
 
 
-class T1(ExecutePulseBlasterSequence):
+class T1(PulseBlasterBaseScript):
     """
 This script measures the relaxation time of an NV center
     """
