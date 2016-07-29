@@ -3,15 +3,15 @@ import time, datetime
 import pandas as pd
 import os
 class CryoStation(Instrument):
-
+    """
+    instrument class to talk to get infos from Montana Cryostation
+    Now this doesn't actually communicate with the Cryostation but only reads data from a log-file
+    """
     _DEFAULT_SETTINGS = Parameter(
         Parameter('path', 'C:/Cryostation/Temperature Data/', str, 'path to log file of cryostation'),
     )
 
-    '''
-    instrument class to talk to get infos from Montana Cryostation
-    Now this doesn't actually communicate with the Cryostation but only reads data from a log-file
-    '''
+
     def __init__(self, name = None, settings = None):
 
         super(CryoStation, self).__init__(name, settings)

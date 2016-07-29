@@ -9,7 +9,10 @@ from b26_toolkit.src.plotting.plots_1d import plot_esr
 from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr
 
 class ESR(Script):
-    # COMMENT_ME
+    """
+    This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
+    a DAQ.
+    """
 
     _DEFAULT_SETTINGS = [
         Parameter('power_out', -45.0, float, 'output power (dBm)'),
@@ -18,7 +21,8 @@ class ESR(Script):
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
-        Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers')
+        Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
+        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement')
     ]
 
     _INSTRUMENTS = {
@@ -107,6 +111,9 @@ class ESR(Script):
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)
+
+        if self.settings['turn_off_after']:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': False})
 
 
     def _calc_progress(self, scan_num):

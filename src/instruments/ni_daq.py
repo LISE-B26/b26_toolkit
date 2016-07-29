@@ -41,13 +41,14 @@ DAQmx_Val_Ticks = 10304  # specifies units as timebase ticks
 # ==========================================================
 
 class DAQ(Instrument):
-    '''
+    """
     Class containing all functions used to interact with the NI DAQ, mostly
     acting as a wrapper around C-level dlls provided by NI. Tested on an
-    NI DAQ 6259, but should be compatable (with small changes of default
-    channels) with most daqmx devices. In particular, the physical channel
-    corresponding to the ctr1 PFI in the digital input channelmust be changed
-    '''
+    NI DAQ 6259, but should be compatable with most daqmx devices. Supports
+    analog output (ao), analog input (ai), and digital input (di) channels.
+    Also supports gated digital input, using one PFI channel as a counter
+    and a second as a clock.
+    """
 
     try:
         dll_path = get_config_value('NIDAQ_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
@@ -67,7 +68,7 @@ class DAQ(Instrument):
         raise
 
     #currently includes four analog outputs, five analog inputs, and one digital counter input. Add
-    #more as needed adn your device allows
+    #more as needed and your device allows
     _DEFAULT_SETTINGS = Parameter([
         Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
@@ -182,6 +183,11 @@ class DAQ(Instrument):
     #a task, such as an input or output. Thus, changing the settings only updates the internal
     #daq construct in the program and makes no hardware changes
     def update(self, settings):
+        """
+        Updates daq settings for each channel in the software instrument
+        Args:
+            settings: a settings dictionary in the standard form
+        """
         super(DAQ, self).update(settings)
         for key, value in settings.iteritems():
             if key == 'device':
@@ -197,11 +203,10 @@ class DAQ(Instrument):
 
     @property
     def is_connected(self):
-        '''
+        """
         Makes a non-state-changing call (a get id call) to check connection to a daq
         Returns: True if daq is connected, false if it is not
-
-        '''
+        """
         buf_size = 10
         data = ctypes.create_string_buffer('\000' * buf_size)
         try:
@@ -212,7 +217,7 @@ class DAQ(Instrument):
             return False
 
     def DI_init(self, channel, sampleNum, continuous_acquisition=False):
-        '''
+        """
         Initializes a hardware-timed digital counter, bound to a hardware clock
         Args:
             channel: digital channel to initialize for read in
@@ -223,9 +228,9 @@ class DAQ(Instrument):
                                     is known a priori)
 
         Returns: source of clock that this method sets up, which can be given to another function to synch that
-         input or output to the same clock
+        input or output to the same clock
 
-        '''
+        """
         if not channel in self.settings['digital_input'].keys():
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
@@ -268,9 +273,8 @@ class DAQ(Instrument):
         return self.counter_out_PFI_str
 
 
-    # initialize reference clock output
     def _dig_pulse_train_cont(self, Freq, DutyCycle, Samps):
-        '''
+        """
         Initializes a digital pulse train to act as a reference clock
         Args:
             Freq: frequency of reference clock
@@ -279,7 +283,7 @@ class DAQ(Instrument):
 
         Returns:
 
-        '''
+        """
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(self.DI_taskHandleClk)))
         self._check_error(self.nidaq.DAQmxCreateCOPulseChanFreq(self.DI_taskHandleClk,
                                                                 self.counter_out_str, '', DAQmx_Val_Hz, DAQmx_Val_Low,
@@ -291,21 +295,21 @@ class DAQ(Instrument):
     # start reading sampleNum values from counter into buffer
     # todo: AK - should this be threaded? original todo: is this actually blocking? Is the threading actually doing anything? see nidaq cookbook
     def DI_run(self):
-        '''
+        """
         start reading sampleNum values from counter into buffer
-        '''
+        """
         self._check_error(self.nidaq.DAQmxStartTask(self.DI_taskHandleClk))
 
 
     # read sampleNum previously generated values from a buffer, and return the
     # corresponding 1D array of ctypes.c_double values
     def DI_read(self):
-        '''
+        """
         read sampleNum previously generated values from a buffer, and return the
         corresponding 1D array of ctypes.c_double values
         Returns: 1d array of ctypes.c_double values with the requested counts
 
-        '''
+        """
         # initialize array and integer to pass as pointers
         self.data = (float64 * self.DI_sampleNum)()
         self.samplesPerChanRead = int32()
@@ -316,29 +320,38 @@ class DAQ(Instrument):
         return self.data, self.samplesPerChanRead
 
     def DI_stop(self):
-        '''
+        """
         Stops and cleans up digital input
-        '''
+        """
         self._DI_stopClk()
         self._DI_stopCtr()
 
     def _DI_stopClk(self):
-        '''
+        """
         stop and clean up clock
-        '''
+        """
         self.running = False
         self.nidaq.DAQmxStopTask(self.DI_taskHandleClk)
         self.nidaq.DAQmxClearTask(self.DI_taskHandleClk)
 
     def _DI_stopCtr(self):
-        '''
+        """
         stop and clean up counter
-        '''
+        """
         self.nidaq.DAQmxStopTask(self.DI_taskHandleCtr)
         self.nidaq.DAQmxClearTask(self.DI_taskHandleCtr)
 
     def gated_DI_init(self, channel, num_samples):
-        #COMMENT_ME
+        """
+        Initializes a gated digital input task. The gate acts as a clock for the counter, so if one has a fast ttl source
+        this allows one to read the counter for a shorter time than would be allowed by the daq's internal clock.
+        Args:
+            channel:
+            num_samples:
+
+        Returns:
+
+        """
         if not channel in self.settings['digital_input'].keys():
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
@@ -375,18 +388,18 @@ class DAQ(Instrument):
         self._check_error(self.nidaq.DAQmxSetCIDupCountPrevent(self.gated_DI_taskHandle, input_channel_str_gated, bool32(True)))
 
     def gated_DI_run(self):
-        '''
+        """
         start reading sampleNum values from counter into buffer
-        '''
+        """
         self._check_error(self.nidaq.DAQmxStartTask(self.gated_DI_taskHandle))
 
     def gated_DI_read(self, timeout = -1):
-        '''
+        """
         read sampleNum previously generated values from a buffer, and return the
         corresponding 1D array of ctypes.c_double values
         Returns: 1d array of ctypes.c_double values with the requested counts
 
-        '''
+        """
         # initialize array and integer to pass as pointers
         self.data = (float64 * self.gated_DI_sampleNum)()
         self.samplesPerChanRead = int32()
@@ -399,12 +412,14 @@ class DAQ(Instrument):
         return self.data, self.samplesPerChanRead
 
     def gated_DI_stop(self):
-        #COMMENT_ME
+        """
+        Stops gated DI task
+        """
         self.nidaq.DAQmxStopTask(self.gated_DI_taskHandle)
         self.nidaq.DAQmxClearTask(self.gated_DI_taskHandle)
 
     def AO_init(self, channels, waveform, clk_source = ""):
-        '''
+        """
         Initializes a arbitrary number of analog output channels to output an arbitrary waveform
         Args:
             channels: List of channels to output on
@@ -413,7 +428,7 @@ class DAQ(Instrument):
                 the column in the order given in channels
             clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
                 internal clock
-        '''
+        """
         for c in channels:
             if not c in self.settings['analog_output'].keys():
                 raise KeyError('This is not a valid analog output channel')
@@ -473,23 +488,23 @@ class DAQ(Instrument):
 
     # todo: AK - does this actually need to be threaded like in example code? Is it blocking?
     def AO_run(self):
-        '''
+        """
         Begin outputting waveforms (or, if a non-default clock is used, trigger output immediately
         on that clock starting)
-        '''
+        """
         self._check_error(self.nidaq.DAQmxStartTask(self.AO_taskHandle))
 
     def AO_waitToFinish(self):
-        '''
+        """
         Wait until output has finished
-        '''
+        """
         self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(self.AO_taskHandle,
                                                             float64(self.periodLength / self.AO_sample_rate * 4)))
 
     def AO_stop(self):
-        '''
+        """
         Stop and clean up output
-        '''
+        """
         self.running = False
         self.nidaq.DAQmxStopTask(self.AO_taskHandle)
         self.nidaq.DAQmxClearTask(self.AO_taskHandle)
@@ -505,12 +520,12 @@ class DAQ(Instrument):
 
 
     def AI_init(self, channel, num_samples_to_acquire):
-        '''
+        """
         Initializes an input channel to read on
         Args:
             channel: Channel to read input
             num_samples_to_acquire: number of samples to acquire on that channel
-        '''
+        """
         self.AI_taskHandle = TaskHandle(0)
         self.AI_numSamples = num_samples_to_acquire
         self.data = numpy.zeros((self.AI_numSamples,), dtype=numpy.float64)
@@ -525,16 +540,16 @@ class DAQ(Instrument):
                                                            uInt64(self.AI_numSamples)))
 
     def AI_run(self):
-        '''
+        """
         Start taking analog input and storing it in a buffer
-        '''
+        """
         self._check_error(self.nidaq.DAQmxStartTask(self.AI_taskHandle))
 
     def AI_read(self):
-        '''
+        """
         Reads the AI voltage values from the buffer
         Returns: array of ctypes.c_long with the voltage data
-        '''
+        """
         read = int32()
         self._check_error(self.nidaq.DAQmxReadAnalogF64(self.AI_taskHandle, self.AI_numSamples, float64(10.0),
                                                         DAQmx_Val_GroupByChannel, self.data.ctypes.data,

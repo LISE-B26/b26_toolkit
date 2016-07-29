@@ -49,7 +49,12 @@ class MicrowaveGenerator(Instrument):
     #     self.srs.close()
 
     def update(self, settings):
-        #COMMENT_ME
+        """
+        Updates the internal settings of the MicrowaveGenerator, and then also updates physical parameters such as
+        frequency, amplitude, modulation type, etc in the hardware
+        Args:
+            settings: a dictionary in the standard settings format
+        """
         super(MicrowaveGenerator, self).update(settings)
         # XXXXX MW ISSUE = START
         # ===========================================
@@ -89,7 +94,6 @@ class MicrowaveGenerator(Instrument):
         }
 
     def read_probes(self, key):
-        #COMMENT_ME
         assert key in self._PROBES.keys()
 
         #query always returns string, need to cast to proper return type
@@ -111,9 +115,8 @@ class MicrowaveGenerator(Instrument):
 
     @property
     def is_connected(self):
-        #COMMENT_ME
         try:
-            self.srs.query('*IDN?') # simple call to check connection
+            self.srs.query('*IDN?') # arbitrary call to check connection, throws exception on failure to get response
             return True
         except pyvisa.errors.VisaIOError:
             return False
