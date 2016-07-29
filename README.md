@@ -5,8 +5,8 @@ at Harvard University. It contains PyLabControl-compatible instruments
 and scripts that are utilized in the project, as well well as plotting
 and data processing convenience functions.
 
-b26_toolkit is built on python 2.7.x. 
-It was built by Arthur Safira, Jan Gieseler, and Aaron Kabcenell in the Lukin Group at Harvard University. 
+b26_toolkit is built on python 2.7.x. It was built by Arthur Safira, 
+Jan Gieseler, and Aaron Kabcenell in the Lukin Group at Harvard University. 
 It is distributed under the GPLv3 license. For more information, see LICENSE.txt .
 
 
@@ -26,7 +26,7 @@ In order to use the implemented instruments and scripts, one must first export t
 
 ``` >>> PyLabControl --export <file_path> ```
 
-in the windows commandline interface, where `<file_path>` is a valid path to save the exported scripts and instruments to.
+in the windows commandline interface, where `<file_path>` is a valid path to save the exported scripts and instruments.
 The instruments and scripts that were able to be exported will then be located at that file path, and could be imported into the PyLabControl GUI.
 
 
@@ -46,7 +46,6 @@ and see what errors occur. Feel free to reach out to the authors with any diffic
 + What instruments have been implemented?
 
 For a full list of instruments, see the files in b26_toolkit/src/instruments/ .
-
 
 + How can we send feedback?
 
