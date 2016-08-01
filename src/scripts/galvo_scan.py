@@ -96,9 +96,11 @@ class GalvoScan(Script):
                                                                                   self.settings['RoI_mode'])
 
 
-            self.x_array = np.repeat(np.linspace(self.xVmin, self.xVmax, self.settings['num_points']['x']),
+            self.x_array = np.repeat(np.linspace(self.xVmin, self.xVmax, self.settings['num_points']['x'], endpoint=True),
                                      self.clockAdjust)
             self.y_array = np.linspace(self.yVmin, self.yVmax, self.settings['num_points']['y'], endpoint=True)
+            print(self.x_array, 'x_array')
+            print(self.y_array, 'y_array')
             sample_rate = float(1) / self.settings['settle_time']
             self.instruments['daq']['instance'].settings['analog_output'][
                 self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate

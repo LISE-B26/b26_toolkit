@@ -100,6 +100,10 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
 
     """
 
+    extra_x_extent = (extent[1]-extent[0])/float(2*(len(image_data[0])-1))
+    extra_y_extent = (extent[2]-extent[3])/float(2*(len(image_data)-1))
+    extent = [extent[0] - extra_x_extent, extent[1] + extra_x_extent, extent[2] + extra_y_extent, extent[3] - extra_y_extent]
+
     fig = axes_image.get_figure()
 
     if max_counts > 0:
