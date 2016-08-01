@@ -69,7 +69,7 @@ def fit_esr(freq, ampl):
         elif len(freq_peaks) == 1:
             fit = fit_lorentzian(freq, ampl, starting_params=start_vals)
     except:
-        print('XXX ESR fit failed!')
+        # ESR fit failed!
         fit = None
 
     return fit
