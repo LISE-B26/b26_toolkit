@@ -89,10 +89,10 @@ Known issues:
             assert image_x_max > image_x_min
             assert image_y_max > image_y_min
 
-            volt_per_px_x = (image_x_max - image_x_min) / image_x_len
-            volt_per_px_y = (image_y_max - image_y_min) / image_y_len
+            volt_per_px_x = (image_x_max - image_x_min) / (image_x_len-1)
+            volt_per_px_y = (image_y_max - image_y_min) / (image_y_len-1)
 
-            V_x = volt_per_px_x*pt[0] + image_x_min
+            V_x = volt_per_px_x * pt[0] + image_x_min
             V_y = volt_per_px_y * pt[1] + image_y_min
 
             return [V_x, V_y]
