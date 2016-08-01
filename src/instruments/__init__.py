@@ -17,7 +17,7 @@
 """
 
 from gauge_controller import PressureGauge
-# from spectrum_analyzer import SpectrumAnalyzer
+from spectrum_analyzer import SpectrumAnalyzer
 from ni_daq import DAQ
 from piezo_controller import PiezoController
 from zurich_instruments import ZIHF2

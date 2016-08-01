@@ -62,10 +62,9 @@ class SpectrumAnalyzer(Instrument):
 
         """
 
-        self._last_update_time = time.time()
-
-
         super(SpectrumAnalyzer, self).__init__(name, settings)
+
+        self._last_update_time = time.time()
 
         rm = visa.ResourceManager()
         self.spec_anal = rm.open_resource(self.settings['visa_resource'])

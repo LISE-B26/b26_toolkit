@@ -34,6 +34,7 @@ from atto_scan import AttoStep
 
 from pulse_blaster_scripts import CPMG, T1, Rabi
 from esr_and_rabi import ESRAndRabi
+from keysight_get_spectrum import KeysightGetSpectrum
 
 # old imports with try/except
 # verbose = False

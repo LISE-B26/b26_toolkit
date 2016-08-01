@@ -56,7 +56,6 @@ Known issues:
 
         Script.__init__(self, name, scripts = scripts, settings=settings, log_function=log_function, data_path = data_path)
 
-
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -69,7 +68,7 @@ Known issues:
         nv_size = self.settings['nv_size']
         min_mass = self.settings['min_mass']
 
-        self.data = {'maximum_point': initial_point,
+        self.data = {'maximum_point': None,
                      'initial_point': initial_point,
                      'image_data': [],
                      'extent': []
@@ -117,14 +116,13 @@ Known issues:
             po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
             if len(f) == 0:
                 self.data['maximum_point'] = {'x': float(po[0]), 'y': float(po[1])}
-                self.log('pytrack failed to find NV --- setting laser to initial point instead')
             else:
 
                 # all the points that have been identified as valid NV centers
                 pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
                        f[['x', 'y']].as_matrix()]
                 if len(pts) > 1:
-                    self.log('Info!! Found more than one NV. Selecting the one closest to initial point!')
+                    self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
                 # pick the one that is closest to the original one
                 pm = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
                 self.data['maximum_point'] = {'x': float(pm[0]), 'y': float(pm[1])}
@@ -134,6 +132,7 @@ Known issues:
                 min_mass = min_mass_adjustment(min_mass)
                 attempt_num += 1
             else:
+                self.log('FindNV did not find and NV --- setting laser to initial point instead')
                 break
 
         self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
@@ -148,14 +147,17 @@ Known issues:
         else:
             plot_fluorescence_new(self.data['image_data'], self.data['extent'], axes_list[0])
 
-        # plot marker
-        maximum_point = self.data['maximum_point']
-        patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none')
-        axes_list[0].add_patch(patch)
-
         initial_point = self.data['initial_point']
         patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none')
         axes_list[0].add_patch(patch)
+        axes_list[0].text(initial_point['x'], initial_point['y'] - .002, 'found NV', fontsize=8)
+
+        # plot marker
+        if self.data['maximum_point']:
+            maximum_point = self.data['maximum_point']
+            patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none')
+            axes_list[0].add_patch(patch)
+            axes_list[0].text(maximum_point['x'], maximum_point['y'] - .002, 'found NV', fontsize=8)
 
 
     def _update_plot(self, axes_list):
@@ -163,6 +165,12 @@ Known issues:
 
         if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
             self.scripts['take_image']._update_plot(axes_list)
+
+        if self.data['maximum_point']:
+            maximum_point = self.data['maximum_point']
+            patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none')
+            axes_list[0].add_patch(patch)
+            axes_list[0].text(maximum_point['x'], maximum_point['y'] - .002, 'found NV', fontsize=8)
 
 
 
