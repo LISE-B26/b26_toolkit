@@ -66,7 +66,7 @@ This script points the laser to a point
         self.instruments['daq']['instance'].AO_run()
         self.instruments['daq']['instance'].AO_waitToFinish()
         self.instruments['daq']['instance'].AO_stop()
-        self.log('laser set to x= {:.4}, y={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
+        self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
     #must be passed figure with galvo plot on first axis
     def plot(self, figure_list):
