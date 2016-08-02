@@ -117,11 +117,11 @@ for a given experiment
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
 
-        if remainder != 0:
+        if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
             self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
 
-        if (len(self.data['counts'][0]) == 1):
+        if (len(self.data['counts'][0]) == 1) and not self._abort:
             self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
 
         # if self.settings['save']:
