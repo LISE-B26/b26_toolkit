@@ -483,7 +483,7 @@ class DAQ(Instrument):
                                                      ctypes.byref(self.AO_taskHandle)))
         self._check_error(self.nidaq.DAQmxCreateAOVoltageChan(self.AO_taskHandle,
                                                               channel_list,
-                                                "",
+                                                              "",
                                                               float64(-10.0),
                                                               float64(10.0),
                                                               DAQmx_Val_Volts,
@@ -576,6 +576,26 @@ class DAQ(Instrument):
             self.nidaq.DAQmxStopTask(self.AI_taskHandle)
             self.nidaq.DAQmxClearTask(self.AI_taskHandle)
         return self.data
+
+    def get_analog_out_voltages(self, channel_list):
+        daq_channel_list = []
+        for channel in channel_list:
+            assert channel in self.settings['analog_output']
+            daq_channel_list.append(self.device + '/_' + channel + '_vs_aognd')
+        daq_channel_list = tuple(daq_channel_list)
+        data = (float64 * len(daq_channel_list))()
+        sample_num = 1
+        get_voltage_taskHandle = TaskHandle(0)
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(get_voltage_taskHandle)))
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(get_voltage_taskHandle, daq_channel_list, "",
+                                                              DAQmx_Val_Cfg_Default,
+                                                              float64(-10.0), float64(10.0),
+                                                              DAQmx_Val_Volts, None))
+        self._check_error(self.nidaq.DAQmxReadAnalogF64(get_voltage_taskHandle, int32(sample_num), float64(10.0),
+                                                        DAQmx_Val_GroupByChannel, ctypes.byref(data),
+                                                        int32(sample_num), None, None))
+        self._check_error(self.nidaq.DAQmxClearTask(get_voltage_taskHandle))
+        return data
 
     def _check_error(self, err):
         """
