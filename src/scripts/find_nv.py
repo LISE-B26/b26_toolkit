@@ -67,7 +67,7 @@ Known issues:
         attempt_num = 1
 
         if self.settings['center_on_current_location']:
-            daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([self.scripts.settings['DAQ_channels']['x_ao_channel'], self.scripts.settings['DAQ_channels']['y_ao_channel']])
+            daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
             self.settings['initial_point'].update({'x': daq_pt[0], 'y': daq_pt[1]})
         initial_point = self.settings['initial_point']
         nv_size = self.settings['nv_size']

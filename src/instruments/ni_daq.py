@@ -90,6 +90,7 @@ class DAQ(Instrument):
     _DEFAULT_SETTINGS = Parameter([
         Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
                   [
                       Parameter('ao0',
@@ -578,23 +579,25 @@ class DAQ(Instrument):
         return self.data
 
     def get_analog_out_voltages(self, channel_list):
-        daq_channel_list = []
+        daq_channels_str = ''
         for channel in channel_list:
             assert channel in self.settings['analog_output']
-            daq_channel_list.append(self.device + '/_' + channel + '_vs_aognd')
-        daq_channel_list = tuple(daq_channel_list)
-        data = (float64 * len(daq_channel_list))()
+            daq_channels_str += self.settings['device'] + '/_' + channel + '_vs_aognd, '
+        daq_channels_str = daq_channels_str[:-2] #strip final comma period
+        data = (float64 * len(channel_list))()
         sample_num = 1
         get_voltage_taskHandle = TaskHandle(0)
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(get_voltage_taskHandle)))
-        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(get_voltage_taskHandle, daq_channel_list, "",
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(get_voltage_taskHandle, daq_channels_str, "",
                                                               DAQmx_Val_Cfg_Default,
                                                               float64(-10.0), float64(10.0),
                                                               DAQmx_Val_Volts, None))
         self._check_error(self.nidaq.DAQmxReadAnalogF64(get_voltage_taskHandle, int32(sample_num), float64(10.0),
                                                         DAQmx_Val_GroupByChannel, ctypes.byref(data),
-                                                        int32(sample_num), None, None))
+                                                        int32(sample_num * len(channel_list)), None, None))
         self._check_error(self.nidaq.DAQmxClearTask(get_voltage_taskHandle))
+        data[0] = data[0] + self.settings['ao_read_offset']
+        data[1] = data[1] + self.settings['ao_read_offset']
         return data
 
     def _check_error(self, err):
