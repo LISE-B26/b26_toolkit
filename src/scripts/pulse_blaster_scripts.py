@@ -184,12 +184,12 @@ This script applies a microwave pulse at fixed power for varying durations to me
                                     ])
 
 
-        end_time_max = 0
-        for pulse_sequence in pulse_sequences:
-            for pulse in pulse_sequence:
-                end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
-        for pulse_sequence in pulse_sequences:
-            pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
+        # end_time_max = 0
+        # for pulse_sequence in pulse_sequences:
+        #     for pulse in pulse_sequence:
+        #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
+        # for pulse_sequence in pulse_sequences:
+        #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
@@ -427,7 +427,6 @@ This script applies a microwave pulse at fixed power for varying durations to me
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
 
-
 class CalibrateMeasurementWindow(PulseBlasterBaseScript):
     """
 This script find the optimal duration of the measurment window.
@@ -437,12 +436,17 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
         Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
         Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-        Parameter('meas_time_step', 5, [5, 10, 20, 50, 100], 'time step increment of measurement duration (in ns)'),
-        Parameter('meas_time_min', 15, float, 'min time of measurement duration (in ns)'),
-        Parameter('meas_time_max', 15, float, 'max time of measurement duration (in ns)'),
-        Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
-        Parameter('num_averages', 100000, int, 'number of averages')
+        Parameter('readout_window_incremement', 10, [5, 10, 20, 50, 100], 'time step increment of measurement duration (in ns)'),
+        Parameter('initial_readout_displacement', -80, int, 'min time of measurement duration (in ns)'),
+        Parameter('final_readout_displacement', 450, int, 'max time of measurement duration (in ns)'),
+        Parameter('reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
+        Parameter('delay_init_mw', 200, int, 'time delay before pi pulse after NV reset'),
+        Parameter('delay_mw_readout', 200, int, 'time delay before readout after pi pulse'),
+        Parameter('measurement_window_width', 20, int, 'the width of the sliding readout window'),
+        Parameter('laser_on_time', 500, range(100, 1201, 100), 'time laser is on for readout'),
+        Parameter('ref_meas_off_time', 200, int, 'time reset laser is turned off before reference measurement is made'),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
+        Parameter('num_averages', 1000000, int, 'number of averages')
     ]
 
     _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -454,7 +458,7 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
         super(CalibrateMeasurementWindow, self)._function()
 
     def _create_pulse_sequences(self):
-        '''
+        """
 
         Returns: pulse_sequences, num_averages, tau_list
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
@@ -464,38 +468,28 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
 
-        '''
+        """
         pulse_sequences = []
-        tau_list = range(int(max(15, self.settings['meas_time_min'])), int(self.settings['meas_time_max'] + 15),
-                         self.settings['meas_time_step'])
+        tau_list = range(self.settings['initial_readout_displacement'],
+                         self.settings['final_readout_displacement'],
+                         self.settings['readout_window_incremement'])
         reset_time = self.settings['reset_time']
-        pi_pulse_time = self.settings['pi_pulse_time']
-        for tau in tau_list:
-            cycle_time = reset_time + pi_pulse_time + 300 + tau
-            pulse_sequences.append([Pulse('laser', 0, reset_time),
-                                    Pulse('microwave_i', reset_time + 200, pi_pulse_time),
-                                    Pulse('laser', reset_time + pi_pulse_time + 300, tau),
-                                    Pulse('apd_readout', reset_time + pi_pulse_time + 300, tau),
-                                    Pulse('laser', cycle_time, reset_time),
-                                    Pulse('laser', cycle_time + reset_time + pi_pulse_time + 300, tau),
-                                    Pulse('apd_readout', cycle_time + reset_time + pi_pulse_time + 300, tau),
-                                    ])
 
-        end_time_max = 0
-        for pulse_sequence in pulse_sequences:
-            for pulse in pulse_sequence:
-                end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
-        for pulse_sequence in pulse_sequences:
-            pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
+        for tau in tau_list:
+            pulse_sequences.append([Pulse('laser', 0, reset_time - self.settings['ref_meas_off_time'] - self.settings['laser_on_time']),
+                                    Pulse('apd_readout', reset_time - self.settings['laser_on_time'] + tau, self.settings['measurement_window_width']),
+                                    Pulse('laser', reset_time - self.settings['laser_on_time'], self.settings['laser_on_time']),
+                                    Pulse('microwave_i', reset_time + self.settings['delay_init_mw'], self.settings['pi_pulse_time']),
+                                    Pulse('laser', reset_time + self.settings['delay_init_mw'] + self.settings['pi_pulse_time'] + self.settings[
+                                        'delay_mw_readout'], self.settings['laser_on_time']),
+                                    Pulse('apd_readout', reset_time + self.settings['delay_init_mw'] + self.settings['pi_pulse_time'] +
+                                          self.settings['delay_mw_readout'] + tau, self.settings['measurement_window_width'])
+                                    ])
 
         return pulse_sequences, self.settings['num_averages'], tau_list, max(tau_list)
 
-    # don't normalize for this measurement
-    def _normalize_to_kCounts(self, signal, gate_width=1, num_averages=1):
-        return signal
-
     def _plot(self, axes_list):
-        '''
+        """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
         Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
@@ -504,65 +498,57 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
         Args:
             axes_list: list of axes to write plots to (uses first 2)
 
-        '''
-        [counts_0, counts_1] = zip(*self.data['counts'])
-        x_data = self.data['tau']
-        axis1 = axes_list[0]
-        axis2 = axes_list[1]
-        if not counts_0 == []:
-            plot_1d_simple(axis1, x_data, [counts_0, counts_1], y_label='Counts (unnormalized)')
-            contrast = (((np.array(counts_1) - np.array(counts_0)) / np.array(counts_1)) * 100).tolist()
-            contrast = [x if not np.isnan(x) else 0.0 for x in
-                        contrast]  # replaces nan with zeros for points not yet reached
-            plot_1d_simple(axis2, x_data, [contrast], y_label='Contrast (%)')
-        axis3 = axes_list[2]
-        plot_pulses(axis3, self.pulse_sequences[self.sequence_index])
-
-    def get_axes_layout(self, figure_list):
         """
-        returns the axes objects the script needs to plot its data
-        the default creates a single axes object on each figure
-        This can/should be overwritten in a child script if more axes objects are needed
-        Args:
-            figure_list: a list of figure objects
-        Returns:
-            axes_list: a list of axes objects
+        super(CalibrateMeasurementWindow, self)._plot(axes_list)
+        axes_list[0].set_title('Measurement Calibration')
+        axes_list[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
-        """
-        figure1 = figure_list[0]
-        figure2 = figure_list[1]
-        if self._plot_refresh is True:
-            figure1.clf()
-            axes1 = figure1.add_subplot(211)
-            axes2 = figure1.add_subplot(212)
-            figure2.clf()
-            axes3 = figure2.add_subplot(111)
-        else:
-            axes1 = figure1.axes[0]
-            axes2 = figure1.axes[1]
-            axes3 = figure2.axes[0]
 
-        return [axes1, axes2, axes3]
-
-    def _update_plot(self, axes_list):
-        '''
-        Updates plots specified in _plot above
-        Args:
-            axes_list: list of axes to write plots to (uses first 2)
-
-        '''
-        [counts_0, counts_1] = zip(*self.data['counts'])
-        x_data = self.data['tau']
-        axis1 = axes_list[0]
-        axis2 = axes_list[1]
-        if not counts_0 == []:
-            update_1d_simple(axis1, x_data, [counts_0, counts_1])
-            contrast = (((np.array(counts_1) - np.array(counts_0)) / np.array(counts_1)) * 100).tolist()
-            contrast = [x if not np.isnan(x) else 0.0 for x in
-                        contrast]  # replaces nan with zeros for points not  yet reached
-            update_1d_simple(axis2, x_data, [contrast])
-        axis3 = axes_list[2]
-        update_pulse_plot(axis3, self.pulse_sequences[self.sequence_index])
+    # def get_axes_layout(self, figure_list):
+    #     """
+    #     returns the axes objects the script needs to plot its data
+    #     the default creates a single axes object on each figure
+    #     This can/should be overwritten in a child script if more axes objects are needed
+    #     Args:
+    #         figure_list: a list of figure objects
+    #     Returns:
+    #         axes_list: a list of axes objects
+    #
+    #     """
+    #     figure1 = figure_list[0]
+    #     figure2 = figure_list[1]
+    #     if self._plot_refresh is True:
+    #         figure1.clf()
+    #         axes1 = figure1.add_subplot(211)
+    #         axes2 = figure1.add_subplot(212)
+    #         figure2.clf()
+    #         axes3 = figure2.add_subplot(111)
+    #     else:
+    #         axes1 = figure1.axes[0]
+    #         axes2 = figure1.axes[1]
+    #         axes3 = figure2.axes[0]
+    #
+    #     return [axes1, axes2, axes3]
+    #
+    # def _update_plot(self, axes_list):
+    #     '''
+    #     Updates plots specified in _plot above
+    #     Args:
+    #         axes_list: list of axes to write plots to (uses first 2)
+    #
+    #     '''
+    #     [counts_0, counts_1] = zip(*self.data['counts'])
+    #     x_data = self.data['tau']
+    #     axis1 = axes_list[0]
+    #     axis2 = axes_list[1]
+    #     if not counts_0 == []:
+    #         update_1d_simple(axis1, x_data, [counts_0, counts_1])
+    #         contrast = (((np.array(counts_1) - np.array(counts_0)) / np.array(counts_1)) * 100).tolist()
+    #         contrast = [x if not np.isnan(x) else 0.0 for x in
+    #                     contrast]  # replaces nan with zeros for points not  yet reached
+    #         update_1d_simple(axis2, x_data, [contrast])
+    #     axis3 = axes_list[2]
+    #     update_pulse_plot(axis3, self.pulse_sequences[self.sequence_index])
 
 class CPMG(PulseBlasterBaseScript):
     """
