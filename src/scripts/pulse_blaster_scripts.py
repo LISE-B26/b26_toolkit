@@ -430,7 +430,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 class CalibrateMeasurementWindow(PulseBlasterBaseScript):
     """
 This script find the optimal duration of the measurment window.
-It applies a pi-pulse and measured the fluorescence counts after for a varying time duration.
+It applies a sliding measurement window with respect to a readout from the NV 0 state and the NV 1 state.
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
@@ -486,7 +486,7 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
                                           self.settings['delay_mw_readout'] + tau, self.settings['measurement_window_width'])
                                     ])
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, max(tau_list)
+        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['measurement_window_width']
 
     def _plot(self, axes_list):
         """
@@ -501,7 +501,7 @@ It applies a pi-pulse and measured the fluorescence counts after for a varying t
         """
         super(CalibrateMeasurementWindow, self)._plot(axes_list)
         axes_list[0].set_title('Measurement Calibration')
-        axes_list[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
+        axes_list[0].legend(labels=('|0> State Fluorescence', '|1> State Fluoresence'), fontsize=8)
 
 
     # def get_axes_layout(self, figure_list):
