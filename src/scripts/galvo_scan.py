@@ -35,17 +35,17 @@ class GalvoScan(Script):
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
         Parameter('point_b',
-                  [Parameter('x', 0.8, float, 'x-coordinate'),
-                   Parameter('y', 0.8, float, 'y-coordinate')
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
                    ]),
         Parameter('RoI_mode', 'center', ['corner', 'center'], 'mode to calculate region of interest.\n \
                                                            corner: pta and ptb are diagonal corners of rectangle.\n \
                                                            center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
-                  [Parameter('x', 120, int, 'number of x points to scan'),
-                   Parameter('y', 120, int, 'number of y points to scan')
+                  [Parameter('x', 126, int, 'number of x points to scan'),
+                   Parameter('y', 126, int, 'number of y points to scan')
                    ]),
-        Parameter('time_per_pt', .001, [.001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
+        Parameter('time_per_pt', .002, [.001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
         Parameter('settle_time', .0002, [.0002], 'wait time between points to allow galvo to settle'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         Parameter('DAQ_channels',
@@ -99,8 +99,6 @@ class GalvoScan(Script):
             self.x_array = np.repeat(np.linspace(self.xVmin, self.xVmax, self.settings['num_points']['x'], endpoint=True),
                                      self.clockAdjust)
             self.y_array = np.linspace(self.yVmin, self.yVmax, self.settings['num_points']['y'], endpoint=True)
-            print(self.x_array, 'x_array')
-            print(self.y_array, 'y_array')
             sample_rate = float(1) / self.settings['settle_time']
             self.instruments['daq']['instance'].settings['analog_output'][
                 self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate
