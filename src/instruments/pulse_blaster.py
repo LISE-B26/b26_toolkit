@@ -76,9 +76,14 @@ class PulseBlaster(Instrument):
     }
 
     def __init__(self, name=None, settings=None):
-        #COMMENT_ME
         super(PulseBlaster, self).__init__(name, settings)
-        dll_path = get_config_value('PULSEBLASTER_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+        try:
+            dll_path = get_config_value('PULSEBLASTER_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+        except IOErrror:
+            warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
+            dll_path = None
+            print(dll_path)
+            self.is_conneted = False
         self.pb = ctypes.windll.LoadLibrary(dll_path)
         self.update(self._DEFAULT_SETTINGS)
         self.estimated_runtime = None
