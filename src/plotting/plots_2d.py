@@ -112,7 +112,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent)
     axes_image.set_xlabel(r'V$_x$ [V]')
     axes_image.set_ylabel(r'V$_y$ [V]')
-    axes_image.set_ylabel(r'V$_y$ [V]')
     axes_image.set_title('Confocal Image')
 
     if not max_counts > 0:
