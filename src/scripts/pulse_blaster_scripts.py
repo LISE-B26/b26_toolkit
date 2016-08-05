@@ -741,7 +741,8 @@ This script measures the relaxation time of an NV center
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
         Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands')
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
+        Parameter('tau_scale', 'linear', ['linear', 'logarithmic'])
     ]
 
     _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster}
@@ -753,7 +754,7 @@ This script measures the relaxation time of an NV center
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
             sequence must have the same number of daq read pulses
             num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            tau_list: the list of times tau, with each value corresponding to a  pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
 
         """
