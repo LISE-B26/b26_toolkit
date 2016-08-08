@@ -82,9 +82,13 @@ class PulseBlaster(Instrument):
         except IOErrror:
             warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
             dll_path = None
-            print(dll_path)
+            print('dll_path: ', dll_path)
             self.is_conneted = False
-        self.pb = ctypes.windll.LoadLibrary(dll_path)
+        try:
+            self.pb = ctypes.windll.LoadLibrary(dll_path)
+        except WindowsError:
+            self.is_conneted = False
+            warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
         self.update(self._DEFAULT_SETTINGS)
         self.estimated_runtime = None
         self.sequence_start_time = None
