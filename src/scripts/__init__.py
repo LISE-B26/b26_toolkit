@@ -36,6 +36,8 @@ from pulse_blaster_scripts import CPMG, T1, Rabi, CalibrateMeasurementWindow
 from esr_and_rabi import ESRAndRabi
 from keysight_get_spectrum import KeysightGetSpectrum
 
+
+from galvo_scan_ni_fpga import GalvoScanNIFpga
 # old imports with try/except
 # verbose = False
 

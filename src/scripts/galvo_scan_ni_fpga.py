@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.instruments import NI7845RGalvoScan
+from b26_toolkit.src.instruments.labview_fpga import NI7845RGalvoScan
 from src.plotting.plots_2d import  plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 

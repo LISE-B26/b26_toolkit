@@ -2,7 +2,7 @@ import time
 from unittest import TestCase
 
 import numpy as np
-from src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage
+from src.instruments.labview_fpga_lib import int_to_voltage
 
 from b26_toolkit.src.instruments import NI7845RReadWrite
 

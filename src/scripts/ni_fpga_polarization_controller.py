@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 
-from b26_toolkit.src.instruments import NI7845RReadWrite
+from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite
 from PyLabControl.src.core import Parameter, Script
 
 
