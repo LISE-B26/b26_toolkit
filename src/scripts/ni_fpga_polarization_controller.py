@@ -21,7 +21,7 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
-
+import time
 from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite
 from PyLabControl.src.core import Parameter, Script
 
@@ -443,7 +443,7 @@ this gives a one dimensional dataset
         def calc_progress(v2, volt_range):
             dV = np.mean(np.diff(volt_range))
             progress = (v2 - min(volt_range)) / (max(volt_range) - min(volt_range))
-            return int(100*progress)
+            return 100.*progress
 
         self.data = {}
         fpga_io = self.instruments['FPGA_IO']['instance']
@@ -467,10 +467,10 @@ this gives a one dimensional dataset
         signal_2_steps = self.settings['V_2']['number']
         volt_range = np.linspace(signal_2_min, signal_2_max, signal_2_steps)
 
-        settle_time = 1e3* self.settings['settle_time']
+        settle_time = self.settings['settle_time']
 
         fpga_io.update({channel_out_1: signal_1, channel_out_2: signal_3})
-        self.msleep(settle_time)
+        time.sleep(settle_time)
 
         data = np.zeros((len(volt_range), 4))
         for i, v2 in enumerate(volt_range):
@@ -478,10 +478,10 @@ this gives a one dimensional dataset
                 break
             signal_2 = float(v2)
             fpga_io.update({channel_out_2: signal_2})
-            self.msleep(settle_time)
+            time.sleep(settle_time)
             detector_value = getattr(fpga_io, channel_in)
             data[i,:] = np.array([signal_1, signal_2, signal_3, detector_value])
-            progress = calc_progress(v2, volt_range)
+            self.progress = calc_progress(v2, volt_range)
 
 
 
@@ -490,7 +490,7 @@ this gives a one dimensional dataset
             self.data['WP3 (V)'] = data[0:i, 2]
             self.data['Det. Signal'] = data[0:i, 3]
 
-            self.updateProgress.emit(progress)
+            self.updateProgress.emit(self.progress)
 
         if self.settings['save']:
             self.save_b26()
@@ -508,13 +508,26 @@ this gives a one dimensional dataset
             def func(x, a, b):
                 return a * x + b
 
-            popt, pcov = curve_fit(func, volt_range, signal)
+
 
 
             axes.plot(volt_range, signal, '-o')
 
-            axes.plot(volt_range, func(volt_range, popt[0], popt[1]), 'k-')
-            axes.set_title('setpoint = {:0.2f}V'.format(-popt[1] / popt[0]))
+
+            if len(volt_range)>5:
+                axes.hold(True)
+                popt, pcov = curve_fit(func, volt_range, signal)
+                axes.plot(volt_range, func(volt_range, popt[0], popt[1]), 'k-')
+                axes.set_title('setpoint = {:0.2f}V'.format(-popt[1] / popt[0]))
+
+            axes.hold(False)
+
+
+
+            # print('asdasda', axes.lines)
+
+
+
 
 
 class FPGA_BalancePolarization(Script):
@@ -586,10 +599,10 @@ class FPGA_BalancePolarization(Script):
         signal_2_steps = self.settings['V_2']['number']
         volt_range = np.linspace(signal_2_min, signal_2_max, signal_2_steps)
 
-        settle_time = 1e3*self.settings['settle_time']
+        settle_time = self.settings['settle_time']
 
         fpga_io.update({channel_out_1: signal_1, channel_out_2: signal_3})
-        self.msleep(settle_time)
+        time.leep(settle_time)
 
         self.data['WP2 (V)'] = []
         self.data['Det. Signal'] = []
