@@ -193,9 +193,6 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
-
-
-    #TODO: Test if the following code will add 'Rabi' as a title to main plot in GUI and add a legend
     def _plot(self, axislist):
         #COMMENT_ME
 
@@ -728,6 +725,14 @@ This script runs a Hahn-echo sequence for different number of pi pulses. Without
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
 
         return pulse_sequences, self.settings['num_averages'], [tau], self.settings['meas_time']
+
+    def _plot(self, axislist):
+        # COMMENT_ME
+
+        super(HahnEcho, self)._plot(axislist)
+        axislist[0].set_title('Hahn Echo mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'],
+                                                                                     self.settings['mw_frequency'] * 1e-9))
+        axislist[0].legend(labels=('Ref Fluorescence', 'Hahn Echo Data'), fontsize=8)
 
 
 class T1(PulseBlasterBaseScript):
