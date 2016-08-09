@@ -117,11 +117,6 @@ script to balance photodetector to zero by adjusting polarization controller vol
                 searching = False
 
         self.updateProgress.emit(90)
-        #
-        # if self.settings['save']:
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
 
 
 
@@ -233,11 +228,6 @@ this gives a three dimensional dataset
                 self.data.update({'WP1 = {:0.2f}V, WP3 = {:0.2f}V'.format(signal_1, signal_3) : data})
                 progress = calc_progress(v1, v3, volt_range_1, volt_range_3)
                 self.updateProgress.emit(progress)
-
-        if self.settings['save']:
-            self.save_b26()
-            self.save_data()
-            self.save_log()
 
 
 
@@ -492,10 +482,6 @@ this gives a one dimensional dataset
 
             self.updateProgress.emit(self.progress)
 
-        if self.settings['save']:
-            self.save_b26()
-            self.save_data()
-            self.save_log()
 
     def _plot(self, axes_list):
 
@@ -512,13 +498,16 @@ this gives a one dimensional dataset
 
 
             axes.plot(volt_range, signal, '-o')
-
+            axes.hold(True)
+            axes.plot( [min(volt_range), max(volt_range)], [0, 0], 'k-')
 
             if len(volt_range)>5:
-                axes.hold(True)
+
                 popt, pcov = curve_fit(func, volt_range, signal)
                 axes.plot(volt_range, func(volt_range, popt[0], popt[1]), 'k-')
-                axes.set_title('setpoint = {:0.2f}V'.format(-popt[1] / popt[0]))
+                setpoint = -popt[1] / popt[0]
+                axes.plot([setpoint, setpoint],[min(signal), max(signal)], 'r--')
+                axes.set_title('setpoint = {:0.2f}V'.format(setpoint))
 
             axes.hold(False)
 
@@ -602,7 +591,7 @@ class FPGA_BalancePolarization(Script):
         settle_time = self.settings['settle_time']
 
         fpga_io.update({channel_out_1: signal_1, channel_out_2: signal_3})
-        time.leep(settle_time)
+        time.sleep(settle_time)
 
         self.data['WP2 (V)'] = []
         self.data['Det. Signal'] = []
@@ -615,20 +604,16 @@ class FPGA_BalancePolarization(Script):
                 break
             signal_2 = float(v2)
             fpga_io.update({channel_out_2: signal_2})
-            self.msleep(settle_time)
+            time.sleep(settle_time)
             detector_value = getattr(fpga_io, channel_in)
 
             self.data['WP2 (V)'].append(v2)
             self.data['Det. Signal'].append(detector_value)
 
             v2 = self.calc_zero_pos()
+            self.progress = 50
+            self.updateProgress.emit(self.progress)
 
-            self.updateProgress.emit(50)
-
-        if self.settings['save']:
-            self.save_b26()
-            self.save_data()
-            self.save_log()
 
     def calc_zero_pos(self):
         """
@@ -672,6 +657,7 @@ class FPGA_BalancePolarization(Script):
         if self.data != {}:
             axes1, axes2 = axes_list
 
+
             volt_range = self.data['WP2 (V)']
             signal = self.data['Det. Signal']
             #
@@ -680,11 +666,13 @@ class FPGA_BalancePolarization(Script):
             #
             # popt, pcov = curve_fit(func, volt_range, signal)
 
-
             axes1.plot(signal, '-o')
             axes1.set_title('detector signal')
             axes2.plot(volt_range, '-o')
             axes2.set_title('WP2 voltage')
+            axes1.hold(False)
+            axes2.hold(False)
+
             # axes1.plot(volt_range, func(volt_range, popt[0], popt[1]), 'k-')
             # axes1.set_title('setpoint = {:0.2f}V'.format(-popt[1] / popt[0]))
 
