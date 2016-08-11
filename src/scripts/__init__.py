@@ -32,12 +32,12 @@ from find_nv import FindNV
 
 from atto_scan import AttoStep
 
-from pulse_blaster_scripts import CPMG, T1, Rabi, CalibrateMeasurementWindow
+from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, HahnEcho
 from esr_and_rabi import ESRAndRabi
 from keysight_get_spectrum import KeysightGetSpectrum
 
+from pulse_delays import PulseDelays
 
-from galvo_scan_ni_fpga import GalvoScanNIFpga
 # old imports with try/except
 # verbose = False
 

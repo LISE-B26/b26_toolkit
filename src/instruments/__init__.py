@@ -30,7 +30,7 @@ from microwave_generator import MicrowaveGenerator
 
 
 
-from labview_fpga import NI7845RGalvoScan
+# from labview_fpga import NI7845RGalvoScan
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, NI7845RGalvoScan, NI7845RReadFifo
 
 

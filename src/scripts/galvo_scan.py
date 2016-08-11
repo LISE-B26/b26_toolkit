@@ -52,7 +52,8 @@ class GalvoScan(Script):
                    [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
                     Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
-                  ])
+                  ]),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'])
     ]
 
     _INSTRUMENTS = {'daq':  DAQ}
@@ -157,6 +158,25 @@ class GalvoScan(Script):
             #     update_time = current_time
             self.progress = float(yNum + 1) / len(self.y_array) * 100
             self.updateProgress.emit(int(self.progress))
+
+        #set point after scan based on ending_behavior setting
+        if self.settings['ending_behavior'] == 'leave_at_corner':
+            return
+        elif self.settings['ending_behavior'] == 'return_to_start':
+            pt = (self.settings['point_a']['x'], self.settings['point_a']['y'])
+            pt = np.transpose(np.column_stack((pt[0], pt[1])))
+            pt = (np.repeat(pt, 2, axis=1))
+
+        elif self.settings['ending_behavior'] == 'return_to_origin':
+            pt = (0, 0)
+            pt = np.transpose(np.column_stack((pt[0], pt[1])))
+            pt = (np.repeat(pt, 2, axis=1))
+
+        self.instruments['daq']['instance'].AO_init(
+            [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        self.instruments['daq']['instance'].AO_run()
+        self.instruments['daq']['instance'].AO_waitToFinish()
+        self.instruments['daq']['instance'].AO_stop()
 
         # self._plotting = False
 

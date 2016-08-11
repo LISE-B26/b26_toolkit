@@ -18,10 +18,10 @@
 
 from b26_toolkit.src.instruments import Pulse
 from PyLabControl.src.core import Parameter, Script
-from b26_toolkit.src.scripts import ExecutePulseBlasterSequence
+from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseScript
 
 
-class PulseDelays(ExecutePulseBlasterSequence):
+class PulseDelays(PulseBlasterBaseScript):
     # COMMENT_ME
     _DEFAULT_SETTINGS = [
         Parameter('count_source_pulse_width', 10000, int, 'How long to pulse the count source (in ns)'),

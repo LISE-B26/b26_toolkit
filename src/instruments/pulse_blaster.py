@@ -27,7 +27,9 @@ Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
 
 
 class PulseBlaster(Instrument):
-    # COMMENT_ME
+    """
+    This Instrument controls a SpinCore Pulseblaster
+    """
     PBStateChange = namedtuple('PBStateChange', ('channel_bits', 'time'))
     PBCommand = namedtuple('PBCommand', ('channel_bits', 'duration', 'command', 'command_arg'))
 

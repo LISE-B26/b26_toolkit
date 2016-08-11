@@ -144,6 +144,7 @@ for a given experiment
         counts = self.data['counts']
         x_data = self.data['tau']
         axis1 = axes_list[0]
+        # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
         if counts != []:
             plot_1d_simple(axis1, x_data, [counts])
         axis2 = axes_list[1]

@@ -179,8 +179,8 @@ def get_ampfreqphase_FFT(qx, dt, n0 = 0, f_range = None, return_Spectra = False)
     '''
     returns estimate of amplitdue, frequency and phase from FFT
 
-    [ax, fx, phi] = get_ampfreqphase_FFT(qx, dt,n0 = 0, f_range=None, return_Spectra = False)
-    [ax, fx, phi], [Fx, Ax] = get_ampfreqphase_FFT(qx, dt,n0 = 0, f_range=None, return_Spectra = True)
+    [ax, wx, phi] = get_ampfreqphase_FFT(qx, dt,n0 = 0, f_range=None, return_Spectra = False)
+    [ax, wx, phi], [Fx, Ax] = get_ampfreqphase_FFT(qx, dt,n0 = 0, f_range=None, return_Spectra = True)
     input:
         qx: time trace  sampled at intervals dt
         dt: sampling interval
@@ -191,7 +191,7 @@ def get_ampfreqphase_FFT(qx, dt, n0 = 0, f_range = None, return_Spectra = False)
         return_Spectra = True/False: returns spectra over range f_range in addition to [phi, ax, fx]
 
     output:
-        dominant frequency, amplitude at that frequency and phase
+        dominant angular frequency, amplitude at that frequency and phase
         method: get fourier component of max signals
     '''
 

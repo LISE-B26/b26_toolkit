@@ -23,7 +23,8 @@ from PyLabControl.src.core import Instrument, Parameter
 
 class PiezoController(Instrument):
     '''
-    Code for a Thorlabs MDT693B piezo controller
+    Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
+    interacts with the controller using PySerial and sending commands as defined in the controller documentation.
     '''
 
     _DEFAULT_SETTINGS = Parameter([

@@ -47,7 +47,7 @@ def plot_psd(freq, psd, axes, clear = True):
     axes.set_xlabel('frequency ({:s})'.format(unit))
 
 
-def plot_esr(axes, frequency, counts, fit_params=None):
+def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r'):
     """
     plots the esr
     Args:
@@ -55,14 +55,14 @@ def plot_esr(axes, frequency, counts, fit_params=None):
         fit_params: array with fitparameters either length 4 for single peak or length 6 for double peak
         frequency: mw frequency (array)
         counts: counts (array)
-
+        plot_marker:  (str) plot marker
 
     Returns:
 
     """
 
     #  ======== plot data =========
-    axes.plot(frequency, counts, 'b')
+    axes.plot(frequency, counts, plot_marker_data)
     axes.hold(True)
 
     title = 'ESR'
@@ -81,7 +81,7 @@ def plot_esr(axes, frequency, counts, fit_params=None):
                                                                                 fit_params[1])
 
     if fit_data is not None:
-        axes.plot(frequency, fit_data, 'r')
+        axes.plot(frequency, fit_data, plot_marker_fit)
 
     # if fit_data is not None:  # plot esr and fit data
     #     lines = axes.plot(frequency, data, 'b', frequency, fit_data, 'r')
@@ -226,6 +226,8 @@ def update_1d_simple(axis, times, counts_list):
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
 
+    print(len(axis.lines), 'axis.lines')
+    print(len(counts_list), 'counts_list')
     assert len(axis.lines) == len(counts_list)
     for index, counts in enumerate(counts_list):
         axis.lines[index].set_ydata(counts)
