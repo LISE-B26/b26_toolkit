@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.instruments import DAQ, B26PulseBlaster
+from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple, plot_pulses, update_pulse_plot, update_1d_simple
 from PyLabControl.src.core.scripts import Script
 
@@ -71,24 +71,10 @@ for a given experiment
 
         '''
         self.sequence_index = 0
-        self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._create_pulse_sequences()
+        # self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._create_pulse_sequences()
+        #wrapper
 
-        #todo: debug this
-        # def add_switch_to_sequences(pulse_sequences):
-        #     if not 'mw_switch_extra_time' in self.settings.keys():
-        #         return pulse_sequences
-        #     mw_switch_time = self.settings['mw_switch_extra_time']
-        #     for sequence in pulse_sequences:
-        #         for pulse in sequence:
-        #             if pulse.channel_id in ['microwave_i', 'microwave_q']:
-        #                 sequence.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time, pulse.duration + 2*mw_switch_time))
-        #     return pulse_sequences
-        #
-        # self.pulse_sequences = add_switch_to_sequences(self.pulse_sequences)
-
-        if ('skip_invalid_sequences' in self.settings.keys() and self.settings['skip_invalid_sequences']):
-            self.pulse_sequences, delete_list = self._skip_invalid_sequences(self.pulse_sequences)
-            tau_list = np.delete(np.array(tau_list), delete_list).tolist()
+        self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._process_sequences()
 
         #calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
         #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
@@ -271,10 +257,44 @@ for a given experiment
 
     def validate(self):
         # COMMENT_ME
+        def add_mw_switch_to_sequences(pulse_sequences):
+            if not 'mw_switch_extra_time' in self.settings.keys():
+                mw_switch_time = 15
+                # return pulse_sequences
+            # mw_switch_time = self.settings['mw_switch_extra_time']
+            for sequence in pulse_sequences:
+                mw_switch_pulses = []
+                # add a switch pulse for each microwave pulse
+                for pulse in sequence:
+                    if pulse.channel_id in ['microwave_i', 'microwave_q']:
+                        mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time,
+                                                      pulse.duration + 2 * mw_switch_time))
+                # combine overlapping pulses and those that are within 2*mw_switch_extra_time
+                mw_switch_pulses = sorted(mw_switch_pulses, key=lambda pulse: pulse.start_time)
+                index = 0
+                while True:
+                    if index == len(mw_switch_pulses) - 1:
+                        break
+                    first_pulse = mw_switch_pulses[index]
+                    second_pulse = mw_switch_pulses[index + 1]
+                    if ((second_pulse.start_time) - (
+                        first_pulse.start_time + first_pulse.duration)) < 2 * mw_switch_time:
+                        new_pulse = Pulse('microwave_switch', first_pulse.start_time, max(first_pulse.duration, (
+                            second_pulse.start_time - first_pulse.start_time) + second_pulse.duration))
+                        mw_switch_pulses.remove(first_pulse)
+                        mw_switch_pulses.remove(second_pulse)
+                        mw_switch_pulses.insert(index, new_pulse)
+                    else:
+                        index += 1
+                sequence.extend(mw_switch_pulses)
+
+            return pulse_sequences
+
         pulse_blaster = self.instruments['PB']['instance']
-        self.pulse_sequences_preview = self._create_pulse_sequences()[0]
+        self.pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
+        # self.pulse_sequences = add_mw_switch_to_sequences(self.pulse_sequences) #UNCOMMENT TO ADD SWITCH
         failure_list = []
-        for pulse_sequence in self.pulse_sequences_preview:
+        for pulse_sequence in self.pulse_sequences:
             overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
             if not overlapping_pulses == []:
                 failure_list.append(B26PulseBlaster.find_overlapping_pulses(pulse_sequence))
@@ -299,24 +319,20 @@ for a given experiment
                 failure_list.append([])  # good sequence
 
         if any([isinstance(a, pulse_blaster.PBCommand) for a in failure_list]):
-            print('VALIDATION FAILED')
+            self.log('Validation failed. At least one pulse in the sequence is invalid.')
 
-        else:
-            print('VALIDATION SUCCESSFUL')
-
-        return failure_list
+        return self.pulse_sequences, num_averages, tau_list, measurement_gate_width, failure_list
 
     def _plot_validate(self, axes_list):
         # COMMENT_ME
         axis1 = axes_list[0]
         axis2 = axes_list[1]
-        plot_pulses(axis2, self.pulse_sequences_preview[0])
-        plot_pulses(axis1, self.pulse_sequences_preview[-1])
+        plot_pulses(axis2, self.pulse_sequences[0])
+        plot_pulses(axis1, self.pulse_sequences[-1])
 
-    def _skip_invalid_sequences(self, pulse_sequences):
+    def _process_sequences(self):
         # COMMENT_ME
-        new_pulse_sequences = deepcopy(pulse_sequences)
-        failure_list = self.validate()
+        pulse_sequences, num_averages, tau_list, measurement_gate_width, failure_list = self.validate()
         delete_list = []
         for index, result in enumerate(failure_list):
             if not result == []:
@@ -324,14 +340,16 @@ for a given experiment
         if not delete_list == []:
             delete_list.reverse()
             for index in delete_list:
-                new_pulse_sequences.pop(index)
-        return new_pulse_sequences, delete_list
+                pulse_sequences.pop(index)
+
+        tau_list = np.delete(np.array(tau_list), delete_list).tolist()
+
+        return pulse_sequences, num_averages, tau_list, measurement_gate_width
 
     def stop(self):
         # COMMENT_ME
         # self.instruments['PB']['instance'].stop()
         super(PulseBlasterBaseScript, self).stop()
-
 
 
 if __name__ == '__main__':
