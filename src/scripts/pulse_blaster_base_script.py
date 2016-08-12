@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.instruments import DAQ, B26PulseBlaster
+from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple, plot_pulses, update_pulse_plot, update_1d_simple
 from PyLabControl.src.core.scripts import Script
 
@@ -74,17 +74,25 @@ for a given experiment
         self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._create_pulse_sequences()
 
         #todo: debug this
-        # def add_switch_to_sequences(pulse_sequences):
-        #     if not 'mw_switch_extra_time' in self.settings.keys():
-        #         return pulse_sequences
-        #     mw_switch_time = self.settings['mw_switch_extra_time']
-        #     for sequence in pulse_sequences:
-        #         for pulse in sequence:
-        #             if pulse.channel_id in ['microwave_i', 'microwave_q']:
-        #                 sequence.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time, pulse.duration + 2*mw_switch_time))
-        #     return pulse_sequences
-        #
-        # self.pulse_sequences = add_switch_to_sequences(self.pulse_sequences)
+        def add_switch_to_sequences(pulse_sequences):
+            if not 'mw_switch_extra_time' in self.settings.keys():
+                return pulse_sequences
+            mw_switch_time = self.settings['mw_switch_extra_time']
+            #add switch to every microwave pulse
+            for sequence in pulse_sequences:
+                switch_pulse_list = []
+                for pulse in sequence:
+                    if pulse.channel_id in ['microwave_i', 'microwave_q']:
+                        switch_pulse_list.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time, pulse.duration + 2*mw_switch_time))
+                #combine pulses that are overlapping or spaced by less than 2 times the mw_switch_extra_time
+
+
+                sequence.extend()
+
+
+            return pulse_sequences
+
+        self.pulse_sequences = add_switch_to_sequences(self.pulse_sequences)
 
         if ('skip_invalid_sequences' in self.settings.keys() and self.settings['skip_invalid_sequences']):
             self.pulse_sequences, delete_list = self._skip_invalid_sequences(self.pulse_sequences)
