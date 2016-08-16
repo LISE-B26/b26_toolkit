@@ -21,7 +21,7 @@ from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseSc
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple, update_1d_simple
 from PyLabControl.src.core import Parameter, Script
-
+from src.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 
 class PulsedESR(PulseBlasterBaseScript):
     """
@@ -152,10 +152,22 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
     def _function(self):
         #COMMENT_ME
+
+        self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_frequency']})
-        super(Rabi, self)._function()
+        super(Rabi, self)._function(self.data)
+
+        counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
+        tau = self.data['tau']
+
+        fits = fit_rabi_decay(tau, counts, varibale_phase=True)
+
+        try:
+            self.data['fits'] =fits
+        except:
+            self.log('rabi fit failed')
 
     def _create_pulse_sequences(self):
         '''
@@ -200,9 +212,21 @@ This script applies a microwave pulse at fixed power for varying durations to me
     def _plot(self, axislist):
         #COMMENT_ME
 
-        super(Rabi, self)._plot(axislist)
-        axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9))
-        axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
+        if self.data['fits'] is not None:
+            counts = self.data['counts'][:,1]/ self.data['counts'][:,0]
+            tau = self.data['tau']
+            fits = self.data['fits']
+
+            axislist[0].plot(tau, counts, 'b')
+            axislist[0].hold(True)
+
+            axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
+            pi_time = 2*np.pi / fits[1] / 2
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.0f}ns'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9, pi_time))
+        else:
+            super(Rabi, self)._plot(axislist)
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9))
+            axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 
 

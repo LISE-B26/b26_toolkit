@@ -136,12 +136,13 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
 
         return idx, data[idx]
 
-    def check_double_peak(freq_max, peak_max):
+    def check_double_peak(freq_max, peak_max, fo = 2.878):
         """
         checks if double peak is physical of not return the frequency and value of the physical peak
         Args:
             freq_max: vector of length 2 with the frequencies of the two peaks
             peak_max: value of two peaks
+            fo: NV center frequency without Zeeman shift (2.878 GHz)
 
         Returns:
             freq_max, peak_max
@@ -150,7 +151,7 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
         """
         assert len(freq_max) == 2
 
-        fo = 2.878  # NV center frequency without Zeeman shift
+
 
         # calculate symmetry with respect to expected center freq
         df = np.abs(freq_max - fo)
@@ -188,7 +189,13 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
     max_idx, max_pts = find_peaks_pts(sig_filtered, width_pts, initial_threshold, steps_size)
 
     if len(max_idx) == 2:
-        freq_max = check_double_peak(freq[max_idx], max_pts)
+        fo = 2.878 # NV center frequency without Zeeman shift (2.878 GHz)
+        if min(freq)> fo or max(freq)<fo:
+
+            freq_max = freq[max_idx]
+        else:
+            freq_max = check_double_peak(freq[max_idx], max_pts, fo)
+        print('xxxxxx freq_max', freq_max)
         if len(freq_max) == 1:
             data_max = [dx for (fx, dx) in zip(freq, data) if fx == freq_max]
             max_pts = [dx for (fx, dx) in zip(freq, sig_filtered) if fx == freq_max]
