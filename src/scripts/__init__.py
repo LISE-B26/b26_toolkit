@@ -39,7 +39,7 @@ from keysight_get_spectrum import KeysightGetSpectrum
 
 from galvo_scan_ni_fpga import GalvoScanNIFpga
 
-from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap, FPGA_PolarizationSignalScan, FPGA_BalancePolarization
+from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap, FPGA_PolarizationSignalScan, FPGA_PolarizationController,FPGA_BalancePolarization
 
 # old imports with try/except
 # verbose = False
