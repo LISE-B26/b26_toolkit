@@ -934,7 +934,108 @@ This script measures the relaxation time of an NV center
         axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
 
 
+class T1SpinFlip(PulseBlasterBaseScript):
+    """
+This script measures the relaxation time of an NV center
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter(
+            'tau_times',
+            [
+                Parameter('time_step', 1000, int, 'time step increment of T1 measurement (ns)'),
+                Parameter('max_time', 200000, float, 'max time of T1 measurement (ns)'),
+                Parameter('min_time', 0, float, 'min time of T1 measurement (ns)')
+            ]
+        ),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
+        Parameter(
+            'read_out',
+            [
+                Parameter('meas_time', 700, float, 'measurement time of fluorescence counts (ns)'),
+                Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
+                Parameter('ref_meas_off_time', 200, int, 'laser off time before taking reference measurement at the end of init (ns)')
+            ]
+        ),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
+        Parameter('apply pi-pulse', True, bool, 'if true a pi pulse is at the beginning of the measurement'),
+        Parameter('pi-pulse',
+                  [
+                      Parameter('mw_frequency', 2.87e9, float, 'microwave frequency of pi pulse (Hz)'),
+                      Parameter('mw_duration', 300, int, 'pi pulse duration (ns)'),
+                      Parameter('mw_channel', 'i', ['i', 'q'], 'select i or q channel for i pulse'),
+                      Parameter('mw_power', -2, float, 'microwave power (dB)')
+                  ]
+                  )
+    ]
 
+    _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    def _function(self):
+        #COMMENT_ME
+        self.instruments['mw_gen']['instance'].update({
+            'modulation_type': 'IQ',
+            'amplitude': self.settings['pi-pulse']['mw_power'],
+            'frequency': self.settings['pi-pulse']['mw_frequency']
+        })
+        super(T1SpinFlip, self)._function()
+
+    def _create_pulse_sequences(self):
+        """
+        Returns: pulse_sequences, num_averages, tau_list
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a  pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        """
+
+        pulse_sequences = []
+        if self.settings['tau_times']['time_step'] % 5 != 0:
+            raise AttributeError('given time_step is not a multiple of 5')
+
+        tau_list = range(int(self.settings['tau_times']['max_time'] + self.settings['tau_times']['time_step']),
+                         int(self.settings['tau_times']['min_time']),
+                         self.settings['tau_times']['time_step']
+                         )
+
+        if self.settings['apply pi-pulse']:
+            reset_time = self.settings['read_out']['nv_reset_time']+ self.settings['pi-pulse']['mw_tau']
+        else:
+            reset_time = self.settings['read_out']['nv_reset_time']
+        ref_meas_off_time = self.settings['read_out']['ref_meas_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+
+        microwave_channel = 'microwave_' + self.settings['pi-pulse']['mw_channel']
+        microwave_duration = 'microwave_' + self.settings['pi-pulse']['mw_duration']
+
+        # reduce the initialization time by 15 ns to avoid touching DAQ pulses
+        # (they are problematic because the DAQ expects two pulse but get only one because they get merged by the pulse blaster)
+        for tau in tau_list:
+            sequence = [Pulse('laser', 0, reset_time - 15 - meas_time - ref_meas_off_time)
+                     ]
+
+            if self.settings['apply pi-pulse']:
+                sequence += [
+                    Pulse(microwave_channel, reset_time - 15 - meas_time - ref_meas_off_time/2 - microwave_duration/2, microwave_duration)
+                ]
+
+            sequence += [
+                Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
+                Pulse('laser',       reset_time - 15 - meas_time, meas_time),
+                Pulse('apd_readout', reset_time + tau, meas_time),
+                Pulse('laser',       reset_time + tau, meas_time)
+            ]
+
+            pulse_sequences.append(sequence)
+
+        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
+
+    def _plot(self, axislist):
+        super(T1SpinFlip, self)._plot(axislist)
+        axislist[0].set_title('T1')
+        axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
 if __name__ == '__main__':
     script = {}
     instr = {}
