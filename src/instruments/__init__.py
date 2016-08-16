@@ -23,14 +23,15 @@ from piezo_controller import PiezoController
 from zurich_instruments import ZIHF2
 from pulse_blaster import B26PulseBlaster, Pulse
 from maestro import MaestroLightControl
-
 from attocube import Attocube
-
 from microwave_generator import MicrowaveGenerator
 
 
 
 # from labview_fpga import NI7845RGalvoScan
+from labview_fpga import NI7845RGalvoScan
+
+
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, NI7845RGalvoScan, NI7845RReadFifo
 
 
