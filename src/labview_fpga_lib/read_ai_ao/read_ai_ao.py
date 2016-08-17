@@ -58,6 +58,30 @@ _libfpga.read_AI7.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
 _libfpga.read_AI7.restype = c_int16
 
 
+_libfpga.read_AO0.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO0.restype = c_int16
+
+_libfpga.read_AO1.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO1.restype = c_int16
+
+_libfpga.read_AO2.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO2.restype = c_int16
+
+_libfpga.read_AO3.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO3.restype = c_int16
+
+_libfpga.read_AO4.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO4.restype = c_int16
+
+_libfpga.read_AO5.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO5.restype = c_int16
+
+_libfpga.read_AO6.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO6.restype = c_int16
+
+_libfpga.read_AO7.argtypes = [POINTER(c_uint32), POINTER(c_int32)]
+_libfpga.read_AO7.restype = c_int16
+
 # set outputs
 _libfpga.set_AO0.argtypes = [c_int16, POINTER(c_uint32), POINTER(c_int32)]
 _libfpga.set_AO0.restype = None
@@ -142,6 +166,30 @@ def read_AI6(session, status):
 def read_AI7(session, status):
     return _libfpga.read_AI7(byref(session), byref(status))
 
+
+def read_AO0(session, status):
+    return _libfpga.read_AO0(byref(session), byref(status))
+
+def read_AO1(session, status):
+    return _libfpga.read_AO1(byref(session), byref(status))
+
+def read_AO2(session, status):
+    return _libfpga.read_AO2(byref(session), byref(status))
+
+def read_AO3(session, status):
+    return _libfpga.read_AO3(byref(session), byref(status))
+
+def read_AO4(session, status):
+    return _libfpga.read_AO4(byref(session), byref(status))
+
+def read_AO5(session, status):
+    return _libfpga.read_AO5(byref(session), byref(status))
+
+def read_AO6(session, status):
+    return _libfpga.read_AO6(byref(session), byref(status))
+
+def read_AO7(session, status):
+    return _libfpga.read_AO7(byref(session), byref(status))
 
 def set_AO0(value, session, status):
     return _libfpga.set_AO0(value, byref(session), byref(status))

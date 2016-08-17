@@ -40,6 +40,16 @@ int16_t read_AI5(NiFpga_Session* session, NiFpga_Status* status);
 int16_t read_AI6(NiFpga_Session* session, NiFpga_Status* status);
 int16_t read_AI7(NiFpga_Session* session, NiFpga_Status* status);
 
+int16_t read_AO0(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO1(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO2(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO3(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO4(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO5(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO6(NiFpga_Session* session, NiFpga_Status* status);
+int16_t read_AO7(NiFpga_Session* session, NiFpga_Status* status);
+
+
 void set_AO0(int16_t value, NiFpga_Session* session, NiFpga_Status* status);
 void set_AO1(int16_t value, NiFpga_Session* session, NiFpga_Status* status);
 void set_AO2(int16_t value, NiFpga_Session* session, NiFpga_Status* status);

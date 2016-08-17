@@ -149,6 +149,71 @@ int16_t read_AI7(NiFpga_Session* session, NiFpga_Status* status)
 }
 
 
+int16_t read_AO0(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO0,&value));
+	return value;
+}
+
+int16_t read_AO1(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO1,&value));
+	return value;
+}
+
+int16_t read_AO2(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO2,&value));
+	return value;
+}
+
+int16_t read_AO3(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO3,&value));
+	return value;
+}
+
+int16_t read_AO4(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO4,&value));
+	return value;
+}
+
+int16_t read_AO5(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO5,&value));
+	return value;
+}
+
+int16_t read_AO6(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO6,&value));
+	return value;
+}
+
+int16_t read_AO7(NiFpga_Session* session, NiFpga_Status* status)
+{
+	int16_t value;
+
+	NiFpga_MergeStatus(status, NiFpga_ReadI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO7,&value));
+	return value;
+}
+
+
 void set_AO0(int16_t value, NiFpga_Session* session, NiFpga_Status* status)
 {
 	NiFpga_MergeStatus(status, NiFpga_WriteI16(*session,NiFpga_FPGA_read_ai_ao_ControlI16_Connector1AO0,value));
