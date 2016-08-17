@@ -378,10 +378,13 @@ this gives a one dimensional dataset
             Parameter('V_2', 4.0, float, 'voltage applied to waveplate 2'),
             Parameter('V_3', 2.4, float, 'voltage applied to waveplate 3')
         ]),
-        Parameter('target', 200, float, 'target max detector signal'),
-        Parameter('settle_time', 2., float, 'settle time (s)'),
-        Parameter('WP_control', 2, [1,2,3], 'control waveplate'),
-        Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
+        Parameter('optimization',[
+            Parameter('target', 50, float, 'target max detector signal'),
+            Parameter('settle_time', 2., float, 'settle time (s)'),
+            Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
+            Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
+            Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
+        ]),
         Parameter('measure_at_zero',[
             Parameter('on', True, bool, 'if true keep measuring after zero is found'),
             Parameter('N', 1000, int, 'number of measurement points after zero is found')
@@ -418,22 +421,22 @@ this gives a one dimensional dataset
         #     return 100.*progress
 
         self.data = {'voltage_waveplate': [], 'detector_signal': [], 'det_signal_cont': []}
-
-        settle_time = self.settings['settle_time']
-        v_out = float(self.settings['setpoints']['V_{:d}'.format(self.settings['WP_control'])])
-        target = self.settings['target']
+        wp_control = self.settings['optimization']['WP_control']
+        settle_time = self.settings['optimization']['settle_time']
+        v_out = float(self.settings['setpoints']['V_{:d}'.format(wp_control)])
+        target = self.settings['optimization']['target']
         detector_value = 2* target
         direction = 1  # we start going forward
 
         control_channel = 'DIO{:d}'.format(self.settings['channels']['channel_OnOff'])
-        channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(self.settings['WP_control'])])
+        channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(wp_control)])
         channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
 
         fpga_io = self.instruments['FPGA_IO']['instance']
 
 
-        x = getattr(fpga_io, channel_out)
-        print('=== current value',channel_out, x)
+        # x = getattr(fpga_io, channel_out)
+        # print('=== current value',channel_out, x)
 
         # turn controller on
         fpga_io.update({control_channel: True})
@@ -443,14 +446,24 @@ this gives a one dimensional dataset
         # set the setpoints for all three waveplates
         dictator = {}
         for i in [1, 2, 3]:
+            if self.settings['optimization']['start with current'] and i == wp_control:
+                value = getattr(fpga_io, channel_out)
+                if value == 0:
+                    value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+                    self.log('current value is zero take setpoint {:0.2f} V as starting point'.format(value))
+                else:
+                    value = int_to_voltage(value)
+                    self.log('use current value {:0.2} V as starting point'.format(value))
+            else:
+                value = float(self.settings['setpoints']['V_{:d}'.format(i)])
             dictator.update({
-                'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):
-                    float(self.settings['setpoints']['V_{:d}'.format(i)])})
+                'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
+
         fpga_io.update(dictator)
         time.sleep(settle_time)
 
-        x = getattr(fpga_io, channel_out)
-        print('=== current value', x)
+        # x = getattr(fpga_io, channel_out)
+        # print('=== current value', x)
 
         crossed_zero = False
         while abs(detector_value) > abs(target):
@@ -471,19 +484,17 @@ this gives a one dimensional dataset
 
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
-                v_step = self.settings['dV'] # start with initial step size
+                v_step = self.settings['optimization']['dV'] # start with initial step size
             elif len(self.data['voltage_waveplate']) > 1:
 
 
 
-
+                # check for zero crossing
                 if self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
-                    crossed_zero = True
                     self.log('detected zero crossing!')
                     direction *=-1 # since we crossed zero we have to go back the next time, i.e invert the direction
                     v_step /=2 # decrease the step size since we are closer to zero
                 else:
-                    crossed_zero = False
                     if len(self.data['voltage_waveplate']) < 5 and len(self.data['voltage_waveplate']) >2 and abs(self.data['detector_signal'][-1]) > abs(self.data['detector_signal'][-2]):
                         print('WARNING SEEM TO GO INTO WRONG DIRECTION')
                         direction *= -1 # if in the first few measurements we go into the wrong direction, then turn around
@@ -504,13 +515,16 @@ this gives a one dimensional dataset
 
         self.data['setpoint'] = v_out
         print('starting contrinuous measurement')
+
+        n_opt = len(self.data['voltage_waveplate'])
+        n_cont = self.settings['measure_at_zero']['N']
         if self.settings['measure_at_zero']['on']:
-            for i in range(self.settings['measure_at_zero']['N']):
+            for i in range(n_cont):
                 if self._abort:
                     break
                 detector_value = getattr(fpga_io, channel_in)
                 self.data['det_signal_cont'].append(detector_value)
-                self.progress = 100.* i /self.settings['measure_at_zero']['N']
+                self.progress = 100.* (i+n_opt) /(n_cont+ n_opt)
 
                 self.updateProgress.emit(self.progress)
                 time.sleep(settle_time)
@@ -519,10 +533,10 @@ this gives a one dimensional dataset
 
         if self.data != {}:
 
-            dt = self.settings['settle_time']
-            N = len(self.data['voltage_waveplate'])
+            # dt = self.settings['optimization']['settle_time']
+            # N = len(self.data['voltage_waveplate'])
 
-            t = np.linspace(0,N * dt, N)
+            # t = np.linspace(0,N * dt, N)
             volt_range = np.array(self.data['voltage_waveplate'])
             signal = np.array(self.data['detector_signal'])
 
