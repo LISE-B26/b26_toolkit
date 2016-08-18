@@ -194,7 +194,8 @@ this gives a one dimensional dataset
             Parameter('scan_range', 0.5, float, 'voltage scan range around setpoint (output is capped at 0 and 5V)'),
             Parameter('N', 10, int, 'number of points in scan range')
         ]),
-        Parameter('stop_at_zero', True, bool, 'if true scan stop once detector signal crosses 0')
+        Parameter('stop_at_zero', True, bool, 'if true scan stop once detector signal crosses 0'),
+        Parameter('goto_zero', True, bool, 'if true go to zero crossing point')
     ]
 
     _INSTRUMENTS = {
@@ -239,6 +240,10 @@ this gives a one dimensional dataset
 
         channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
 
+        wp_value = getattr(fpga_io, channel_out)
+        print('== current wp value', wp_value)
+
+
         dictator = {}
         for i in [1,2,3]:
             channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)])
@@ -256,7 +261,7 @@ this gives a one dimensional dataset
         N = self.settings['scan']['N']
 
 
-        volt_range = np.linspace(max(Vo - dV / 2, 0), min(Vo + dV / 2, 5), N)
+        volt_range = np.linspace(max(Vo - dV / 2., 0), min(Vo + dV / 2., 5), N)
         crossed_zero = False
         for i, v2 in enumerate(volt_range):
             if self._abort:
@@ -273,27 +278,52 @@ this gives a one dimensional dataset
 
             self.updateProgress.emit(self.progress)
 
-            if i > 2 and self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
+            if i > 1 and self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
                 crossed_zero = True
                 self.log('detected zero crossing!')
             if self.settings['stop_at_zero'] and crossed_zero:
                 break
 
-
-        setpoint = float(self.calc_setpoint())
+        setpoint = self.calc_setpoint()
         self.data['setpoint'] = setpoint
-        self.data['crossed_zero'] = crossed_zero
+
+        if self.settings['goto_zero'] and setpoint is not None:
+            fpga_io.update({channel_out: float(setpoint)})
+            time.sleep(settle_time)
 
     def calc_setpoint(self):
+        """
+        calculates the setpoint, i.e. where the signal from the detector is near zero and checks
+        if the calculated setpoint is near the actual zero crossing of the measurement
+        (this might not always be true because our model assumes a linear depencency which holds only near the zero crossing)
+        Returns: setpoint (None if no setpoint is found)
 
+        """
         def func(x, a, b):
             return a * x + b
 
-        volt_range = self.data['voltage_waveplate']
-        signal = self.data['detector_signal']
+        volt_range = np.array(self.data['voltage_waveplate'])
+        signal = np.array(self.data['detector_signal'])
         popt, pcov = curve_fit(func, volt_range, signal)
 
         setpoint = -popt[1] / popt[0]
+
+        index_zero_cross = np.where((signal[0:-1] * signal[1:]) < 0)[0]
+        if len(index_zero_cross) == 0:
+            # no zero crossing
+            setpoint = None
+        elif len(index_zero_cross) == 1:
+            index_zero_cross = index_zero_cross[0]
+            if index_zero_cross < len(volt_range)-1:
+                # check if calculated setpoint is near zero crossing
+                zero_plus = volt_range[index_zero_cross]
+                zero_minus = volt_range[index_zero_cross+1]
+                # if not take the average of the actual zero crossing
+                if setpoint< zero_minus or setpoint> zero_plus:
+                    setpoint = (zero_minus + zero_plus)/2.
+            else:
+                setpoint = None
+
 
         return setpoint
     def _plot(self, axes_list):
@@ -310,14 +340,15 @@ this gives a one dimensional dataset
             axes.plot(volt_range, signal, '-o')
             axes.hold(True)
 
-            if len(volt_range)>5:
+            if len(volt_range)>2:
 
                 # popt, pcov = curve_fit(func, volt_range, signal)
                 # axes.plot(volt_range, func(volt_range, popt[0], popt[1]), 'k-')
                 setpoint = self.calc_setpoint()
-                axes.plot([setpoint, setpoint],[min(signal), max(signal)], 'r--')
-                axes.set_title('setpoint = {:0.2f}V'.format(setpoint))
-                axes.plot([min(volt_range), max(volt_range)], [0, 0], 'k-')
+                if not setpoint is None:
+                    axes.plot([setpoint, setpoint],[min(signal), max(signal)], 'r--')
+                    axes.set_title('setpoint = {:0.2f}V'.format(setpoint))
+                    axes.plot([min(volt_range), max(volt_range)], [0, 0], 'k-')
 
             axes.hold(False)
 
@@ -327,38 +358,56 @@ this gives a one dimensional dataset
                 axes.plot(signal_cont, '-o')
                 axes.hold(False)
 
-
-
 class FPGA_BalancePolarization(Script):
     """
-    script to bring the detector response to zero
-    two channels are set to a fixed voltage while the signal of the third channel is varied until the detector response is zero
+script to map out detector response as a function of polarization controller voltage WP2
+the script scans the voltage of  channel 2 from 0 to 5 volt and records the detector response
+this gives a one dimensional dataset
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('goto_zero', True, bool,'true output is set to the calculated setpoint such that expected detector signal is zero'),
-        Parameter('read_signal', True, bool, 'keeps script running and just measures the signal'),
-        Parameter('max_duration', 100, float, 'maximum time the script runs after finding the setpoint (s)'),
-        Parameter('scan_range_target', 0.1, float, 'target scan range'),
-        Parameter('settle_time', 1.0, float, 'settle time in seconds between voltage steps'),
+        Parameter('channels', [
+            Parameter('channel_WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
+            Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
+            Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
+            Parameter('channel_OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
+            Parameter('channel_detector', 0, range(4), 'analog input channel of the detector signal')
+        ]),
+        Parameter('setpoints', [
+            Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
+            Parameter('V_2', 4.0, float, 'voltage applied to waveplate 2'),
+            Parameter('V_3', 2.4, float, 'voltage applied to waveplate 3')
+        ]),
+        Parameter('optimization',[
+            Parameter('target', 50, float, 'target max detector signal'),
+            Parameter('settle_time', 2., float, 'settle time (s)'),
+            Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
+            Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
+            Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
+        ]),
+        Parameter('measure_at_zero',[
+            Parameter('on', True, bool, 'if true keep measuring after zero is found'),
+            Parameter('N', 1000, int, 'number of measurement points after zero is found')
+        ])
     ]
 
     _INSTRUMENTS = {
+        'FPGA_IO': NI7845RReadWrite
     }
 
     _SCRIPTS = {
-        'find_setpoint': FPGA_PolarizationSignalScan
+
     }
 
-    def __init__(self, instruments = None, scripts = None, name=None, settings=None, log_function=None, data_path = None):
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
         Example of a script that emits a QT signal for the gui
         Args:
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-
-        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
 
     def _function(self):
         """
@@ -366,75 +415,169 @@ class FPGA_BalancePolarization(Script):
         will be overwritten in the __init__
         """
 
-        self.data['det_signal'] = []
-        find_setpoint = self.scripts['find_setpoint']
+        # def calc_progress(v2, volt_range):
+        #     dV = np.mean(np.diff(volt_range))
+        #     progress = (v2 - min(volt_range)) / (max(volt_range) - min(volt_range))
+        #     return 100.*progress
+
+        self.data = {'voltage_waveplate': [], 'detector_signal': [], 'det_signal_cont': []}
+        wp_control = self.settings['optimization']['WP_control']
+        settle_time = self.settings['optimization']['settle_time']
+        v_out = float(self.settings['setpoints']['V_{:d}'.format(wp_control)])
+        target = self.settings['optimization']['target']
+        detector_value = 2* target
+        direction = 1  # we start going forward
+
+        control_channel = 'DIO{:d}'.format(self.settings['channels']['channel_OnOff'])
+        channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(wp_control)])
+        channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
+
+        fpga_io = self.instruments['FPGA_IO']['instance']
 
 
-        dt = self.settings['settle_time']
-        dV = float(find_setpoint.settings['scan']['scan_range']) / 2
-        dV_target = self.settings['scan_range_target']
+        # x = getattr(fpga_io, channel_out)
+        # print('=== current value',channel_out, x)
 
-        WP_scan = find_setpoint.settings['scan']['WP_scan']
-        channel_out = 'AO{:d}'.format(WP_scan)
-        channel_in = 'AI{:d}'.format(find_setpoint.settings['channels']['channel_detector'])
-        Vo = None
+        # turn controller on
+        fpga_io.update({control_channel: True})
 
-        fpga_io = find_setpoint.instruments['FPGA_IO']['instance']
 
-        settle_time = self.settings['settle_time']
 
-        while dV>dV_target:
-            find_setpoint.run()
-
-            if find_setpoint.data['crossed_zero'] is False:
-                self.log('warning, couldn\'t find zero crossing - exit scan')
-                break
+        # set the setpoints for all three waveplates
+        dictator = {}
+        for i in [1, 2, 3]:
+            if self.settings['optimization']['start with current'] and i == wp_control:
+                value = getattr(fpga_io, channel_out)
+                if value == 0:
+                    value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+                    self.log('current value is zero take setpoint {:0.2f} V as starting point'.format(value))
+                else:
+                    value = int_to_voltage(value)
+                    self.log('use current value {:0.2} V as starting point'.format(value))
             else:
-                Vo = float(find_setpoint.data['setpoint'])
-                dV /= 2
+                value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+            dictator.update({
+                'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
 
-                find_setpoint.settings.update({
-                    'setpoint': {'V_{:d}'.format(WP_scan):Vo},
-                    'scan' : {'scan_range': dV}
-                })
+        fpga_io.update(dictator)
+        time.sleep(settle_time)
 
+        # x = getattr(fpga_io, channel_out)
+        # print('=== current value', x)
 
-
-        if self.settings['goto_zero'] and Vo is not None:
-            fpga_io.update({channel_out: Vo})
-
-        start_time = datetime.datetime.now()
-
-        while self.settings['read_signal']:
+        crossed_zero = False
+        while abs(detector_value) > abs(target):
             if self._abort:
                 break
-            detector_value = getattr(fpga_io, channel_in)
-            print('detector_value', detector_value)
-            self.data['det_signal'].append(detector_value)
+
+            # set output
+            fpga_io.update({channel_out: float(v_out)})
+            # wait for system to settle
             time.sleep(settle_time)
-            self.progress = 50
+            # read detector
+            detector_value = getattr(fpga_io, channel_in)
+
+            self.data['voltage_waveplate'].append(v_out)
+            self.data['detector_signal'].append(detector_value)
+            self.progress = 50.
             self.updateProgress.emit(self.progress)
-            if (datetime.datetime.now()- start_time).total_seconds()>=self.settings['max_duration']:
-                break
+
+            # calculate the next step
+            if len(self.data['voltage_waveplate']) ==1:
+                v_step = self.settings['optimization']['dV'] # start with initial step size
+            elif len(self.data['voltage_waveplate']) > 1:
 
 
-    def plot(self, axes_list):
-        if self._current_subscript_stage['current_subscript'].name == 'find_setpoint':
-            self.scripts['find_setpoint'].plot(axes_list)
+
+                # check for zero crossing
+                if self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
+                    self.log('detected zero crossing!')
+                    direction *=-1 # since we crossed zero we have to go back the next time, i.e invert the direction
+                    v_step /=2 # decrease the step size since we are closer to zero
+                else:
+                    if len(self.data['voltage_waveplate']) < 5 and len(self.data['voltage_waveplate']) >2 and abs(self.data['detector_signal'][-1]) > abs(self.data['detector_signal'][-2]):
+                        print('WARNING SEEM TO GO INTO WRONG DIRECTION')
+                        direction *= -1 # if in the first few measurements we go into the wrong direction, then turn around
+
+
+            # calculate next output voltage
+            v_out += v_step * direction
+
+
+            if v_out > 5 or v_out <0:
+                v_out = 5 if v_out > 5 else 0 # set the output to be within the range
+                direction *= -1 # change direction since we hit the end of the valid output range
+
+            if min(self.data['voltage_waveplate']) == 0 and max(self.data['voltage_waveplate']) ==5:
+                self.log('warning! scanned full range without finding zero. abort!')
+                self._abort = True
+
+
+        self.data['setpoint'] = v_out
+        print('starting contrinuous measurement')
+
+        n_opt = len(self.data['voltage_waveplate'])
+        n_cont = self.settings['measure_at_zero']['N']
+        if self.settings['measure_at_zero']['on']:
+            for i in range(n_cont):
+                if self._abort:
+                    break
+                detector_value = getattr(fpga_io, channel_in)
+                self.data['det_signal_cont'].append(detector_value)
+                self.progress = 100.* (i+n_opt) /(n_cont+ n_opt)
+
+                self.updateProgress.emit(self.progress)
+                time.sleep(settle_time)
+
+    def _plot(self, axes_list):
+
+        if self.data != {}:
+
+            # dt = self.settings['optimization']['settle_time']
+            # N = len(self.data['voltage_waveplate'])
+
+            # t = np.linspace(0,N * dt, N)
+            volt_range = np.array(self.data['voltage_waveplate'])
+            signal = np.array(self.data['detector_signal'])
+
+            if len(self.data['det_signal_cont']) == 0:
+                axes_list[0].plot(signal, '-o')
+                axes_list[0].hold(False)
+                axes_list[0].set_ylabel('detector signal (bits)')
+
+                axes_list[1].plot(volt_range, '-o')
+                axes_list[1].hold(False)
+                axes_list[0].set_ylabel('wp voltage (V)')
+            else:
+                axes_list[1].plot(signal/float(2**15), '-o', label = 'detector signal / (2^15)')
+                axes_list[1].hold(True)
+                axes_list[1].plot(volt_range/5., '-o', label = 'wp voltage / 5V')
+                axes_list[1].hold(False)
+                axes_list[1].set_ylabel('signal')
+                axes_list[1].legend(fontsize=8)
+
+                signal_det = np.array(self.data['det_signal_cont'])
+                axes_list[0].plot(signal_det, '-o')
+                axes_list[0].set_ylabel('detector signal (bit)')
+                axes_list[0].hold(False)
+
+
+
+    def _update(self, axes_list):
+        volt_range = np.array(self.data['voltage_waveplate'])
+        signal = np.array(self.data['detector_signal'])
+        signal_det = np.array(self.data['det_signal_cont'])
+
+        if len(self.data['det_signal_cont']) == 1:
+            self._plot(self, axes_list)
+        elif len(self.data['det_signal_cont']) == 0:
+
+            axes_list[0].lines[0].set_ydata(signal)
+            axes_list[1].lines[0].set_ydata(volt_range)
         else:
-            ax = axes_list[1]
-
-            if len(self.data['det_signal'] )>0:
-                ax.plot(self.data['det_signal'])
-
-    # def _plot(self, axes_list):
-    #
-    #     print('asdad', self.scripts['find setpoint'].is_running, self._current_subscript_stage)
-    #     if self.scripts['find setpoint'].is_running:
-    #         self.scripts['find setpoint']._plot(axes_list)
-    #     else:
-    #         self.scripts['polarization_control']._plot(axes_list)
-
+            axes_list[0].lines[0].set_ydata(signal_det)
+            # axes_list[1].lines[0].set_ydata(signal/float(2**15))
+            # axes_list[1].lines[1].set_ydata(volt_range/5.)
 
 
 

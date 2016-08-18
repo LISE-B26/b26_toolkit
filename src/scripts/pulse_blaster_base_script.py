@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, Pulse
-from b26_toolkit.src.plotting.plots_1d import plot_1d_simple, plot_pulses, update_pulse_plot, update_1d_simple
+from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from PyLabControl.src.core.scripts import Script
 
 MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
@@ -134,7 +134,7 @@ for a given experiment
         axis1 = axes_list[0]
         # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
         if counts != []:
-            plot_1d_simple(axis1, x_data, [counts])
+            plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
 

@@ -209,10 +209,8 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
         title:  (optional) title
 
     """
-    for counts in data_list:
-        axis.plot(times, counts)
 
-    axis.hold(False)
+    times = 1.*np.array(times) # cast onto numpy in case we got a list, which breaks some of the commands below
 
     if max(times) < 1e3:
         x_label = 'time (ns)'
@@ -225,6 +223,12 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
     elif max(times) < 1e12:
         x_label = 'time (s)'
         times *= 1e-9
+
+    for counts in data_list:
+        axis.plot(times, counts)
+
+    axis.hold(False)
+
 
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
