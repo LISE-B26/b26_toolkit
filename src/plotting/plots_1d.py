@@ -198,12 +198,33 @@ def plot_counts(axis, data):
     axis.set_ylabel('kCounts/sec')
 
 
-def plot_1d_simple(axis, times, counts_list, x_label='time (ns)', y_label='kCounts/sec', title=None):
-    # COMMENT_ME
-    for counts in counts_list:
+def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', title=None):
+    """
+    plots a time trace for a list of data assuming that the times are give in ns
+    Args:
+        axis: axis object on which to plot
+        times: times in ns (list or array of length N)
+        data_list: list of data (size MxN)
+        y_label: (optional) label for y axis
+        title:  (optional) title
+
+    """
+    for counts in data_list:
         axis.plot(times, counts)
 
     axis.hold(False)
+
+    if max(times) < 1e3:
+        x_label = 'time (ns)'
+    elif max(times) < 1e6:
+        x_label = 'time (us)'
+        times *= 1e-3
+    elif max(times) < 1e9:
+        x_label = 'time (ms)'
+        times *= 1e-6
+    elif max(times) < 1e12:
+        x_label = 'time (s)'
+        times *= 1e-9
 
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
