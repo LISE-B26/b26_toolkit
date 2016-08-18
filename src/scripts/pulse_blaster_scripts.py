@@ -960,7 +960,8 @@ This script measures the relaxation time of an NV center
 
 class T1SpinFlip(PulseBlasterBaseScript):
     """
-This script measures the relaxation time of an NV center
+This script measures the relaxation time of an NV center.
+Optionally a microwave pulse is applied as part of the initialization to prepare the system in a different state
     """
     _DEFAULT_SETTINGS = [
         Parameter(
@@ -981,8 +982,8 @@ This script measures the relaxation time of an NV center
             ]
         ),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
-        Parameter('apply pi-pulse', True, bool, 'if true a pi pulse is at the beginning of the measurement'),
-        Parameter('pi-pulse',
+        Parameter('apply mw-pulse', True, bool, 'if true a pi pulse is at the beginning of the measurement'),
+        Parameter('mw-pulse',
                   [
                       Parameter('mw_frequency', 2.87e9, float, 'microwave frequency of pi pulse (Hz)'),
                       Parameter('mw_duration', 300, int, 'pi pulse duration (ns)'),
@@ -998,8 +999,8 @@ This script measures the relaxation time of an NV center
         #COMMENT_ME
         self.instruments['mw_gen']['instance'].update({
             'modulation_type': 'IQ',
-            'amplitude': self.settings['pi-pulse']['mw_power'],
-            'frequency': self.settings['pi-pulse']['mw_frequency']
+            'amplitude': self.settings['mw-pulse']['mw_power'],
+            'frequency': self.settings['mw-pulse']['mw_frequency']
         })
         super(T1SpinFlip, self)._function()
 
@@ -1019,47 +1020,65 @@ This script measures the relaxation time of an NV center
         if self.settings['tau_times']['time_step'] % 5 != 0:
             raise AttributeError('given time_step is not a multiple of 5')
 
-        tau_list = range(int(self.settings['tau_times']['max_time'] + self.settings['tau_times']['time_step']),
-                         int(self.settings['tau_times']['min_time']),
+        tau_list = range(int(self.settings['tau_times']['min_time']),
+                         int(self.settings['tau_times']['max_time'] + self.settings['tau_times']['time_step']),
                          self.settings['tau_times']['time_step']
                          )
 
-        if self.settings['apply pi-pulse']:
-            reset_time = self.settings['read_out']['nv_reset_time']+ self.settings['pi-pulse']['mw_tau']
-        else:
-            reset_time = self.settings['read_out']['nv_reset_time']
+
+        # if self.settings['apply mw-pulse']:
+        #     ref_meas_off_time = self.settings['read_out']['ref_meas_off_time'] + self.settings['mw-pulse']['mw_duration']
+        # else:
         ref_meas_off_time = self.settings['read_out']['ref_meas_off_time']
+        reset_time = self.settings['read_out']['nv_reset_time']
         meas_time = self.settings['read_out']['meas_time']
 
-        microwave_channel = 'microwave_' + self.settings['pi-pulse']['mw_channel']
-        microwave_duration = 'microwave_' + self.settings['pi-pulse']['mw_duration']
+        microwave_channel = 'microwave_' + self.settings['mw-pulse']['mw_channel']
+        microwave_duration = self.settings['mw-pulse']['mw_duration']
 
         # reduce the initialization time by 15 ns to avoid touching DAQ pulses
         # (they are problematic because the DAQ expects two pulse but get only one because they get merged by the pulse blaster)
-        for tau in tau_list:
-            sequence = [Pulse('laser', 0, reset_time - 15 - meas_time - ref_meas_off_time)
-                     ]
+        def build_sequence(tau):
+            """
+            builds the sequence for a given tau
+            Args:
+                tau: the time after the initialization at which to measure the population
 
-            if self.settings['apply pi-pulse']:
-                sequence += [
-                    Pulse(microwave_channel, reset_time - 15 - meas_time - ref_meas_off_time/2 - microwave_duration/2, microwave_duration)
+            Returns: the sequence for tau
+
+            """
+
+            if self.settings['apply mw-pulse']:
+                sequence = [
+                    Pulse('laser', 0,       reset_time - ref_meas_off_time - meas_time - 15 - ref_meas_off_time- microwave_duration),
+                    Pulse('apd_readout',    reset_time - meas_time - 15 - ref_meas_off_time- microwave_duration, meas_time),
+                    Pulse('laser',          reset_time - meas_time - 15 - ref_meas_off_time- microwave_duration, meas_time),
+                    Pulse(microwave_channel,reset_time - 15 - ref_meas_off_time/2.- microwave_duration, microwave_duration)
+                ]
+            else:
+                sequence = [
+                    Pulse('laser', 0, reset_time - ref_meas_off_time - meas_time - 15),
+                    Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
+                    Pulse('laser', reset_time - 15 - meas_time, meas_time)
                 ]
 
             sequence += [
-                Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
-                Pulse('laser',       reset_time - 15 - meas_time, meas_time),
                 Pulse('apd_readout', reset_time + tau, meas_time),
                 Pulse('laser',       reset_time + tau, meas_time)
             ]
 
-            pulse_sequences.append(sequence)
+            return sequence
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
+        pulse_sequences = [build_sequence(tau) for tau in tau_list]
+        print('number of sequences: ', len(pulse_sequences))
+
+        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['read_out']['meas_time']
 
     def _plot(self, axislist):
         super(T1SpinFlip, self)._plot(axislist)
         axislist[0].set_title('T1')
         axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
+
 if __name__ == '__main__':
     script = {}
     instr = {}

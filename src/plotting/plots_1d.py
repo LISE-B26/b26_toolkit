@@ -226,8 +226,6 @@ def update_1d_simple(axis, times, counts_list):
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
 
-    print(len(axis.lines), 'axis.lines')
-    print(len(counts_list), 'counts_list')
     assert len(axis.lines) == len(counts_list)
     for index, counts in enumerate(counts_list):
         axis.lines[index].set_ydata(counts)
