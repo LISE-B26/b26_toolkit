@@ -383,6 +383,7 @@ this gives a one dimensional dataset
             Parameter('settle_time', 2., float, 'settle time (s)'),
             Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
             Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
+            Parameter('slope', 'negative', ['positive', 'negative'], 'is the slope around the zero crossing is positive or negative'),
             Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
         ]),
         Parameter('measure_at_zero',[
@@ -420,13 +421,42 @@ this gives a one dimensional dataset
         #     progress = (v2 - min(volt_range)) / (max(volt_range) - min(volt_range))
         #     return 100.*progress
 
+        def get_direction(detector_value, slope):
+            """
+            give the direction we have to move given the detector value and the slope of the zero crossing
+            Args:
+                detector_value: detector value
+                slope: slope of the zero crossing
+
+            Returns: direction in which to step
+
+
+            we calculate the directin based on the following truth table (i.e. xor table)
+
+                slope   detector    direction
+                +       -           +
+                +       +           -
+                -       +           +
+                -       -           -
+
+
+            """
+            direction = (int(np.sign(detector_value)) == 1) ^ (int(slope) == 1)
+            # now map True and False and 1 and -1
+            direction = 1 if direction else -1
+
+            return direction
+
+
         self.data = {'voltage_waveplate': [], 'detector_signal': [], 'det_signal_cont': []}
         wp_control = self.settings['optimization']['WP_control']
         settle_time = self.settings['optimization']['settle_time']
         v_out = float(self.settings['setpoints']['V_{:d}'.format(wp_control)])
         target = self.settings['optimization']['target']
         detector_value = 2* target
-        direction = 1  # we start going forward
+
+        # convert slope to numeric value
+        slope = 1 if self.settings['optimization']['slope'] == 'positive' else -1
 
         control_channel = 'DIO{:d}'.format(self.settings['channels']['channel_OnOff'])
         channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(wp_control)])
@@ -450,20 +480,18 @@ this gives a one dimensional dataset
                 value = getattr(fpga_io, channel_out)
                 if value == 0:
                     value = float(self.settings['setpoints']['V_{:d}'.format(i)])
-                    self.log('current value is zero take setpoint {:0.2f} V as starting point'.format(value))
+                    self.log('current value is zero take setpoint {:0.3f} V as starting point'.format(value))
                 else:
                     value = int_to_voltage(value)
-                    self.log('use current value {:0.2} V as starting point'.format(value))
+                    v_out = value
+                    self.log('use current value {:0.3f} V as starting point'.format(value))
             else:
                 value = float(self.settings['setpoints']['V_{:d}'.format(i)])
-            dictator.update({
-                'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
+            print({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
+            dictator.update({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
 
         fpga_io.update(dictator)
         time.sleep(settle_time)
-
-        # x = getattr(fpga_io, channel_out)
-        # print('=== current value', x)
 
         crossed_zero = False
         while abs(detector_value) > abs(target):
@@ -482,22 +510,23 @@ this gives a one dimensional dataset
             self.progress = 50.
             self.updateProgress.emit(self.progress)
 
+            direction = get_direction(detector_value, slope)
+
+            print('---->', detector_value, slope, direction)
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
                 v_step = self.settings['optimization']['dV'] # start with initial step size
             elif len(self.data['voltage_waveplate']) > 1:
 
-
-
                 # check for zero crossing
                 if self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
                     self.log('detected zero crossing!')
-                    direction *=-1 # since we crossed zero we have to go back the next time, i.e invert the direction
+                    # direction *=-1 # since we crossed zero we have to go back the next time, i.e invert the direction
                     v_step /=2 # decrease the step size since we are closer to zero
-                else:
-                    if len(self.data['voltage_waveplate']) < 5 and len(self.data['voltage_waveplate']) >2 and abs(self.data['detector_signal'][-1]) > abs(self.data['detector_signal'][-2]):
-                        print('WARNING SEEM TO GO INTO WRONG DIRECTION')
-                        direction *= -1 # if in the first few measurements we go into the wrong direction, then turn around
+                # else:
+                #     if len(self.data['voltage_waveplate']) < 5 and len(self.data['voltage_waveplate']) >2 and abs(self.data['detector_signal'][-1]) > abs(self.data['detector_signal'][-2]):
+                #         self.log('seem to go into wrong direction: turning around')
+                #         # direction *= -1 # if in the first few measurements we go into the wrong direction, then turn around
 
 
             # calculate next output voltage
@@ -506,7 +535,7 @@ this gives a one dimensional dataset
 
             if v_out > 5 or v_out <0:
                 v_out = 5 if v_out > 5 else 0 # set the output to be within the range
-                direction *= -1 # change direction since we hit the end of the valid output range
+                # direction *= -1 # change direction since we hit the end of the valid output range
 
             if min(self.data['voltage_waveplate']) == 0 and max(self.data['voltage_waveplate']) ==5:
                 self.log('warning! scanned full range without finding zero. abort!')
@@ -524,7 +553,7 @@ this gives a one dimensional dataset
                     break
                 detector_value = getattr(fpga_io, channel_in)
                 self.data['det_signal_cont'].append(detector_value)
-                self.progress = 100.* (i+n_opt) /(n_cont+ n_opt)
+                self.progress = 100.* (i+n_opt+1) /(n_cont+ n_opt)
 
                 self.updateProgress.emit(self.progress)
                 time.sleep(settle_time)

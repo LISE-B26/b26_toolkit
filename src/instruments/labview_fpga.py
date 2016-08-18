@@ -110,7 +110,15 @@ class NI7845RReadWrite(Instrument):
         'DIO0': 'digital input channel 0',
         'DIO1': 'digital input channel 1',
         'DIO2': 'digital input channel 2',
-        'DIO3': 'digital input channel 3'
+        'DIO3': 'digital input channel 3',
+        'AO0': 'analog output channel 0 in bit',
+        'AO1': 'analog output channel 1 in bit',
+        'AO2': 'analog output channel 2 in bit',
+        'AO3': 'analog output channel 3 in bit',
+        'AO4': 'analog output channel 4 in bit',
+        'AO5': 'analog output channel 5 in bit',
+        'AO6': 'analog output channel 6 in bit',
+        'AO7': 'analog output channel 7 in bit'
     }
     def __init__(self, name = None, settings = None):
         super(NI7845RReadWrite, self).__init__(name, settings)
@@ -539,7 +547,9 @@ if __name__ == '__main__':
     # print(fpga.settings)
     # fpga.fpga.stop()
 
-    s =NI7845RGalvoScan()
+    s =NI7845RReadWrite()
+
+    print('asdasda', s.AO6)
 
 
 
