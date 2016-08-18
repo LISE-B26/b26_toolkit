@@ -146,8 +146,24 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
 
     # label the axis
     axis.set_title('Pulse Visualization')
-    axis.set_xlabel('time [ns]')
     axis.set_ylabel('pulse destination')
+    axis.set_xlabel('time [ns]')
+
+    """
+    xticks = np.array(axis.get_xticks())
+
+    if np.sum(xticks > 1E9) > 0:
+        axis.set_xticklabels(xticks/1e9)
+        axis.set_xlabel('time [s]')
+
+    elif np.sum(xticks > 1E6) > 0:
+        axis.set_xticklabels(xticks/1e6)
+        axis.set_xlabel('time [ms]')
+
+    elif np.sum(xticks > 1E3) > 0:
+        axis.set_xticklabels(xticks/1e3)
+        axis.set_xlabel('time [us]')
+    """
 
 
 def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
@@ -189,6 +205,22 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
     patch_collection = PatchCollection(patch_list, match_original=True)
     axis.add_collection(patch_collection)
 
+    """
+    xticks = np.array(axis.get_xticks())
+
+    if np.sum(xticks > 1E9) > 0:
+        axis.set_xticklabels(xticks/1e9)
+        axis.set_xlabel('time [s]')
+
+    elif np.sum(xticks > 1E6) > 0:
+        axis.set_xticklabels(xticks/1e6)
+        axis.set_xlabel('time [ms]')
+
+    elif np.sum(xticks > 1E3) > 0:
+        axis.set_xticklabels(xticks/1e3)
+        axis.set_xlabel('time [us]')
+    """
+
 def plot_counts(axis, data):
     # COMMENT_ME
     axis.plot(data)
@@ -213,15 +245,15 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
     times = 1.*np.array(times) # cast onto numpy in case we got a list, which breaks some of the commands below
 
     if max(times) < 1e3:
-        x_label = 'time (ns)'
+        x_label = 'time [ns]'
     elif max(times) < 1e6:
-        x_label = 'time (us)'
+        x_label = 'time [us]'
         times *= 1e-3
     elif max(times) < 1e9:
-        x_label = 'time (ms)'
+        x_label = 'time [ms]'
         times *= 1e-6
     elif max(times) < 1e12:
-        x_label = 'time (s)'
+        x_label = 'time [s]'
         times *= 1e-9
 
     for counts in data_list:
