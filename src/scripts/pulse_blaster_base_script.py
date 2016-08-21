@@ -149,9 +149,7 @@ for a given experiment
         x_data = self.data['tau']
         axis1 = axes_list[0]
         if not counts == []:
-            update_1d_simple(axis1, x_data, counts)
-            # JG: previously this was
-            # update_1d_simple(axis1, x_data, [counts])
+            update_1d_simple(axis1, x_data, [counts])
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 

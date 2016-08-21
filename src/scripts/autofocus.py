@@ -222,6 +222,21 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                 if not (np.array_equal(self.data['fit_parameters'], [0,0,0,0])):
                     axis_focus.plot(sweep_voltages[0:len(focus_data)], self.gaussian(sweep_voltages[0:len(focus_data)], *self.data['fit_parameters']), 'k')
                 axis_focus.hold(False)
+        """
+        axis_focus.set_xlabel('Piezo Voltage [V]')
+
+        if self.settings['focusing_optimizer'] == 'mean':
+            ylabel = 'Image Mean [kcounts]'
+        elif self.settings['focusing_optimizer'] == 'standard_deviation':
+            ylabel = 'Image Standard Deviation [kcounts]'
+        elif self.settings['focusing_optimizer'] == 'normalized_standard_deviation':
+            ylabel = 'Image Normalized Standard Deviation [arb]'
+        else:
+            ylabel = self.settings['focusing_optimizer']
+
+        axis_focus.set_ylabel(ylabel)
+        axis_focus.set_title('Autofocusing Routine')
+        """
 
     def _update_plot(self, axes_list):
         # fit the data and set piezo to focus spot
