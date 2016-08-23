@@ -195,7 +195,6 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
             freq_max = freq[max_idx]
         else:
             freq_max = check_double_peak(freq[max_idx], max_pts, fo)
-        print('xxxxxx freq_max', freq_max)
         if len(freq_max) == 1:
             data_max = [dx for (fx, dx) in zip(freq, data) if fx == freq_max]
             max_pts = [dx for (fx, dx) in zip(freq, sig_filtered) if fx == freq_max]

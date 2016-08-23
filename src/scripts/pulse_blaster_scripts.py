@@ -162,11 +162,12 @@ This script applies a microwave pulse at fixed power for varying durations to me
         counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
         tau = self.data['tau']
 
-        fits = fit_rabi_decay(tau, counts, varibale_phase=True)
 
         try:
-            self.data['fits'] =fits
+            fits = fit_rabi_decay(tau, counts, varibale_phase=True)
+            self.data['fits'] = fits
         except:
+            self.data['fits'] = None
             self.log('rabi fit failed')
 
     def _create_pulse_sequences(self):

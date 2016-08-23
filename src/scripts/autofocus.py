@@ -147,9 +147,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 self.progress = 100. * index / len(sweep_voltages)
                 self.updateProgress.emit(self.progress if self.progress < 100 else 99)
-            # p2 = [0, 0, 0, 0]  # dont' fit for now
-            p2 = self.fit_focus()
-            self.data['fit_parameters'] = p2
 
 
         if self.settings['save'] or self.settings['save_images']:
@@ -174,18 +171,52 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         autofocus_loop(sweep_voltages)
 
-        # # check to see if data should be saved and save it
-        # if self.settings['save']:
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
-        #     self.save_image_to_disk('{:s}\\autofocus.jpg'.format(self.filename_image))
+
+        piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
+        self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
     def fit_focus(self):
         '''
         fit the data and set piezo to focus spot
+
+        if fails return None otherwise it returns the voltage for the piezo
         '''
-        raise NotImplementedError
+
+        noise_guess = np.min(self.data['focus_function_result'])
+        amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
+        center_guess = np.mean(self.data['sweep_voltages'])
+        width_guess = 0.8
+
+        p2 = [noise_guess, amplitude_guess, center_guess, width_guess]
+
+        return_voltage = None
+        try:
+            p2, success = sp.optimize.curve_fit(self.gaussian, self.data['sweep_voltages'],
+                                                self.data['focus_function_result'], p0=p2,
+                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
+
+            return_voltage = p2[2]
+
+            self.log('Found fit parameters: ' + str(p2))
+        except(ValueError, RuntimeError):
+            average_voltage = np.mean(self.data['sweep_voltages'])
+            self.log(
+                'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
+                    average_voltage))
+            # z_piezo.update({'voltage': float(average_voltage)})
+        finally:
+            # even if there is an exception we want to script to continue
+            sweep_voltages = self.data['sweep_voltages']
+            if not return_voltage is None:
+                if return_voltage > sweep_voltages[-1]:
+                    return_voltage = float(sweep_voltages[-1])
+                    self.log('Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(return_voltage))
+            elif return_voltage < sweep_voltages[0]:
+                return_voltage = float(sweep_voltages[0])
+                self.log('Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(return_voltage))
+
+            return return_voltage, p2
+
 
     def _step_piezo(self, voltage, wait_time):
         """
@@ -222,7 +253,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                 if not (np.array_equal(self.data['fit_parameters'], [0,0,0,0])):
                     axis_focus.plot(sweep_voltages[0:len(focus_data)], self.gaussian(sweep_voltages[0:len(focus_data)], *self.data['fit_parameters']), 'k')
                 axis_focus.hold(False)
-        """
+
+
         axis_focus.set_xlabel('Piezo Voltage [V]')
 
         if self.settings['focusing_optimizer'] == 'mean':
@@ -236,7 +268,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         axis_focus.set_ylabel(ylabel)
         axis_focus.set_title('Autofocusing Routine')
-        """
 
     def _update_plot(self, axes_list):
         # fit the data and set piezo to focus spot
@@ -374,7 +405,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         z_piezo = self.instruments['z_piezo']['instance']
         # set the voltage on the piezo
         z_piezo.voltage = float(voltage)
-        time.sleep(self.settings['wait_time'])
+        time.sleep(wait_time)
 
     def _function(self):
         #update piezo settings
@@ -382,52 +413,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['piezo_center_voltage'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
-    def fit_focus(self):
-        '''
-        fit the data and set piezo to focus spot
-        '''
-        # gaussian = lambda x, noise, amp, center, width: noise + amp * np.exp(
-        #     -1.0 * (np.square((x - center)) / (2 * (width ** 2))))
 
-        noise_guess = np.min(self.data['focus_function_result'])
-        amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
-        center_guess = np.mean(self.data['sweep_voltages'])
-        width_guess = 0.8
 
-        reasonable_params = [noise_guess, amplitude_guess, center_guess, width_guess]
-
-        z_piezo = self.instruments['z_piezo']['instance']
-
-        try:
-            p2, success = sp.optimize.curve_fit(self.gaussian, self.data['sweep_voltages'],
-                                                self.data['focus_function_result'], p0=reasonable_params,
-                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
-
-            self.log('Found fit parameters: ' + str(p2))
-
-            sweep_voltages = self.data['sweep_voltages']
-
-            if p2[2] > sweep_voltages[-1]:
-                z_piezo.update({'voltage': float(sweep_voltages[-1])})
-                self.log(
-                    'Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(
-                        sweep_voltages[-1]))
-            elif p2[2] < sweep_voltages[0]:
-                z_piezo.update({'voltage': float(sweep_voltages[0])})
-                self.log(
-                    'Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(
-                        sweep_voltages[0]))
-            else:
-                z_piezo.update({'voltage': float(p2[2])})
-        except(ValueError):
-            p2 = [0, 0, 0, 0]
-            average_voltage = np.mean(self.data['sweep_voltages'])
-            self.log(
-                'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
-                    average_voltage))
-            z_piezo.update({'voltage': float(average_voltage)})
-
-        return p2
 if __name__ == '__main__':
 
 
