@@ -380,6 +380,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             is focused.
     """
 
+    # _DEFAULT_SETTINGS = []
+
     _INSTRUMENTS = {
         'z_piezo': PiezoController
     }
