@@ -144,7 +144,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         Parameter('num_averages', 100000, int, 'number of averages'),
         Parameter('reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
         Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
-        Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
+        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
         Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
     ]
 
@@ -472,7 +472,7 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
         Parameter('delay_mw_readout', 200, int, 'time delay before readout after pi pulse'),
         Parameter('measurement_window_width', 20, int, 'the width of the sliding readout window'),
         Parameter('laser_on_time', 500, range(100, 1201, 100), 'time laser is on for readout'),
-        Parameter('ref_meas_off_time', 200, int, 'time reset laser is turned off before reference measurement is made'),
+        Parameter('ref_meas_off_time', 1000, int, 'time reset laser is turned off before reference measurement is made'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
         Parameter('num_averages', 1000000, int, 'number of averages')
     ]
@@ -597,11 +597,11 @@ This script runs a CPMG pulse sequence.
             Parameter('max_time', 1000, float, 'maximum time between pulses (in ns)'),
         ]),
         Parameter('read_out',[
-            Parameter('delay_mw_init', 200, int, 'delay between initialization and mw (in ns)'),
+            Parameter('delay_mw_init', 1000, int, 'delay between initialization and mw (in ns)'),
             Parameter('delay_mw_readout', 200, int, 'delay between mw and readout (in ns)'),
             Parameter('meas_time', 250, float, 'measurement time after CPMG sequence (in ns)'),
             Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
-            Parameter('ref_meas_off_time', 200, int,'laser off time before taking reference measurement at the end of init (ns)')
+            Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)')
         ]),
         Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
@@ -710,16 +710,16 @@ This script runs a CPMG pulse sequence.
         axislist[0].set_title('XY8')
         axislist[0].legend(labels=('Ref Fluorescence', 'XY8 data'), fontsize=8)
 
-class HahnEcho(PulseBlasterBaseScript):
+class PDD(PulseBlasterBaseScript):
     """
-This script runs a Hahn-echo sequence for different number of pi pulses. Without pi-pulse this is a Ramsey sequence.
+This script runs a PDD sequence for different number of pi pulses. For a single pi-pulse this is a Hahn-echo sequence.
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_power', -2, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pi_pulses', 0, range(0, 17), 'number of pi pulses')
+            Parameter('number_of_pi_pulses', 1, range(1, 17), 'number of pi pulses')
         ]),
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'min value for tau, the free evolution time in between pulses (in ns)'),
@@ -729,8 +729,8 @@ This script runs a Hahn-echo sequence for different number of pi pulses. Without
         Parameter('read_out', [
             Parameter('meas_time', 250, float, 'measurement time after CPMG sequence (in ns)'),
             Parameter('nv_reset_time', 3000, int, 'time duration of the green laser to reset the spin state'),
-            Parameter('ref_meas_off_time', 500, int, 'laser off time before taking reference measurement at the end of init (ns)'),
-            Parameter('delay_mw_init', 100, int, 'delay between initialization and mw (in ns)'),
+            Parameter('ref_meas_off_time', 1000, int, 'laser off time before taking reference measurement at the end of init (ns)'),
+            Parameter('delay_mw_init', 1000, int, 'delay between initialization and mw (in ns)'),
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)')
         ]),
         Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
@@ -751,7 +751,7 @@ This script runs a Hahn-echo sequence for different number of pi pulses. Without
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(HahnEcho, self)._function()
+        super(PDD, self)._function()
 
 
     def _create_pulse_sequences(self):
@@ -796,7 +796,7 @@ This script runs a Hahn-echo sequence for different number of pi pulses. Without
                               ]
 
             # next_pi_pulse_time = reset_time + delay_mw_init + pi_half_time + tau
-            # 16-08-19 JG: changed:
+            # # 16-08-19 JG: changed :
             next_pi_pulse_time = reset_time + delay_mw_init + tau/2
 
             for n in range(1, number_of_pi_pulses + 1):
@@ -847,7 +847,7 @@ This script runs a XY sequence for different number of pi pulses. Without pi-pul
         Parameter('reset_time', 1000, int, 'time duration of the green laser to reset the spin state'),
         Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
         Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-        Parameter('ref_meas_off_time', 500, int,'laser off time before taking reference measurement at the end of init (ns)'),
+        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
         Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
     ]
 
@@ -945,7 +945,7 @@ This script measures the relaxation time of an NV center
         Parameter('meas_time', 300, float, 'measurement time of fluorescence counts (ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
-        Parameter('ref_meas_off_time', 100, int,'laser off time before taking reference measurement at the end of init (ns)'),
+        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
         Parameter('tau_scale', 'linear', ['linear', 'logarithmic'])
     ]
@@ -1010,7 +1010,7 @@ Optionally a microwave pulse is applied as part of the initialization to prepare
             [
                 Parameter('meas_time', 700, float, 'measurement time of fluorescence counts (ns)'),
                 Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
-                Parameter('ref_meas_off_time', 200, int, 'laser off time before taking reference measurement at the end of init (ns)')
+                Parameter('ref_meas_off_time', 1000, int, 'laser off time before taking reference measurement at the end of init (ns)')
             ]
         ),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
