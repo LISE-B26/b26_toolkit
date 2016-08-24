@@ -712,7 +712,10 @@ This script runs a CPMG pulse sequence.
 
 class PDD(PulseBlasterBaseScript):
     """
-This script runs a PDD sequence for different number of pi pulses. For a single pi-pulse this is a Hahn-echo sequence.
+This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different number of pi pulses.
+For a single pi-pulse this is a Hahn-echo sequence.
+
+The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -803,19 +806,27 @@ This script runs a PDD sequence for different number of pi pulses. For a single 
                 pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time,pi_time)])
                 # next_pi_pulse_time += tau*2 + pi_time
                 # 16-08-19 JG: changed:
-                next_pi_pulse_time += tau
+                # next_pi_pulse_time += tau
+                # 16 - 08 -24 JG: changed
+                next_pi_pulse_time += tau/2
 
             # pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time-tau, pi_half_time),
             #                         Pulse('laser', next_pi_pulse_time-tau + delay_mw_readout + pi_half_time, meas_time),
             #                         Pulse('apd_readout',next_pi_pulse_time-tau + delay_mw_readout + pi_half_time, meas_time)
             #                         ])
             # 16-08-19 JG: changed:
-            pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time-tau/2+pi_half_time, pi_half_time),
-                                    Pulse('laser',      next_pi_pulse_time-tau/2 + pi_time + delay_mw_readout, meas_time),
-                                    Pulse('apd_readout',next_pi_pulse_time-tau/2 + pi_time + delay_mw_readout, meas_time)
-                                    ])
+            # pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time-tau/2 + pi_half_time, pi_half_time),
+            #                         Pulse('laser',      next_pi_pulse_time-tau/2 + pi_time + delay_mw_readout, meas_time),
+            #                         Pulse('apd_readout',next_pi_pulse_time-tau/2 + pi_time + delay_mw_readout, meas_time)
+            #                         ])
+            # pulse_sequences.append(pulse_sequence)
+            # 16 - 08 -24 JG: changed
+            pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time + pi_half_time, pi_half_time),
+                                   Pulse('laser', next_pi_pulse_time + pi_time + delay_mw_readout, meas_time),
+                                   Pulse('apd_readout', next_pi_pulse_time + pi_time + delay_mw_readout,
+                                         meas_time)
+                                   ])
             pulse_sequences.append(pulse_sequence)
-
 
         # TEMPORATTY: THIS IS TO SEE IF THE OVERALL TIME OF A SEQUENCE SHOULD ALWAYS BE THE SAME
         # IF WE WANT TO KEEP THIS ADD ADDITIONAL PARAMETER TO THE SCRIPT SETTINGS
