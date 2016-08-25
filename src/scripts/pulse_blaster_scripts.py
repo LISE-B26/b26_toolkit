@@ -716,6 +716,10 @@ This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different n
 For a single pi-pulse this is a Hahn-echo sequence.
 
 The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
+
+Tau/2 is the time between the center of the pulses!
+
+
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -792,15 +796,24 @@ The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
 
         for tau in tau_list:
 
+            # pulse_sequence = [Pulse('laser', 0, reset_time - ref_meas_off_time - 15 - meas_time),
+            #                   Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
+            #                   Pulse('laser', reset_time - 15 - meas_time, meas_time),
+            #                   Pulse('microwave_i', reset_time + delay_mw_init, pi_half_time)
+            #                   ]
+            # # 16-08-25 JG: changed :
             pulse_sequence = [Pulse('laser', 0, reset_time - ref_meas_off_time - 15 - meas_time),
                               Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
                               Pulse('laser', reset_time - 15 - meas_time, meas_time),
-                              Pulse('microwave_i', reset_time + delay_mw_init, pi_half_time)
+                              Pulse('microwave_i', reset_time + delay_mw_init-pi_half_time/2, pi_half_time)
                               ]
+
 
             # next_pi_pulse_time = reset_time + delay_mw_init + pi_half_time + tau
             # # 16-08-19 JG: changed :
-            next_pi_pulse_time = reset_time + delay_mw_init + tau/2
+            # next_pi_pulse_time = reset_time + delay_mw_init + tau/2
+            # # 16-08-25 JG: changed :
+            next_pi_pulse_time = reset_time + delay_mw_init - pi_half_time / 2 + tau / 2
 
             for n in range(1, number_of_pi_pulses + 1):
                 pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time,pi_time)])
@@ -826,6 +839,13 @@ The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
                                    Pulse('apd_readout', next_pi_pulse_time + pi_time + delay_mw_readout,
                                          meas_time)
                                    ])
+
+            # # 16-08-25 JG: changed :
+            pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time - pi_half_time/2, pi_half_time),
+                                   Pulse('laser', next_pi_pulse_time + pi_half_time + delay_mw_readout, meas_time),
+                                   Pulse('apd_readout', next_pi_pulse_time + pi_half_time + delay_mw_readout, meas_time)
+                                   ])
+
             pulse_sequences.append(pulse_sequence)
 
         # TEMPORATTY: THIS IS TO SEE IF THE OVERALL TIME OF A SEQUENCE SHOULD ALWAYS BE THE SAME
