@@ -196,6 +196,10 @@ This script applies a microwave pulse at fixed power for varying durations to me
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
         tau_list = range(0, int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+        print('tau_list', tau_list)
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
 
@@ -218,8 +222,8 @@ This script applies a microwave pulse at fixed power for varying durations to me
                 Pulse('apd_readout', nv_reset_time + tau + delay_mw_readout, meas_time)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
-            if tau == 0 or tau>=15:
-                pulse_sequences.append(pulse_sequence)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
 
 
 
@@ -238,7 +242,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
         # for pulse_sequence in pulse_sequences:
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
-
+        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -268,10 +272,10 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
             axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
             pi_time = 2*np.pi / fits[1] / 2
-            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.0f}ns'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9, pi_time))
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.0f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
         else:
             super(Rabi, self)._plot(axislist)
-            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_power'], self.settings['mw_frequency']*1e-9))
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 

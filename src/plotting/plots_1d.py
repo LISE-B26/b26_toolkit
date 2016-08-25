@@ -149,7 +149,6 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     axis.set_ylabel('pulse destination')
     axis.set_xlabel('time [ns]')
 
-    """
     xticks = np.array(axis.get_xticks())
 
     if np.sum(xticks > 1E9) > 0:
@@ -163,7 +162,6 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     elif np.sum(xticks > 1E3) > 0:
         axis.set_xticklabels(xticks/1e3)
         axis.set_xlabel('time [us]')
-    """
 
 
 def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
@@ -185,41 +183,47 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
         pulse_colors = {'laser': '#50FF00', 'microwave_i': 'r', 'apd_readout': 'k'}
 
     # get a list of unique instruments from the pulses
-    instrument_names = [str(label.get_text()) for label in axis.get_yticklabels()]
+    instrument_names_old = [str(label.get_text()) for label in axis.get_yticklabels()]
+    instrument_names = sorted(list(set([pulse.channel_id for pulse in pulse_collection])))
 
-    # find the maximum time from the list of pulses
-    max_time = max([pulse.start_time + pulse.duration for pulse in pulse_collection])
+    # if the number of pulses has changed call plot instead of update
+    if set(instrument_names_old) != set(instrument_names):
+        plot_pulses(axis, pulse_collection, pulse_colors = pulse_colors)
+    else:
+        # find the maximum time from the list of pulses
+        max_time = max([pulse.start_time + pulse.duration for pulse in pulse_collection])
 
-    axis.set_xlim(0, max_time)
+        axis.set_xlim(0, max_time)
 
-    # remove the previous pulses
-    [child.remove() for child in axis.get_children() if isinstance(child, PatchCollection)]
+        # remove the previous pulses
+        [child.remove() for child in axis.get_children() if isinstance(child, PatchCollection)]
 
-    # create rectangles for the pulses
-    patch_list = []
-    for pulse in pulse_collection:
-        patch_list.append(
-            patches.Rectangle((pulse.start_time, instrument_names.index(pulse.channel_id) - .25), pulse.duration, 0.5,
-                              fc=pulse_colors.get(pulse.channel_id, 'b')))
+        # create rectangles for the pulses
+        patch_list = []
+        for pulse in pulse_collection:
+            print('xxxx', pulse.channel_id, instrument_names, pulse_colors)
+            patch_list.append(
+                patches.Rectangle((pulse.start_time, instrument_names.index(pulse.channel_id) - .25), pulse.duration, 0.5,
+                                  fc=pulse_colors.get(pulse.channel_id, 'b')))
 
-    patch_collection = PatchCollection(patch_list, match_original=True)
-    axis.add_collection(patch_collection)
+        patch_collection = PatchCollection(patch_list, match_original=True)
+        axis.add_collection(patch_collection)
 
-    """
-    xticks = np.array(axis.get_xticks())
 
-    if np.sum(xticks > 1E9) > 0:
-        axis.set_xticklabels(xticks/1e9)
-        axis.set_xlabel('time [s]')
+        xticks = np.array(axis.get_xticks())
 
-    elif np.sum(xticks > 1E6) > 0:
-        axis.set_xticklabels(xticks/1e6)
-        axis.set_xlabel('time [ms]')
+        if np.sum(xticks > 1E9) > 0:
+            axis.set_xticklabels(xticks/1e9)
+            axis.set_xlabel('time [s]')
 
-    elif np.sum(xticks > 1E3) > 0:
-        axis.set_xticklabels(xticks/1e3)
-        axis.set_xlabel('time [us]')
-    """
+        elif np.sum(xticks > 1E6) > 0:
+            axis.set_xticklabels(xticks/1e6)
+            axis.set_xlabel('time [ms]')
+
+        elif np.sum(xticks > 1E3) > 0:
+            axis.set_xticklabels(xticks/1e3)
+            axis.set_xlabel('time [us]')
+
 
 def plot_counts(axis, data):
     # COMMENT_ME
@@ -257,6 +261,7 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
         times *= 1e-9
 
     for counts in data_list:
+        print('asdasdads', np.shape(counts), np.shape(times))
         axis.plot(times, counts)
 
     axis.hold(False)
