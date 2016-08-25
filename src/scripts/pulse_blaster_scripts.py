@@ -136,19 +136,25 @@ class Rabi(PulseBlasterBaseScript):
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
     """
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-        Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
-                  'time step increment of rabi pulse duration (in ns)'),
-        Parameter('time', 200, float, 'total time of rabi oscillations (in ns)'),
-        Parameter('meas_time', 300, float, 'measurement time after rabi sequence (in ns)'),
-        Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
-        Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
+        ]),
+        Parameter('tau_times', [
+            Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+                  'time step increment of rabi pulse duration (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 4000, int, 'time with laser on at the beginning to reset state'),
+            Parameter('ref_meas_off_time', 1000, int,
+                      'laser off time before taking reference measurement at the end of init (ns)'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)')
+        ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands'),
-        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
-        Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -158,8 +164,8 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
-        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
-        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_frequency']})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(Rabi, self)._function(self.data)
 
         counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
@@ -186,20 +192,44 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         '''
         pulse_sequences = []
-        tau_list = range(int(max(15, self.settings['time_step'])), int(self.settings['time'] + 15),
-                         self.settings['time_step'])
-        reset_time = self.settings['reset_time']
-        microwave_channel = 'microwave_' + self.settings['microwave_channel']
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+        tau_list = range(0, int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        ref_meas_off_time = self.settings['read_out']['ref_meas_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
 
         for tau in tau_list:
-            pulse_sequences.append([Pulse('laser', 0, reset_time - self.settings['ref_meas_off_time'] - 15 - self.settings['meas_time']),
-                                    Pulse('apd_readout', reset_time - 15 - self.settings['meas_time'],self.settings['meas_time']),
-                                    Pulse('laser', reset_time - 15 - self.settings['meas_time'],self.settings['meas_time']),
-                                    Pulse(microwave_channel, reset_time + self.settings['delay_init_mw'], tau),
-                                    Pulse('laser', reset_time + self.settings['delay_init_mw'] + tau + self.settings[
-                                        'delay_mw_readout'], self.settings['meas_time']),
-                                    Pulse('apd_readout',reset_time + self.settings['delay_init_mw'] + tau + self.settings['delay_mw_readout'], self.settings['meas_time'])
-                                    ])
+            pulse_sequence = \
+                [Pulse('laser', 0, nv_reset_time - ref_meas_off_time - meas_time - ref_meas_off_time),
+                 Pulse('apd_readout', nv_reset_time - ref_meas_off_time - meas_time, meas_time),
+                 Pulse('laser', nv_reset_time - ref_meas_off_time - meas_time, meas_time)
+                 ]
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence += [Pulse(microwave_channel, nv_reset_time, tau)]
+
+            pulse_sequence += [
+                Pulse('laser', nv_reset_time + tau + delay_mw_readout, meas_time),
+                Pulse('apd_readout', nv_reset_time + tau + delay_mw_readout, meas_time)
+            ]
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            if tau == 0 or tau>=15:
+                pulse_sequences.append(pulse_sequence)
+
+
+
+            # pulse_sequences.append([Pulse('laser', 0,       nv_reset_time - ref_meas_off_time - meas_time - ref_meas_off_time),
+            #                         Pulse('apd_readout',    nv_reset_time - ref_meas_off_time - meas_time, meas_time),
+            #                         Pulse('laser',          nv_reset_time - ref_meas_off_time - meas_time, meas_time),
+            #                         Pulse(microwave_channel,nv_reset_time,  tau),
+            #                         Pulse('laser',          nv_reset_time + tau + delay_mw_readout, meas_time),
+            #                         Pulse('apd_readout',    nv_reset_time + tau + delay_mw_readout, meas_time)
+            #                         ])
 
 
         # end_time_max = 0
@@ -209,7 +239,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         # for pulse_sequence in pulse_sequences:
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
+        return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
 
