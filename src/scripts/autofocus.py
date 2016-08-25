@@ -226,9 +226,10 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         """
         raise NotImplementedError
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         # fit the data and set piezo to focus spot
-
+        if data is None:
+            data  = self.data
         axis_focus, axis_image = axes_list
 
         # if take image is running we take the data from there otherwise we use the scripts own image data
@@ -240,17 +241,17 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             else:
                 current_image = None
         else:
-            current_image = self.data['current_image']
-            extent = self.data['extent']
+            current_image = data['current_image']
+            extent = data['extent']
         if current_image is not None:
             plot_fluorescence_new(current_image, extent, axis_image)
 
-        if 'focus_function_result' in self.data:
-            focus_data = self.data['focus_function_result']
-            sweep_voltages = self.data['sweep_voltages']
+        if 'focus_function_result' in data:
+            focus_data = data['focus_function_result']
+            sweep_voltages = data['sweep_voltages']
             if len(focus_data)>0:
                 axis_focus.plot(sweep_voltages[0:len(focus_data)],focus_data)
-                if not (np.array_equal(self.data['fit_parameters'], [0,0,0,0])):
+                if not (np.array_equal(data['fit_parameters'], [0,0,0,0])):
                     axis_focus.plot(sweep_voltages[0:len(focus_data)], self.gaussian(sweep_voltages[0:len(focus_data)], *self.data['fit_parameters']), 'k')
                 axis_focus.hold(False)
 

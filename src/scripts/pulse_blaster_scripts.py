@@ -63,7 +63,7 @@ This script applies a microwave pulse at fixed power and durations for varying f
         progress = int(100. * (self._loop_count) / self.settings['freq_points'])
         return progress
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         '''
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
@@ -72,10 +72,13 @@ This script applies a microwave pulse at fixed power and durations for varying f
 
         Args:
             axes_list: list of axes to write plots to (uses first 2)
-
+            data (optional) dataset to plot, if not provided use self.data
         '''
-        mw_frequencies = self.data['mw_frequencies']
-        esr_counts = self.data['esr_counts']
+        if data is None:
+            data = self.data
+
+        mw_frequencies = data['mw_frequencies']
+        esr_counts = data['esr_counts']
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
@@ -210,13 +213,25 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
 
 
-    def _plot(self, axislist):
-        #COMMENT_ME
+    def _plot(self, axislist, data = None):
+        '''
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
 
-        if self.data['fits'] is not None:
-            counts = self.data['counts'][:,1]/ self.data['counts'][:,0]
-            tau = self.data['tau']
-            fits = self.data['fits']
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
+        '''
+
+        if data is None:
+            data = self.data
+
+        if data['fits'] is not None:
+            counts = data['counts'][:,1]/ data['counts'][:,0]
+            tau = data['tau']
+            fits = data['fits']
 
             axislist[0].plot(tau, counts, 'b')
             axislist[0].hold(True)
@@ -295,7 +310,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         return pulse_sequences, self.settings['num_averages'], [mw_time], self.settings['meas_time']
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         '''
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
@@ -304,10 +319,13 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         Args:
             axes_list: list of axes to write plots to (uses first 2)
-
+            data (optional) dataset to plot (dictionary that contains keys counts_for_mw, mw_power_values), if not provided use self.data
         '''
-        counts = self.data['counts_for_mw']
-        x_data = self.data['mw_power_values']
+        if data is None:
+            data = self.data
+
+        counts = data['counts_for_mw']
+        x_data = data['mw_power_values']
         axis1 = axes_list[0]
         if not counts == []:
             plot_1d_simple_timetrace_ns(axis1, x_data, [counts], x_label='microwave power (dBm)')
@@ -516,7 +534,7 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['measurement_window_width']
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
@@ -524,59 +542,15 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
         performed
 
         Args:
-            axes_list: list of axes to write plots to (uses first 2)
-
+            axes_list: list of axes to write plots to (uses first)
+            data (optional): dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
         """
-        super(CalibrateMeasurementWindow, self)._plot(axes_list)
+
+        super(CalibrateMeasurementWindow, self)._plot(axes_list, data)
         axes_list[0].set_title('Measurement Calibration')
         axes_list[0].legend(labels=('|0> State Fluorescence', '|1> State Fluoresence'), fontsize=8)
 
 
-    # def get_axes_layout(self, figure_list):
-    #     """
-    #     returns the axes objects the script needs to plot its data
-    #     the default creates a single axes object on each figure
-    #     This can/should be overwritten in a child script if more axes objects are needed
-    #     Args:
-    #         figure_list: a list of figure objects
-    #     Returns:
-    #         axes_list: a list of axes objects
-    #
-    #     """
-    #     figure1 = figure_list[0]
-    #     figure2 = figure_list[1]
-    #     if self._plot_refresh is True:
-    #         figure1.clf()
-    #         axes1 = figure1.add_subplot(211)
-    #         axes2 = figure1.add_subplot(212)
-    #         figure2.clf()
-    #         axes3 = figure2.add_subplot(111)
-    #     else:
-    #         axes1 = figure1.axes[0]
-    #         axes2 = figure1.axes[1]
-    #         axes3 = figure2.axes[0]
-    #
-    #     return [axes1, axes2, axes3]
-    #
-    # def _update_plot(self, axes_list):
-    #     '''
-    #     Updates plots specified in _plot above
-    #     Args:
-    #         axes_list: list of axes to write plots to (uses first 2)
-    #
-    #     '''
-    #     [counts_0, counts_1] = zip(*self.data['counts'])
-    #     x_data = self.data['tau']
-    #     axis1 = axes_list[0]
-    #     axis2 = axes_list[1]
-    #     if not counts_0 == []:
-    #         update_1d_simple(axis1, x_data, [counts_0, counts_1])
-    #         contrast = (((np.array(counts_1) - np.array(counts_0)) / np.array(counts_1)) * 100).tolist()
-    #         contrast = [x if not np.isnan(x) else 0.0 for x in
-    #                     contrast]  # replaces nan with zeros for points not  yet reached
-    #         update_1d_simple(axis2, x_data, [contrast])
-    #     axis3 = axes_list[2]
-    #     update_pulse_plot(axis3, self.pulse_sequences[self.sequence_index])
 
 class XY8(PulseBlasterBaseScript):
     """
@@ -704,9 +678,19 @@ This script runs a CPMG pulse sequence.
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
-    def _plot(self, axislist):
-        print('asdasd', self.data)
-        super(XY8, self)._plot(axislist)
+    def _plot(self, axislist, data = None):
+        """
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
+        """
+
+        super(XY8, self)._plot(axislist, data)
         axislist[0].set_title('XY8')
         axislist[0].legend(labels=('Ref Fluorescence', 'XY8 data'), fontsize=8)
 
@@ -1015,8 +999,18 @@ This script measures the relaxation time of an NV center
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
-    def _plot(self, axislist):
-        super(T1, self)._plot(axislist)
+    def _plot(self, axislist, data = None):
+        """
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first)
+            data (optional): dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
+        """
+        super(T1, self)._plot(axislist, data)
         axislist[0].set_title('T1')
         axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
 
@@ -1136,8 +1130,18 @@ Optionally a microwave pulse is applied as part of the initialization to prepare
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['read_out']['meas_time']
 
-    def _plot(self, axislist):
-        super(T1SpinFlip, self)._plot(axislist)
+    def _plot(self, axislist, data = None):
+        """
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first)
+            data (optional): dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
+        """
+        super(T1SpinFlip, self)._plot(axislist, data)
         axislist[0].set_title('T1')
         axislist[0].legend(labels=( 'Ref Fluorescence', 'T1 data'), fontsize=8)
 

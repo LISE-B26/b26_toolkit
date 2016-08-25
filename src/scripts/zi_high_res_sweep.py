@@ -185,15 +185,23 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
         sweeper_script.update(initial_settings)
 
 
-    def _plot(self, axes_list):
-        #COMMENT_ME
+    def _plot(self, axes_list, data):
+        """
+        plots the zi instrument frequency sweep
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional): dataset to plot (dictionary that contains keys r, frequency), if not provided use self.data
+        """
+        if data is None:
+            data = self.data
 
         axes = axes_list[0]
         if self.current_subscript == 'quick scan' and self.scripts['zi sweep'].data:
             self.scripts['zi sweep'].plot(axes)
-        elif self.current_subscript in ('high res scan', None) and self.data:
-            r = self.data['r']
-            freq = self.data['frequency']
+        elif self.current_subscript in ('high res scan', None) and data:
+            r = data['r']
+            freq = data['frequency']
             freq = freq[np.isfinite(r)]
             r = r[np.isfinite(r)]
             plot_psd(freq, r, axes, False)

@@ -118,7 +118,7 @@ for a given experiment
         #     self.save_log()
         #     self.save_image_to_disk()
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
@@ -127,10 +127,13 @@ for a given experiment
 
         Args:
             axes_list: list of axes to write plots to (uses first 2)
-
+            data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
         """
-        counts = self.data['counts']
-        x_data = self.data['tau']
+        if data is None:
+            data = self.data
+
+        counts = data['counts']
+        x_data = data['tau']
         axis1 = axes_list[0]
         # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
         if counts != []:

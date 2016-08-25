@@ -93,11 +93,14 @@ class Daq_Read_Counter(Script):
         # COMMENT_ME
         super(Daq_Read_Counter, self).plot([figure_list[1]])
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         # COMMENT_ME
-        data = self.data['counts']
+
+        if data is None:
+            data = self.data
+
         if data:
-            plot_counts(axes_list[0], self.data['counts'])
+            plot_counts(axes_list[0], data['counts'])
 
 if __name__ == '__main__':
     script = {}

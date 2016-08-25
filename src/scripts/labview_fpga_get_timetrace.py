@@ -37,7 +37,6 @@ class LabviewFpgaTimetrace(Script):
     _SCRIPTS = {}
 
     def __init__(self, instruments, name = None, settings = None, log_function = None, data_path = None):
-
         Script.__init__(self, name, settings, instruments, log_function= log_function, data_path = data_path)
 
         self.data = deque()
@@ -110,13 +109,24 @@ class LabviewFpgaTimetrace(Script):
         # if self.settings['save']:
         #     self.save_b26()
 
+    def _plot(self, axes_list, data = None):
+        """
+        Plots the timetrace taken with NI FPGA
+        Args:
+            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
+            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
+        """
 
-    def _plot(self, axes_list):
-        #COMMENT_ME
         axes = axes_list[0]
 
+        if data is None:
+            data = self.data
 
-        r = self.data[-1]['AI1']
+        if isinstance(data, deque):
+            r = self.data[-1]['AI1']
+        else:
+            r = self.data['AI1']
+
         dt = self.settings['dt']/40e6
 
         time = dt * np.arange(len(r))

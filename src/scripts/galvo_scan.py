@@ -207,22 +207,25 @@ class GalvoScan(Script):
             yVmax = pta['y'] + float(ptb['y']) / 2.
         return [xVmin, xVmax, yVmax, yVmin]
 
-    def _plot(self, axes_list):
-        '''
-        Plots the galvo scan image to the input figure, clearing the figure and creating new axes if necessary
+    def _plot(self, axes_list, data = None):
+        """
+        Plots the galvo scan image
         Args:
-            image_figure: figure to plot onto
-            axes_colorbar: axes with a colorbar to overwrite with the new colorbar
+            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
+            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
+        """
 
-        '''
-        # if 'image_data' in self.data.keys() and not self.data['image_data'] == []:
-        plot_fluorescence_new(self.data['image_data'], self.data['extent'], axes_list[0],
-                              max_counts=self.settings['max_counts_plot'])
+        if data is None:
+            data = self.data
+        plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
     def _update_plot(self, axes_list):
-        # COMMENT_ME
-        axes_image = axes_list[0]
-        update_fluorescence(self.data['image_data'], axes_image, self.settings['max_counts_plot'])
+        """
+        updates the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+        """
+        update_fluorescence(self.data['image_data'], axes_list[0], self.settings['max_counts_plot'])
 
     def get_axes_layout(self, figure_list):
         """

@@ -201,54 +201,57 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             #     self.save_image_to_disk('{:s}\\autofocus.jpg'.format(self.filename_image))
 
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
+
+        if data is None:
+            data  = self.data
         # COMMENT_ME
         axis1 = axes_list[0]
         axis2 = axes_list[1]
         # plot current focusing data
-        axis1.plot(self.data['main_scan_sweep_voltages'][0:len(self.data['main_scan_focus_function_result'])],
-                   self.data['main_scan_focus_function_result'])
+        axis1.plot(data['main_scan_sweep_voltages'][0:len(data['main_scan_focus_function_result'])],
+                   data['main_scan_focus_function_result'])
 
-        if 'refined_scan_sweep_voltages' in self.data.keys():
-            axis1.plot(self.data['refined_scan_sweep_voltages'][0:len(self.data['refined_scan_focus_function_result'])],
-                       self.data['refined_scan_focus_function_result'])
+        if 'refined_scan_sweep_voltages' in data.keys():
+            axis1.plot(data['refined_scan_sweep_voltages'][0:len(data['refined_scan_focus_function_result'])],
+                       data['refined_scan_focus_function_result'])
 
 
 
         # plot best fit
-        if 'main_scan_focusing_fit_parameters' in self.data.keys() \
-                and np.all(self.data['main_scan_focusing_fit_parameters'])\
-                and len(self.data['main_scan_sweep_voltages']) == len(self.data['main_scan_focus_function_result']):
+        if 'main_scan_focusing_fit_parameters' in data.keys() \
+                and np.all(data['main_scan_focusing_fit_parameters'])\
+                and len(data['main_scan_sweep_voltages']) == len(data['main_scan_focus_function_result']):
             gaussian = lambda x, params: params[0] + params[1] * np.exp(-1.0 * (np.square(x - params[2]) / (2 * params[3]) ** 2))
 
             fit_domain = np.linspace(self.settings['piezo_min_voltage'], self.settings['piezo_max_voltage'], 100)
-            fit = gaussian(fit_domain, self.data['main_scan_focusing_fit_parameters'])
+            fit = gaussian(fit_domain, data['main_scan_focusing_fit_parameters'])
 
-            axis1.plot(self.data['main_scan_sweep_voltages'], self.data['main_scan_focus_function_result'], 'b',
+            axis1.plot(data['main_scan_sweep_voltages'], data['main_scan_focus_function_result'], 'b',
                        fit_domain, fit, 'r')
             axis1.legend(['data', 'best_fit'])
 
 
         # plot best fit
-        if 'refined_scan_focusing_fit_parameters' in self.data.keys() \
-                and np.all(self.data['refined_scan_focusing_fit_parameters'])\
-                and len(self.data['refined_scan_sweep_voltages']) == len(self.data['refined_scan_focus_function_result']):
+        if 'refined_scan_focusing_fit_parameters' in data.keys() \
+                and np.all(data['refined_scan_focusing_fit_parameters'])\
+                and len(data['refined_scan_sweep_voltages']) == len(data['refined_scan_focus_function_result']):
             gaussian = lambda x, params: params[0] + params[1] * np.exp(-1.0 * (np.square(x - params[2]) / (2 * params[3]) ** 2))
 
-            center = self.data['main_scan_focusing_fit_parameters'][2]
+            center = data['main_scan_focusing_fit_parameters'][2]
             min = center - self.settings['refined_scan_range']/2.0
             max = center + self.settings['refined_scan_range']/2.0
             fit_domain = np.linspace(min, max, 100)
 
-            fit = gaussian(fit_domain, self.data['refined_scan_focusing_fit_parameters'])
+            fit = gaussian(fit_domain, data['refined_scan_focusing_fit_parameters'])
 
-            axis1.plot(self.data['refined_scan_sweep_voltages'], self.data['refined_scan_focus_function_result'], 'b',
+            axis1.plot(data['refined_scan_sweep_voltages'], data['refined_scan_focus_function_result'], 'b',
                        fit_domain, fit, 'r')
             axis1.legend(['data', 'best_fit'])
 
 
         # format plot
-        axis1.set_xlim([self.data['main_scan_sweep_voltages'][0], self.data['main_scan_sweep_voltages'][-1]])
+        axis1.set_xlim([data['main_scan_sweep_voltages'][0], data['main_scan_sweep_voltages'][-1]])
         axis1.set_xlabel('Piezo Voltage [V]')
 
         if self.settings['focusing_optimizer'] == 'mean':

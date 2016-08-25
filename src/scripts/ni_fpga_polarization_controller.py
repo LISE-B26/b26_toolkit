@@ -151,22 +151,29 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
+        """
+        Plots the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot. uses the first and second axes object
+            data: data (dictionary that contains keys det_signal, WP_volt, det_signal) if not provided use self.data
+        """
+
+        if data is None:
+            data = self.data
         axes1, axes2 = axes_list
         axes1.hold(False)
         axes2.hold(False)
         dt = self.instruments['controler']['settings']['time_step']
-        N = len(self.data['det_signal'])
+        N = len(data['det_signal'])
         t = dt* np.arange(N)
-        axes1.plot(t, self.data['WP_volt'][:N], '-o')
-        axes2.plot(t, self.data['det_signal'][:N], '-o')
+        axes1.plot(t, data['WP_volt'][:N], '-o')
+        axes2.plot(t, data['det_signal'][:N], '-o')
 
         axes1.set_xlabel('time (s)')
         axes1.set_ylabel('wp signal')
         axes2.set_xlabel('frequency (Hz)')
         axes2.set_ylabel('detector signal')
-
-        # axes2.plot(self.data['WP_volt'][0:-1], np.diff(self.data['det_signal']), '-o')
 
 class FPGA_PolarizationSignalScan(Script):
     """

@@ -69,13 +69,16 @@ class KeysightGetSpectrum(Script):
 
 
 
-    def _plot(self, axes_list):
-        #COMMENT_ME
-        axes = axes_list[0]
+    def _plot(self, axes_list, data = None):
+        '''
+        Plots the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot the keyseight spectrun on the first axes object
+            data: data (dictionary that contains keys amplitudes, frequencies) if not provided use self.data
+        '''
+        if data is None:
+            data = self.data
 
-        spectrum = self.data['amplitudes']
-        freq = self.data['frequencies']
-
-        axes.plot(freq, spectrum)
-        axes.set_xlabel('frequencies')
-        axes.set_xlabel('spectrum (??)')
+        axes_list[0].plot(data['frequencies'], data['amplitudes'])
+        axes_list[0].set_xlabel('frequencies')
+        axes_list[0].set_xlabel('spectrum (??)')

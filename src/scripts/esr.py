@@ -141,10 +141,20 @@ class ESR(Script):
         self.progress = progress
         return int(progress)
 
-    def _plot(self, axes_list):
-        #COMMENT_ME
+    def _plot(self, axes_list, data = None):
+        """
+        plotting function for esr
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys frequency, data and fit_params) if not provided use self.data
+        Returns:
+
+        """
+        if data is None:
+            data = self.data
         # plot_esr(axes_list[0], self.data[-1]['frequency'], self.data[-1]['data'], self.data[-1]['fit_params'])
-        plot_esr(axes_list[0], self.data['frequency'], self.data['data'], self.data['fit_params'])
+        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+
     def get_axes_layout(self, figure_list):
         """
         returns the axes objects the script needs to plot its data

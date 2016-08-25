@@ -155,24 +155,25 @@ resulting in an image in the current field of view of the objective.
         return [xVmin, xVmax, yVmax, yVmin]
 
 
-    def _plot(self, axes_list):
+    def _plot(self, axes_list, data = None):
         '''
-        Plots the galvo scan image to the input figure, clearing the figure and creating new axes if necessary
+        Plots the galvo scan image
         Args:
-            image_figure: figure to plot onto
-            axes_colorbar: axes with a colorbar to overwrite with the new colorbar
-
+            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
+            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
         '''
-        plot_fluorescence_new(self.data['image_data'].transpose(), self.data['extent'], axes_list[0],max_counts=self.settings['max_counts_plot'])
+
+        if data is None:
+            data = self.data
+        plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
     def _update_plot(self, axes_list):
-        """
-        updates the image data. This is more efficient than replotting from scratch
+        '''
+        updates the galvo scan image
         Args:
-            axes_list:
-        Returns:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+        '''
 
-        """
         axes_image = axes_list[0]
         update_fluorescence(self.data['image_data'].transpose(), axes_image, self.settings['max_counts_plot'])
 

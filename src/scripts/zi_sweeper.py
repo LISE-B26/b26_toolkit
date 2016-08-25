@@ -129,12 +129,24 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
             #     self.save_log()
 
 
-    def _plot(self, axes_list):
-        #COMMENT_ME
+    def _plot(self, axes_list, data):
+        """
+        plots the zi instrument frequency sweep
+
+        Args:
+            axes_list: list of axes to write plots to (uses first)
+            data (optional): dataset to plot (dictionary that contains keys r, frequency), if not provided use self.data
+        """
+
+        if data is None:
+            data = self.data
+
+        if isinstance(data, deque):
+            data = data[-1]
         axes = axes_list[0]
 
-        r = self.data[-1]['r']
-        freq = self.data[-1]['frequency']
+        r = data['r']
+        freq = data['frequency']
         freq = freq[np.isfinite(r)]
         r = r[np.isfinite(r)]
         plot_psd(freq, r, axes)
