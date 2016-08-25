@@ -154,7 +154,7 @@ Known issues:
         if data is None:
             data = self.data
         if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
-            self.scripts['take_image']._plot(axes_list, data)
+            self.scripts['take_image']._plot(axes_list)
         else:
             plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
