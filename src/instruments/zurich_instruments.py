@@ -38,6 +38,7 @@ class ZIHF2(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('freq', 1e6, float, 'frequency of output channel'),
+        Parameter('amp', 0.1, float, 'amplitude of output channel (V)'),
         Parameter('sigins',
                   [
                       Parameter('channel', 0, [0,1], 'signal input channel'),
@@ -136,6 +137,13 @@ class ZIHF2(Instrument):
                     for sub_key, val in sorted(element.iteritems()):
                         if not sub_key == 'channel':
                             commands.append(['/%s/%s/%d/%s'%(self.device, key, channel, sub_key), val])
+                        # is the range has been changed we have to reset the amplitude
+                        if key == 'sigouts' and sub_key == 'range':
+                            channel = self.settings['sigouts']['channel']
+                            out_range = self.settings['sigouts']['range']
+                            scaled_amplitude = self.settings['amp'] / out_range
+                            # I am not sure what the last number means but it is 6 for channel 0 and 7 for channel 1
+                            commands.append(['/%s/sigouts/%d/amplitudes/%d' % (self.device, channel, channel + 6),scaled_amplitude])
                 elif isinstance(element, dict) and key in ['aux']:
                     if 'channel' in element:
                         channel = element['channel']
@@ -149,7 +157,20 @@ class ZIHF2(Instrument):
                     commands.append(['/%s/AUXOUTS/%d/OFFSET'% (self.device, channel),offset ])
                 elif key in ['freq']:
                     channel = self.settings['sigouts']['channel']
-                    commands.append(['/%s/oscs/%d/freq' % (self.device, channel), settings['freq']])
+                    # commands.append(['/%s/oscs/%d/freq' % (self.device, channel), settings['freq']])
+                    commands.append(['/%s/oscs/%d/freq' % (self.device, channel), element])
+                elif key in ['amp']:
+                    channel = self.settings['sigouts']['channel']
+                    out_range = self.settings['sigouts']['range']
+                    amplitude = element
+                    if amplitude > out_range:
+                        # adjust range
+                        out_range = [x for x in self._DEFAULT_SETTINGS.valid_values['sigouts']['range'] if amplitude < x][0]
+                    # amplitudes are given relative to the range
+                    scaled_amplitude = amplitude/out_range
+                    commands.append(['/%s/sigouts/%d/range' % (self.device, channel), out_range])
+                    # I am not sure what the last number means but it is 6 for channel 0 and 7 for channel 1
+                    commands.append(['/%s/sigouts/%d/amplitudes/%d' % (self.device, channel, channel+6), scaled_amplitude])
                 elif isinstance(element, dict) == False:
                     commands.append([key, element])
 
