@@ -28,6 +28,9 @@ from esr import ESR
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
 # from ni_fpga_polarization_controller import FPGA_PolarizationController, AutoFocusNIFPGA
+
+from zi_sweeper import ZISweeper
+
 from find_nv import FindNV
 
 from atto_scan import AttoStep
@@ -42,6 +45,7 @@ from pulse_delays import PulseDelays
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
+
 
 # old imports with try/except
 # verbose = False

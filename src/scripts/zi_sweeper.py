@@ -19,9 +19,13 @@
 from collections import deque
 
 import numpy as np
+import time
 
-from b26_toolkit.src.plotting.plots_1d import plot_psd
+
+from b26_toolkit.src.plotting.plots_1d import plot_psd, update_1d_simple
 from PyLabControl.src.core import Script, Parameter
+
+from b26_toolkit.src.instruments import ZIHF2
 
 
 class ZISweeper(Script):
@@ -32,10 +36,12 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         Parameter('start', 1.8e6, float, 'start value of sweep'),
         Parameter('stop', 1.9e6, float, 'end value of sweep'),
         Parameter('samplecount', 101, int, 'number of data points'),
-        Parameter('gridnode', 'oscs/0/freq', ['oscs/0/freq', 'oscs/1/freq'], 'output channel =not 100% sure, double check='),
-        Parameter('xmapping', 0, [0, 1], 'mapping 0 = linear, 1 = logarithmic'),
-        Parameter('bandwidthcontrol', 2, [2], '2 = automatic bandwidth control'),
-        Parameter('scan', 0, [0, 1, 2], 'scan direction 0 = sequential, 1 = binary (non-sequential, each point once), 2 = bidirecctional (forward then reverse)'),
+        # Parameter('gridnode', 'oscs/0/freq', ['oscs/0/freq', 'oscs/1/freq'], 'output channel =not 100% sure, double check='),
+        # Parameter('output', 0, [0, 1],'output channel =not 100% sure, double check='),
+        Parameter('xmapping', 'linear', ['linear', 'logarithmic'], 'mapping 0 = linear, 1 = logarithmic'),
+        Parameter('ymapping', 'linear', ['linear', 'logarithmic'], 'display of y-axis'),
+        Parameter('bandwidthcontrol', 'automatic', ['automatic'], '2 = automatic bandwidth control'),
+        Parameter('scan', 'sequential', ['sequential', 'binary', 'bidirecctional'], 'scan direction 0 = sequential, 1 = binary (non-sequential, each point once), 2 = bidirecctional (forward then reverse)'),
         Parameter('loopcount', 1, int, 'number of times it sweeps'),
         Parameter('averaging/sample', 1, int, 'number of samples to average over')
     ]
@@ -51,8 +57,8 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
 
         Script.__init__(self, name, settings, instruments, log_function= log_function, data_path = data_path)
 
-        self.sweeper = self.instruments['zihf2'].daq.sweep(self._timeout)
-        self.sweeper.set('sweep/device', self.instruments['zihf2'].device)
+        self.sweeper = self.instruments['zihf2']['instance'].daq.sweep(self._timeout)
+        self.sweeper.set('sweep/device', self.instruments['zihf2']['instance'].device)
 
         self.data = deque()
 
@@ -72,9 +78,37 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         for key, val in settings.iteritems():
             if isinstance(val, dict) and 'value' in val:
                 commands.append(['sweep/%s' % (key), val['value']])
-            elif key in ('start', 'stop', 'samplecount', 'gridnode', 'xmapping',
-                         'bandwidthcontrol', 'scan', 'loopcount', 'averaging/sample'):
+            elif key in ('start', 'stop', 'samplecount', 'gridnode', 'loopcount', 'averaging/sample'):
                 commands.append(['sweep/%s' % (key), val])
+            elif key in ('xmapping'):
+                if val.lower() == 'linear':
+                    val = 0
+                elif val.lower() == 'logarithmic':
+                    val = 1
+                else:
+                    raise ValueError
+                commands.append(['sweep/%s' % (key), val])
+            elif key in ('bandwidthcontrol'):
+                if val.lower() == 'automatic':
+                    val = 2
+                else:
+                    raise ValueError
+                commands.append(['sweep/%s' % (key), val])
+            elif key in ('scan'):
+                if val.lower() == 'sequential':
+                    val = 0
+                elif val.lower() == 'binary':
+                    val = 1
+                elif val.lower() == 'bidirecctional':
+                    val = 2
+                else:
+                    raise ValueError
+                commands.append(['sweep/%s' % (key), val])
+
+        # settings of instrument
+        out_channel = self.instruments['zihf2']['settings']['sigouts']['channel']
+        commands.append(['sweep/gridnode', 'oscs/%s/freq' % (out_channel)])
+
         return commands
 
 
@@ -83,19 +117,20 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
+        self.instruments['zihf2']['instance'].update(self.instruments['zihf2']['settings'])
+
         self.data.clear() # clear data queue
         commands = self.settings_to_commands(self.settings)
-
         self.sweeper.set(commands)
 
-        path = '/%s/demods/%d/sample' % (self.instruments['zihf2'].device, self.instruments['zihf2'].settings['demods']['channel'])
+        path = '/%s/demods/%d/sample' % (self.instruments['zihf2']['instance'].device, self.instruments['zihf2']['instance'].settings['demods']['channel'])
         self.sweeper.subscribe(path)
         self.sweeper.execute()
 
         while not self.sweeper.finished():
             time.sleep(1)
-            progress = int(100*self.sweeper.progress())
-            print('progress', progress)
+            self.progress = float(100.*self.sweeper.progress())
             data = self.sweeper.read(True)# True: flattened dictionary
 
             #  ensures that first point has completed before attempting to read data
@@ -116,20 +151,20 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
                 self.sweeper.finish()
                 self._recording = False
 
-            print("Individual sweep %.2f%% complete. \n" % (progress))
+            print("Individual sweep %.2f%% complete. \n" % (self.progress))
 
-            self.updateProgress.emit(progress)
+            self.updateProgress.emit(int(self.progress))
             print('len data: ',len(self.data))
         if self.sweeper.finished():
             self._recording = False
 
-            # if self.settings['save']:
-            #     self.save_b26()
-            #     self.save_data()
-            #     self.save_log()
+
+    def get_axes_layout(self, figure_list):
+        new_figure_list = [figure_list[0]]
+        return super(ZISweeper, self).get_axes_layout(new_figure_list)
 
 
-    def _plot(self, axes_list, data):
+    def _plot(self, axes_list, data = None):
         """
         plots the zi instrument frequency sweep
 
@@ -149,25 +184,19 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         freq = data['frequency']
         freq = freq[np.isfinite(r)]
         r = r[np.isfinite(r)]
-        plot_psd(freq, r, axes)
+        print('plotting - freq', freq)
+        print('plotting - r', r)
+        print('keys ', data.keys())
+
+        x_scaling = self.settings['xmapping'][0:3]
+        y_scaling = self.settings['ymapping'][0:3]
+
+        plot_psd(freq, r, axes, x_scaling = x_scaling, y_scaling = y_scaling)
+
+        axes.set_xlim([min(freq), max(freq)])
+        axes.set_ylim([min(r), max(r)])
 
 if __name__ == '__main__':
-    from b26_toolkit.src.instruments import ZIHF2
-    import time
-
-    zihf2 = ZIHF2()
-
-    sweep = ZISweeper(zihf2)
-
-    sweep.start()
-
-    time.sleep(0.3)
-
-    print(sweep.sweeper.progress())
-
-    time.sleep(0.3)
-
-    sweep.stop()
-
+    script, failed, instruments = Script.load_and_append(script_dict={'ZISweeper': 'ZISweeper'})
 
 

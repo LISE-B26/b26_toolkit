@@ -23,7 +23,7 @@ from matplotlib.collections import PatchCollection
 from b26_toolkit.src.data_processing.fit_functions import lorentzian, double_lorentzian
 
 
-def plot_psd(freq, psd, axes, clear = True):
+def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     '''
     plots the power spectral density on to the canvas axes
     :param freq: x-values array of length N
@@ -31,18 +31,23 @@ def plot_psd(freq, psd, axes, clear = True):
     :param axes: target axes object
     :return: None
     '''
-    if clear is True:
-        print('CLEAR')
-        axes.clear()
-
     if np.mean(freq) > 1e6:
         freq /= 1e6
         unit = 'MHz'
     elif np.mean(freq) > 1e3:
         freq /= 1e3
         unit = 'kHz'
+    else:
+        unit = 'Hz'
 
-    axes.semilogy(freq, psd)
+    if y_scaling == 'log' and x_scaling == 'log':
+        axes.loglog(freq, psd, 'b')
+    elif y_scaling == 'log' and x_scaling == 'lin':
+        axes.semilogy(freq, psd, 'b')
+    elif y_scaling == 'lin' and x_scaling == 'log':
+        axes.semilogx(freq, psd, 'b')
+    elif y_scaling == 'lin' and x_scaling == 'lin':
+        axes.plot(freq, psd, 'b')
 
     axes.set_xlabel('frequency ({:s})'.format(unit))
 
@@ -285,9 +290,12 @@ def update_1d_simple(axis, times, counts_list):
     Returns:
 
     """
+
+
+    if len(np.shape(counts_list)) ==1:
+        counts_list = [counts_list]
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
-
 
     if len(axis.lines) != len(counts_list):
         print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))

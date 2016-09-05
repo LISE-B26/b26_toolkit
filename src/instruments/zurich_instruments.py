@@ -27,10 +27,12 @@ class ZIHF2(Instrument):
 
     try:
         import zhinst.utils as utils
-        _is_connected = True
+        _lib_detected = True
     except ImportError:
         # make a fake ZI instrument
-        _is_connected = False
+        import warnings
+        warnings.warn('Unable to import ZI library. Check that it has been installed from the ZI website.')
+        _lib_detected = False
     except:
         raise
 
@@ -93,6 +95,9 @@ class ZIHF2(Instrument):
         super(ZIHF2, self).__init__(name, settings)
         # apply all settings to instrument
         self.update(self.settings)
+
+        if self._lib_detected:
+            self._is_connected = True
 
 
     # ========================================================================================
