@@ -45,7 +45,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                   ['mean', 'standard_deviation', 'normalized_standard_deviation'], 'optimization function for focusing'),
         Parameter('wait_time', 0.1, float),
         Parameter('use_current_piezo_voltage', False, bool, 'Overrides piezo_center_voltage and instead uses the current piezo voltage as the center of the range'),
-        Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in acquire_image')
+        Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in take_image'),
+        Parameter('galvo_return_to_initial', False, bool, 'Check to return galvo location to initial value (before calling autofocus)'),
+        # Parameter('galvo_position', 'take_image_pta', ['take_image', 'current_location', 'last_run'], 'select galvo location (center point in acquire_image, current location of galvo or location from previous run)')
     ]
 
     # the take image script depends on the particular hardware, e.g. DAQ or NIFPGA
@@ -63,6 +65,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             settings (optional): settings for this script, if empty same as default settings
         """
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
+
 
     @pyqtSlot(int)
     def _receive_signal(self, progress):
@@ -154,8 +157,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         else:
             self.filename_image = None
 
+        daq_pt = self._get_galvo_location()
+
         if self.settings['center_on_current_location']:
-            daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
             self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
 
         min_voltage = self.settings['piezo_center_voltage'] - self.settings['piezo_voltage_width']/2.0
@@ -174,6 +178,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
         self._step_piezo(piezo_voltage, self.settings['wait_time'])
+
+        if self.settings['galvo_return_to_initial']:
+            self._set_galvo_location(daq_pt)
 
     def fit_focus(self):
         '''
@@ -217,6 +224,20 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
             return return_voltage, p2
 
+    def _get_galvo_location(self):
+        """
+        returns the current position of the galvo
+        Returns: list with two floats, which give the x and y position of the galvo mirror
+
+        """
+        raise NotImplementedError
+
+    def _set_galvo_location(self):
+        """
+        sets the current position of the galvo
+        galvo_position: list with two floats, which give the x and y position of the galvo mirror
+        """
+        raise NotImplementedError
 
     def _step_piezo(self, voltage, wait_time):
         """
@@ -409,6 +430,34 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         # set the voltage on the piezo
         z_piezo.voltage = float(voltage)
         time.sleep(wait_time)
+
+    def _get_galvo_location(self):
+        """
+        returns the current position of the galvo
+        Returns: list with two floats, which give the x and y position of the galvo mirror
+        """
+        galvo_position = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([
+            self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
+            self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']]
+        )
+        return galvo_position
+
+    def _set_galvo_location(self, galvo_position):
+        """
+        sets the current position of the galvo
+        galvo_position: list with two floats, which give the x and y position of the galvo mirror
+        """
+
+        pt = galvo_position
+        daq = self.scripts['take_image'].instruments['daq']['instance']
+        # daq API only accepts either one point and one channel or multiple points and multiple channels
+        pt = np.transpose(np.column_stack((pt[0],pt[1])))
+        pt = (np.repeat(pt, 2, axis=1))
+
+        daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        daq.AO_run()
+        daq.AO_waitToFinish()
+        daq.AO_stop()
 
     def _function(self):
         #update piezo settings

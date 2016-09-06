@@ -59,6 +59,8 @@ This script points the laser to a point
         will be overwritten in the __init__
         """
         pt = (self.settings['point']['x'], self.settings['point']['y'])
+
+        # daq API only accepts either one point and one channel or multiple points and multiple channels
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
