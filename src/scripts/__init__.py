@@ -30,6 +30,7 @@ from esr import ESR
 # from ni_fpga_polarization_controller import FPGA_PolarizationController, AutoFocusNIFPGA
 
 from zi_sweeper import ZISweeper
+from zi_high_res_sweep import ZISweeperHighResolution
 
 from find_nv import FindNV
 

@@ -31,25 +31,30 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     :param axes: target axes object
     :return: None
     '''
-    if np.mean(freq) > 1e6:
-        freq /= 1e6
-        unit = 'MHz'
-    elif np.mean(freq) > 1e3:
-        freq /= 1e3
-        unit = 'kHz'
-    else:
-        unit = 'Hz'
+    print('ddddddd', freq)
+    unit = 'Hz'
+    c_unit = 1.0
+    if x_scaling == 'lin':
+        if np.mean(freq) > 1e6:
+            c_unit = 1e-6
+            unit = 'MHz'
+        elif np.mean(freq) > 1e3:
+            c_unit = 1e-3
+            unit = 'kHz'
+
 
     if y_scaling == 'log' and x_scaling == 'log':
-        axes.loglog(freq, psd, 'b')
+        axes.loglog(c_unit*freq, psd, 'b')
     elif y_scaling == 'log' and x_scaling == 'lin':
-        axes.semilogy(freq, psd, 'b')
+        axes.semilogy(c_unit*freq, psd, 'b')
     elif y_scaling == 'lin' and x_scaling == 'log':
-        axes.semilogx(freq, psd, 'b')
+        axes.semilogx(c_unit*freq, psd, 'b')
     elif y_scaling == 'lin' and x_scaling == 'lin':
-        axes.plot(freq, psd, 'b')
+        axes.plot(c_unit*freq, psd, 'b')
 
     axes.set_xlabel('frequency ({:s})'.format(unit))
+
+    axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
 
 def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r'):

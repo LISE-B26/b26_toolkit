@@ -23,7 +23,12 @@ import numpy as np
 # =============== ZURCIH INSTRUMENTS =======================
 # ==========================================================
 class ZIHF2(Instrument):
-    # COMMENT_ME
+    """
+instrument class to control the Zurich instrument lockin-amplifier
+
+for instructions about the API to implement more functionality check out Part II Chapter 4 in the manual:
+https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
+    """
 
     try:
         import zhinst.utils as utils

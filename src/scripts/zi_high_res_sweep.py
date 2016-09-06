@@ -49,28 +49,27 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
 
         self.data = deque()
 
-        # todo: clean this up! and plot data in gui!
         self._sweep_values =  {'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys()
 
 
-    def _receive_signal(self, progess_sub_script):
-        # calculate progress of this script based on progress in subscript
-
-        if self.current_subscript == 'quick scan':
-            progress = int(self.weights['quick scan'] * progess_sub_script)
-        elif self.current_subscript == 'high res scan':
-            progress = int(self.weights['quick scan']*100 + self.weights['high res scan'] * progess_sub_script)
-        else:
-            progress = None
-        # if calculated progress is 100 force it to 99, because we still have to save before script is finished
-        if progress>= 100:
-            progress = 99
-
-        if progress is not None:
-            self.updateProgress.emit(progress)
-
-        if not progess_sub_script.is_running:
-            self.current_subscript = None
+    # def _receive_signal(self, progess_sub_script):
+        # # calculate progress of this script based on progress in subscript
+        #
+        # if self.current_subscript == 'quick scan':
+        #     progress = int(self.weights['quick scan'] * progess_sub_script)
+        # elif self.current_subscript == 'high res scan':
+        #     progress = int(self.weights['quick scan']*100 + self.weights['high res scan'] * progess_sub_script)
+        # else:
+        #     progress = None
+        # # if calculated progress is 100 force it to 99, because we still have to save before script is finished
+        # if progress>= 100:
+        #     progress = 99
+        #
+        # if progress is not None:
+        #     self.updateProgress.emit(progress)
+        #
+        # if not progess_sub_script.is_running:
+        #     self.current_subscript = None
 
     def _function(self):
         """
@@ -117,75 +116,54 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
 
             return weights
 
-        def run_scan(name):
-            self.current_subscript = name
-            sweeper_script.start()
-            while self.current_subscript is name:
-                time.sleep(0.1)
-
-        def calc_new_range():
-
-
-            df = self.settings['high_res_df']
-            N = self.settings['high_res_N']
-
-            r = sweeper_script.data[-1]['r']
-            freq = sweeper_script.data[-1]['frequency']
-            freq = freq[np.isfinite(r)]
-            r = r[np.isfinite(r)]
-
-            fo = freq[np.argmax(r)]
-
-            f_start, f_end = fo - N/2 *df, fo + N/2 *df
-
-
-            # make sure that we convert back to native python types (numpy file types don't pass the Parameter validation)
-            return float(f_start), float(f_end), int(N)
-
+        # initializes data
+        self.data = {'low_res_r':None, 'low_res_freq': None, 'high_res_r':None, 'high_res_freq':None}
 
         sweeper_script = self.scripts['zi sweep']
-        #save initial settings, so that we can rest at the end of the script
+        #save initial settings, so that we can reset at the end of the script
         initial_settings = deepcopy(sweeper_script.settings)
         self.weights = calculate_weights()
 
-        # take the signal from the subscript and route it to a function that takes care of it
-        sweeper_script.updateProgress.connect(self._receive_signal)
+        # run low resolution scan
+        print('run low resolution scan')
+        sweeper_script.run()
+        # get data from sweeper script
+        self.data['low_res_r'] = deepcopy(sweeper_script.data[-1]['r'])
+        self.data['low_res_freq'] = deepcopy(sweeper_script.data[-1]['frequency'])
 
-        print('====== start quick scan ============')
+        # find max
+        fo = self.data['low_res_freq'][np.argmax(self.data['low_res_r'])]
 
-        run_scan('quick scan')
+        # calc new range
+        # make sure that we convert back to native python types (numpy file types don't pass the Parameter validation)
+        df = self.settings['high_res_df']
+        N = int(self.settings['high_res_N'])
+        f_start, f_end = float(fo - N / 2 * df), float(fo + N / 2 * df)
+        print('f_start, f_end', f_start, f_end)
 
-        print('====== calculate new scan range ====')
-        f_start, f_stop, N = calc_new_range()
 
-        print('f_start, f_stop, N', f_start, f_stop, N)
+        self.log('found peak at {:1.2e}'.format(fo))
 
-        print('====== update sweeper ==============')
+        # update sweeper
         sweeper_script.update({
             'start' : f_start,
-            'stop' : f_stop,
+            'stop' : f_end,
             'samplecount' : N
         })
 
-        print('====== start high res scan =========')
-        # print(sweeper_script.sweeper.finished())
-        # print(sweeper_script.sweeper.progress())
-
-        run_scan('high res scan')
-
-        sweeper_script.updateProgress.disconnect()
-        self.data = sweeper_script.data[-1]
-
-        self._recording = False
-
-        # if self.settings['save']:
-        #     self.save_b26()
+        # run high resolution scan
+        print('run high resolution scan')
+        sweeper_script.run()
+        # get data from sweeper script
+        self.data['high_res_r'] = deepcopy(sweeper_script.data[-1]['r'])
+        self.data['high_res_freq'] = deepcopy(sweeper_script.data[-1]['frequency'])
+        # self.data = sweeper_script.data[-1]
 
         # set the sweeper script back to initial settings
         sweeper_script.update(initial_settings)
 
 
-    def _plot(self, axes_list, data):
+    def _plot(self, axes_list, data = None):
         """
         plots the zi instrument frequency sweep
 
@@ -193,16 +171,47 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
             axes_list: list of axes to write plots to (uses first 2)
             data (optional): dataset to plot (dictionary that contains keys r, frequency), if not provided use self.data
         """
-        if data is None:
-            data = self.data
 
-        axes = axes_list[0]
-        if self.current_subscript == 'quick scan' and self.scripts['zi sweep'].data:
-            self.scripts['zi sweep'].plot(axes)
-        elif self.current_subscript in ('high res scan', None) and data:
-            r = data['r']
-            freq = data['frequency']
-            freq = freq[np.isfinite(r)]
-            r = r[np.isfinite(r)]
-            plot_psd(freq, r, axes, False)
+        if self.scripts['zi sweep'].is_running:
+            print('sweeper is running')
 
+            data = self.scripts['zi sweep'].data[-1]
+
+
+            if self.data['high_res_r'] is None:
+                # this means that we run the low res scan
+
+                low_res_r = data['r']
+                low_res_freq = data['frequency']
+                low_res_freq = low_res_freq[np.isfinite(low_res_r)]
+                low_res_r = low_res_r[np.isfinite(low_res_r)]
+
+                high_res_freq = None
+                high_res_r = None
+            else:
+                # this means that we run the high res scan
+                high_res_r = data['r']
+                high_res_freq = data['frequency']
+                high_res_freq = high_res_freq[np.isfinite(high_res_r)]
+                high_res_r = high_res_r[np.isfinite(high_res_r)]
+
+                low_res_freq = None
+                low_res_r = None
+        else:
+            if data is None:
+                data = self.data
+            high_res_freq = data['high_res_freq']
+            high_res_r = data['high_res_r']
+            low_res_freq = data['low_res_freq']
+            low_res_r = data['low_res_r']
+
+        if low_res_r is not None:
+            axes = axes_list[1]
+            plot_psd(low_res_freq, low_res_r, axes, y_scaling = 'lin', x_scaling = 'lin')
+            axes.set_title('low resolution scan')
+
+
+        if high_res_r is not None:
+            axes = axes_list[0]
+            plot_psd(high_res_freq, high_res_r, axes, y_scaling = 'lin', x_scaling = 'lin')
+            axes.set_title('high resolution scan')

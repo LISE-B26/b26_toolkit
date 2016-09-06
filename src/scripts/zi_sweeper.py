@@ -128,9 +128,20 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         self.sweeper.subscribe(path)
         self.sweeper.execute()
 
+        N_loops = self.settings['loopcount']
+        last_progress = 0
+        loopcount = 0
         while not self.sweeper.finished():
             time.sleep(1)
-            self.progress = float(100.*self.sweeper.progress())
+
+            new_progress = self.sweeper.progress()
+            # poor mans way of keeping track of the repetitions, there should be a command to get this directly from the ZI API
+            if new_progress < last_progress:
+                loopcount +=1
+            last_progress = new_progress
+
+            self.progress = float(100.*(self.sweeper.progress()+loopcount) / N_loops)
+            self.sweeper.finished
             data = self.sweeper.read(True)# True: flattened dictionary
 
             #  ensures that first point has completed before attempting to read data
@@ -154,14 +165,10 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
             print("Individual sweep %.2f%% complete. \n" % (self.progress))
 
             self.updateProgress.emit(int(self.progress))
-            print('len data: ',len(self.data))
+
         if self.sweeper.finished():
             self._recording = False
 
-
-    def get_axes_layout(self, figure_list):
-        new_figure_list = [figure_list[0]]
-        return super(ZISweeper, self).get_axes_layout(new_figure_list)
 
 
     def _plot(self, axes_list, data = None):
@@ -170,7 +177,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
 
         Args:
             axes_list: list of axes to write plots to (uses first)
-            data (optional): dataset to plot (dictionary that contains keys r, frequency), if not provided use self.data
+            data (optional): dataset to plot (dictionary that contains keys r, frequency, phase), if not provided use self.data
         """
 
         if data is None:
@@ -178,23 +185,34 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
 
         if isinstance(data, deque):
             data = data[-1]
-        axes = axes_list[0]
 
         r = data['r']
         freq = data['frequency']
         freq = freq[np.isfinite(r)]
+        phase = data['phase']
+        phase = phase[np.isfinite(r)]
         r = r[np.isfinite(r)]
-        print('plotting - freq', freq)
-        print('plotting - r', r)
-        print('keys ', data.keys())
 
         x_scaling = self.settings['xmapping'][0:3]
         y_scaling = self.settings['ymapping'][0:3]
 
+        # plot amplitude
+        axes = axes_list[0]
+        axes.hold(False)
         plot_psd(freq, r, axes, x_scaling = x_scaling, y_scaling = y_scaling)
 
         axes.set_xlim([min(freq), max(freq)])
         axes.set_ylim([min(r), max(r)])
+        axes.set_ylabel('amplitude (??)')
+
+        # plot phase
+        axes = axes_list[1]
+        axes.hold(False)
+        plot_psd(freq, phase, axes, x_scaling=x_scaling, y_scaling='lin')
+        axes.set_xlim([min(freq), max(freq)])
+        axes.set_ylim([min(phase), max(phase)])
+        axes.set_ylabel('phase (rad)')
+
 
 if __name__ == '__main__':
     script, failed, instruments = Script.load_and_append(script_dict={'ZISweeper': 'ZISweeper'})
