@@ -56,7 +56,7 @@ class MaestroController(Instrument):
         # Servo minimum and maximum targets can be restricted to protect components.
         self.Mins = [0] * 24
         self.Maxs = [0] * 24
-        super(MaestroController, self).__init__(name, settings)
+        super(MaestroController, self).__init__(name, settings = settings)
 
 
 
@@ -66,6 +66,8 @@ class MaestroController(Instrument):
     def update(self, settings):
         # call the update_parameter_list to update the parameter list
         super(MaestroController, self).update(settings)
+
+
         # now we actually apply these newsettings to the hardware
         for key, value in settings.iteritems():
             if key == 'port':
@@ -276,28 +278,28 @@ class MaestroLightControl(MaestroController):
     """
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM1', ['COM1', 'COM3', 'COM5', 'COM7'], 'com port to which maestro controler is connected'),
-        Parameter('block green', [
+        Parameter('block_green', [
             Parameter('channel', 5, int, 'channel to which motor is connected'),
-            Parameter('open', True, bool, 'beam block open or closed'),
+            Parameter('open', True, bool, 'True: green laser on, False: green laser off'),
             Parameter('settle_time', 0.2, float, 'settling time'),
             Parameter('position_open', 4 * 1900, int, 'position corresponding to open'),
             Parameter('position_closed', 4 * 950, int, 'position corresponding to closed')
         ]),
-        Parameter('block IR', [
+        Parameter('block_IR', [
             Parameter('channel', 4, int, 'channel to which motor is connected'),
-            Parameter('open', False, bool, 'beam block open or closed'),
+            Parameter('open', False, bool, 'True: IR laser on, False: IR laser off'),
             Parameter('settle_time', 0.2, float, 'settling time'),
             Parameter('position_open', 4 * 1900, int, 'position corresponding to open'),
             Parameter('position_closed', 4 * 950, int, 'position corresponding to closed')
         ]),
-        Parameter('white light', [
+        Parameter('white_light', [
             Parameter('channel', 0, int, 'channel to which motor is connected'),
-            Parameter('open', False, bool, 'beam block open or closed'),
+            Parameter('open', False, bool, 'True: white light on, False: white light off'),
             Parameter('settle_time', 0.2, float, 'settling time'),
             Parameter('position_open', 4 * 1000, int, 'position corresponding to open'),
             Parameter('position_closed', 4 * 1800, int, 'position corresponding to closed')
         ]),
-        Parameter('filter wheel', [
+        Parameter('filter_wheel', [
             Parameter('channel', 1, int, 'channel to which motor is connected'),
             Parameter('settle_time', 0.8, float, 'settling time'),
             Parameter('ND2.0_position', 4 * 2700, int, 'position corresponding to position 1'),
@@ -312,7 +314,8 @@ class MaestroLightControl(MaestroController):
     def __init__(self, name = None, settings = None):
 
         self.usb = None
-        super(MaestroLightControl, self).__init__(name, settings)
+
+        super(MaestroLightControl, self).__init__(name, settings = settings)
 
 
     def update(self, settings):
@@ -326,12 +329,12 @@ class MaestroLightControl(MaestroController):
         super(MaestroLightControl, self).update(settings)
         # now we actually apply these newsettings to the hardware
         for key, value in settings.iteritems():
-            if key in ['block green', 'block IR', 'white light']:
+            if key in ['block_green', 'block_IR', 'white_light']:
                 channel = self.settings[key]['channel']
                 position = self.settings[key]['position_open'] if value['open'] else self.settings[key]['position_closed']
                 settle_time = self.settings[key]['settle_time']
                 self.goto(channel, position, settle_time)
-            elif key in ['filter wheel']:
+            elif key in ['filter_wheel']:
                 channel = self.settings[key]['channel']
                 position = self.settings[key][self.settings[key]['current_position'] + '_position']
                 settle_time = self.settings[key]['settle_time']

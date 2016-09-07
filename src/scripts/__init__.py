@@ -42,6 +42,8 @@ from keysight_get_spectrum import KeysightGetSpectrum
 
 from pulse_delays import PulseDelays
 
+from light_control import ApplyLightControlSettings, CameraOn
+
 # from galvo_scan_ni_fpga import GalvoScanNIFpga
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
