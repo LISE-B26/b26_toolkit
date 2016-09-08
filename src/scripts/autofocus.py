@@ -436,10 +436,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         returns the current position of the galvo
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
-        galvo_position = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([
-            self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
-            self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']]
-        )
+        galvo_position = self.scripts['take_image'].get_galvo_location()
+        # galvo_position = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([
+        #     self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
+        #     self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']]
+        # )
         return galvo_position
 
     def _set_galvo_location(self, galvo_position):
@@ -447,17 +448,17 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         sets the current position of the galvo
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
-
-        pt = galvo_position
-        daq = self.scripts['take_image'].instruments['daq']['instance']
-        # daq API only accepts either one point and one channel or multiple points and multiple channels
-        pt = np.transpose(np.column_stack((pt[0],pt[1])))
-        pt = (np.repeat(pt, 2, axis=1))
-
-        daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        daq.AO_run()
-        daq.AO_waitToFinish()
-        daq.AO_stop()
+        self.scripts['take_image'].set_galvo_location(galvo_position)
+        # pt = galvo_position
+        # daq = self.scripts['take_image'].instruments['daq']['instance']
+        # # daq API only accepts either one point and one channel or multiple points and multiple channels
+        # pt = np.transpose(np.column_stack((pt[0],pt[1])))
+        # pt = (np.repeat(pt, 2, axis=1))
+        #
+        # daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        # daq.AO_run()
+        # daq.AO_waitToFinish()
+        # daq.AO_stop()
 
     def _function(self):
         #update piezo settings

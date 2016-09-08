@@ -20,9 +20,9 @@ from b26_toolkit.src.data_processing import correlation, shift_NVs
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 from b26_toolkit.src.scripts import GalvoScan
+from copy import deepcopy
 
-
-class Take_And_Correlate_Images_2(Script):
+class Take_And_Correlate_Images(Script):
     '''
     Takes a galvo scan, compares it to a previous galvo scan to find the relative shift, and then updates a list of
     nvs based on this shift so that they will give the current coordinates of those nvs
@@ -108,6 +108,111 @@ class Take_And_Correlate_Images_2(Script):
         if not self.data['correlation_image'] == []:
             axes_list[0].imshow(self.data['correlation_image'])
 
+
+class Track_Correlate_Images(Script):
+    '''
+Track_Correlate_Images:
+1.) Reads the current position of the galvo mirror: pt_0.
+2.) Takes a galvo scan, compares it to a previous galvo scan to find the relative shift: dp.
+3.) Sets the position of the galvo mirror to its initial position plus the shift: pt_0 + dp
+    '''
+
+    _DEFAULT_SETTINGS = [
+        Parameter('mode', 'plain', ['plain', 'edge_detection', 'trackpy'], 'mode for correlation algorithm: plain images, identify points using trackpy to filter out background from nv-images or edge detection'),
+        Parameter('baseline_update_frequency', 0, int, 'Use the last acquired image as the baseline for the next run after x executions of the script. x = 0 never update. Tip: use x=1 to update baseline')
+    ]
+    _INSTRUMENTS = {}
+    _SCRIPTS = {'GalvoScan': GalvoScan}
+
+    def __init__(self, instruments = None, name = None, settings = None, scripts = None, log_function = None, data_path = None):
+        Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
+
+        self.data = {'baseline_image': [],
+                     'new_image': [],
+                     'image_extent': [],
+                     'initial_galvo_position':[],
+                     'shift': [],
+                     'correlation_image': []
+                     }
+
+        self.count_executions = 0 # counts how often the script has been updated
+
+    def _function(self):
+        """
+        # Takes a new image, and correlates this with the image provided to baseline_image in self.data. It uses the
+        determined pixel shift to calculate a shift for each of the nvs in the old_nv_list, which is given to it by
+        a superscript, then store it as new_NV_list in data
+        """
+
+        self.count_executions += 1
+        baseline_update_frequency = self.settings['baseline_update_frequency']
+
+        if self.settings['mode'] == 'plain':
+            use_trackpy = False
+            use_edge_detection = False
+        elif self.settings['mode'] == 'edge_detection':
+            use_trackpy = False
+            use_edge_detection = True
+        elif self.settings['mode'] == 'trackpy':
+            use_trackpy = True
+            use_edge_detection = False
+
+
+        # get galvo position
+
+
+        if self.data['baseline_image'] == []:
+            self.log('No baseline image avaliable. Taking baseline.')
+            self.scripts['GalvoScan'].run()
+            self.baseline_settings = deepcopy(self.scripts['GalvoScan'].settings)
+            self.data['baseline_image'] = deepcopy(self.scripts['GalvoScan'].data['image_data'])
+
+        else:
+
+            # make sure that the settings are the same as for the baseline measurement
+            self.scripts['GalvoScan'].run()
+            self.data['new_image'] = self.scripts['GalvoScan'].scripts['acquire_image'].data['image_data']
+
+            dx_voltage, dy_voltage, self.data['correlation_image'] = correlation(self.data['baseline_image'],
+                                                                                 self.data['image_extent'], self.data['new_image'],
+                                                                                 self.data['image_extent'], use_trackpy=use_trackpy,
+                                                                                 use_edge_detection=use_edge_detection
+                                                                                 )
+            self.data['shift'] = dx_voltage, dy_voltage
+
+            if baseline_update_frequency > 0 and self.count_executions % baseline_update_frequency == 0:
+                # update the baseline image
+                self.baseline_settings = deepcopy(self.scripts['GalvoScan'].settings)
+                self.data['baseline_image'] = deepcopy(self.scripts['GalvoScan'].data['image_data'])
+
+
+
+
+    def _plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        data = self.scripts['GalvoScan'].data['image_data']
+        extent = self.scripts['GalvoScan'].data['extent']
+        plot_fluorescence_new(data, extent, axes_list[1])
+        if not self.data['correlation_image'] == []:
+            axes_list[0].imshow(self.data['correlation_image'])
+
+    def _update_plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        data = self.scripts['GalvoScan'].data['image_data']
+        extent = self.scripts['GalvoScan'].data['extent']
+        update_fluorescence(data, axes_list[1])
+        if not self.data['correlation_image'] == []:
+            axes_list[0].imshow(self.data['correlation_image'])
 
 if __name__ == '__main__':
     script, failed, instr = Script.load_and_append({'Correlate_Images': 'Correlate_Images'})

@@ -282,7 +282,7 @@ def fit_cose_parameter(t, y, verbose = False):
         t:
         y:
 
-    Returns:
+    Returns: [ax, wx, phi, offset] = [amplitude, angular frequency, phase and offset]
 
     """
 

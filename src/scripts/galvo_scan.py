@@ -53,7 +53,7 @@ class GalvoScan(Script):
                     Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
                   ]),
-        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'])
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
     ]
 
     _INSTRUMENTS = {'daq':  DAQ}
@@ -110,6 +110,8 @@ class GalvoScan(Script):
             self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
                          'bounds': [self.xVmin, self.xVmax, self.yVmin, self.yVmax]}
 
+        initial_position = self.set_galvo_location()
+
         init_scan()
         self.data['extent'] = [self.xVmin, self.xVmax, self.yVmax, self.yVmin]
 
@@ -148,14 +150,6 @@ class GalvoScan(Script):
             #also normalizing to kcounts/sec
             self.data['image_data'][yNum] = summedData * (.001/self.settings['time_per_pt'])
 
-
-            # JG: this should not be necessary anymore because the gui ignores frequently fired signals
-            # current_time = datetime.datetime.now()
-            # #prevents emits to the gui too often, which seems to slow it down
-            # if ((current_time - update_time).total_seconds() > 0.1):
-            #     progress =
-            #
-            #     update_time = current_time
             self.progress = float(yNum + 1) / len(self.y_array) * 100
             self.updateProgress.emit(int(self.progress))
 
@@ -163,23 +157,50 @@ class GalvoScan(Script):
         if self.settings['ending_behavior'] == 'leave_at_corner':
             return
         elif self.settings['ending_behavior'] == 'return_to_start':
-            pt = (self.settings['point_a']['x'], self.settings['point_a']['y'])
-            pt = np.transpose(np.column_stack((pt[0], pt[1])))
-            pt = (np.repeat(pt, 2, axis=1))
+            # pt = (self.settings['point_a']['x'], self.settings['point_a']['y'])
+            # pt = np.transpose(np.column_stack((pt[0], pt[1])))
+            # pt = (np.repeat(initial_position, 2, axis=1))
+            self.set_galvo_location(initial_position)
 
         elif self.settings['ending_behavior'] == 'return_to_origin':
-            pt = (0, 0)
-            pt = np.transpose(np.column_stack((pt[0], pt[1])))
-            pt = (np.repeat(pt, 2, axis=1))
+            self.set_galvo_location([0,0])
+            # pt = (0, 0)
+            # pt = np.transpose(np.column_stack((pt[0], pt[1])))
+            # pt = (np.repeat(pt, 2, axis=1))
 
-        self.instruments['daq']['instance'].AO_init(
-            [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        self.instruments['daq']['instance'].AO_run()
-        self.instruments['daq']['instance'].AO_waitToFinish()
-        self.instruments['daq']['instance'].AO_stop()
+        # self.instruments['daq']['instance'].AO_init(
+        #     [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        # self.instruments['daq']['instance'].AO_run()
+        # self.instruments['daq']['instance'].AO_waitToFinish()
+        # self.instruments['daq']['instance'].AO_stop()
 
-        # self._plotting = False
+    def get_galvo_location(self):
+        """
+        returns the current position of the galvo
+        Returns: list with two floats, which give the x and y position of the galvo mirror
+        """
+        galvo_position = self.instruments['daq']['instance'].get_analog_out_voltages([
+            self.settings['DAQ_channels']['x_ao_channel'],
+            self.settings['DAQ_channels']['y_ao_channel']]
+        )
+        return galvo_position
 
+    def set_galvo_location(self, galvo_position):
+        """
+        sets the current position of the galvo
+        galvo_position: list with two floats, which give the x and y position of the galvo mirror
+        """
+
+        pt = galvo_position
+        daq = self.instruments['daq']['instance']
+        # daq API only accepts either one point and one channel or multiple points and multiple channels
+        pt = np.transpose(np.column_stack((pt[0],pt[1])))
+        pt = (np.repeat(pt, 2, axis=1))
+
+        daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        daq.AO_run()
+        daq.AO_waitToFinish()
+        daq.AO_stop()
 
     @staticmethod
     def pts_to_extent(pta, ptb, roi_mode):

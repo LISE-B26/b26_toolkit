@@ -201,7 +201,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         axes.hold(False)
         plot_psd(freq, r, axes, x_scaling = x_scaling, y_scaling = y_scaling)
 
-        axes.set_xlim([min(freq), max(freq)])
+        # axes.set_xlim([min(freq), max(freq)])
         axes.set_ylim([min(r), max(r)])
         axes.set_ylabel('amplitude (??)')
 
@@ -209,7 +209,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         axes = axes_list[1]
         axes.hold(False)
         plot_psd(freq, phase, axes, x_scaling=x_scaling, y_scaling='lin')
-        axes.set_xlim([min(freq), max(freq)])
+        # axes.set_xlim([min(freq), max(freq)])
         axes.set_ylim([min(phase), max(phase)])
         axes.set_ylabel('phase (rad)')
 

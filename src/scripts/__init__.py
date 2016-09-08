@@ -27,7 +27,7 @@ from esr import ESR
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
-# from ni_fpga_polarization_controller import FPGA_PolarizationController, AutoFocusNIFPGA
+from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
@@ -141,9 +141,9 @@ from light_control import ApplyLightControlSettings, CameraOn
 # #
 #
 # # try:
-# #     from Correlate_Images import Take_And_Correlate_Images_2
+# #     from Correlate_Images import Take_And_Correlate_Images
 # # except:
-# #     print("./src/scripts/__init__ warning! Take_And_Correlate_Images_2 did not load")
+# #     print("./src/scripts/__init__ warning! Take_And_Correlate_Images did not load")
 #
 # try:
 #     from find_max_counts_point_2d import FindMaxCounts2D

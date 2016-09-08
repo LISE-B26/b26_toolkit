@@ -22,158 +22,12 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 import time
-from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite
+from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite, bit_2_volt
 from PyLabControl.src.core import Parameter, Script
-from PyLabControl.src.instruments import PIControler
+from b26_toolkit.src.data_processing.fit_functions import fit_cose_parameter, cose
 from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage
 import datetime
 
-class FPGA_PolarizationController(Script):
-    """
-script to balance photodetector to zero by adjusting polarization controller voltages
-    """
-    _DEFAULT_SETTINGS = [
-        Parameter('channels', [
-            Parameter('channel_WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
-            Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
-            Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
-            Parameter('channel_OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_detector', 0, range(4), 'analog input channel of the detector signal')
-            ]),
-        Parameter('setpoints',[
-        Parameter('V_1', 2.0, float, 'voltage applied to waveplate 1'),
-        Parameter('V_2', 1.0, float, 'voltage applied to waveplate 2'),
-        Parameter('V_3', 2.0, float, 'voltage applied to waveplate 3')
-        ]),
-        Parameter('WP_FB', 2, [1,2,3] , 'waveplate that is used in feedback'),
-        Parameter('FB_on', True, bool, 'activate feedback'),
-        Parameter('stop_condition',[
-            Parameter('threshold', 100., float, 'threshold that determines if detector is balanced'),
-            Parameter('length', 10, int, 'number of data points that are used to calculate the stop condition'),
-            Parameter('exit_mode', 'rms', ['continuous', 'rms', 'min-max'], 'mode how to determine if zero has been reached')
-        ])
-    ]
-
-    _INSTRUMENTS = {
-        'FPGA_IO': NI7845RReadWrite,
-        'controler': PIControler
-    }
-
-    _SCRIPTS = {
-
-    }
-
-    def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path = None):
-        """
-        Example of a script that emits a QT signal for the gui
-        Args:
-            name (optional): name of script, if empty same as class name
-            settings (optional): settings for this script, if empty same as default settings
-        """
-        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
-    def _function(self):
-        """
-        This is the actual function that will be executed. It uses only information that is provided in the settings property
-        will be overwritten in the __init__
-        """
-
-        # allocate data
-        self.data = {'WP_volt': [], 'det_signal': []}
-
-        # get instrument references
-        fpga_io = self.instruments['FPGA_IO']['instance']
-        controler = self.instruments['controler']['instance']
-
-        controler.update(self.instruments['controler']['settings'])
-
-        # get settings
-        time_step = self.instruments['controler']['settings']['time_step']
-        threshold= self.settings['stop_condition']['threshold']
-        exit_mode = self.settings['stop_condition']['exit_mode']
-        exit_length = self.settings['stop_condition']['length']
-
-        # turn  polarization controller on
-        control_channel = 'DIO{:d}'.format(self.settings['channels']['channel_OnOff'])
-        instrument_settings = {control_channel: True}
-
-        # set the voltages
-        for c in [1,2,3]:
-            channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(c)])
-            working_point = float(self.settings['setpoints']['V_{:d}'.format(c)])
-            instrument_settings.update({channel_out:working_point})
-
-        fpga_io.update(instrument_settings)
-        self.log('wait {:0.2f} seconds to settle down'.format(time_step))
-        time.sleep(time_step)
-
-
-        channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(self.settings['WP_FB'])])
-        channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
-
-        working_point = float(self.settings['setpoints']['V_{:d}'.format(self.settings['WP_FB'])])
-
-        exit_value = 2*threshold
-        # exit condition is that the exit value falls below the threshold value
-        while exit_value >= threshold:
-            if self._abort:
-                break
-
-            # get the detector value and calculate the control value
-            # use this syntax (getattr) because the channel is variable, i.e. we don't know if fpga_io.AI0, fpga_io.AI1 or fpga_io.AI2
-            detector_value = getattr(fpga_io, channel_in)
-            control_value = controler.controler_output(detector_value)
-
-            control_value = int_to_voltage(control_value)
-
-            print('control_value: ', control_value, exit_value, detector_value)
-            if self.settings['FB_on']:
-                fpga_io.update({channel_out: control_value+ working_point})
-
-            self.data['WP_volt'].append(control_value )
-            self.data['det_signal'].append(detector_value)
-
-            time.sleep(time_step)
-
-            self.progress = 10
-            self.updateProgress.emit(self.progress)
-
-            if len(self.data['det_signal']) < exit_length:
-                continue
-            # calculate if exit condition is met
-            exit_signal = self.data['det_signal'][-exit_length:]
-            if exit_mode == 'rms':
-                exit_value = np.mean(np.abs(exit_signal))
-            elif exit_mode == 'min-max':
-                exit_value = max(exit_signal) - min(exit_signal)
-
-        self.progress = 90
-        self.updateProgress.emit(self.progress)
-
-
-
-    def _plot(self, axes_list, data = None):
-        """
-        Plots the galvo scan image
-        Args:
-            axes_list: list of axes objects on which to plot. uses the first and second axes object
-            data: data (dictionary that contains keys det_signal, WP_volt, det_signal) if not provided use self.data
-        """
-
-        if data is None:
-            data = self.data
-        axes1, axes2 = axes_list
-        axes1.hold(False)
-        axes2.hold(False)
-        dt = self.instruments['controler']['settings']['time_step']
-        N = len(data['det_signal'])
-        t = dt* np.arange(N)
-        axes1.plot(t, data['WP_volt'][:N], '-o')
-        axes2.plot(t, data['det_signal'][:N], '-o')
-
-        axes1.set_xlabel('time (s)')
-        axes1.set_ylabel('wp signal')
-        axes2.set_xlabel('frequency (Hz)')
-        axes2.set_ylabel('detector signal')
 
 class FPGA_PolarizationSignalScan(Script):
     """
@@ -367,9 +221,8 @@ this gives a one dimensional dataset
 
 class FPGA_BalancePolarization(Script):
     """
-script to map out detector response as a function of polarization controller voltage WP2
-the script scans the voltage of  channel 2 from 0 to 5 volt and records the detector response
-this gives a one dimensional dataset
+FPGA_BalancePolarization:
+script to balance photodetector to zero by adjusting polarization controller voltages
     """
 
     _DEFAULT_SETTINGS = [
@@ -616,7 +469,174 @@ this gives a one dimensional dataset
             # axes_list[1].lines[1].set_ydata(volt_range/5.)
 
 
+class FPGA_CalibrateDetector(Script):
+    """
+FPGA_CalibrateDetector:
+script to calibrate the detector response. This script sweeps a voltage the actuates the slow piezo of the interferometer and simultaneously records the detector response.
+From the fringes we can estimate the piezo displacement and thereby calculate the calibration factor for the voltage to displacement conversion.
 
+Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset.
+
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('channels',[
+            Parameter('piezo', 'AO2', ['AO0','AO1', 'AO2', 'AO3', 'AO4', 'AO5', 'AO6', 'AO7'], 'output channel for piezo signal'),
+            Parameter('detector', 'AI0', ['AI0', 'AI1', 'AI2', 'AI3', 'AI4', 'AI5', 'AI6', 'AI7'], 'input channel for detector signal'),
+        ]),
+        Parameter('scan',[
+            Parameter('time_step', 0.1, float, 'time step '),
+            Parameter('V_min', 0.1, float, 'piezo minimum voltage'),
+            Parameter('V_max', 0.1, float, 'piezo maximum voltage'),
+            Parameter('V_step', 0.1, float, 'piezo voltage step'),
+            Parameter('piezo_gain', 10.0, [1.0, 7.5, 10.0, 15.0], 'gain factor of the piezo controller (check on Thorlabs controller)'),
+            Parameter('settle_time', 2., float, 'time to wait after moving to V_min (start of scan)'),
+        ])
+    ]
+
+    _INSTRUMENTS = {
+        'FPGA_IO': NI7845RReadWrite
+    }
+
+    _SCRIPTS = {
+
+    }
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path=data_path)
+
+    def _function(self):
+
+
+
+        self.data = {'piezo_voltage': [], 'detector_signal': [], 'piezo_voltage_init': [], 'detector_signal_init':[]}
+
+        channel_out = self.settings['channels']['piezo']
+        channel_in = self.settings['channels']['detector']
+
+        settle_time  = self.settings['scan']['settle_time']
+
+        V_min = self.settings['scan']['V_min']
+        V_max = self.settings['scan']['V_max']
+        V_step = self.settings['scan']['V_step']
+        time_step = self.settings['scan']['time_step']
+
+        fpga_io = self.instruments['FPGA_IO']['instance']
+
+        # backward sweep
+
+        V_out = bit_2_volt(getattr(fpga_io, channel_out))
+        direction = +1 if V_out < V_min else -1
+
+        while np.sign(V_min - V_out) == direction:
+            # set output
+            fpga_io.update({channel_out: float(V_out)})
+            # wait for system to settle
+            time.sleep(time_step)
+            # read detector
+            detector_value = getattr(fpga_io, channel_in)
+
+            self.data['piezo_voltage_init'].append(V_out)
+            self.data['detector_signal_init'].append(detector_value)
+            self.progress = 50.
+            self.updateProgress.emit(int(self.progress))
+
+            V_out += direction* V_step
+
+            print('===>>>', V_out)
+
+        # fpga_io.update({channel_out: float(V_out)})
+        # time.sleep(settle_time)
+        # while V_out < V_max:
+
+
+
+        # forward sweep
+        while V_out < V_max:
+            if self._abort:
+                break
+
+            # set output
+            fpga_io.update({channel_out: float(V_out)})
+            # wait for system to settle
+            time.sleep(time_step)
+            # read detector
+            detector_value = getattr(fpga_io, channel_in)
+
+            self.data['piezo_voltage'].append(V_out)
+            self.data['detector_signal'].append(detector_value)
+            self.progress = 100.*(V_out-V_min) / (V_max-V_min)
+            self.updateProgress.emit(int(self.progress))
+
+            V_out +=V_step
+
+
+    def _plot(self, axes_list):
+
+
+
+        piezo_voltage = np.array(self.data['piezo_voltage'])
+        detector_signal = np.array(self.data['detector_signal'])
+        axes = axes_list[0]
+        axes.hold(False)
+        axes.plot(piezo_voltage, detector_signal, 'bo')
+        axes.hold(True)
+        axes.set_xlabel('piezo_voltage (V)')
+        axes.set_ylabel('detector signal (bits)')
+
+        if not self.is_running:
+
+            print('fitting')
+            fitparameter = fit_cose_parameter(piezo_voltage, detector_signal)
+
+            print('fitparameter', fitparameter)
+            axes.plot(piezo_voltage, cose(piezo_voltage, *fitparameter), 'b-')
+
+
+        axes.hold(True)
+
+        piezo_voltage = np.array(self.data['piezo_voltage_init'])
+        detector_signal = np.array(self.data['detector_signal_init'])
+
+        axes.plot(piezo_voltage, detector_signal, 'ro')
+        axes.set_xlabel('piezo_voltage init (V)')
+        axes.set_ylabel('detector signal init (bits)')
+
+
+        if not self.is_running:
+
+            print('fitting')
+            fitparameter = fit_cose_parameter(piezo_voltage, detector_signal)
+
+            print('fitparameter', fitparameter)
+            axes.plot(piezo_voltage, cose(piezo_voltage, *fitparameter), 'r-')
+
+
+            # axes_list[1].hold(False)
+
+
+    def _update(self, axes_list):
+        piezo_voltage = np.array(self.data['piezo_voltage'])
+        detector_signal = np.array(self.data['detector_signal'])
+        axes = axes_list[0]
+
+        axes.lines[0].set_data(piezo_voltage, detector_signal)
+        axes.relim()
+        axes.autoscale_view()
+
+        piezo_voltage = np.array(self.data['piezo_voltage_init'])
+        detector_signal = np.array(self.data['detector_signal_init'])
+        # axes = axes_list[1]
+
+        axes.lines[0].set_data(piezo_voltage, detector_signal)
+        axes.relim()
+        axes.autoscale_view()
 class FPGA_PolarizationSignalMap(Script):
     """
 script to map out detector response as a function of polarization controller voltages

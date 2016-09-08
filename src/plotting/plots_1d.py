@@ -31,7 +31,6 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     :param axes: target axes object
     :return: None
     '''
-    print('ddddddd', freq)
     unit = 'Hz'
     c_unit = 1.0
     if x_scaling == 'lin':
@@ -55,7 +54,6 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     axes.set_xlabel('frequency ({:s})'.format(unit))
 
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
-
 
 def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r'):
     """
