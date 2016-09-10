@@ -262,7 +262,7 @@ for a given experiment
         # COMMENT_ME
         def add_mw_switch_to_sequences(pulse_sequences):
             if not 'mw_switch_extra_time' in self.settings.keys():
-                mw_switch_time = 15
+                mw_switch_time = 40
                 # return pulse_sequences
             # mw_switch_time = self.settings['mw_switch_extra_time']
             for sequence in pulse_sequences:
@@ -276,7 +276,7 @@ for a given experiment
                 mw_switch_pulses = sorted(mw_switch_pulses, key=lambda pulse: pulse.start_time)
                 index = 0
                 while True:
-                    if index == len(mw_switch_pulses) - 1:
+                    if index >= len(mw_switch_pulses) - 1:
                         break
                     first_pulse = mw_switch_pulses[index]
                     second_pulse = mw_switch_pulses[index + 1]
@@ -295,7 +295,7 @@ for a given experiment
 
         pulse_blaster = self.instruments['PB']['instance']
         self.pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
-        # self.pulse_sequences = add_mw_switch_to_sequences(self.pulse_sequences) #UNCOMMENT TO ADD SWITCH
+        self.pulse_sequences = add_mw_switch_to_sequences(self.pulse_sequences) #UNCOMMENT TO ADD SWITCH
         failure_list = []
         for pulse_sequence in self.pulse_sequences:
             overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)

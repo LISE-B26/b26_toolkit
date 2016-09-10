@@ -543,7 +543,7 @@ class B26PulseBlaster(PulseBlaster):
         ]),
         Parameter('microwave_switch', [
             Parameter('channel', 4, int, 'channel to which the microwave switch is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
+            Parameter('status', True, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
         Parameter('off_channel', [
