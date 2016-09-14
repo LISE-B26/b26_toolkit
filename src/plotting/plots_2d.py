@@ -87,7 +87,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
     if not colorbar is None:
         colorbar.update_bruteforce(implot)
 
-def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None):
+def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None, label = 'kcounts/sec'):
     """
     plots fluorescence data in a 2D plot
     Args:
@@ -118,6 +118,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         implot.autoscale()
 
     if colorbar is None:
-        fig.colorbar(implot, label='kcounts/sec')
+        fig.colorbar(implot, label=label)
     else:
-        fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        fig.colorbar(implot, cax=colorbar.ax, label=label)

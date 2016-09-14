@@ -26,9 +26,7 @@ from maestro import MaestroLightControl
 from attocube import Attocube
 from microwave_generator import MicrowaveGenerator
 
-
-
-# from labview_fpga import NI7845RGalvoScan
+from labview_fpga import NI7845RGalvoScan
 # from labview_fpga import NI7845RGalvoScan
 
 

@@ -2,18 +2,18 @@
     This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit  is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PyLabControl.src.core import Instrument, Parameter
@@ -146,183 +146,14 @@ class NI7845RReadWrite(Instrument):
             elif key in ['DIO4', 'DIO5', 'DIO6', 'DIO7']:
                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(value, self.fpga.session, self.fpga.status)
 
-# # ==================================================================================
-# # simple fpga program that implements a PID loop and can read data quickly into a buffer
-# # ==================================================================================
-# class NI7845RPidSimpleLoop(Instrument):
-#     # NOT WORKING!!!
-#     import b26_toolkit.src.instruments.labview_fpga_lib.pid_loop_simple.pid_loop_simple as FPGAlib
-#
-#     _DEFAULT_SETTINGS = Parameter([
-#         Parameter('ElementsToWrite', 500, int, 'total elements to write to buffer'),
-#         Parameter('PiezoOut', 0.0, float, 'piezo output in volt'),
-#         Parameter('Setpoint', 0.0, float, 'set point for PID loop in volt'),
-#         Parameter('SamplePeriodsPID', int(4e5), int, 'sample period of PID loop in ticks (40 MHz)'),
-#         Parameter('SamplePeriodsAcq', 200, int, 'sample period of acquisition loop in ticks (40 MHz)'),
-#         Parameter('gains', [
-#             Parameter('proportional', 0, int, 'proportional gain of PID loop in ??'),
-#             Parameter('integral', 0, int, 'integral gain of PID loop in ??'),
-#         ]),
-#         Parameter('PI_on', False, bool, 'turn PID loop on/off'),
-#         Parameter('Acquire', False, bool, 'data acquisition on/off'),
-#         Parameter('fifo_size', int(2**12), int, 'size of fifo for data acquisition'),
-#         Parameter('TimeoutBuffer', 0, int, 'time after which buffer times out in clock ticks (40MHz)')
-#     ])
-#
-#     _PROBES = {
-#         'AI1': 'analog input channel 1',
-#         'AI1_filtered': 'analog input channel 1',
-#         'AI2': 'analog input channel 2',
-#         'DeviceTemperature': 'device temperature of fpga',
-#         'ElementsWritten' : 'elements written to DMA'
-#     }
-#     def __init__(self, name = None, settings = None):
-#         super(NI7845RPidSimpleLoop, self).__init__(name, settings)
-#
-#         # start fpga
-#         self.fpga = self.FPGAlib.NI7845R()
-#         self.fpga.start()
-#         self.update(self.settings)
-#         print('NI7845RPidSimpleLoop initialized')
-#
-#     def __del__(self):
-#         print('stopping fpga NI7845RPidSimpleLoop')
-#         self.fpga.stop()
-#
-#     def read_probes(self, key):
-#         assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
-#         value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
-#         return value
-#
-#
-#     def update(self, settings):
-#         super(NI7845RPidSimpleLoop, self).update(settings)
-#
-#         for key, value in settings.iteritems():
-#             if key in ['PiezoOut']:
-#                 if self.settings['PI_on'] == True:
-#                     print('PI is active, manual piezo control not active!')
-#                 else:
-#                     getattr(self.FPGAlib, 'set_{:s}'.format(key))(volt_2_bit(value), self.fpga.session, self.fpga.status)
-#             elif key in ['Setpoint']:
-#                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(volt_2_bit(value), self.fpga.session, self.fpga.status)
-#             elif key in ['PI_on']:
-#                 getattr(self.FPGAlib, 'set_PIDActive')(value, self.fpga.session, self.fpga.status)
-#             elif key in ['Acquire']:
-#                 getattr(self.FPGAlib, 'set_AcquireData')(value, self.fpga.session, self.fpga.status)
-#             elif key in ['gains']:
-#                 if 'proportional' in value:
-#                     getattr(self.FPGAlib, 'set_PI_gain_prop')(value['proportional'], self.fpga.session, self.fpga.status)
-#                 if 'integral' in value:
-#                     getattr(self.FPGAlib, 'set_PI_gain_int')(value['integral'], self.fpga.session, self.fpga.status)
-#             elif key in ['ElementsToWrite', 'sample_period_PI', 'SamplePeriodsAcq', 'PI_on']:
-#                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(value, self.fpga.session, self.fpga.status)
-#             elif key in ['fifo_size']:
-#                 actual_fifo_size = self.FPGAlib.configure_FIFO_AI(value, self.fpga.session, self.fpga.status)
-#                 print('requested ', value )
-#                 print('actual_fifo_size ', actual_fifo_size)
-#
-#     def start_fifo(self):
-#         self.FPGAlib.start_FIFO_AI(self.fpga.session, self.fpga.status)
-#
-#     def stop_fifo(self):
-#         self.FPGAlib.stop_FIFO_AI(self.fpga.session, self.fpga.status)
-#
-#
-#     def read_fifo(self, block_size):
-#         '''
-#         read a block of data from the FIFO
-#         :return: data from channels AI1 and AI2 and the elements remaining in the FIFO
-#         '''
-#
-#         fifo_data = self.FPGAlib.read_FIFO_AI(block_size, self.fpga.session, self.fpga.status)
-#
-#         if str(self.fpga.status) != 0:
-#             raise LabviewFPGAException(self.fpga.status)
-#
-#         return fifo_data
-#
-#
-#
-# # ==================================================================================
-# # simple fpga program that reads data fromt the FPGA FIFO
-# # ==================================================================================
-# class NI7845RReadFifo(Instrument):
-#
-#     import b26_toolkit.src.instruments.labview_fpga_lib.read_fifo.read_fifo as FPGAlib
-#
-#     _DEFAULT_SETTINGS = Parameter([
-#         Parameter('ElementsToWrite', 500, int, 'total elements to write to buffer'),
-#         Parameter('SamplePeriodsAcq', 200, int, 'sample period of acquisition loop in ticks (40 MHz)'),        Parameter('PI_on', False, bool, 'turn PID loop on/off'),
-#         Parameter('Acquire', False, bool, 'data acquisition on/off'),
-#         Parameter('fifo_size', int(2**12), int, 'size of fifo for data acquisition')
-#     ])
-#
-#     _PROBES = {
-#         'AI1': 'analog input channel 1',
-#         'AI2': 'analog input channel 2',
-#         'ElementsWritten' : 'elements written to DMA'
-#     }
-#     def __init__(self, name = None, settings = None):
-#         super(NI7845RReadFifo, self).__init__(name, settings)
-#
-#         # start fpga
-#         self.fpga = self.FPGAlib.NI7845R()
-#         print('===== start fpga =======')
-#         self.fpga.start()
-#         print('===== update fpga =======')
-#         print(self.settings)
-#         self.update(self.settings)
-#         print('NI7845RReadFifo initialized')
-#
-#     def __del__(self):
-#         print('stopping fpga {:s}'.format(self.name))
-#         self.fpga.stop()
-#
-#     def read_probes(self, key):
-#         assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
-#         value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
-#         return value
-#
-#
-#     def update(self, settings):
-#         super(NI7845RReadFifo, self).update(settings)
-#
-#         for key, value in settings.iteritems():
-#             if key in ['Acquire']:
-#                 getattr(self.FPGAlib, 'set_AcquireData')(value, self.fpga.session, self.fpga.status)
-#             elif key in ['ElementsToWrite', 'SamplePeriodsAcq']:
-#                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(value, self.fpga.session, self.fpga.status)
-#             elif key in ['fifo_size']:
-#                 actual_fifo_size = self.FPGAlib.configure_FIFO_AI(value, self.fpga.session, self.fpga.status)
-#                 print('requested ', value )
-#                 print('actual_fifo_size ', actual_fifo_size)
-#
-#     def start_fifo(self):
-#         self.FPGAlib.start_FIFO_AI(self.fpga.session, self.fpga.status)
-#
-#     def stop_fifo(self):
-#         self.FPGAlib.stop_FIFO_AI(self.fpga.session, self.fpga.status)
-#
-#
-#     def read_fifo(self, block_size):
-#         '''
-#         read a block of data from the FIFO
-#         :return: data from channels AI1 and AI2 and the elements remaining in the FIFO
-#         '''
-#
-#         fifo_data = self.FPGAlib.read_FIFO_AI(block_size, self.fpga.session, self.fpga.status)
-#         if str(self.fpga.status.value) != '0':
-#             raise LabviewFPGAException(self.fpga.status)
-#
-#         return fifo_data
-
 # ==================================================================================
 # fpga program that performs a galvo scan
 # ==================================================================================
+
 class NI7845RGalvoScan(Instrument):
 
-    import b26_toolkit.src.labview_fpga_lib.galvo_scan.galvo_scan as FPGAlib
+    # import b26_toolkit.src.labview_fpga_lib.galvo_scan.galvo_scan as FPGAlib
+    import b26_toolkit.src.labview_fpga_lib.main.main as FPGAlib
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('point_a',
@@ -346,29 +177,29 @@ class NI7845RGalvoScan(Instrument):
         Parameter('scanmode_x', 'forward', ['forward', 'backward', 'forward-backward'], 'scan mode (x) onedirectional or bidirectional'),
         Parameter('scanmode_y', 'forward', ['forward', 'backward'], 'direction of scan (y)'),
         Parameter('detector_mode', 'APD', ['APD', 'DC', 'RMS'], 'return mean (DC) or rms of detector signal'),
-        Parameter('piezo', 0.0, float, 'output voltage for piezo'),
-        Parameter('piezo_gain', 10.0, [1.0, 7.5, 10.0, 15.0], 'gain factor for the piezo controller '),
-        Parameter('galvo_x', 0.0, float, 'output voltage for galvo channel x'),
-        Parameter('galvo_y', 0.0, float, 'output voltage for galvo channel y'),
+        # Parameter('piezo', 0.0, float, 'output voltage for piezo'),
+        # Parameter('piezo_gain', 10.0, [1.0, 7.5, 10.0, 15.0], 'gain factor for the piezo controller '),
+        # Parameter('galvo_x', 0.0, float, 'output voltage for galvo channel x'),
+        # Parameter('galvo_y', 0.0, float, 'output voltage for galvo channel y'),
     ])
 
     _PROBES = {
         # 'Detector Signal': 'detector signal (AI4)',
         'elements_written_to_dma' : 'elements written to DMA',
-        'DMATimeOut': 'DMATimeOut',
-        'ix': 'ix',
-        'iy':'iy',
-        'detector_signal':'detector_signal',
-        'acquire':'acquire',
-        'running':'running',
+        # 'DMATimeOut': 'DMATimeOut',
+        # # 'ix': 'ix',
+        # 'iy':'iy',
+        # # 'detector_signal':'detector_signal',
+        # 'acquire':'acquire',
+        'executing_subvi':'executing_subvi',
         'Nx': 'Nx',
         'Ny': 'Ny',
-        'loop_time':'loop_time',
-        'DMA_elem_to_write':'DMA_elem_to_write',
+        # 'loop_time':'loop_time',
+        # 'DMA_elem_to_write':'DMA_elem_to_write',
         'meas_per_pt':'meas_per_pt',
         'settle_time':'settle_time',
-        'failed':'failed',
-        'piezo':'piezo'
+        # 'failed':'failed',
+        # 'piezo':'piezo'
     }
     def __init__(self, name = None, settings = None):
         super(NI7845RGalvoScan, self).__init__(name, settings)
@@ -458,12 +289,12 @@ class NI7845RGalvoScan(Instrument):
                 getattr(self.FPGAlib, 'set_Ny')(Ny, self.fpga.session, self.fpga.status)
                 getattr(self.FPGAlib, 'set_dVmin_x')(dVmin_x, self.fpga.session, self.fpga.status)
                 getattr(self.FPGAlib, 'set_dVmin_y')(dVmin_y, self.fpga.session, self.fpga.status)
-            elif key in ['piezo', 'piezo_gain']:
-                v = volt_2_bit(self.settings['piezo']/self.settings['piezo_gain'])
-                getattr(self.FPGAlib, 'set_piezo_voltage')(v, self.fpga.session, self.fpga.status)
-            elif key in ['galvo_x', 'galvo_x']:
-                v = volt_2_bit(self.settings[key])
-                getattr(self.FPGAlib, 'set_{:s}'.format(key))(v, self.fpga.session, self.fpga.status)
+            # elif key in ['piezo', 'piezo_gain']:
+            #     v = volt_2_bit(self.settings['piezo']/self.settings['piezo_gain'])
+            #     getattr(self.FPGAlib, 'set_piezo_voltage')(v, self.fpga.session, self.fpga.status)
+            # elif key in ['galvo_x', 'galvo_x']:
+            #     v = volt_2_bit(self.settings[key])
+            #     getattr(self.FPGAlib, 'set_{:s}'.format(key))(v, self.fpga.session, self.fpga.status)
             elif key in ['scanmode_x', 'scanmode_y', 'detector_mode']:
                 index = [i for i, x in enumerate(self._DEFAULT_SETTINGS.valid_values[key]) if x == value][0]
                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(index, self.fpga.session, self.fpga.status)
@@ -499,11 +330,12 @@ class NI7845RGalvoScan(Instrument):
 
         # start scan
         for i in range(max_attempts):
-            getattr(self.FPGAlib, 'set_acquire')(True, self.fpga.session, self.fpga.status)
+            # getattr(self.FPGAlib, 'set_acquire')(True, self.fpga.session, self.fpga.status)
+            getattr(self.FPGAlib, 'set_run_mode')(self.FPGAlib.GALVO_SCAN, self.fpga.session, self.fpga.status) #
 
             # wait a little before checking of acquisition worked
             time.sleep(0.1)
-            started = self.running
+            started = self.executing_subvi
             if started:
                 # successfully started acquisition
                 break
@@ -528,6 +360,10 @@ class NI7845RGalvoScan(Instrument):
 
         if self.settings['detector_mode'] == 'APD':
             fifo_data['signal'] *=  int(1e3/self.settings['time_per_pt']) # convert to counts per second
+
+        # todo: JG: scale to volts!
+        # else:
+        #     fifo_data['signal'] = np.array(bit_2_volt(fifo_data['signal']))
         return fifo_data
 
 
@@ -537,19 +373,22 @@ if __name__ == '__main__':
     import time
     from copy import deepcopy
 
-    # fpga = NI7845RGalvoScan()
-    #
-    #
-    #
-    # fpga.fpga.start()
-    #
-    # print(fpga.FPGAlib.setter_functions)
-    # print(fpga.settings)
-    # fpga.fpga.stop()
+    fpga = NI7845RGalvoScan()
 
-    s =NI7845RReadWrite()
 
-    print('asdasda', s.AO6)
+
+    fpga.fpga.start()
+
+    print(fpga.FPGAlib.setter_functions)
+    print(fpga.settings)
+    fpga.fpga.stop()
+
+
+
+    #
+    # s =NI7845RReadWrite()
+    #
+    # print('asdasda', s.AO6)
 
 
 

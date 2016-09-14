@@ -12,7 +12,7 @@ Date: Feb 29th 2016
 (- in the main folder (labview_fpga_lib) there is a .py file with the same name as the subfolder, e.g. read_ai_ao.py) 
 
 
-# complile dll
+# complile dll (see also how to compile under windows below!)
 1.) compile the labview FGPGA (creates .lvbitx file) 
 2.) convert into .h with C API generator (right click in FPGA .vi in the project explorer)
     .creates NiFpga.c, NiFpga.h, NiFpga_PID.c and copies NiFpga_PID.lvbitx to target folder

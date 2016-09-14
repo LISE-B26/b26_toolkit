@@ -2,18 +2,18 @@
     This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import datetime
@@ -53,7 +53,7 @@ resulting in an image in the current field of view of the objective.
 
         instr = self.instruments['NI7845RGalvoScan']['instance']
         instr_settings = deepcopy(self.instruments['NI7845RGalvoScan']['settings'])
-        del instr_settings['piezo'] # don't update piezo to avoid spikes (assume this value is 0 but the scan starts at 50V, then this would give a huge step which is not necessary)
+        # del instr_settings['piezo'] # don't update piezo to avoid spikes (assume this value is 0 but the scan starts at 50V, then this would give a huge step which is not necessary)
 
         def init_scan():
             #COMMENT_ME
@@ -165,8 +165,14 @@ resulting in an image in the current field of view of the objective.
 
         if data is None:
             data = self.data
-        plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
+
+        if not self.instruments['NI7845RGalvoScan']['instance'].settings['detector_mode'] == 'APD':
+            plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0],
+                                  max_counts=self.settings['max_counts_plot'])
+        else:
+            plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0],
+                                  max_counts=self.settings['max_counts_plot'], label='detector signal (V)')
     def _update_plot(self, axes_list):
         '''
         updates the galvo scan image
