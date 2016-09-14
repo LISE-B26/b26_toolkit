@@ -1142,8 +1142,8 @@ Optionally a microwave pulse is applied as part of the initialization to prepare
             if self.settings['apply mw-pulse']:
                 sequence = [
                     Pulse('laser', 0,       reset_time - ref_meas_off_time - meas_time - 15 - ref_meas_off_time- microwave_duration),
-                    Pulse('apd_readout',    reset_time - meas_time - 15 - ref_meas_off_time- microwave_duration, meas_time),
-                    Pulse('laser',          reset_time - meas_time - 15 - ref_meas_off_time- microwave_duration, meas_time),
+                    Pulse('apd_readout',    reset_time - ref_meas_off_time - meas_time - 15 - microwave_duration, meas_time),
+                    Pulse('laser',          reset_time - ref_meas_off_time - meas_time - 15 - microwave_duration, meas_time),
                     Pulse(microwave_channel,reset_time - 15 - ref_meas_off_time/2.- microwave_duration, microwave_duration)
                 ]
             else:

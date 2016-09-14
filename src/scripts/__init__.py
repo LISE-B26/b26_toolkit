@@ -28,7 +28,7 @@ from esr import ESR
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
 from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector
-from ni_fpga_galvo_scan import GalvoScanNIFpga
+
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
 
@@ -44,7 +44,9 @@ from pulse_delays import PulseDelays
 
 from light_control import ApplyLightControlSettings, CameraOn
 
+from correlate_images import Track_Correlate_Images
 
+# from galvo_scan_ni_fpga import GalvoScanNIFpga
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization

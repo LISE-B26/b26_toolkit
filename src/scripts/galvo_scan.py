@@ -110,7 +110,7 @@ class GalvoScan(Script):
             self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
                          'bounds': [self.xVmin, self.xVmax, self.yVmin, self.yVmax]}
 
-        initial_position = self.set_galvo_location()
+        initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
 
         init_scan()
         self.data['extent'] = [self.xVmin, self.xVmax, self.yVmax, self.yVmin]

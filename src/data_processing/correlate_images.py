@@ -138,7 +138,7 @@ def correlation(baseline_image, baseline_image_extent, new_image, new_image_exte
 
     dx_voltage, dy_voltage, correlation_image = find_image_shift(baseline_image, baseline_image_extent, new_image, new_image_extent, correlation_padding=True)
 
-    return dx_voltage, dy_voltage, correlation_image
+    return dx_voltage, dy_voltage, correlation_image, baseline_image, new_image
 
 def shift_NVs(dx_voltage, dy_voltage, nv_pos_list):
     '''
