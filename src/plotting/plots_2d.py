@@ -1,20 +1,21 @@
-"""
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+# This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+# Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+#
+# Foobar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Foobar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
-    Foobar is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-"""
+import numpy as np
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
 def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None):
@@ -81,11 +82,16 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
 
     implot.set_data(image_data)
 
-    if not max_counts > 0:
+    if max_counts < 0:
         implot.autoscale()
 
-    if not colorbar is None:
-        colorbar.update_bruteforce(implot)
+    if colorbar is not None:
+        colorbar_min = 0
+        colorbar_max = np.max(image_data)
+        colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
+        colorbar.set_ticks(colorbar_labels)
+        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.update_normal(implot)
 
 def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None):
     """
@@ -117,10 +123,21 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     axes_image.set_ylabel(r'V$_y$ [V]')
     axes_image.set_title('Confocal Image')
 
+    axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
+    print axes_image.get_xticklabels()
+
+    colorbar_min = 0
+    colorbar_max = np.max(image_data)
+    colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
+
     if not max_counts > 0:
         implot.autoscale()
 
     if colorbar is None:
-        fig.colorbar(implot, label='kcounts/sec')
+        colorbar = fig.colorbar(implot, label='kcounts/sec')
+        colorbar.set_ticks(colorbar_labels)
+        colorbar.set_clim(colorbar_min, colorbar_max)
     else:
-        fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        colorbar.set_ticks(colorbar_labels)
+        colorbar.set_clim(colorbar_min, colorbar_max)
