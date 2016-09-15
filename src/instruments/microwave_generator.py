@@ -48,7 +48,6 @@ class MicrowaveGenerator(Instrument):
 
     def __init__(self, name = None, settings = None):
 
-        super(MicrowaveGenerator, self).__init__(name, settings)
         # XXXXX MW ISSUE = START
         #===========================================
         # Issue where visa.ResourceManager() takes 4 minutes no longer happens after using pdb to debug (??? not sure why???)
@@ -61,6 +60,8 @@ class MicrowaveGenerator(Instrument):
             raise
         #XXXXX MW ISSUE = END
         #===========================================
+        super(MicrowaveGenerator, self).__init__(name, settings)
+
 
     #Doesn't appear to be necessary, can't manually make two sessions conflict, rms may share well
     # def __del__(self):

@@ -190,6 +190,8 @@ class GalvoScan(Script):
         sets the current position of the galvo
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
+        if galvo_position[0] > 1 or galvo_position[0] < -1 or galvo_position[1] > 1 or galvo_position[1] < -1:
+            raise ValueError('The script attempted to set the galvo position to an illegal position outside of +- 1 V')
 
         pt = galvo_position
         daq = self.instruments['daq']['instance']

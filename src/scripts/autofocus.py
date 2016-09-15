@@ -153,7 +153,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
 
         if self.settings['save'] or self.settings['save_images']:
-            self.filename_image = '{:s}\\image\\'.format(self.filename())
+            self.filename_image = '{:s}\\image'.format(self.filename())
         else:
             self.filename_image = None
 

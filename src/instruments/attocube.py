@@ -89,7 +89,6 @@ class Attocube(Instrument):
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
         # and all future calls will fail. If a DLL but no instrument connected, throw an error.
-        super(Attocube, self).__init__(name, settings)
         dll_path = get_config_value('ATTOCUBE_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         try:
             self.attocube = ctypes.WinDLL(dll_path)
@@ -99,6 +98,7 @@ class Attocube(Instrument):
             # make a fake Attocube instrument
             dll_detected = False
             warnings.warn("Attocube DLL not found. If it should be present, check the path.")
+
         if dll_detected == True:
             try:
                 self.pi = PositionerInfo()
@@ -108,6 +108,9 @@ class Attocube(Instrument):
                 self._check_error(self.attocube.PositionerClose(device_handle))
             except Exception:
                 print('Attocube not detected. Check connection.', UserWarning)
+
+        super(Attocube, self).__init__(name, settings)
+
 
     def update(self, settings):
         '''
