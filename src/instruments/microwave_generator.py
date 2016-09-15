@@ -46,7 +46,9 @@ class MicrowaveGenerator(Instrument):
         Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM')
     ])
 
-    def __init__(self, name = None, settings = None):
+    def __init__(self, name=None, settings=None):
+
+        super(MicrowaveGenerator, self).__init__(name, settings)
 
         # XXXXX MW ISSUE = START
         #===========================================
@@ -60,7 +62,6 @@ class MicrowaveGenerator(Instrument):
             raise
         #XXXXX MW ISSUE = END
         #===========================================
-        super(MicrowaveGenerator, self).__init__(name, settings)
 
 
     #Doesn't appear to be necessary, can't manually make two sessions conflict, rms may share well
