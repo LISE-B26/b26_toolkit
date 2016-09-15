@@ -124,7 +124,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     axes_image.set_title('Confocal Image')
 
     axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
-    print axes_image.get_xticklabels()
 
     colorbar_min = 0
     colorbar_max = np.max(image_data)
