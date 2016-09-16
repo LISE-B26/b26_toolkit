@@ -58,7 +58,12 @@ setter_functions = {
     "set_run_mode": c_uint16,
     "set_count_ms": c_uint32,
 }
-
+# analog channels
+for i in range(8):
+    setter_functions.update({'set_AO{:d}'.format(i): c_int16})
+# digital channels
+for i in range(4):
+    setter_functions.update({'set_DIO{:d}'.format(i+4): c_bool})
 for fun_name in setter_functions:
     setattr( _libfpga, "{:s}.argtypes".format(fun_name), [setter_functions[fun_name], POINTER(c_uint32), POINTER(c_int32)])
     setattr( _libfpga, "{:s}.restype".format(fun_name), None)
@@ -84,12 +89,40 @@ getter_functions = {
     "read_elements_written_to_dma": c_int32
 }
 
+# analog channels
+# for i in range(8):
+#     getter_functions.update({'read_AI{:d}'.format(i): c_int16})
+#     getter_functions.update({'read_AO{:d}'.format(i): c_int16})
+# digital channels
+for i in range(4):
+    getter_functions.update({'read_DIO{:d}'.format(i): c_bool})
+
 for fun_name in getter_functions:
     setattr( _libfpga, "{:s}.argtypes".format(fun_name), [POINTER(c_uint32), POINTER(c_int32)])
     setattr( _libfpga, "{:s}.restype".format(fun_name), getter_functions[fun_name])
-    exec("""def {:s}(session, status):
+    exec ("""def {:s}(session, status):
         return _libfpga.{:s}(byref(session), byref(status))""".format(fun_name, fun_name))
 
+
+getter_functions = {
+}
+
+# analog channels
+for i in range(8):
+    getter_functions.update({'read_AI{:d}'.format(i): c_int16})
+    getter_functions.update({'read_AO{:d}'.format(i): c_int16})
+
+for fun_name in getter_functions:
+    setattr( _libfpga, "{:s}.argtypes".format(fun_name), [POINTER(c_uint32), POINTER(c_int32)])
+    setattr( _libfpga, "{:s}.restype".format(fun_name), getter_functions[fun_name])
+    # # force the analog signals into a c_int16 type (for some reason they seem to be c_uint16
+    exec ("""def {:s}(session, status):
+        value = _libfpga.{:s}(byref(session), byref(status))
+        value = c_int16(value)
+        value = value.value
+        return value""".format(fun_name, fun_name))
+    # exec ("""def {:s}(session, status):
+    #     return _libfpga.{:s}(byref(session), byref(status))""".format(fun_name, fun_name))
 
 
 # =========================================================================

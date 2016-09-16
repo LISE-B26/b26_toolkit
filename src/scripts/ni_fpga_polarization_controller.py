@@ -25,7 +25,7 @@ import time
 from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite, bit_2_volt
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.data_processing.fit_functions import fit_cose_parameter, cose
-from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage
+from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage, voltage_to_int
 import datetime
 
 
@@ -231,7 +231,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
             Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
             Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
             Parameter('channel_OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_detector', 0, range(4), 'analog input channel of the detector signal')
+            Parameter('channel_detector', 4, range(8), 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
@@ -324,13 +324,10 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
         fpga_io = self.instruments['FPGA_IO']['instance']
 
-
-        # x = getattr(fpga_io, channel_out)
-        # print('=== current value',channel_out, x)
+        x = getattr(fpga_io, channel_out)
 
         # turn controller on
         fpga_io.update({control_channel: True})
-
 
 
         # set the setpoints for all three waveplates
@@ -348,11 +345,13 @@ script to balance photodetector to zero by adjusting polarization controller vol
             else:
                 value = float(self.settings['setpoints']['V_{:d}'.format(i)])
             print({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
+            print('xxx>> AO{:d} (bit)'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]), voltage_to_int(value))
             dictator.update({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
 
         fpga_io.update(dictator)
         time.sleep(settle_time)
 
+        fpga_io.start_acquire()
         crossed_zero = False
         while abs(detector_value) > abs(target):
             if self._abort:
@@ -371,8 +370,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
             self.updateProgress.emit(self.progress)
 
             direction = get_direction(detector_value, slope)
-
-            print('---->', detector_value, slope, direction)
+            print('----> out', v_out, voltage_to_int((v_out)))
+            print('----> det', detector_value, slope, direction)
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
                 v_step = self.settings['optimization']['dV'] # start with initial step size
@@ -395,6 +394,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
             if v_out > 5 or v_out <0:
                 v_out = 5 if v_out > 5 else 0 # set the output to be within the range
+                slope *= -1
                 # direction *= -1 # change direction since we hit the end of the valid output range
 
             if min(self.data['voltage_waveplate']) == 0 and max(self.data['voltage_waveplate']) ==5:
@@ -417,6 +417,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
                 self.updateProgress.emit(self.progress)
                 time.sleep(settle_time)
+
+        fpga_io.stop_acquire()
 
     def _plot(self, axes_list):
 

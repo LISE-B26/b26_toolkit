@@ -81,7 +81,8 @@ def seconds_to_ticks(seconds, clock_speed = 40e6):
 # ==================================================================================
 class NI7845RReadWrite(Instrument):
 
-    import src.labview_fpga_lib.read_ai_ao.read_ai_ao as FPGAlib
+    # import src.labview_fpga_lib.read_ai_ao.read_ai_ao as FPGAlib
+    import b26_toolkit.src.labview_fpga_lib.main.main as FPGAlib
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('AO0', 0.0, float, 'analog output channel 0 in volt'),
@@ -145,6 +146,48 @@ class NI7845RReadWrite(Instrument):
                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(volt_2_bit(value), self.fpga.session, self.fpga.status)
             elif key in ['DIO4', 'DIO5', 'DIO6', 'DIO7']:
                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(value, self.fpga.session, self.fpga.status)
+
+    def start_acquire(self, max_attempts=20):
+        """
+        start the the simple read io acquisition loop in the FPGA
+        Returns:
+            boolen that indecates wether start was successful or not
+        """
+
+        # self.stop_fifo()
+        # # start fifo
+        # self.start_fifo()
+
+        # start scan
+        for i in range(max_attempts):
+
+            getattr(self.FPGAlib, 'set_run_mode')(self.FPGAlib.READ_IO, self.fpga.session,
+                                              self.fpga.status)  #
+
+            # wait a little before checking of acquisition worked
+            time.sleep(0.1)
+
+            run_mode = self.FPGAlib.get_run_mode(self.fpga.session,self.fpga.status)
+            print('run_mode (', self.FPGAlib.READ_IO, ')', run_mode)
+            started = run_mode == self.FPGAlib.READ_IO
+            if started:
+                # successfully started acquisition
+                break
+        if started == False:
+            print('starting FPGA failed after {:d} attempts!!!'.format(max_attempts))
+            print(self.read_probes())
+
+        return True
+
+    def stop_acquire(self, max_attempts = 20):
+        """
+        stops the the simple read io acquisition loop in the FPGA and goes into the idle loop
+        Returns:
+            boolen that indecates wether start was successful or not
+        """
+        getattr(self.FPGAlib, 'set_run_mode')(self.FPGAlib.IDLE, self.fpga.session, self.fpga.status) #
+
+        return True
 
 # ==================================================================================
 # fpga program that performs a galvo scan
@@ -315,6 +358,7 @@ class NI7845RGalvoScan(Instrument):
     def stop_fifo(self):
         self.FPGAlib.stop_FIFO(self.fpga.session, self.fpga.status)
 
+
     def start_acquire(self, max_attempts = 20):
         """
         started the acquisition loop in the FPGA
@@ -346,7 +390,7 @@ class NI7845RGalvoScan(Instrument):
         return started
 
     def abort_acquire(self):
-        getattr(self.FPGAlib, 'set_abort')(True, self.fpga.session, self.fpga.status)
+        getattr(self.FPGAlib, 'set_stop_all')(True, self.fpga.session, self.fpga.status)
 
     def read_fifo(self, block_size):
         '''
@@ -368,7 +412,6 @@ class NI7845RGalvoScan(Instrument):
 
 
 
-
 if __name__ == '__main__':
     import time
     from copy import deepcopy
@@ -386,9 +429,9 @@ if __name__ == '__main__':
 
 
     #
-    # s =NI7845RReadWrite()
-    #
-    # print('asdasda', s.AO6)
+    s =NI7845RReadWrite()
+
+    print('asdasda', s.AO6)
 
 
 

@@ -155,6 +155,7 @@ def read_AI3(session, status):
     return _libfpga.read_AI3(byref(session), byref(status))
 
 def read_AI4(session, status):
+    print('sadasdsad')
     return _libfpga.read_AI4(byref(session), byref(status))
 
 def read_AI5(session, status):
