@@ -12,7 +12,7 @@ class TestPulseBlaster(TestCase):
 
         self.pulses = [Pulse('laser', 0, 1E3),
                        Pulse('microwave_switch', 1.5E3, 100),
-                       Pulse('microwave_p', 1.5E3, 100),
+                       Pulse('microwave_i', 1.5E3, 100),
                        Pulse('microwave_switch', 1750, 100),
                        Pulse('microwave_q', 1750, 100),
                        Pulse('laser', 2E3, 1E3),
@@ -25,14 +25,14 @@ class TestPulseBlaster(TestCase):
         delay = {}
         delay['laser'] = 500
         delay['microwave_switch'] = 10
-        delay['microwave_p'] = 10
+        delay['microwave_i'] = 10
         delay['apd_readout'] = 15
         delay['microwave_q'] = 10
 
         def test_delays(delay, pulses):
             self.pb.update({'laser': {'delay_time': delay['laser']},
                             'microwave_switch': {'delay_time': delay['microwave_switch']},
-                            'microwave_p': {'delay_time': delay['microwave_p']},
+                            'microwave_i': {'delay_time': delay['microwave_i']},
                             'apd_readout':{'delay_time': delay['apd_readout']},
                             'microwave_q':{'delay_time': delay['microwave_q']}})
 
@@ -52,7 +52,7 @@ class TestPulseBlaster(TestCase):
         for i in range(10):
             num_pulses = 12
             pulses = []
-            instrument_choices = ['laser', 'microwave_switch', 'microwave_q', 'microwave_p', 'apd_readout']
+            instrument_choices = ['laser', 'microwave_switch', 'microwave_q', 'microwave_i', 'apd_readout']
             while len(pulses) < num_pulses:
                 new_pulse = Pulse(np.random.choice(instrument_choices), np.random.randint(0,2000), np.random.randint(0,2000))
 
@@ -68,7 +68,7 @@ class TestPulseBlaster(TestCase):
 
         pulses = [Pulse('laser', 0, 1E3),
                   Pulse('microwave_switch', 1.5E3, 100),
-                  Pulse('microwave_p', 1.5E3, 100),
+                  Pulse('microwave_i', 1.5E3, 100),
                   Pulse('microwave_switch', 1750, 100),
                   Pulse('microwave_q', 1750, 100),
                   Pulse('laser', 0.5E3, 1E3),
