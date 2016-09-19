@@ -26,8 +26,8 @@ from PyQt4.QtCore import pyqtSlot
 from b26_toolkit.src.instruments import PiezoController
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Parameter, Script
-from b26_toolkit.src.scripts import GalvoScan
-# from src.scripts import GalvoScanNIFpga
+from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser
+# from src.scripts import FPGA_GalvoScan
 
 
 class AutoFocusGeneric(Script):
@@ -130,6 +130,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                     self.log('Leaving autofocusing loop')
                     break
 
+                self.init_image()
+
                 # set the voltage on the piezo
                 self._step_piezo(voltage, self.settings['wait_time'])
 
@@ -181,6 +183,13 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         if self.settings['galvo_return_to_initial']:
             self._set_galvo_location(daq_pt)
+
+    def init_image(self):
+        """
+        Allows inheriting functions to perform any needed operations prior to the beginning of each autofocus loop, such
+        as shifting the image location to deal with z-xy coupling.
+        """
+        pass
 
     def fit_focus(self):
         '''
@@ -329,7 +338,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     """
 
     _SCRIPTS = {
-        # 'take_image': GalvoScanNIFpga
+        # 'take_image': FPGA_GalvoScan
     }
 
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
@@ -347,7 +356,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         voltage: target piezo voltage
         wait_time: settle time after voltage step
         """
-        fpga_instr = self.scripts['take_image'].instruments['NI7845RGalvoScan']['instance']
+        fpga_instr = self.scripts['take_image'].instruments['FPGA_GalvoScan']['instance']
         # set the voltage on the piezo
         fpga_instr.piezo = float(voltage)
         time.sleep(wait_time)
@@ -467,6 +476,41 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         AutoFocusGeneric._function(self)
 
 
+class AutoFocusDAQNVTracking(AutoFocusDAQ):
+    """
+    Adds NV finding to autofocus to compensate for z-xy coupling
+    """
+    _SCRIPTS = {
+        'take_image': GalvoScan,
+        'find_NV': FindNV,
+        'set_laser': SetLaser
+    }
+
+    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
+        #always want to use the autofocus's location
+        self.scripts['find_NV'].settings['center_on_current_location'] = True
+        self.scripts['set_laser'].settings['point'] = self.scripts['take_image'].settings['point_a']
+        self.scripts['set_laser'].run()
+
+    def init_image(self):
+        """
+        Refinds a reference NV and centers the autofocus image on that to prevent z-xy coupling in the piezo from affecting
+        the autofocus measurement
+
+        Sets point_a of take_image to the location of the found NV
+        """
+        self.scripts['find_NV'].run()
+        self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
+
+
+
 
 if __name__ == '__main__':
 
@@ -490,9 +534,9 @@ if __name__ == '__main__':
     # print('===++++++===========++++++===========++++++========')
     # print(scripts)
     # print('===++++++===========++++++===========++++++========')
-    # print(scripts['af'].scripts['take_image'].instruments['NI7845RGalvoScan'])
-    # print(type(scripts['af'].scripts['take_image'].instruments['NI7845RGalvoScan']['settings']))
-    # print(type(scripts['af'].scripts['take_image'].instruments['NI7845RGalvoScan']['instance']))
+    # print(scripts['af'].scripts['take_image'].instruments['FPGA_GalvoScan'])
+    # print(type(scripts['af'].scripts['take_image'].instruments['FPGA_GalvoScan']['settings']))
+    # print(type(scripts['af'].scripts['take_image'].instruments['FPGA_GalvoScan']['instance']))
     #
     # self.scripts, failed, self.instruments = Script.load_and_append(
     #     script_dict=scripts,
