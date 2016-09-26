@@ -463,7 +463,6 @@ script to balance photodetector to zero by adjusting polarization controller vol
             # axes_list[1].lines[0].set_ydata(signal/float(2**15))
             # axes_list[1].lines[1].set_ydata(volt_range/5.)
 
-
 class FPGA_CalibrateDetector(Script):
     """
 FPGA_CalibrateDetector:
@@ -482,7 +481,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
         Parameter('scan',[
             Parameter('time_step', 0.1, float, 'time step '),
             Parameter('V_min', 0.1, float, 'piezo minimum voltage'),
-            Parameter('V_max', 0.1, float, 'piezo maximum voltage'),
+            Parameter('V_max', 0.5, float, 'piezo maximum voltage'),
             Parameter('V_step', 0.1, float, 'piezo voltage step'),
             Parameter('piezo_gain', 10.0, [1.0, 7.5, 10.0, 15.0], 'gain factor of the piezo controller (check on Thorlabs controller)'),
             Parameter('settle_time', 2., float, 'time to wait after moving to V_min (start of scan)'),
@@ -531,7 +530,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
 
         while np.sign(V_min - V_out) == direction:
             # set output
-            fpga_io.update({channel_out: float(V_out)})
+            fpga_io.update({'read_io':{channel_out: float(V_out)}})
             # wait for system to settle
             time.sleep(time_step)
             # read detector
@@ -544,13 +543,6 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
 
             V_out += direction* V_step
 
-            print('===>>>', V_out)
-
-        # fpga_io.update({channel_out: float(V_out)})
-        # time.sleep(settle_time)
-        # while V_out < V_max:
-
-
 
         # forward sweep
         while V_out < V_max:
@@ -558,7 +550,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
                 break
 
             # set output
-            fpga_io.update({channel_out: float(V_out)})
+            fpga_io.update({'read_io':{channel_out: float(V_out)}})
             # wait for system to settle
             time.sleep(time_step)
             # read detector
@@ -574,8 +566,6 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
 
     def _plot(self, axes_list):
 
-
-
         piezo_voltage = np.array(self.data['piezo_voltage'])
         detector_signal = np.array(self.data['detector_signal'])
         axes = axes_list[0]
@@ -586,11 +576,8 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
         axes.set_ylabel('detector signal (bits)')
 
         if not self.is_running:
-
-            print('fitting')
             fitparameter = fit_cose_parameter(piezo_voltage, detector_signal)
 
-            print('fitparameter', fitparameter)
             axes.plot(piezo_voltage, cose(piezo_voltage, *fitparameter), 'b-')
 
 
@@ -604,12 +591,10 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
         axes.set_ylabel('detector signal init (bits)')
 
 
-        if not self.is_running:
+        if not self.is_running and len(piezo_voltage)>5:
 
-            print('fitting')
             fitparameter = fit_cose_parameter(piezo_voltage, detector_signal)
 
-            print('fitparameter', fitparameter)
             axes.plot(piezo_voltage, cose(piezo_voltage, *fitparameter), 'r-')
 
 
