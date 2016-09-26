@@ -86,7 +86,8 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         implot.autoscale()
 
     if colorbar is not None:
-        colorbar_min = 0
+        # colorbar_min = 0
+        colorbar_min = np.min(image_data)
         colorbar_max = np.max(image_data)
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
         colorbar.set_ticks(colorbar_labels)
@@ -122,18 +123,21 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
 
     axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
 
-    colorbar_min = 0
+    # colorbar_min = 0
+    colorbar_min = np.min(image_data)
     colorbar_max = np.max(image_data)
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
 
     if not max_counts > 0:
         implot.autoscale()
 
+
+    print('xxxxx', colorbar_min, colorbar_max)
     if colorbar is None:
-        fig.colorbar(implot, label=label)
+        colorbar = fig.colorbar(implot, label=label)
         colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)
     else:
-        fig.colorbar(implot, cax=colorbar.ax, label=label)
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label=label)
         colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)

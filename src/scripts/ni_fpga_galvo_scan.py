@@ -21,12 +21,12 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.instruments.labview_fpga import NI7845RGalvoScan
+from b26_toolkit.src.instruments.labview_fpga import FPGA_GalvoScan
 from src.plotting.plots_2d import  plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
 
-class GalvoScanNIFpga(Script):
+class FPGA_GalvoScan(Script):
     """
 GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
 resulting in an image in the current field of view of the objective.
@@ -36,7 +36,7 @@ resulting in an image in the current field of view of the objective.
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting')
     ]
 
-    _INSTRUMENTS = {'NI7845RGalvoScan':  NI7845RGalvoScan}
+    _INSTRUMENTS = {'FPGA_GalvoScan':  FPGA_GalvoScan}
 
     _SCRIPTS = {}
 
@@ -51,8 +51,8 @@ resulting in an image in the current field of view of the objective.
         will be overwritten in the __init__
         """
 
-        instr = self.instruments['NI7845RGalvoScan']['instance']
-        instr_settings = deepcopy(self.instruments['NI7845RGalvoScan']['settings'])
+        instr = self.instruments['FPGA_GalvoScan']['instance']
+        instr_settings = deepcopy(self.instruments['FPGA_GalvoScan']['settings'])
         # del instr_settings['piezo'] # don't update piezo to avoid spikes (assume this value is 0 but the scan starts at 50V, then this would give a huge step which is not necessary)
 
         def init_scan():
@@ -167,7 +167,7 @@ resulting in an image in the current field of view of the objective.
             data = self.data
 
 
-        if not self.instruments['NI7845RGalvoScan']['instance'].settings['detector_mode'] == 'APD':
+        if not self.instruments['FPGA_GalvoScan']['instance'].settings['detector_mode'] == 'APD':
             plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0],
                                   max_counts=self.settings['max_counts_plot'])
         else:
@@ -199,14 +199,14 @@ resulting in an image in the current field of view of the objective.
         return Script.get_axes_layout(self, [figure_list[0]])
 
 if __name__ == '__main__':
-    script, failed, instruments = Script.load_and_append(script_dict={'GalvoScanNIFpga': 'GalvoScanNIFpga'})
+    script, failed, instruments = Script.load_and_append(script_dict={'FPGA_GalvoScan': 'FPGA_GalvoScan'})
 
     print('script',script)
     print('failed', failed)
-    gs = script['GalvoScanNIFpga']
+    gs = script['FPGA_GalvoScan']
     print(gs)
 
-    print(gs.instruments['NI7845RGalvoScan']['instance'].settings)
+    print(gs.instruments['FPGA_GalvoScan']['instance'].settings)
 
     gs.run()
     print(gs.data)

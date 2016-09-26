@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 import time
-from b26_toolkit.src.instruments.labview_fpga import NI7845RReadWrite, bit_2_volt
+from b26_toolkit.src.instruments.labview_fpga import NI7845RMain, bit_2_volt
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.data_processing.fit_functions import fit_cose_parameter, cose
 from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage, voltage_to_int
@@ -60,7 +60,7 @@ this gives a one dimensional dataset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RReadWrite
+        'FPGA_IO': NI7845RMain
     }
 
     _SCRIPTS = {
@@ -252,9 +252,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         ])
     ]
 
-    _INSTRUMENTS = {
-        'FPGA_IO': NI7845RReadWrite
-    }
+    _INSTRUMENTS = {'NI7845RMain': NI7845RMain}
 
     _SCRIPTS = {
 
@@ -275,11 +273,6 @@ script to balance photodetector to zero by adjusting polarization controller vol
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
-
-        # def calc_progress(v2, volt_range):
-        #     dV = np.mean(np.diff(volt_range))
-        #     progress = (v2 - min(volt_range)) / (max(volt_range) - min(volt_range))
-        #     return 100.*progress
 
         def get_direction(detector_value, slope):
             """
@@ -322,12 +315,12 @@ script to balance photodetector to zero by adjusting polarization controller vol
         channel_out = 'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(wp_control)])
         channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
 
-        fpga_io = self.instruments['FPGA_IO']['instance']
+        fpga_io = self.instruments['NI7845RMain']['instance']
 
         x = getattr(fpga_io, channel_out)
 
         # turn controller on
-        fpga_io.update({control_channel: True})
+        fpga_io.update({'read_io':{control_channel: True}})
 
 
         # set the setpoints for all three waveplates
@@ -344,21 +337,21 @@ script to balance photodetector to zero by adjusting polarization controller vol
                     self.log('use current value {:0.3f} V as starting point'.format(value))
             else:
                 value = float(self.settings['setpoints']['V_{:d}'.format(i)])
-            print({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
-            print('xxx>> AO{:d} (bit)'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]), voltage_to_int(value))
-            dictator.update({'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value})
+
+            dictator.update({'read_io':{'AO{:d}'.format(self.settings['channels']['channel_WP_{:d}'.format(i)]):value}})
 
         fpga_io.update(dictator)
         time.sleep(settle_time)
 
-        fpga_io.start_acquire()
+        # fpga_io.start_acquire()
+        self.instruments['NI7845RMain']['instance'].set_run_mode('read_io')
         crossed_zero = False
         while abs(detector_value) > abs(target):
             if self._abort:
                 break
 
             # set output
-            fpga_io.update({channel_out: float(v_out)})
+            fpga_io.update({'read_io':{channel_out: float(v_out)}})
             # wait for system to settle
             time.sleep(settle_time)
             # read detector
@@ -418,7 +411,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
                 self.updateProgress.emit(self.progress)
                 time.sleep(settle_time)
 
-        fpga_io.stop_acquire()
+        self.instruments['NI7845RMain']['instance'].set_run_mode('idle')
 
     def _plot(self, axes_list):
 
@@ -497,7 +490,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RReadWrite
+        'FPGA_IO': NI7845RMain
     }
 
     _SCRIPTS = {
@@ -673,7 +666,7 @@ this gives a three dimensional dataset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RReadWrite
+        'FPGA_IO': NI7845RMain
     }
 
     _SCRIPTS = {

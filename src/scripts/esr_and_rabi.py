@@ -60,8 +60,3 @@ class ESRAndRabi(Script):
             self.log('No resonance frequency found skipping rabi attempt')
 
 
-    def plot(self, axes_list):
-        if self._current_subscript_stage['current_subscript'].name == 'esr':
-            self.scripts['esr'].plot(axes_list)
-        elif self._current_subscript_stage['current_subscript'].name == 'rabi':
-            self.scripts['rabi'].plot(axes_list)

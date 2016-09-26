@@ -81,8 +81,8 @@ getter_functions = {
     "reset_fpga": None,
     "read_Nx": c_int32,
     "read_Ny": c_int32,
-    'get_run_mode':c_uint16,
-    'get_stop_all':c_bool,
+    'read_run_mode':c_uint16,
+    'read_stop_all':c_bool,
     'read_executing_subvi':c_bool,
     'read_meas_per_pt':c_uint16,
     'read_settle_time':c_uint16,
@@ -156,10 +156,10 @@ _libfpga.read_FIFO.restype = None
 def read_FIFO(size, session, status):
     Signal = (c_int32*size)()
     elements_remaining = c_uint32()
-
+    print('ffffff reading fifo size', size)
     _libfpga.read_FIFO(Signal, size, byref(session), byref(status), byref(elements_remaining))
 
-
+    print('ffffff reading fifo')
     return {'signal': np.array(Signal), 'elements_remaining': elements_remaining.value}
 
 #

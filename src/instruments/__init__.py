@@ -26,11 +26,11 @@ from maestro import MaestroLightControl
 from attocube import Attocube
 from microwave_generator import MicrowaveGenerator
 
-from labview_fpga import NI7845RGalvoScan
-# from labview_fpga import NI7845RGalvoScan
+from labview_fpga import NI7845RMain
+# from labview_fpga import FPGA_GalvoScan
 
 
-# from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, NI7845RGalvoScan, NI7845RReadFifo
+# from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, FPGA_GalvoScan, NI7845RReadFifo
 
 
 
@@ -97,9 +97,9 @@ from labview_fpga import NI7845RGalvoScan
 #     print("./src/instrument/__init__ warning! NI7845RPidSimpleLoop did not load")
 #
 # try:
-#     from labview_fpga import NI7845RGalvoScan
+#     from labview_fpga import FPGA_GalvoScan
 # except:
-#     print("./src/instrument/__init__ warning! NI7845RGalvoScan did not load")
+#     print("./src/instrument/__init__ warning! FPGA_GalvoScan did not load")
 #
 # try:
 #     from labview_fpga import NI7845RReadFifo

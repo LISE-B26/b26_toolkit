@@ -90,7 +90,7 @@ void set_run_mode(uint16_t value, NiFpga_Session* session, NiFpga_Status* status
 {
 	NiFpga_MergeStatus(status, NiFpga_WriteU16(*session,NiFpga_main_FPGA_ControlU16_run_mode,value));
 }
-uint16_t get_run_mode(NiFpga_Session* session, NiFpga_Status* status)
+uint16_t read_run_mode(NiFpga_Session* session, NiFpga_Status* status)
 {
 	uint16_t value;
 
@@ -101,7 +101,7 @@ void set_stop_all(_Bool state, NiFpga_Session* session, NiFpga_Status* status)
 {
 	NiFpga_MergeStatus(status, NiFpga_WriteBool(*session,NiFpga_main_FPGA_ControlBool_StopAll, state));
 }
-_Bool get_stop_all(NiFpga_Session* session, NiFpga_Status* status)
+_Bool read_stop_all(NiFpga_Session* session, NiFpga_Status* status)
 {
 	NiFpga_Bool state;
 	NiFpga_MergeStatus(status, NiFpga_ReadBool(*session,NiFpga_main_FPGA_ControlBool_StopAll,&state));
