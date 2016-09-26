@@ -49,7 +49,7 @@ from correlate_images import Track_Correlate_Images
 
 from autofocus import AutoFocusDAQ
 
-from galvo_scan_generic import GalvoScanFPGA
+from ni_fpga_galvo_scan import FPGA_GalvoScan
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization

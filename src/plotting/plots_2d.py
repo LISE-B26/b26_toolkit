@@ -131,8 +131,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     if not max_counts > 0:
         implot.autoscale()
 
-
-    print('xxxxx', colorbar_min, colorbar_max)
     if colorbar is None:
         colorbar = fig.colorbar(implot, label=label)
         colorbar.set_ticks(colorbar_labels)

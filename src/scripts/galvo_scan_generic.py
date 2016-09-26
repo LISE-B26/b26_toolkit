@@ -21,7 +21,6 @@ import numpy as np
 from b26_toolkit.src.instruments import DAQ
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
-from b26_toolkit.src.instruments.labview_fpga import volt_2_bit, NI7845RMain
 
 class GalvoScanGeneric(Script):
     """
@@ -42,10 +41,10 @@ class GalvoScanGeneric(Script):
                                                            corner: pta and ptb are diagonal corners of rectangle.\n \
                                                            center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
-                  [Parameter('x', 126, int, 'number of x points to scan'),
-                   Parameter('y', 126, int, 'number of y points to scan')
+                  [Parameter('x', 25, int, 'number of x points to scan'),
+                   Parameter('y', 25, int, 'number of y points to scan')
                    ]),
-        Parameter('time_per_pt', .002, [.001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
+        Parameter('time_per_pt', .002, [.0001,.001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
         Parameter('settle_time', .0002, [.0002], 'wait time between points to allow galvo to settle in seconds'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         # Parameter('DAQ_channels',
@@ -105,10 +104,6 @@ class GalvoScanGeneric(Script):
 
         Ny = self.settings['num_points']['y']
 
-        self.log('scan initiated')
-
-        print('afafasfaf', Ny, len(self.y_array))
-
         for yNum in xrange(0, Ny):
 
             if self._abort:
@@ -132,10 +127,7 @@ class GalvoScanGeneric(Script):
         returns the current position of the galvo
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
-        galvo_position = self.instruments['daq']['instance'].get_analog_out_voltages([
-            self.settings['DAQ_channels']['x_ao_channel'],
-            self.settings['DAQ_channels']['y_ao_channel']]
-        )
+        raise NotImplementedError
         return galvo_position
 
     def set_galvo_location(self, galvo_position):
@@ -143,19 +135,7 @@ class GalvoScanGeneric(Script):
         sets the current position of the galvo
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
-        if galvo_position[0] > 1 or galvo_position[0] < -1 or galvo_position[1] > 1 or galvo_position[1] < -1:
-            raise ValueError('The script attempted to set the galvo position to an illegal position outside of +- 1 V')
-
-        pt = galvo_position
-        daq = self.instruments['daq']['instance']
-        # daq API only accepts either one point and one channel or multiple points and multiple channels
-        pt = np.transpose(np.column_stack((pt[0],pt[1])))
-        pt = (np.repeat(pt, 2, axis=1))
-
-        daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        daq.AO_run()
-        daq.AO_waitToFinish()
-        daq.AO_stop()
+        raise NotImplementedError
 
     def read_line(self, y_pos):
         """
@@ -204,7 +184,6 @@ class GalvoScanGeneric(Script):
         if data is None:
             data = self.data
 
-        print('aaaaaaaaaaaaa', data, axes_list[0])
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
     def _update_plot(self, axes_list):
@@ -347,110 +326,7 @@ class GalvoScanDAQ(GalvoScanGeneric):
         # also normalizing to kcounts/sec
         return summedData * (.001 / self.settings['time_per_pt'])
 
-class GalvoScanFPGA(GalvoScanGeneric):
-    """
-    GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
-    resulting in an image in the current field of view of the objective.
-    """
 
-    _DEFAULT_SETTINGS = [
-    ]
-
-    _INSTRUMENTS = {'NI7845RMain': NI7845RMain}
-
-    def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
-        '''
-        Initializes GalvoScan script for use in gui
-
-        Args:
-            instruments: list of instrument objects
-            name: name to give to instantiated script object
-            settings: dictionary of new settings to pass in to override defaults
-            log_function: log function passed from the gui to direct log calls to the gui log
-            data_path: path to save data
-
-        '''
-        self._DEFAULT_SETTINGS = self._DEFAULT_SETTINGS + GalvoScanGeneric._DEFAULT_SETTINGS
-        Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function, data_path = data_path)
-
-    def setup_scan(self):
-        instr = self.instruments['NI7845RMain']['instance']
-        instr_settings = self.instruments['NI7845RMain']['settings']['galvo_scan']
-
-        [xVmin, xVmax, yVmax, yVmin] = volt_2_bit(self.data['extent'])
-
-        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
-
-        dVx = int((xVmax-xVmin) / Nx)
-        dVy = int((yVmax - yVmin) / Ny)
-        meas_per_pt = int(self.settings['time_per_pt'] * 400e3) # sample frequency is 400kHz
-        settle_time = int(self.settings['settle_time'] * 1e6) # settle time of FPGA is in us
-
-        instr_settings.update({
-            'Vmin_x':xVmin,
-            'Vmin_y':yVmin,
-            'dVmin_x':dVx,
-            'dVmin_y':dVy,
-            'Nx':Nx,
-            'Ny':Ny,
-            'meas_per_pt': meas_per_pt,
-            'settle_time':settle_time
-        })
-
-
-        instr.update({'galvo_scan':instr_settings})
-
-        instr.stop_fifo()
-
-        instr.start_fifo()
-
-        started = instr.set_run_mode('galvo')
-
-        if started is False:
-            self.log('WARNING: galvo subvi did not start!!')
-
-    def get_galvo_location(self):
-        """
-        returns the current position of the galvo
-        Returns: list with two floats, which give the x and y position of the galvo mirror
-        """
-        galvo_position = self.instruments['NI7845RMain']['instance'].AO0, self.instruments['NI7845RMain']['instance'].AO1
-        return galvo_position
-
-    def set_galvo_location(self, galvo_position):
-        """
-        sets the current position of the galvo
-        galvo_position: list with two floats, which give the x and y position of the galvo mirror
-        """
-        if galvo_position[0] > 1 or galvo_position[0] < -1 or galvo_position[1] > 1 or galvo_position[1] < -1:
-            raise ValueError('The script attempted to set the galvo position to an illegal position outside of +- 1 V')
-
-        pt = volt_2_bit(galvo_position)
-
-        print('gggsda=====<<<<', pt)
-        self.instruments['NI7845RMain']['instance'].AO0 = pt[0]
-        self.instruments['NI7845RMain']['instance'].AO1 = pt[1]
-
-
-    def read_line(self, y_pos):
-        """
-        reads a line of data from the DAQ
-        Args:
-            y_pos: y position of the scan
-
-        Returns:
-
-        """
-        instr = self.instruments['NI7845RMain']['instance']
-
-        Nx = self.settings['num_points']['x']
-
-        print('asdadsaada reading line ', Nx)
-        line_data = instr.read_fifo(Nx)
-
-
-        print('gggggg', line_data)
-        return line_data['signal']
 
 if __name__ == '__main__':
     from PyLabControl.src.core import Instrument

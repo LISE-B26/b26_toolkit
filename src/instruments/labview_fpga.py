@@ -81,7 +81,6 @@ def seconds_to_ticks(seconds, clock_speed = 40e6):
 # ==================================================================================
 class NI7845RMain(Instrument):
 
-    # import src.labview_fpga_lib.read_ai_ao.read_ai_ao as FPGAlib
     import b26_toolkit.src.labview_fpga_lib.main.main as FPGAlib
 
     _DEFAULT_SETTINGS = Parameter([
@@ -184,7 +183,6 @@ class NI7845RMain(Instrument):
                 for subkey, subvalue in value.iteritems():
                     if subkey in ('scanmode_x', 'scanmode_y', 'detector_mode'):
                         subvalue = self._DEFAULT_SETTINGS.valid_values['galvo_scan'][subkey].index(subvalue)
-                        print('ssssssss  subkey, subvalue', subkey, subvalue)
                         getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
                     elif subkey in ('Vmin_x', 'Vmin_y', 'dVmin_x', 'dVmin_y', 'Nx', 'Ny', 'meas_per_pt', 'settle_time'):
                         getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
@@ -227,13 +225,15 @@ class NI7845RMain(Instrument):
             # run_mode = self.FPGAlib.read_run_mode(self.fpga.session,self.fpga.status)
             run_mode = self.run_mode
             print('run_mode (', mode, ')', run_mode)
+            print('XXXX', run_mode, mode, run_mode == mode)
             started = run_mode == mode
             if started:
                 # successfully started acquisition
                 break
-        if mode == False:
-            print('starting FPGA failed after {:d} attempts!!!'.format(max_attempts))
-            print(self.read_probes('run_mode'))
+        if started == False:
+            print('starting FPGA (set mode to {:d}) failed after {:d} attempts!!!'.format(mode, max_attempts))
+            print('current mode: {:d}'.format(self.read_probes('run_mode')))
+
 
         return started
 
@@ -260,7 +260,7 @@ class NI7845RMain(Instrument):
         :return: data from channels AI1 and AI2 and the elements remaining in the FIFO
         '''
 
-        print('ssssssss sadsad')
+        print('ssssssss sadsad block_size', block_size)
         fifo_data = self.FPGAlib.read_FIFO(block_size, self.fpga.session, self.fpga.status)
         if str(self.fpga.status.value) != '0':
             raise LabviewFPGAException(self.fpga.status)

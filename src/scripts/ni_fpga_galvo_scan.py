@@ -24,179 +24,114 @@ import numpy as np
 from b26_toolkit.src.instruments.labview_fpga import FPGA_GalvoScan
 from src.plotting.plots_2d import  plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
+from b26_toolkit.src.scripts.galvo_scan_generic import GalvoScanGeneric
+from b26_toolkit.src.instruments.labview_fpga import volt_2_bit, NI7845RMain
 
-
-class FPGA_GalvoScan(Script):
+class FPGA_GalvoScan(GalvoScanGeneric):
     """
-GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
-resulting in an image in the current field of view of the objective.
+    GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
+    resulting in an image in the current field of view of the objective.
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting')
     ]
 
-    _INSTRUMENTS = {'FPGA_GalvoScan':  FPGA_GalvoScan}
+    _INSTRUMENTS = {'NI7845RMain': NI7845RMain}
 
-    _SCRIPTS = {}
+    def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
+        '''
+        Initializes GalvoScan script for use in gui
 
-    def __init__(self, instruments, name = None, settings = None, log_function = None, timeout = 1000000000, data_path = None):
+        Args:
+            instruments: list of instrument objects
+            name: name to give to instantiated script object
+            settings: dictionary of new settings to pass in to override defaults
+            log_function: log function passed from the gui to direct log calls to the gui log
+            data_path: path to save data
 
+        '''
+        self._DEFAULT_SETTINGS = self._DEFAULT_SETTINGS + GalvoScanGeneric._DEFAULT_SETTINGS
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function, data_path = data_path)
 
+    def setup_scan(self):
+        instr = self.instruments['NI7845RMain']['instance']
+        instr_settings = self.instruments['NI7845RMain']['settings']['galvo_scan']
 
-    def _function(self):
+        [xVmin, xVmax, yVmax, yVmin] = volt_2_bit(self.data['extent'])
+
+        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
+
+        dVx = int((xVmax-xVmin) / Nx)
+        dVy = int((yVmax - yVmin) / Ny)
+        meas_per_pt = int(self.settings['time_per_pt'] * 400e3) # sample frequency is 400kHz
+        settle_time = int(self.settings['settle_time'] * 1e6) # settle time of FPGA is in us
+
+        instr_settings.update({
+            'Vmin_x':xVmin,
+            'Vmin_y':yVmin,
+            'dVmin_x':dVx,
+            'dVmin_y':dVy,
+            'Nx':Nx,
+            'Ny':Ny,
+            'meas_per_pt': meas_per_pt,
+            'settle_time':settle_time
+        })
+
+        print('HHHHH', instr_settings)
+
+
+        instr.update({'galvo_scan':instr_settings})
+
+        instr.stop_fifo()
+
+        instr.start_fifo()
+
+        started = instr.set_run_mode('galvo')
+
+        if started is False:
+            self.log('WARNING: galvo subvi did not start!!')
+
+    def get_galvo_location(self):
         """
-        This is the actual function that will be executed. It uses only information that is provided in the settings property
-        will be overwritten in the __init__
+        returns the current position of the galvo
+        Returns: list with two floats, which give the x and y position of the galvo mirror
         """
+        galvo_position = self.instruments['NI7845RMain']['instance'].AO0, self.instruments['NI7845RMain']['instance'].AO1
+        return galvo_position
 
-        instr = self.instruments['FPGA_GalvoScan']['instance']
-        instr_settings = deepcopy(self.instruments['FPGA_GalvoScan']['settings'])
-        # del instr_settings['piezo'] # don't update piezo to avoid spikes (assume this value is 0 but the scan starts at 50V, then this would give a huge step which is not necessary)
-
-        def init_scan():
-            #COMMENT_ME
-            # self._recording = False
-            instr.update(instr_settings)
-
-            Nx = instr_settings['num_points']['x']
-            Ny = instr_settings['num_points']['y']
-            time_per_pt = instr_settings['time_per_pt']
-            extent = instr.pts_to_extent(instr_settings['point_a'], instr_settings['point_b'], instr_settings['RoI_mode'])
-
-            self.data = {'image_data': np.zeros((Nx, Ny)), 'extent': extent}
-
-            return Nx, Ny
-
-        def print_diagnostics():
-            print(unicode(datetime.datetime.now()))
-            # diagnostics = {
-            #     'acquire': instr.acquire,
-            #     'elements_written_to_dma': instr.elements_written_to_dma,
-            #     'DMATimeOut': instr.acquire,
-            #     'ix': instr.ix,
-            #     'iy': instr.iy,
-            #     'detector_signal': instr.detector_signal,
-            #     'Nx': instr.Nx,
-            #     'Ny': instr.Ny,
-            #     'running': instr.running,
-            #     'DMA_elem_to_write': instr.DMA_elem_to_write,
-            #     'loop_time': instr.loop_time,
-            #     'meas_per_pt': instr.meas_per_pt,
-            #     'settle_time': instr.settle_time,
-            #     'failed': instr.failed
-            # }
-
-            # diagnostics = instr.read_probes()
-            #
-            # print(diagnostics)
-
-        def calc_progress(i, Ny):
-            #COMMENT_ME
-            return int(float(i + 1) / Ny * 100)
-
-        Nx, Ny = init_scan()
-
-        instr.start_acquire()
-
-        i = 0
-
-        while i < Ny:
-            if self._abort:
-                instr.abort_acquire()
-                break
-
-            elem_written = instr.elements_written_to_dma
-
-            if elem_written >= Nx:
-                line_data = instr.read_fifo(Nx)
-                self.data['image_data'][:,i] = deepcopy(line_data['signal'])/1e3
-
-                # set the remaining values to the mean so that we get a good contrast while plotting
-                mean_value = np.mean(self.data['image_data'][0:i+1])
-                self.data['image_data'][:,i+1:] = mean_value*np.ones((Nx, Ny-(i+1)))
-
-                i +=1
-                self.progress = calc_progress(i, Ny)
-                self.updateProgress.emit(self.progress)
-
-
-        # if self.settings['save']:
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
-        #     self.save_image_to_disk()
-
-    @staticmethod
-    def pts_to_extent(pta, ptb, roi_mode):
+    def set_galvo_location(self, galvo_position):
         """
+        sets the current position of the galvo
+        galvo_position: list with two floats, which give the x and y position of the galvo mirror
+        """
+        if galvo_position[0] > 1 or galvo_position[0] < -1 or galvo_position[1] > 1 or galvo_position[1] < -1:
+            raise ValueError('The script attempted to set the galvo position to an illegal position outside of +- 1 V')
 
+        pt = volt_2_bit(galvo_position)
+
+        self.instruments['NI7845RMain']['instance'].AO0 = pt[0]
+        self.instruments['NI7845RMain']['instance'].AO1 = pt[1]
+
+
+    def read_line(self, y_pos):
+        """
+        reads a line of data from the DAQ
         Args:
-            pta: point a
-            ptb: point b
-            roi_mode:   mode how to calculate region of interest
-                        corner: pta and ptb are diagonal corners of rectangle.
-                        center: pta is center and ptb is extend or rectangle
+            y_pos: y position of the scan
 
-        Returns: extend of region of interest [xVmin, xVmax, yVmax, yVmin]
-
-        """
-        if roi_mode == 'corner':
-            xVmin = min(pta['x'], ptb['x'])
-            xVmax = max(pta['x'], ptb['x'])
-            yVmin = min(pta['y'], ptb['y'])
-            yVmax = max(pta['y'], ptb['y'])
-        elif roi_mode == 'center':
-            xVmin = pta['x'] - float(ptb['x']) / 2.
-            xVmax = pta['x'] + float(ptb['x']) / 2.
-            yVmin = pta['y'] - float(ptb['y']) / 2.
-            yVmax = pta['y'] + float(ptb['y']) / 2.
-        return [xVmin, xVmax, yVmax, yVmin]
-
-
-    def _plot(self, axes_list, data = None):
-        '''
-        Plots the galvo scan image
-        Args:
-            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
-            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
-        '''
-
-        if data is None:
-            data = self.data
-
-
-        if not self.instruments['FPGA_GalvoScan']['instance'].settings['detector_mode'] == 'APD':
-            plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0],
-                                  max_counts=self.settings['max_counts_plot'])
-        else:
-            plot_fluorescence_new(data['image_data'].transpose(), data['extent'], axes_list[0],
-                                  max_counts=self.settings['max_counts_plot'], label='detector signal (V)')
-    def _update_plot(self, axes_list):
-        '''
-        updates the galvo scan image
-        Args:
-            axes_list: list of axes objects on which to plot plots the esr on the first axes object
-        '''
-
-        axes_image = axes_list[0]
-        update_fluorescence(self.data['image_data'].transpose(), axes_image, self.settings['max_counts_plot'])
-
-    def get_axes_layout(self, figure_list):
-        """
-        returns the axes objects the script needs to plot its data
-        the default creates a single axes object on each figure
-        This can/should be overwritten in a child script if more axes objects are needed
-        Args:
-            figure_list: a list of figure objects
         Returns:
-            axes_list: a list of axes objects
 
         """
+        instr = self.instruments['NI7845RMain']['instance']
 
-        # only pick the first figure from the figure list, this avoids that get_axes_layout clears all the figures
-        return Script.get_axes_layout(self, [figure_list[0]])
+        Nx = self.settings['num_points']['x']
+
+        print('asdadsaada reading line ', Nx)
+        line_data = instr.read_fifo(Nx)
+
+
+        print('====== gggggg>>>>>>', line_data)
+        return line_data['signal']
 
 if __name__ == '__main__':
     script, failed, instruments = Script.load_and_append(script_dict={'FPGA_GalvoScan': 'FPGA_GalvoScan'})
