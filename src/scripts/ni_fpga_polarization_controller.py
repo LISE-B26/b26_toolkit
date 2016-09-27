@@ -26,6 +26,7 @@ from b26_toolkit.src.instruments.labview_fpga import NI7845RMain, bit_2_volt
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.data_processing.fit_functions import fit_cose_parameter, cose
 from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage, voltage_to_int
+from b26_toolkit.src.instruments import MaestroLightControl
 import datetime
 
 
@@ -60,7 +61,7 @@ this gives a one dimensional dataset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RMain
+        'NI7845RMain': NI7845RMain
     }
 
     _SCRIPTS = {
@@ -89,8 +90,8 @@ this gives a one dimensional dataset
         #     return 100.*progress
 
         self.data = {}
-        fpga_io = self.instruments['FPGA_IO']['instance']
-        # fpga_io.update(self.instruments['FPGA_IO']['settings'])
+        fpga_io = self.instruments['NI7845RMain']['instance']
+        # fpga_io.update(self.instruments['NI7845RMain']['settings'])
 
         # turn controller on
         control_channel = 'DIO{:d}'.format(self.settings['channels']['channel_OnOff'])
@@ -248,7 +249,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         ]),
         Parameter('measure_at_zero',[
             Parameter('on', True, bool, 'if true keep measuring after zero is found'),
-            Parameter('N', 1000, int, 'number of measurement points after zero is found')
+            Parameter('N', 10, int, 'number of measurement points after zero is found')
         ])
     ]
 
@@ -463,6 +464,263 @@ script to balance photodetector to zero by adjusting polarization controller vol
             # axes_list[1].lines[0].set_ydata(signal/float(2**15))
             # axes_list[1].lines[1].set_ydata(volt_range/5.)
 
+class FPGA_BalancePolarizationAndActivateFB(Script):
+    """
+FPGA_BalancePolarization:
+script to balance photodetector to zero by adjusting polarization controller voltages
+The script
+    1.) closes the signal beam path
+    2.) balances the polarization
+    3.) opens the signal beam path
+    4.) turns on the feedback
+
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('channels', [
+            Parameter('WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
+            Parameter('WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
+            Parameter('WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
+            Parameter('OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
+            Parameter('FB', 5, range(4, 8), 'digital channel that controls FB off/on (True/False)'),
+            Parameter('detector', 4, range(8), 'analog input channel of the detector signal')
+        ]),
+        Parameter('setpoints', [
+            Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
+            Parameter('V_2', 3.8, float, 'voltage applied to waveplate 2'),
+            Parameter('V_3', 2.4, float, 'voltage applied to waveplate 3')
+        ]),
+        Parameter('optimization',[
+            Parameter('target', 50, float, 'target max detector signal'),
+            Parameter('settle_time', 2., float, 'settle time (s)'),
+            Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
+            Parameter('dV', 0.005, float, 'initial step size of search algorithm'),
+            Parameter('slope', 'negative', ['positive', 'negative'], 'is the slope around the zero crossing is positive or negative'),
+            Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
+        ]),
+        Parameter('measure_at_zero',[
+            Parameter('on', True, bool, 'if true keep measuring after zero is found'),
+            Parameter('N', 10, int, 'number of measurement points after zero is found')
+        ]),
+        Parameter('post_state', [
+            Parameter('FB', True, bool, 'if true turn feedback on after zero is found'),
+            Parameter('IR', True, bool, 'if true turn open ir signal path after zero is found')
+        ])
+    ]
+
+    _INSTRUMENTS = {
+        'NI7845RMain': NI7845RMain,
+        'light_control': MaestroLightControl
+    }
+
+    _SCRIPTS = {
+
+    }
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        def get_direction(detector_value, slope):
+            """
+            give the direction we have to move given the detector value and the slope of the zero crossing
+            Args:
+                detector_value: detector value
+                slope: slope of the zero crossing
+
+            Returns: direction in which to step
+
+
+            we calculate the directin based on the following truth table (i.e. xor table)
+
+                slope   detector    direction
+                +       -           +
+                +       +           -
+                -       +           +
+                -       -           -
+
+
+            """
+            direction = (int(np.sign(detector_value)) == 1) ^ (int(slope) == 1)
+            # now map True and False and 1 and -1
+            direction = 1 if direction else -1
+
+            return direction
+
+
+        self.data = {'voltage_waveplate': [], 'detector_signal': [], 'det_signal_cont': []}
+        wp_control = self.settings['optimization']['WP_control']
+        settle_time = self.settings['optimization']['settle_time']
+        v_out = float(self.settings['setpoints']['V_{:d}'.format(wp_control)])
+        target = self.settings['optimization']['target']
+        detector_value = 2* target
+
+        # convert slope to numeric value
+        slope = 1 if self.settings['optimization']['slope'] == 'positive' else -1
+
+        fb_channel = 'DIO{:d}'.format(self.settings['channels']['FB'])
+        control_channel = 'DIO{:d}'.format(self.settings['channels']['OnOff'])
+        channel_out = 'AO{:d}'.format(self.settings['channels']['WP_{:d}'.format(wp_control)])
+        channel_in = 'AI{:d}'.format(self.settings['channels']['detector'])
+
+        fpga_io = self.instruments['NI7845RMain']['instance']
+        light_control = self.instruments['light_control']['instance']
+
+        # deactivate feedback
+        fpga_io.update({'read_io': {fb_channel: True}})
+        # turn polarization controller on
+        fpga_io.update({'read_io':{control_channel: True}})
+        # close signal path
+        light_control.update({'block_IR':{'open':False}})
+
+        # set the setpoints for all three waveplates
+        dictator = {}
+        for i in [1, 2, 3]:
+            if self.settings['optimization']['start with current'] and i == wp_control:
+                value = getattr(fpga_io, channel_out)
+                if value == 0:
+                    value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+                    self.log('current value is zero take setpoint {:0.3f} V as starting point'.format(value))
+                else:
+                    value = int_to_voltage(value)
+                    v_out = value
+                    self.log('use current value {:0.3f} V as starting point'.format(value))
+            else:
+                value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+
+            dictator.update({'read_io':{'AO{:d}'.format(self.settings['channels']['WP_{:d}'.format(i)]):value}})
+        fpga_io.update(dictator)
+        time.sleep(settle_time)
+
+        self.instruments['NI7845RMain']['instance'].set_run_mode('read_io')
+
+        while abs(detector_value) > abs(target):
+            if self._abort:
+                break
+
+            # set output
+            fpga_io.update({'read_io':{channel_out: float(v_out)}})
+            # wait for system to settle
+            time.sleep(settle_time)
+            # read detector
+            detector_value = getattr(fpga_io, channel_in)
+
+            self.data['voltage_waveplate'].append(v_out)
+            self.data['detector_signal'].append(detector_value)
+            self.progress = 50.
+            self.updateProgress.emit(self.progress)
+
+            direction = get_direction(detector_value, slope)
+
+            # calculate the next step
+            if len(self.data['voltage_waveplate']) ==1:
+                v_step = self.settings['optimization']['dV'] # start with initial step size
+            elif len(self.data['voltage_waveplate']) > 1:
+                # check for zero crossing
+                if self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
+                    self.log('detected zero crossing!')
+                    v_step /=2 # decrease the step size since we are closer to zero
+
+            # calculate next output voltage
+            v_out += v_step * direction
+
+            if v_out > 5 or v_out <0:
+                v_out = 5 if v_out > 5 else 0 # set the output to be within the range
+                slope *= -1
+
+            if min(self.data['voltage_waveplate']) == 0 and max(self.data['voltage_waveplate']) ==5:
+                self.log('warning! scanned full range without finding zero. abort!')
+                self._abort = True
+
+
+        self.data['setpoint'] = v_out
+        self.log('open signal path and starting continuous measurement ')
+        if self.settings['post_state']['IR']:
+            # open signal path
+            light_control.update({'block_IR':{'open':True}})
+            time.sleep(0.5) # wait for the beam block to actually close
+
+        if self.settings['post_state']['FB']:
+            # activate feedback
+            fpga_io.update({'read_io': {fb_channel: False}})
+
+        n_opt = len(self.data['voltage_waveplate'])
+        n_cont = self.settings['measure_at_zero']['N']
+        if self.settings['measure_at_zero']['on']:
+            for i in range(n_cont):
+                if self._abort:
+                    break
+                detector_value = getattr(fpga_io, channel_in)
+                self.data['det_signal_cont'].append(detector_value)
+                self.progress = 100.* (i+n_opt+1) /(n_cont+ n_opt)
+
+                self.updateProgress.emit(self.progress)
+                time.sleep(settle_time)
+
+        self.instruments['NI7845RMain']['instance'].set_run_mode('idle')
+
+    def _plot(self, axes_list):
+
+        if self.data != {}:
+
+            # dt = self.settings['optimization']['settle_time']
+            # N = len(self.data['voltage_waveplate'])
+
+            # t = np.linspace(0,N * dt, N)
+            volt_range = np.array(self.data['voltage_waveplate'])
+            signal = np.array(self.data['detector_signal'])
+
+            if len(self.data['det_signal_cont']) == 0:
+                axes_list[0].plot(signal, '-o')
+                axes_list[0].hold(False)
+                axes_list[0].set_ylabel('detector signal (bits)')
+
+                axes_list[1].plot(volt_range, '-o')
+                axes_list[1].hold(False)
+                axes_list[0].set_ylabel('wp voltage (V)')
+            else:
+                axes_list[1].plot(signal/float(2**15), '-o', label = 'detector signal / (2^15)')
+                axes_list[1].hold(True)
+                axes_list[1].plot(volt_range/5., '-o', label = 'wp voltage / 5V')
+                axes_list[1].hold(False)
+                axes_list[1].set_ylabel('signal')
+                axes_list[1].legend(fontsize=8)
+
+                signal_det = np.array(self.data['det_signal_cont'])
+                axes_list[0].plot(signal_det, '-o')
+                axes_list[0].set_ylabel('detector signal (bit)')
+                axes_list[0].hold(False)
+
+
+
+    def _update(self, axes_list):
+        volt_range = np.array(self.data['voltage_waveplate'])
+        signal = np.array(self.data['detector_signal'])
+        signal_det = np.array(self.data['det_signal_cont'])
+
+        if len(self.data['det_signal_cont']) == 1:
+            self._plot(self, axes_list)
+        elif len(self.data['det_signal_cont']) == 0:
+
+            axes_list[0].lines[0].set_ydata(signal)
+            axes_list[1].lines[0].set_ydata(volt_range)
+        else:
+            axes_list[0].lines[0].set_ydata(signal_det)
+            # axes_list[1].lines[0].set_ydata(signal/float(2**15))
+            # axes_list[1].lines[1].set_ydata(volt_range/5.)
+
 class FPGA_CalibrateDetector(Script):
     """
 FPGA_CalibrateDetector:
@@ -489,7 +747,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RMain
+        'NI7845RMain': NI7845RMain
     }
 
     _SCRIPTS = {
@@ -521,13 +779,13 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
         V_step = self.settings['scan']['V_step']
         time_step = self.settings['scan']['time_step']
 
-        fpga_io = self.instruments['FPGA_IO']['instance']
+        fpga_io = self.instruments['NI7845RMain']['instance']
+
+        fpga_io.set_run_mode('read_io')
 
         # backward sweep
-
         V_out = bit_2_volt(getattr(fpga_io, channel_out))
         direction = +1 if V_out < V_min else -1
-
         while np.sign(V_min - V_out) == direction:
             # set output
             fpga_io.update({'read_io':{channel_out: float(V_out)}})
@@ -542,7 +800,6 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
             self.updateProgress.emit(int(self.progress))
 
             V_out += direction* V_step
-
 
         # forward sweep
         while V_out < V_max:
@@ -563,7 +820,7 @@ Recommended: Run FPGA_BalancePolarization before calibration to reduce DC offset
 
             V_out +=V_step
 
-
+        fpga_io.set_run_mode('idle')
     def _plot(self, axes_list):
 
         piezo_voltage = np.array(self.data['piezo_voltage'])
@@ -651,7 +908,7 @@ this gives a three dimensional dataset
     ]
 
     _INSTRUMENTS = {
-        'FPGA_IO': NI7845RMain
+        'NI7845RMain': NI7845RMain
     }
 
     _SCRIPTS = {
@@ -682,8 +939,8 @@ this gives a three dimensional dataset
             return int(100*progress)
 
         self.data = {}
-        fpga_io = self.instruments['FPGA_IO']['instance']
-        # fpga_io.update(self.instruments['FPGA_IO']['settings'])
+        fpga_io = self.instruments['NI7845RMain']['instance']
+        # fpga_io.update(self.instruments['NI7845RMain']['settings'])
 
         # turn controller on
         control_channel = 'DIO{:d}'.format(self.settings['channel_OnOff'])

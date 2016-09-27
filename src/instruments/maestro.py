@@ -277,7 +277,7 @@ class MaestroLightControl(MaestroController):
     these values with the correct position specifications.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM1', ['COM1', 'COM3', 'COM5', 'COM7'], 'com port to which maestro controler is connected'),
+        Parameter('port', 'COM5', ['COM1', 'COM3', 'COM5', 'COM7'], 'com port to which maestro controler is connected'),
         Parameter('block_green', [
             Parameter('channel', 5, int, 'channel to which motor is connected'),
             Parameter('open', True, bool, 'True: green laser on, False: green laser off'),

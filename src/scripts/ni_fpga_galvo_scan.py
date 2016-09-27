@@ -77,8 +77,6 @@ class FPGA_GalvoScan(GalvoScanGeneric):
             'settle_time':settle_time
         })
 
-        print('HHHHH', instr_settings)
-
 
         instr.update({'galvo_scan':instr_settings})
 

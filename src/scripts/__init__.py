@@ -26,7 +26,7 @@ from esr import ESR
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
-from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector
+from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector, FPGA_BalancePolarizationAndActivateFB
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
