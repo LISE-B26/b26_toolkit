@@ -21,7 +21,7 @@ from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseSc
 from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from PyLabControl.src.core import Parameter, Script
-from src.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
+from b26_toolkit.src.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 
 class PulsedESR(PulseBlasterBaseScript):
     """
