@@ -94,7 +94,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         colorbar.set_clim(colorbar_min, colorbar_max)
         colorbar.update_normal(implot)
 
-def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None, label = 'kcounts/sec'):
+def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None):
     """
     plots fluorescence data in a 2D plot
     Args:
@@ -123,8 +123,10 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
 
     axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
 
-    # colorbar_min = 0
-    colorbar_min = np.min(image_data)
+    if np.min(image_data)<200:
+        colorbar_min = 0
+    else:
+        colorbar_min = np.min(image_data)
     colorbar_max = np.max(image_data)
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
 
@@ -132,10 +134,10 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         implot.autoscale()
 
     if colorbar is None:
-        colorbar = fig.colorbar(implot, label=label)
+        colorbar = fig.colorbar(implot, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)
     else:
-        colorbar = fig.colorbar(implot, cax=colorbar.ax, label=label)
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)

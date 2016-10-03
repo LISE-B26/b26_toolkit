@@ -144,19 +144,9 @@ Known issues:
         self.scripts['set_laser'].run()
 
 
-    def _plot(self, axes_list, data = None):
-        """
-        plotting function for find_nv
-        Args:
-            axes_list: list of axes objects on which to plot plots the esr on the first axes object
-            data: data (dictionary that contains keys image_data, extent, initial_point, maximum_point) if not provided use self.data
-        """
-        if data is None:
-            data = self.data
-        if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
-            self.scripts['take_image']._plot(axes_list)
-        else:
-            plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
+    @staticmethod
+    def plot_data(axes_list, data):
+        plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
         initial_point = data['initial_point']
         patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none', ls='dashed')
@@ -169,6 +159,22 @@ Known issues:
             patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none', ls='dashed')
             axes_list[0].add_patch(patch)
             axes_list[0].text(maximum_point['x'], maximum_point['y'] - .002, 'found NV', color='r', fontsize=8)
+
+    def _plot(self, axes_list, data = None):
+        """
+        plotting function for find_nv
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys image_data, extent, initial_point, maximum_point) if not provided use self.data
+        """
+        if data is None:
+            data = self.data
+
+
+        if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
+            self.scripts['take_image']._plot(axes_list)
+        else:
+            self.plot_data(axes_list, data)
 
 
     def _update_plot(self, axes_list):
