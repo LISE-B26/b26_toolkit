@@ -22,7 +22,7 @@ import numpy as np
 import scipy.signal as signal
 from peakutils.peak import indexes # package required https://pypi.python.org/pypi/PeakUtils
 
-from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian
+from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian, lorentzian, double_lorentzian
 
 
 def fit_esr(freq, ampl):
@@ -229,31 +229,30 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
     return freq_max, data_max
 
 
-def fit_esr_new(freq, ampl):
+def fit_esr_new(freq, ampl, strain_filtering=False):
     """
     Returns lorentzian fit parameters for a typical NV esr sweep, giving 4 or 6 parameters depending on if 1 or 2
     lorentzian dips are detected.
-
     Args:
         freq: 1d array of frequencies which were scanned for esr resonance
         ampl: 1d array of amplitudes corresponding to the frequencies (freq)
-
     Returns:
         fit parameters for either a single or double lorentizian peak fit to the data, as figured out by find_nv_peaks.
         if a single lorentzian was fit, the list [constant_offset, amplitude, center, fwhm] is returned;
         otherwise, the list [constant_offset, amplitude1, amplitude2, center1, center2, fwhm] is returned
-
     """
-
-    MAX_STRAIN = 5e7
+    if strain_filtering:
+        MAX_STRAIN = 5e7
+    else:
+        MAX_STRAIN = np.inf
+    CONTRAST_FACTOR = 3
     F0 = 2.878e9
     MIN_WIDTH = 5e5
-
     freq_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
-
     # check if scanning full range for two peaks or half range for one peak
     if max(freq) < F0:
         start_vals = get_lorentzian_fit_starting_values(freq, ampl)
+        start_vals[2] = freq_peaks[0]
         try:
             fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                  bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])
@@ -261,11 +260,10 @@ def fit_esr_new(freq, ampl):
             # ESR fit failed!
             fit = None
             return fit
-
     else:
         # check for double peaks on one side
         if (len(freq_peaks) == 2) and not (freq_peaks[0] == freq_peaks[1]) and (
-            np.abs((np.mean([freq_peaks[0], freq_peaks[1]]) - F0)) > MAX_STRAIN):
+                    np.abs((np.mean([freq_peaks[0], freq_peaks[1]]) - F0)) > MAX_STRAIN):
             if np.abs(ampl_peaks[0]) > np.abs(ampl_peaks[1]):
                 if np.abs(freq_peaks[0] < F0):
                     freq_peaks[1] = F0 + np.abs(freq_peaks[0] - F0)
@@ -276,10 +274,10 @@ def fit_esr_new(freq, ampl):
                     freq_peaks[0] = F0 + np.abs(freq_peaks[1] - F0)
                 else:
                     freq_peaks[0] = F0 - np.abs(freq_peaks[1] - F0)
-
         # figure out if one or two peaks
         if freq_peaks[0] == freq_peaks[1]:
             start_vals = get_lorentzian_fit_starting_values(freq, ampl)
+            start_vals[2] = freq_peaks[0]
             freq_peaks = [freq_peaks[0]]
         elif freq_peaks[0] == 0:
             print('data too noisy!!')
@@ -298,26 +296,11 @@ def fit_esr_new(freq, ampl):
                 start_vals[0][1], start_vals[1][1],  # amplitudes
                 start_vals[0][2], start_vals[1][2]  # centers
             ]
-
         try:
             if len(freq_peaks) == 2:
                 fit = fit_double_lorentzian(freq, ampl, starting_params=start_vals, bounds=
                 [(0, 0, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
-                # check that resulting center frequencies are inside the data range, if only one is try to fit to single peak
-            #                 if max(fit[4], fit[5]) > max(freq) or min(fit[4], fit[5]) < min(freq):
-            #                     if fit[4] < max(freq) and fit[4] > min(freq):
-            #                         start_vals = [fit[0], fit[2], fit[4], fit[1]]
-            #                     else:
-            #                         start_vals = [fit[0], fit[3], fit[5], fit[1]]
-            #                     print('SV', start_vals)
-            #                     fit = fit_lorentzian(freq, ampl, starting_params=start_vals, bounds = [(0, -np.inf, 0, MIN_WIDTH), (np.inf, 0, np.inf, np.inf)])
-            #                     #if this detects a single peak far shifted, throw it out
-            #                     print('FIT', fit)
-            #                     if np.abs(fit[2] - F0) > MAX_STRAIN:
-            #                         fit = None
-            #                         print('A')
-            #                     print('B')
-            #                     return fit
+
             elif len(freq_peaks) == 1:
                 fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                      bounds=[(0, -np.inf, 0, MIN_WIDTH), (np.inf, 0, np.inf, np.inf)])
@@ -329,34 +312,53 @@ def fit_esr_new(freq, ampl):
             # ESR fit failed!
             fit = None
             return fit
-
         # if offset is < 5 kCounts/sec, definitely all noise
         if fit[0] < 5:
             fit = None
             return fit
-
         # EXPERIMENTAL, REMOVE IF PROBLEMATIC
         # check that amplitude of at least one peak is greater than twice standard deviation (above the noise)
         if len(fit) == 6:
-            if ((np.std(ampl) * 1.5) > np.abs(fit[2]) and (np.std(ampl) * 1.5) > np.abs(fit[3])):
+            if ((calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > np.abs(fit[2])) and (
+                    calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > np.abs(fit[3]))):
                 fit = None
                 return fit
-
-            elif ((np.std(ampl) * 1.5) > min(np.abs(fit[2]), np.abs(fit[3])) and (np.std(ampl) * 1.5) < max(
-                    np.abs(fit[2]), np.abs(fit[3]))):
+            elif ((calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > min(np.abs(fit[2]), np.abs(fit[3]))) and (
+                    calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR < max(np.abs(fit[2]), np.abs(fit[3])))):
                 if np.abs(fit[2]) > np.abs(fit[3]):
                     start_vals = [start_vals[0], start_vals[2], start_vals[4], start_vals[1]]
                 else:
                     start_vals = [start_vals[0], start_vals[3], start_vals[5], start_vals[1]]
-                fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
-                                     bounds=[(0, -np.inf, 0, MIN_WIDTH), (np.inf, 0, np.inf, np.inf)])
+                try:
+                    fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
+                                         bounds=[(0, -np.inf, 0, MIN_WIDTH), (np.inf, 0, np.inf, np.inf)])
+                    if calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > np.abs(fit[1]):
+                        fit = None
+                        return fit
+                except:
+                    fit = None
+                    return fit
+
                 # if this detects a single peak far shifted, throw it out
                 if np.abs(fit[2] - F0) > MAX_STRAIN:
                     fit = None
                     return fit
         elif len(fit) == 4:
-            if ((np.std(ampl) * 1.5) > np.abs(fit[1])):
+            if calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > np.abs(fit[1]):
                 fit = None
                 return fit
-
     return fit
+
+def calc_esr_noise(freq, amp, fit_params):
+    if fit_params is not None and fit_params[0] != -1:  # check if fit valid
+        if len(fit_params) == 4:
+            # single peak
+            fit_data = lorentzian(freq, *fit_params)
+        elif len(fit_params) == 6:
+            # double peak
+            fit_data = double_lorentzian(freq, *fit_params)
+#         average_deviation = np.mean(np.abs(fit_data - amp))
+        average_deviation = np.std(fit_data - amp)
+        return average_deviation
+    else:
+        return None

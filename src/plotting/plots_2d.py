@@ -86,7 +86,8 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         implot.autoscale()
 
     if colorbar is not None:
-        colorbar_min = 0
+        # colorbar_min = 0
+        colorbar_min = np.min(image_data)
         colorbar_max = np.max(image_data)
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
         colorbar.set_ticks(colorbar_labels)

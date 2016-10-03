@@ -79,6 +79,204 @@ def seconds_to_ticks(seconds, clock_speed = 40e6):
 # ==================================================================================
 # simple fpga program that reads analog inputs and outputs
 # ==================================================================================
+class NI7845RMain(Instrument):
+
+    import b26_toolkit.src.labview_fpga_lib.main.main as FPGAlib
+
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('read_io',[
+            Parameter('AO0', 0.0, float, 'analog output channel 0 in volt'),
+            Parameter('AO1', 0.0, float, 'analog output channel 1 in volt'),
+            Parameter('AO2', 0.0, float, 'analog output channel 2 in volt'),
+            Parameter('AO3', 0.0, float, 'analog output channel 3 in volt'),
+            Parameter('AO4', 0.0, float, 'analog output channel 4 in volt'),
+            Parameter('AO5', 0.0, float, 'analog output channel 5 in volt'),
+            Parameter('AO6', 0.0, float, 'analog output channel 6 in volt'),
+            Parameter('AO7', 0.0, float, 'analog output channel 7 in volt'),
+            Parameter('DIO4', False, bool, 'digital output channel 4 on/off'),
+            Parameter('DIO5', False, bool, 'digital output channel 5 on/off'),
+            Parameter('DIO6', False, bool, 'digital output channel 6 on/off'),
+            Parameter('DIO7', False, bool, 'digital output channel 7 on/off')
+        ]),
+        Parameter('galvo_scan',[
+            Parameter('Vmin_x', 0, int, 'minimum voltage in x in bit'),
+            Parameter('Vmin_y', 0, int, 'minimum voltage in y in bit'),
+            Parameter('dVmin_x', 0, int, 'voltage step in x in bit'),
+            Parameter('dVmin_y', 0, int, 'voltage step in y in bit'),
+            Parameter('Nx', 0, int, 'number of voltage steps in x'),
+            Parameter('Ny', 0, int, 'number of voltage steps in y'),
+            Parameter('meas_per_pt', 1, int, 'number of measurements per point'),
+            Parameter('settle_time',200, int,'wait time (us) between points to allow galvo to settle'),
+            # Parameter('fifo_size', int(2 ** 12), int, 'size of fifo for data acquisition'),
+            Parameter('scanmode_x', 'forward', ['forward', 'backward', 'forward-backward'],'scan mode (x) onedirectional or bidirectional'),
+            Parameter('scanmode_y', 'forward', ['forward', 'backward'], 'direction of scan (y)'),
+            Parameter('detector_mode', 'APD', ['APD', 'DC', 'RMS'], 'return mean (DC) or rms of detector signal')
+        ]),
+        Parameter('general', [
+            Parameter('run_mode', 'idle', ['idle', 'galvo_scan', 'read_io'], 'select execution of subvi'),
+            Parameter('count_ms', 1, int,'loop time of main loop, determines update frequency in idle and read_io mode')
+        ])
+    ])
+
+    _PROBES = {
+        'AI0': 'analog input channel 0 in bit',
+        'AI1': 'analog input channel 1 in bit',
+        'AI2': 'analog input channel 2 in bit',
+        'AI3': 'analog input channel 3 in bit',
+        'AI4': 'analog input channel 4 in bit',
+        'AI5': 'analog input channel 5 in bit',
+        'AI6': 'analog input channel 6 in bit',
+        'AI7': 'analog input channel 7 in bit',
+        'DIO0': 'digital input channel 0',
+        'DIO1': 'digital input channel 1',
+        'DIO2': 'digital input channel 2',
+        'DIO3': 'digital input channel 3',
+        'AO0': 'analog output channel 0 in bit',
+        'AO1': 'analog output channel 1 in bit',
+        'AO2': 'analog output channel 2 in bit',
+        'AO3': 'analog output channel 3 in bit',
+        'AO4': 'analog output channel 4 in bit',
+        'AO5': 'analog output channel 5 in bit',
+        'AO6': 'analog output channel 6 in bit',
+        'AO7': 'analog output channel 7 in bit',
+        'Nx': 'Nx',
+        'Ny': 'Ny',
+        # 'loop_time':'loop_time',
+        # 'DMA_elem_to_write':'DMA_elem_to_write',
+        'meas_per_pt': 'meas_per_pt',
+        'settle_time': 'settle_time',
+        'run_mode':'run_mode'
+    }
+    def __init__(self, name = None, settings = None):
+        super(NI7845RMain, self).__init__(name, settings)
+
+        # start fpga
+        self.fpga = self.FPGAlib.NI7845R()
+        self.fpga.start()
+        self.update(self.settings)
+
+    def __del__(self):
+        self.fpga.stop()
+
+    def read_probes(self, key):
+
+        if key is None:
+            super(NI7845RMain, self).read_probes()
+        else:
+            assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
+            value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
+        return value
+
+    def update(self, settings):
+        super(NI7845RMain, self).update(settings)
+
+        for key, value in settings.iteritems():
+            if key == 'read_io':
+                for subkey, subvalue in value.iteritems():
+                    if subkey in ['AO0', 'AO1', 'AO2', 'AO3', 'AO4', 'AO5', 'AO6', 'AO7']:
+                        getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(volt_2_bit(subvalue), self.fpga.session, self.fpga.status)
+                    elif subkey in ['DIO4', 'DIO5', 'DIO6', 'DIO7']:
+                        getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
+                    else:
+                        raise KeyError
+            elif key == 'galvo_scan':
+                for subkey, subvalue in value.iteritems():
+                    if subkey in ('scanmode_x', 'scanmode_y', 'detector_mode'):
+                        subvalue = self._DEFAULT_SETTINGS.valid_values['galvo_scan'][subkey].index(subvalue)
+                        getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
+                    elif subkey in ('Vmin_x', 'Vmin_y', 'dVmin_x', 'dVmin_y', 'Nx', 'Ny', 'meas_per_pt', 'settle_time'):
+                        getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
+                    # elif subkey in ('fifo_size'):
+                    #     pass
+                    else:
+                        raise KeyError
+            elif key == 'general':
+                for subkey, subvalue in value.iteritems():
+                    if subkey in ('run_mode'):
+                        self.set_run_mode(subvalue)
+                    elif subkey in ('count_ms'):
+                        getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
+                    else:
+                        raise KeyError
+
+    def set_run_mode(self, mode, max_attempts=20):
+        """
+        start the the simple read io acquisition loop in the FPGA
+        Returns:
+            boolen that indecates wether start was successful or not
+        """
+        if isinstance(mode, str):
+            if mode.lower() == 'read_io':
+                mode = self.FPGAlib.READ_IO
+            elif mode.lower() == 'idle':
+                mode = self.FPGAlib.IDLE
+            elif mode.lower() in ('galvo', 'galvo_scan', 'galvoscan'):
+                mode = self.FPGAlib.GALVO_SCAN
+
+        assert mode in (self.FPGAlib.READ_IO, self.FPGAlib.IDLE, self.FPGAlib.GALVO_SCAN)
+
+        for i in range(max_attempts):
+
+            getattr(self.FPGAlib, 'set_run_mode')(mode, self.fpga.session,self.fpga.status)
+
+            # wait a little before checking of acquisition worked
+            time.sleep(0.1)
+
+            # run_mode = self.FPGAlib.read_run_mode(self.fpga.session,self.fpga.status)
+            run_mode = self.run_mode
+            print('run_mode (', mode, ')', run_mode)
+            print('XXXX', run_mode, mode, run_mode == mode)
+            started = run_mode == mode
+            if started:
+                # successfully started acquisition
+                break
+        if started == False:
+            print('starting FPGA (set mode to {:d}) failed after {:d} attempts!!!'.format(mode, max_attempts))
+            print('current mode: {:d}'.format(self.read_probes('run_mode')))
+
+
+        return started
+
+    def abort_acquire(self, max_attempts = 20):
+        """
+        stops the the simple read io acquisition loop in the FPGA and goes into the idle loop
+        Returns:
+            boolen that indecates wether start was successful or not
+        """
+        success = self.set_run_mode(self, self.FPGAlib.IDLE, max_attempts)
+        # todo: JG: add abort button to FPGA and call here
+
+        return success
+
+    def start_fifo(self):
+        self.FPGAlib.start_FIFO(self.fpga.session, self.fpga.status)
+
+    def stop_fifo(self):
+        self.FPGAlib.stop_FIFO(self.fpga.session, self.fpga.status)
+
+    def read_fifo(self, block_size):
+        '''
+        read a block of data from the FIFO
+        :return: data from channels AI1 and AI2 and the elements remaining in the FIFO
+        '''
+
+        print('ssssssss sadsad block_size', block_size)
+        fifo_data = self.FPGAlib.read_FIFO(block_size, self.fpga.session, self.fpga.status)
+        if str(self.fpga.status.value) != '0':
+            raise LabviewFPGAException(self.fpga.status)
+        # print('fifo data', fifo_data)
+        print('ss===>>>ssssss sadsad')
+        if self.settings['galvo_scan']['detector_mode'] == 'APD':
+            time_per_pt = self.settings['galvo_scan']['meas_per_pt']/400e3 # measurement rate is 400 kHz
+            fifo_data['signal'] *=  int(1e3/time_per_pt) # convert to counts per second
+
+        # todo: JG: scale to volts!
+        # else:
+        #     fifo_data['signal'] = np.array(bit_2_volt(fifo_data['signal']))
+        return fifo_data
+# ==================================================================================
+# simple fpga program that reads analog inputs and outputs
+# ==================================================================================
 class NI7845RReadWrite(Instrument):
 
     # import src.labview_fpga_lib.read_ai_ao.read_ai_ao as FPGAlib
@@ -167,7 +365,7 @@ class NI7845RReadWrite(Instrument):
             # wait a little before checking of acquisition worked
             time.sleep(0.1)
 
-            run_mode = self.FPGAlib.get_run_mode(self.fpga.session,self.fpga.status)
+            run_mode = self.run_mode
             print('run_mode (', self.FPGAlib.READ_IO, ')', run_mode)
             started = run_mode == self.FPGAlib.READ_IO
             if started:
@@ -193,7 +391,7 @@ class NI7845RReadWrite(Instrument):
 # fpga program that performs a galvo scan
 # ==================================================================================
 
-class NI7845RGalvoScan(Instrument):
+class FPGA_GalvoScan(Instrument):
 
     # import b26_toolkit.src.labview_fpga_lib.galvo_scan.galvo_scan as FPGAlib
     import b26_toolkit.src.labview_fpga_lib.main.main as FPGAlib
@@ -245,13 +443,13 @@ class NI7845RGalvoScan(Instrument):
         # 'piezo':'piezo'
     }
     def __init__(self, name = None, settings = None):
-        super(NI7845RGalvoScan, self).__init__(name, settings)
+        super(FPGA_GalvoScan, self).__init__(name, settings)
 
         # start fpga
         self.fpga = self.FPGAlib.NI7845R()
         self.fpga.start()
         self.update(self.settings)
-        print('NI7845RGalvoScan initialized')
+        print('FPGA_GalvoScan initialized')
 
     def __del__(self):
         print('stopping fpga {:s}'.format(self.name))
@@ -260,7 +458,7 @@ class NI7845RGalvoScan(Instrument):
     def read_probes(self, key = None):
 
         if key is None:
-            super(NI7845RGalvoScan, self).read_probes()
+            super(FPGA_GalvoScan, self).read_probes()
         else:
             assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
             # if key == 'ElementsWritten':
@@ -311,7 +509,7 @@ class NI7845RGalvoScan(Instrument):
         self.update({'piezo':value})
 
     def update(self, settings):
-        super(NI7845RGalvoScan, self).update(settings)
+        super(FPGA_GalvoScan, self).update(settings)
 
         for key, value in settings.iteritems():
             if key in ['point_a', 'point_b', 'RoI_mode', 'num_points']:
@@ -416,7 +614,7 @@ if __name__ == '__main__':
     import time
     from copy import deepcopy
 
-    fpga = NI7845RGalvoScan()
+    fpga = NI7845RMain()
 
 
 
@@ -427,11 +625,6 @@ if __name__ == '__main__':
     fpga.fpga.stop()
 
 
-
-    #
-    s =NI7845RReadWrite()
-
-    print('asdasda', s.AO6)
 
 
 

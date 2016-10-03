@@ -20,14 +20,13 @@ from test_script import ScriptTest
 
 
 from galvo_scan import GalvoScan
-from autofocus import AutoFocusDAQ
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
-from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector
+from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector, FPGA_BalancePolarizationAndActivateFB
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
@@ -46,7 +45,11 @@ from light_control import ApplyLightControlSettings, CameraOn
 
 from correlate_images import Track_Correlate_Images
 
-# from galvo_scan_ni_fpga import GalvoScanNIFpga
+# from ni_fpga_galvo_scan import FPGA_GalvoScan
+
+from autofocus import AutoFocusDAQ
+
+from ni_fpga_galvo_scan import FPGA_GalvoScan
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
@@ -122,10 +125,10 @@ from correlate_images import Track_Correlate_Images
 #         print("./src/scripts/__init__ warning! AutoFocusNIFPGA did not load")
 #
 # try:
-#     from galvo_scan_ni_fpga import GalvoScanNIFpga
+#     from galvo_scan_ni_fpga import FPGA_GalvoScan
 # except:
 #     if verbose:
-#         print("./src/scripts/__init__ warning! GalvoScanNIFpga did not load")
+#         print("./src/scripts/__init__ warning! FPGA_GalvoScan did not load")
 #
 # # try:
 # #     from legacy_src.old_scripts.galvo_scan_ni_fpga_loop import GalvoScanNIFPGALoop

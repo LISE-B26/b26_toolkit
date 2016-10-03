@@ -22,8 +22,8 @@ void stop_fpga(NiFpga_Session* session, NiFpga_Status* status);
 // main control parameters
  // =====================================================================================
 void set_run_mode(uint16_t value, NiFpga_Session* session, NiFpga_Status* status);
-uint16_t get_run_mode(NiFpga_Session* session, NiFpga_Status* status);
-void set_stop_all(_Bool state, NiFpga_Session* session, NiFpga_Status* status);
+uint16_t read_run_mode(NiFpga_Session* session, NiFpga_Status* status);
+void read_stop_all(_Bool state, NiFpga_Session* session, NiFpga_Status* status);
 _Bool read_stop_all(NiFpga_Session* session, NiFpga_Status* status);
 _Bool read_executing_subvi(NiFpga_Session* session, NiFpga_Status* status);
 void set_count_ms(uint32_t value, NiFpga_Session* session, NiFpga_Status* status);
