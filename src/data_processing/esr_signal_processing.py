@@ -299,7 +299,7 @@ def fit_esr_new(freq, ampl, strain_filtering=False):
         try:
             if len(freq_peaks) == 2:
                 fit = fit_double_lorentzian(freq, ampl, starting_params=start_vals, bounds=
-                [(0, 0, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
+                [(0, MIN_WIDTH, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
 
             elif len(freq_peaks) == 1:
                 fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
@@ -347,6 +347,10 @@ def fit_esr_new(freq, ampl, strain_filtering=False):
             if calc_esr_noise(freq, ampl, fit) * CONTRAST_FACTOR > np.abs(fit[1]):
                 fit = None
                 return fit
+        #if the width is exactly equal to the minimum width, then it found a junk peak
+        if len(fit) == 6 and int(fit[1]) == MIN_WIDTH:
+            fit = None
+            return fit
     return fit
 
 def calc_esr_noise(freq, amp, fit_params):
