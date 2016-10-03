@@ -87,7 +87,8 @@ def get_lorentzian_fit_starting_values(x_values, y_values, negative_peak=True):
     if negative_peak is False:
         amplitude = -amplitude
     center = np.mean(x_values)
-    fwhm = (max(x_values) - min(x_values)) / 5  # assume that the peak is about 1/5th of the size of the image
+    # fwhm = (max(x_values) - min(x_values)) / 5  # assume that the peak is about 1/5th of the size of the image
+    fwhm = .03e9
     return [constant_offset, amplitude, center, fwhm]
 
 
