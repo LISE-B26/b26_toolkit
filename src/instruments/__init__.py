@@ -25,6 +25,7 @@ from pulse_blaster import B26PulseBlaster, Pulse
 from maestro import MaestroLightControl
 from attocube import Attocube
 from microwave_generator import MicrowaveGenerator
+from magnet_coils import MagnetCoils
 
 from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
