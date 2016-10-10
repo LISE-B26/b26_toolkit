@@ -208,6 +208,7 @@ class DAQ(Instrument):
             settings: a settings dictionary in the standard form
         """
         super(DAQ, self).update(settings)
+        print('settings', settings)
         for key, value in settings.iteritems():
             if key == 'device':
                 if not(self.is_connected):
@@ -230,7 +231,7 @@ class DAQ(Instrument):
         data = ctypes.create_string_buffer('\000' * buf_size)
         try:
             #Calls arbitrary function to check connection
-            self._check_error(self.nidaq.DAQmxGetDevProductType(self._parameters['device'], ctypes.byref(data), buf_size))
+            self._check_error(self.nidaq.DAQmxGetDevProductType(self.settings['device'], ctypes.byref(data), buf_size))
             return True
         except RuntimeError:
             return False
@@ -495,6 +496,7 @@ class DAQ(Instrument):
                                                            DAQmx_Val_Rising,
                                                            DAQmx_Val_FiniteSamps,
                                                            uInt64(self.periodLength)))
+
         self._check_error(self.nidaq.DAQmxWriteAnalogF64(self.AO_taskHandle,
                                                          int32(self.periodLength),
                                                          0,

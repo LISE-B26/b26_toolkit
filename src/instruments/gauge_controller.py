@@ -56,7 +56,7 @@ class PressureGauge(Instrument):
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM7', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
@@ -75,8 +75,6 @@ class PressureGauge(Instrument):
         super(PressureGauge, self).__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
                                                timeout=self.settings['timeout'])
-
-        print (self.serial_connection)
 
     @property
     def _PROBES(self):
@@ -208,3 +206,10 @@ class PressureGauge(Instrument):
         Destructor, to close the serial connection when the instance is this class is garbage collected
         """
         self.serial_connection.close()
+
+
+
+if __name__ == '__main__':
+        instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PressureGauge})
+        print(instruments['GaugeController']._get_pressure())
+

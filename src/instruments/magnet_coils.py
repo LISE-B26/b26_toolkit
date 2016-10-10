@@ -29,8 +29,6 @@ class MagnetCoils(DAQ):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
-        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
-        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
                   [
                       Parameter('ao0',
@@ -158,4 +156,5 @@ class MagnetCoils(DAQ):
 if __name__ == '__main__':
     instruments, failed = Instrument.load_and_append(instrument_dict={'MagnetCoils': MagnetCoils})
 
-    instruments['MagnetCoils'].update({'magnetic_fields':{'x_field': 1}})
+    print(instruments['MagnetCoils'].is_connected())
+    # instruments['MagnetCoils'].update({'magnetic_fields':{'x_field': 1}})
