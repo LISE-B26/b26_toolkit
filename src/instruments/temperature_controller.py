@@ -55,7 +55,7 @@ class TemperatureController(Instrument):
 
         super(TemperatureController, self).__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
-                                               timeout=self.settings['timeout'])
+                                               timeout=self.settings['timeout'], parity = serial.PARITY_ODD, bytesize=serial.SEVENBITS)
 
     @property
     def _PROBES(self):
@@ -101,9 +101,30 @@ class TemperatureController(Instrument):
 
         # response returns string with temperature values interspaced with \x characters
         response = self.serial_connection.readline()
+        print('-- term', repr(response))
+
+        # ======================================
+        # output when cold (>100K)
+        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+        # '\xab\xb6\xb0\xae\xb571\r\x8a'
+        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+        # ======================================
+
+        # ======================================
+        # output when cold (>100K)
+        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+        # '\xab\xb6\xb0\xae\xb571\r\x8a'
+        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+        # ======================================
 
         # repr(response) forces python not to interpret \x as a hex value
-        temperature = float(''.join([s for s in repr(response) if s.isdigit()]))/1000.0
+        # temperature = float(''.join([s for s in repr(response) if s.isdigit()])[0:-1])/1000.0
+
+        temperature = float(response[1:7])
 
         return temperature
 
@@ -123,5 +144,5 @@ class TemperatureController(Instrument):
 
 if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})
-        print(instruments['TemperatureController'].temperature)
+        print(instruments['TemperatureController']._get_temperature())
 
