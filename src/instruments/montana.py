@@ -74,9 +74,9 @@ class CryoStation(Instrument):
 
         '''
         user_specific_probes = {
-            'Platform_Temp': 'temperature of platform',
-            'Stage_1_Temp': 'temperature of stage 1',
-            'Stage_2_Temp': 'temperature of stage 2'
+            'platform_temp': 'temperature of platform',
+            'stage_1_temp': 'temperature of stage 1',
+            'stage_2_temp': 'temperature of stage 2'
         }
 
         user_specific_probes.update(self._dynamic_probes)
@@ -93,6 +93,8 @@ class CryoStation(Instrument):
         Returns: reads values from instrument
 
         '''
+
+        key = key.lower()
         assert key in self._PROBES.keys(), "key assertion failed {:s}".format(str(key))
 
 
@@ -109,8 +111,13 @@ class CryoStation(Instrument):
         # create dictionary with last row as values
         data = dict(data.iloc[-1])
 
+
+        print('xxxx', self._dynamic_probes)
+
         # since we striped some characters when defining the probes we have to find the right key,
         # which is give by the valeu in self._dynamic_probes
         key = self._dynamic_probes[key]
+
+
 
         return data[key]

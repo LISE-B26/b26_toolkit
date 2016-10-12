@@ -21,8 +21,8 @@ import numpy as np
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
 
 from PyLabControl.src.core import Script, Parameter
-from b26_toolkit.src.instruments import PressureGauge
-
+from b26_toolkit.src.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
+from b26_toolkit.src.instruments import CryoStation
 
 class RecordPressures(Script):
     # COMMENT_ME
@@ -32,7 +32,10 @@ class RecordPressures(Script):
     ]
 
     _INSTRUMENTS = {
-        'pressure_gauge' : PressureGauge
+        'chamber_pressure_gauge' : ChamberPressureGauge,
+        'pump_line_pressure_gauge': PumpLinePressureGauge,
+        'temp_controller': TemperatureController,
+        'cryo_station': CryoStation
     }
 
     _SCRIPTS = {}
@@ -52,19 +55,37 @@ class RecordPressures(Script):
         will be overwritten in the __init__
         """
 
-        gauge = self.instruments['pressure_gauge']['instance']
+        chamber_gauge = self.instruments['chamber_pressure_gauge']['instance']
+        pump_line_gauge = self.instruments['pump_line_pressure_gauge']['instance']
+        temp_controller = self.instruments['temp_controller']['instance']
+        cryo_station = self.instruments['cryo_station']['instance']
+
         self.data['time'] = []
-        self.data['pressures'] = []
+        self.data['chamber_pressures'] = []
+        self.data['pump_line_pressures'] = []
+        self.data['temperatures'] = []
+        self.data['Platform_Temp'] = []
+        self.data['Stage_1_Temp'] = []
+        self.data['Stage_2_Temp'] = []
+
         time_index = 0
 
         while not self._abort:
-            self.data['pressures'].append(gauge._get_pressure())
+            self.data['chamber_pressures'].append(chamber_gauge.pressure)
+            self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
+            self.data['temperatures'].append(temp_controller.temperature)
+
+            self.data['Platform_Temp'].append(cryo_station.Platform_Temp)
+            self.data['Stage_1_Temp'].append(cryo_station.stage_1_temp)
+            self.data['Stage_2_Temp'].append(cryo_station.stage_2_temp)
+
+
             self.data['time'].append(time_index * self.settings['time_interval'])
             time_index += 1
-            time.sleep(self.settings['time_interval'])
             self.force_update()
             self.progress = 50
             self.updateProgress.emit(int(self.progress))
+            time.sleep(self.settings['time_interval'])
 
 
     def _plot(self, axes_list):
@@ -74,6 +95,34 @@ class RecordPressures(Script):
             data: data (dictionary that contains keys amplitudes, frequencies) if not provided use self.data
         '''
 
-        axes_list[0].plot(self.data['time'], self.data['pressures'])
-        axes_list[0].set_xlabel('time (s)')
+        time = self.data['time']
+
+        if max(time)>60:
+            time = np.array(self.data['time'])/60
+            time_label = 'time (min)'
+        elif max(time)>3600:
+            time = np.array(self.data['time'])/3600
+            time_label = 'time (h)'
+        else:
+            time = np.array(self.data['time'])
+            time_label = 'time (s)'
+
+
+        axes_list[1].plot(time, self.data['Platform_Temp'],
+                          time, self.data['Stage_1_Temp'],
+                          time, self.data['Stage_2_Temp']
+                          )
+        axes_list[1].set_xlabel(time_label)
+        axes_list[1].set_ylabel('temparatures (K)')
+
+
+
+        axes_list[0].plot(time, self.data['chamber_pressures'],
+                          time, self.data['pump_line_pressures']
+                          )
+        axes_list[0].set_xlabel(time_label)
         axes_list[0].set_ylabel('pressure (Torr)')
+
+        ax2 = axes_list[0].twinx()
+        ax2.plot(time, self.data['temperatures'], 'r')
+        ax2.set_ylabel('Temperature (K)', color='r')

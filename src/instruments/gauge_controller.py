@@ -90,7 +90,7 @@ class PressureGauge(Instrument):
         }
 
     def update(self, settings):
-        super(Instrument, self).update(settings)
+        super(PressureGauge, self).update(settings)
 
     def read_probes(self, probe_name):
         """
@@ -150,6 +150,7 @@ class PressureGauge(Instrument):
         pressure = float(err_msg_and_pressure[3:])
 
         if err_msg != '0':
+            print('xx', err_msg)
             message = 'Pressure query resulted in an error: ' + self.MEASUREMENT_STATUS[err_msg]
             raise IOError(message)
 
@@ -207,9 +208,42 @@ class PressureGauge(Instrument):
         """
         self.serial_connection.close()
 
+class PumpLinePressureGauge(PressureGauge):
+    """
+    This class implements the AGC100 pressure gauge. The class communicates with the device over RS232 using pyserial.
+    """
+
+    _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
+
+    _DEFAULT_SETTINGS = Parameter([
+            Parameter('port', 'COM6', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
+                                             'from the gauge controller for each query'),
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+        ])
+
+class ChamberPressureGauge(PressureGauge):
+    """
+    This class implements the AGC100 pressure gauge. The class communicates with the device over RS232 using pyserial.
+    """
+
+    _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
+
+    _DEFAULT_SETTINGS = Parameter([
+            Parameter('port', 'COM7', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
+                                             'from the gauge controller for each query'),
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+        ])
+
 
 
 if __name__ == '__main__':
-        instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PressureGauge})
-        print(instruments['GaugeController']._get_pressure())
+        instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
 
+
+        print(instruments['GaugeController'])
+        print('PumpLinePressureGauge', instruments['GaugeController'].pressure)
+
+        instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': ChamberPressureGauge})
+        print('ChamberPressureGauge', instruments['GaugeController'].pressure)

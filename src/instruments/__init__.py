@@ -16,7 +16,7 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from gauge_controller import PressureGauge
+from gauge_controller import PressureGauge, PumpLinePressureGauge, ChamberPressureGauge
 from spectrum_analyzer import SpectrumAnalyzer
 from ni_daq import DAQ
 from piezo_controller import PiezoController
@@ -26,7 +26,8 @@ from maestro import MaestroLightControl
 from attocube import Attocube
 from microwave_generator import MicrowaveGenerator
 from magnet_coils import MagnetCoils
-
+from temperature_controller import TemperatureController
+from montana import CryoStation
 from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
 
