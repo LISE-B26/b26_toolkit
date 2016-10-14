@@ -25,7 +25,6 @@ from matplotlib import patches
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 from PyLabControl.src.core import Script, Parameter
 from b26_toolkit.src.scripts import GalvoScan, SetLaser
-from b26_toolkit.src.instruments import DAQ
 
 
 class FindNV(Script):

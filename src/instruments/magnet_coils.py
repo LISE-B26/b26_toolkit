@@ -19,10 +19,10 @@
 import numpy as np
 
 from PyLabControl.src.core import Instrument, Parameter
-from b26_toolkit.src.instruments import DAQ
+from b26_toolkit.src.instruments import NI9263
 
 
-class MagnetCoils(DAQ):
+class MagnetCoils(NI9263):
     """
 
     """

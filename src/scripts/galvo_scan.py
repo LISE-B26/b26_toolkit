@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from b26_toolkit.src.instruments import DAQ
+from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
@@ -56,7 +56,7 @@ class GalvoScan(Script):
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
     ]
 
-    _INSTRUMENTS = {'daq':  DAQ}
+    _INSTRUMENTS = {'daq':  NI6259}
 
     _SCRIPTS = {}
 

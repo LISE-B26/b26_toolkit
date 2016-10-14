@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from b26_toolkit.src.instruments import DAQ
+from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
@@ -223,7 +223,7 @@ class GalvoScanDAQ(GalvoScanGeneric):
                   ])
     ]
 
-    _INSTRUMENTS = {'daq':  DAQ}
+    _INSTRUMENTS = {'daq':  NI6259}
 
     def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
         '''

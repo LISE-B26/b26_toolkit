@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.src.instruments import DAQ, B26PulseBlaster, Pulse
+from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from PyLabControl.src.core.scripts import Script
 
@@ -40,7 +40,7 @@ for a given experiment
     '''
     _DEFAULT_SETTINGS = []
 
-    _INSTRUMENTS = {'daq': DAQ, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
 
     _SCRIPTS = {}
 

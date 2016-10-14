@@ -67,7 +67,6 @@ class DAQ(Instrument):
     Also supports gated digital input, using one PFI channel as a counter
     and a second as a clock.
     """
-
     try:
         dll_path = get_config_value('NIDAQ_DLL_PATH',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         if os.name == 'nt':
@@ -251,6 +250,8 @@ class DAQ(Instrument):
         input or output to the same clock
 
         """
+        if 'digital_input' not in self.settings.keys():
+            raise ValueError('This DAQ does not support digital input')
         if not channel in self.settings['digital_input'].keys():
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
@@ -372,6 +373,8 @@ class DAQ(Instrument):
         Returns:
 
         """
+        if 'digital_input' not in self.settings.keys():
+            raise ValueError('This DAQ does not support digital input')
         if not channel in self.settings['digital_input'].keys():
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
@@ -449,6 +452,8 @@ class DAQ(Instrument):
             clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
                 internal clock
         """
+        if 'analog_output' not in self.settings.keys():
+            raise ValueError('This DAQ does not support analog output')
         for c in channels:
             if not c in self.settings['analog_output'].keys():
                 raise KeyError('This is not a valid analog output channel')
@@ -547,6 +552,8 @@ class DAQ(Instrument):
             channel: Channel to read input
             num_samples_to_acquire: number of samples to acquire on that channel
         """
+        if 'analog_input' not in self.settings.keys():
+            raise ValueError('This DAQ does not support analog input')
         self.AI_taskHandle = TaskHandle(0)
         self.AI_numSamples = num_samples_to_acquire
         self.data = numpy.zeros((self.AI_numSamples,), dtype=numpy.float64)
@@ -623,7 +630,150 @@ class DAQ(Instrument):
             self.nidaq.DAQmxGetErrorString(err,ctypes.byref(buffer), buffer_size)
             raise RuntimeError('nidaq generated warning %d: %s'%(err,repr(buffer.value)))
 
+class NI6259(Instrument):
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
+        Parameter('analog_output',
+                  [
+                      Parameter('ao0',
+                        [
+                            Parameter('channel', 0, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao1',
+                        [
+                            Parameter('channel', 1, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao2',
+                        [
+                            Parameter('channel', 2, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao3',
+                        [
+                            Parameter('channel', 3, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                )
+                  ]
+                  ),
+        Parameter('analog_input',
+                  [
+                      Parameter('ai0',
+                                [
+                                    Parameter('channel', 0, range(0, 32), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai1',
+                                [
+                                    Parameter('channel', 1, range(0, 32), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai2',
+                                [
+                                    Parameter('channel', 2, range(0, 32), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai3',
+                                [
+                                    Parameter('channel', 3, range(0, 32), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai4',
+                                [
+                                    Parameter('channel', 4, range(0, 32), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                )
+                  ]
+                  ),
+        Parameter('digital_input',
+                  [
+                      Parameter('ctr0',
+                                [
+                                    Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 8, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 13, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 1, [0, 1], 'channel for clock output'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                ]
+                                )
+                  ]
+                  )
+    ])
+
+class NI9263(Instrument):
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
+        Parameter('analog_output',
+                  [
+                      Parameter('ao0',
+                        [
+                            Parameter('channel', 0, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao1',
+                        [
+                            Parameter('channel', 1, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao2',
+                        [
+                            Parameter('channel', 2, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                ),
+                      Parameter('ao3',
+                        [
+                            Parameter('channel', 3, [0, 1, 2, 3], 'output channel'),
+                            Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                            Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
+                            Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                        ]
+                                )
+                  ]
+                  )
+    ])
+
 if __name__ == '__main__':
 
     daq = DAQ()
-    print(daq)
+    print(DAQ)

@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.src.instruments import DAQ
+from b26_toolkit.src.instruments import NI6259
 from PyLabControl.src.core import Script, Parameter
 
 
@@ -39,7 +39,7 @@ This script points the laser to a point
             ])
     ]
 
-    _INSTRUMENTS = {'daq':  DAQ}
+    _INSTRUMENTS = {'daq':  NI6259}
 
     _SCRIPTS = {}
 

@@ -20,7 +20,7 @@ from PyLabControl.src.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.src.instruments import MicrowaveGenerator, DAQ
+from b26_toolkit.src.instruments import MicrowaveGenerator, NI6259
 from collections import deque
 
 from b26_toolkit.src.plotting.plots_1d import plot_esr
@@ -45,7 +45,7 @@ class ESR(Script):
 
     _INSTRUMENTS = {
         'microwave_generator': MicrowaveGenerator,
-        'daq': DAQ
+        'daq': NI6259
     }
 
     _SCRIPTS = {}
