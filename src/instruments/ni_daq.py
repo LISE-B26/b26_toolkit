@@ -630,7 +630,12 @@ class DAQ(Instrument):
             self.nidaq.DAQmxGetErrorString(err,ctypes.byref(buffer), buffer_size)
             raise RuntimeError('nidaq generated warning %d: %s'%(err,repr(buffer.value)))
 
-class NI6259(Instrument):
+class NI6259(DAQ):
+    """
+    This class implements the NI6259 DAQ, which includes 32 AI, 4 AO, and 24 DI/DO channels and inherits basic
+    input/output functionality from DAQ. A subset of these channels are accessible here, but more can be added up to
+    these limits.
+    """
     _DEFAULT_SETTINGS = Parameter([
         Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
@@ -730,7 +735,11 @@ class NI6259(Instrument):
                   )
     ])
 
-class NI9263(Instrument):
+class NI9263(DAQ):
+    """
+    This class implements the NI9263 DAQ, which includes 4 AO channels. It inherits output functionality from the DAQ
+    class.
+    """
     _DEFAULT_SETTINGS = Parameter([
         Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
@@ -775,5 +784,5 @@ class NI9263(Instrument):
 
 if __name__ == '__main__':
 
-    daq = DAQ()
-    print(DAQ)
+    daq = NI9263()
+    print(daq)
