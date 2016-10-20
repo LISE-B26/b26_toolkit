@@ -510,6 +510,208 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
 
 
+class AutoFocusTwoPoints(AutoFocusDAQ):
+    _SCRIPTS = {
+        'take_image': GalvoScan,
+        'take_image_2': GalvoScan
+    }
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+
+        def calc_focusing_optimizer(image, optimizer):
+            """
+            calculates a measure for how well the image is focused
+            Args:
+                optimizer: one of the three strings: mean, standard_deviation, normalized_standard_deviation
+            Returns:  measure for how well the image is focused
+            """
+            if optimizer == 'mean':
+                return np.mean(image)
+            elif optimizer == 'standard_deviation':
+                return np.std(image)
+            elif optimizer == 'normalized_standard_deviation':
+                return np.std(image) / np.mean(image)
+
+        def autofocus_loop(sweep_voltages):
+            """
+            this is the actual autofocus loop
+            Args:
+                sweep_voltages: array of sweep voltages
+
+            Returns:
+
+            """
+            # update instrument
+
+            for index, voltage in enumerate(sweep_voltages):
+
+                if self._abort:
+                    self.log('Leaving autofocusing loop')
+                    break
+
+                self.init_image()
+
+                # set the voltage on the piezo
+                self._step_piezo(voltage, self.settings['wait_time'])
+
+                # take a galvo scan
+                self.scripts['take_image'].run()
+                self.data['current_image'] = deepcopy(self.scripts['take_image'].data['image_data'])
+
+                # calculate focusing function for this sweep
+                self.data['focus_function_result'].append(
+                    calc_focusing_optimizer(self.data['current_image'], self.settings['focusing_optimizer']))
+
+                # save image if the user requests it
+                if self.settings['save_images']:
+                    self.scripts['take_image'].save_image_to_disk(
+                        '{:s}\\image_{:03d}.jpg'.format(self.filename_image, index))
+                    self.scripts['take_image'].save_data('{:s}\\image_{:03d}.csv'.format(self.filename_image, index),
+                                                         'image_data')
+
+                # take a galvo scan
+                self.scripts['take_image_2'].run()
+                self.data['current_image_2'] = deepcopy(self.scripts['take_image_2'].data['image_data'])
+
+                # calculate focusing function for this sweep
+                self.data['focus_function_result_2'].append(
+                    calc_focusing_optimizer(self.data['current_image'], self.settings['focusing_optimizer']))
+
+                # save image if the user requests it
+                if self.settings['save_images']:
+                    self.scripts['take_image_2'].save_image_to_disk(
+                        '{:s}\\image2_{:03d}.jpg'.format(self.filename_image, index))
+                    self.scripts['take_image_2'].save_data(
+                        '{:s}\\image2_{:03d}.csv'.format(self.filename_image, index),
+                        'image_data')
+
+                self.progress = 100. * index / len(sweep_voltages)
+                self.updateProgress.emit(self.progress if self.progress < 100 else 99)
+
+
+        if self.settings['save'] or self.settings['save_images']:
+            self.filename_image = '{:s}\\image'.format(self.filename())
+        else:
+            self.filename_image = None
+
+        min_voltage = self.settings['piezo_center_voltage'] - self.settings['piezo_voltage_width']/2.0
+        max_voltage = self.settings['piezo_center_voltage'] + self.settings['piezo_voltage_width']/2.0
+
+        sweep_voltages = np.linspace(min_voltage, max_voltage, self.settings['num_sweep_points'])
+
+        self.data['sweep_voltages'] = sweep_voltages
+        self.data['focus_function_result'] = []
+        self.data['focus_function_result_2'] = []
+        self.data['fit_parameters'] = [0, 0, 0, 0]
+        self.data['fit_parameters_2'] = [0, 0, 0, 0]
+        self.data['current_image'] = np.zeros([1,1])
+        self.data['current_image_2'] = np.zeros([1,1])
+        self.data['extent'] = None
+        self.data['extent_2'] = None
+
+        autofocus_loop(sweep_voltages)
+
+
+        piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
+        self._step_piezo(piezo_voltage, self.settings['wait_time'])
+
+        def _plot(self, axes_list, data=None):
+            # fit the data and set piezo to focus spot
+            if data is None:
+                data = self.data
+            axis_focus, axis_image = axes_list
+
+            # if take image is running we take the data from there otherwise we use the scripts own image data
+            if self._current_subscript_stage['current_subscript'] is self.scripts['take_image']:
+
+                if 'image_data' in self.scripts['take_image'].data:
+                    current_image = self.scripts['take_image'].data['image_data']
+                    extent = self.scripts['take_image'].data['extent']
+                else:
+                    current_image = None
+            elif self._current_subscript_stage['current_subscript'] is self.scripts['take_image_2']:
+
+                if 'image_data' in self.scripts['take_image_2'].data:
+                    current_image = self.scripts['take_image_2'].data['image_data']
+                    extent = self.scripts['take_image_2'].data['extent']
+                else:
+                    current_image = None
+            else:
+                current_image = data['current_image']
+                extent = data['extent']
+            if current_image is not None:
+                plot_fluorescence_new(current_image, extent, axis_image)
+
+            if ('focus_function_result' in data) and ('focus_function_result_2' in data):
+                focus_data = data['focus_function_result']
+                focus_data_2 = data['focus_function_result_2']
+                sweep_voltages = data['sweep_voltages']
+                if len(focus_data) > 0:
+                    axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, sweep_voltages[0:len(focus_data_2)], focus_data_2)
+                    if not (np.array_equal(data['fit_parameters'], [0, 0, 0, 0])):
+                        axis_focus.plot(sweep_voltages[0:len(focus_data)],
+                                        self.gaussian(sweep_voltages[0:len(focus_data)], *self.data['fit_parameters']),
+                                        'k')
+                    if not (np.array_equal(data['fit_parameters_2'], [0, 0, 0, 0])):
+                        axis_focus.plot(sweep_voltages[0:len(focus_data_2)],
+                                        self.gaussian(sweep_voltages[0:len(focus_data_2)], *self.data['fit_parameters_2']),
+                                        'g')
+                    axis_focus.hold(False)
+
+            axis_focus.set_xlabel('Piezo Voltage [V]')
+
+            if self.settings['focusing_optimizer'] == 'mean':
+                ylabel = 'Image Mean [kcounts]'
+            elif self.settings['focusing_optimizer'] == 'standard_deviation':
+                ylabel = 'Image Standard Deviation [kcounts]'
+            elif self.settings['focusing_optimizer'] == 'normalized_standard_deviation':
+                ylabel = 'Image Normalized Standard Deviation [arb]'
+            else:
+                ylabel = self.settings['focusing_optimizer']
+
+            axis_focus.set_ylabel(ylabel)
+            axis_focus.set_title('Autofocusing Routine')
+
+        def _update_plot(self, axes_list):
+            # fit the data and set piezo to focus spot
+
+            axis_focus, axis_image = axes_list
+
+            # if take image is running we take the data from there otherwise we use the scripts own image data
+            if self._current_subscript_stage['current_subscript'] is self.scripts['take_image']:
+                if 'image_data' in self.scripts['take_image'].data:
+                    current_image = self.scripts['take_image'].data['image_data']
+                else:
+                    current_image = None
+            elif self._current_subscript_stage['current_subscript'] is self.scripts['take_image_2']:
+                if 'image_data' in self.scripts['take_image_2'].data:
+                    current_image = self.scripts['take_image_2'].data['image_data']
+                else:
+                    current_image = None
+            else:
+                current_image = self.data['current_image']
+
+            if current_image is not None:
+                update_fluorescence(current_image, axis_image)
+
+            axis_focus, axis_image = axes_list
+
+            update_fluorescence(self.data['current_image'], axis_image)
+
+            focus_data = self.data['focus_function_result']
+            focus_data_2 = self.data['focus_function_result_2']
+            sweep_voltages = self.data['sweep_voltages']
+            if len(focus_data) > 0:
+                axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, sweep_voltages[0:len(focus_data_2)], focus_data_2)
+                axis_focus.hold(False)
+
+        def gaussian(self, x, noise, amp, center, width):
+            return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
 
 
 if __name__ == '__main__':
@@ -547,19 +749,24 @@ if __name__ == '__main__':
 
 
     # ========================= test explicitely loading for DAQ ========================================
-    scripts, loaded_failed, instruments = Script.load_and_append({'take_image': 'GalvoScanDAQ'})
+    # scripts, loaded_failed, instruments = Script.load_and_append({'take_image': 'GalvoScanDAQ'})
+    # print('===++++++===========++++++===========++++++========')
+    # print(scripts)
+    # print('===++++++===========++++++===========++++++========')
+
+    # af = AutoFocusNIFPGA(scripts=scripts)
+    # print(af)
+    #
+    # # ========================= test explicitely loading for DAQ ========================================
+    # scripts, loaded_failed, instruments = Script.load_and_append({'take_image': 'GalvoScanDAQ'})
+    # print('===++++++===========++++++===========++++++========')
+    # print(scripts)
+    # print('===++++++===========++++++===========++++++========')
+    #
+    # af = AutoFocusNIFPGA(scripts=scripts)
+    # print(af)
+
+    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusTwoPoints})
     print('===++++++===========++++++===========++++++========')
     print(scripts)
     print('===++++++===========++++++===========++++++========')
-
-    af = AutoFocusNIFPGA(scripts=scripts)
-    print(af)
-
-    # ========================= test explicitely loading for DAQ ========================================
-    scripts, loaded_failed, instruments = Script.load_and_append({'take_image': 'GalvoScanDAQ'})
-    print('===++++++===========++++++===========++++++========')
-    print(scripts)
-    print('===++++++===========++++++===========++++++========')
-
-    af = AutoFocusNIFPGA(scripts=scripts)
-    print(af)
