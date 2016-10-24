@@ -150,9 +150,9 @@ class PressureGauge(Instrument):
         pressure = float(err_msg_and_pressure[3:])
 
         if err_msg != '0':
-            print('xx', err_msg)
+            print('xx', err_msg, pressure)
             message = 'Pressure query resulted in an error: ' + self.MEASUREMENT_STATUS[err_msg]
-            raise IOError(message)
+            raise IOError(message) # JG: don't raise the error because this crashes the programm, rather we want to return an invalid value
 
         self.serial_connection.write(self.CR + self.LF)
         return pressure

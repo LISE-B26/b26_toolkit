@@ -126,7 +126,7 @@ class TemperatureController(Instrument):
 
         temperature = float(response[1:7])
 
-        return temperature
+        return temperature, response
 
     def is_connected(self):
         """

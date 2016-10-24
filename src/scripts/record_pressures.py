@@ -64,6 +64,7 @@ class RecordPressures(Script):
         self.data['chamber_pressures'] = []
         self.data['pump_line_pressures'] = []
         self.data['temperatures'] = []
+        self.data['temperatures_raw'] = []
         self.data['Platform_Temp'] = []
         self.data['Stage_1_Temp'] = []
         self.data['Stage_2_Temp'] = []
@@ -73,7 +74,9 @@ class RecordPressures(Script):
         while not self._abort:
             self.data['chamber_pressures'].append(chamber_gauge.pressure)
             self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
-            self.data['temperatures'].append(temp_controller.temperature)
+            temp, raw = temp_controller.temperature
+            self.data['temperatures'].append(temp)
+            self.data['temperatures_raw'].append(raw)
 
             self.data['Platform_Temp'].append(cryo_station.Platform_Temp)
             self.data['Stage_1_Temp'].append(cryo_station.stage_1_temp)
@@ -97,12 +100,12 @@ class RecordPressures(Script):
 
         time = self.data['time']
 
-        if max(time)>60:
-            time = np.array(self.data['time'])/60
-            time_label = 'time (min)'
-        elif max(time)>3600:
+        if max(time)>3600:
             time = np.array(self.data['time'])/3600
             time_label = 'time (h)'
+        elif max(time)>60:
+            time = np.array(self.data['time'])/60
+            time_label = 'time (min)'
         else:
             time = np.array(self.data['time'])
             time_label = 'time (s)'
@@ -115,14 +118,20 @@ class RecordPressures(Script):
         axes_list[1].set_xlabel(time_label)
         axes_list[1].set_ylabel('temparatures (K)')
 
+        axes_list[1].legend(labels=('Platform', 'Stage 1', 'Stage 2'), fontsize=8)
 
 
+        #10/13/16 AK: pump line connection was broken, temporarily comment out
         axes_list[0].plot(time, self.data['chamber_pressures'],
                           time, self.data['pump_line_pressures']
                           )
+        # axes_list[0].plot(time, self.data['chamber_pressures'])
         axes_list[0].set_xlabel(time_label)
         axes_list[0].set_ylabel('pressure (Torr)')
 
         ax2 = axes_list[0].twinx()
         ax2.plot(time, self.data['temperatures'], 'r')
         ax2.set_ylabel('Temperature (K)', color='r')
+        axes_list[0].legend(labels=('chamber', 'pump line'), fontsize=8)
+
+
