@@ -784,5 +784,5 @@ class NI9263(DAQ):
 
 if __name__ == '__main__':
 
-    daq = NI9263()
+    daq, failed = Instrument.load_and_append({'daq': NI6259})
     print(daq)

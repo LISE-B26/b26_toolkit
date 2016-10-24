@@ -79,24 +79,28 @@ class MagnetCoils(NI9263):
                   ]),
         Parameter('field_calibration',
                   [
-                      Parameter('x',
+                      Parameter('x_coil',
                                 [
-                                    Parameter('max_field', 150.0, float, 'maximum allowed magnetic field on each axis'),
-                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field')
+                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
                                 ]
                                 ),
-                      Parameter('y',
+                      Parameter('y_coil',
                                 [
-                                    Parameter('max_field', 150.0, float, 'maximum allowed magnetic field on each axis'),
-                                    Parameter('voltage_at_max_field', 1.0, float,
-                                              'input voltage corresponding to max field')
+                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
                                 ]
                                 ),
-                      Parameter('z',
+                      Parameter('z_coil',
                                 [
-                                    Parameter('max_field', 150.0, float, 'maximum allowed magnetic field on each axis'),
-                                    Parameter('voltage_at_max_field', 1.0, float,
-                                              'input voltage corresponding to max field')
+                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
                                 ]
                                 )
                   ])
@@ -110,7 +114,7 @@ class MagnetCoils(NI9263):
         Args:
             settings: a dictionary in the standard settings format
         """
-        def calc_voltage_for_field(field, axis):
+        def calc_voltages_for_fields(fields):
             """
             Calculates the voltage to apply to the current generating circuit that will result in the inputted field
             Args:
@@ -120,37 +124,80 @@ class MagnetCoils(NI9263):
             Returns: voltage
 
             """
-            if axis not in ['x', 'y', 'z']:
-                raise ValueError('invalid axis given')
-            max_field = self.settings['field_calibration'][axis]['max_field']
-            if field > max_field:
+            max_voltages = np.array([self.settings['field_calibration']['x_coil']['voltage_at_max_field'], self.settings['field_calibration']['y_coil']['voltage_at_max_field'], self.settings['field_calibration']['z_coil']['voltage_at_max_field']])
+            Cinv = self.calc_conversion_matrix()
+            relative_voltages = Cinv * fields
+            new_voltages = np.dot(relative_voltages, max_voltages)
+
+            if (new_voltages > max_voltages).any():
                 raise ValueError('given field exceeds maximum possible field')
-            voltage_at_max_field = self.settings['field_calibration'][axis]['voltage_at_max_field']
-            return((field / max_field * voltage_at_max_field))
+
+            return(new_voltages)
 
         # call the update_parameter_list to update the parameter list
         super(MagnetCoils, self).update(settings)
         # now we actually apply these newsettings to the hardware
+        # if any of the settings updated are the fields...
         for key, value in settings.iteritems():
             if key == 'magnetic_fields':
-                if 'x_field' in value.keys():
-                    new_field = calc_voltage_for_field(value['x_field'], 'x')
-                    new_field =[new_field, new_field]
-                    self.AO_init([self.settings['magnet_channels']['x_channel']], new_field)
-                elif 'y_field' in value.keys():
-                    new_field = calc_voltage_for_field(value['y_field'], 'y')
-                    new_field =[new_field, new_field]
-                    self.AO_init([self.settings['magnet_channels']['y_channel']], new_field)
-                elif 'z_field' in value.keys():
-                    new_field = calc_voltage_for_field(value['z_field'], 'z')
-                    new_field =[new_field, new_field]
-                    self.AO_init([self.settings['magnet_channels']['z_channel']], new_field)
-                else:
-                    raise('Invalid field axis, must be either x_field, y_field, or z_field')
+                if any(x in value.keys() for x in ['x_field', 'y_field', 'z_field']):
+                    new_field_x = self.settings['magnetic_fields']['x_field']
+                    new_field_y = self.settings['magnetic_fields']['y_field']
+                    new_field_z = self.settings['magnetic_fields']['z_field']
+                    new_voltages = calc_voltages_for_fields(np.array([new_field_x, new_field_y, new_field_z]))
+                    new_voltages = [new_voltages] * 2 #convert to form required for daq output
+                    self.AO_init([self.settings['magnet_channels']['x_channel'], self.settings['magnet_channels']['y_channel'],
+                                  self.settings['magnet_channels']['z_channel']], new_voltages)
+                    self.AO_run()
+                    self.AO_waitToFinish()
+                    self.AO_stop()
 
-                self.AO_run()
-                self.AO_waitToFinish()
-                self.AO_stop()
+                    # even if multiple fields updated in the same pass, this will update all of them, so run this
+                    # at most once
+                    break
+
+
+            # if key == 'magnetic_fields':
+            #     if 'x_field' in value.keys():
+            #         new_field = calc_voltage_for_field(value['x_field'], 'x')
+            #         new_field =[new_field, new_field]
+            #         self.AO_init([self.settings['magnet_channels']['x_channel']], new_field)
+            #     elif 'y_field' in value.keys():
+            #         new_field = calc_voltage_for_field(value['y_field'], 'y')
+            #         new_field =[new_field, new_field]
+            #         self.AO_init([self.settings['magnet_channels']['y_channel']], new_field)
+            #     elif 'z_field' in value.keys():
+            #         new_field = calc_voltage_for_field(value['z_field'], 'z')
+            #         new_field =[new_field, new_field]
+            #         self.AO_init([self.settings['magnet_channels']['z_channel']], new_field)
+            #     else:
+            #         raise('Invalid field axis, must be either x_field, y_field, or z_field')
+            #
+            #     self.AO_run()
+            #     self.AO_waitToFinish()
+            #     self.AO_stop()
+
+    def calc_conversion_matrix(self):
+        """
+        One can map input voltages V to output B fields through the matrix equation B = C V, where C is a 3x3 conversion
+        matrix and, for example, the first row of the matrix equation gives B_x = C_xx V_x + C_yx V_y + C_zx V_z. We
+        want to go the other way, converting from B fields to voltages, so this equation inverts C.
+        Returns:
+
+        """
+        cxx = self.settings['field_calibration']['x_coil']['x_field_max']
+        cxy = self.settings['field_calibration']['x_coil']['y_field_max']
+        cxz = self.settings['field_calibration']['x_coil']['z_field_max']
+        cyx = self.settings['field_calibration']['y_coil']['x_field_max']
+        cyy = self.settings['field_calibration']['y_coil']['y_field_max']
+        cyz = self.settings['field_calibration']['y_coil']['z_field_max']
+        czx = self.settings['field_calibration']['z_coil']['x_field_max']
+        czy = self.settings['field_calibration']['z_coil']['y_field_max']
+        czz = self.settings['field_calibration']['z_coil']['z_field_max']
+
+        C = np.matrix[[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]]
+        return(np.linalg.inv(C))
+
 
 
 if __name__ == '__main__':

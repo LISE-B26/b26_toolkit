@@ -1,11 +1,11 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import DAQ
+from b26_toolkit.src.instruments import NI6259
 
 
 class TestDAQ(TestCase):
     def setUp(self):
-        self.someDAQ = DAQ()
+        self.someDAQ = NI6259()
 
     def test_gated_read(self):
         #number of counts expected for result depends on sample and pulseblaster duration
