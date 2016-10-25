@@ -81,26 +81,26 @@ class MagnetCoils(NI9263):
                   [
                       Parameter('x_coil',
                                 [
-                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .368, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 31.1, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 1.8, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', -13.1, float, 'z field at max input voltage')
                                 ]
                                 ),
                       Parameter('y_coil',
                                 [
-                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .368, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', -6.9, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', -32.6, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', -13.4, float, 'z field at max input voltage')
                                 ]
                                 ),
                       Parameter('z_coil',
                                 [
-                                    Parameter('voltage_at_max_field', 1.0, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 1, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', 1, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 1, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .260, float, 'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', .2, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', -7.0, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 46.7, float, 'z field at max input voltage')
                                 ]
                                 )
                   ])
@@ -126,8 +126,10 @@ class MagnetCoils(NI9263):
             """
             max_voltages = np.array([self.settings['field_calibration']['x_coil']['voltage_at_max_field'], self.settings['field_calibration']['y_coil']['voltage_at_max_field'], self.settings['field_calibration']['z_coil']['voltage_at_max_field']])
             Cinv = self.calc_conversion_matrix()
-            relative_voltages = Cinv * fields
-            new_voltages = np.dot(relative_voltages, max_voltages)
+            relative_voltages = Cinv * np.transpose(fields)
+            print('relative', relative_voltages)
+            new_voltages = np.dot(np.transpose(relative_voltages), max_voltages)
+            print('new', new_voltages )
 
             if (new_voltages > max_voltages).any():
                 raise ValueError('given field exceeds maximum possible field')
@@ -144,13 +146,14 @@ class MagnetCoils(NI9263):
                     new_field_x = self.settings['magnetic_fields']['x_field']
                     new_field_y = self.settings['magnetic_fields']['y_field']
                     new_field_z = self.settings['magnetic_fields']['z_field']
-                    new_voltages = calc_voltages_for_fields(np.array([new_field_x, new_field_y, new_field_z]))
+                    new_voltages = calc_voltages_for_fields(np.matrix([new_field_x, new_field_y, new_field_z]))
                     new_voltages = [new_voltages] * 2 #convert to form required for daq output
-                    self.AO_init([self.settings['magnet_channels']['x_channel'], self.settings['magnet_channels']['y_channel'],
-                                  self.settings['magnet_channels']['z_channel']], new_voltages)
-                    self.AO_run()
-                    self.AO_waitToFinish()
-                    self.AO_stop()
+                    print('output voltages', new_voltages)
+                    # self.AO_init([self.settings['magnet_channels']['x_channel'], self.settings['magnet_channels']['y_channel'],
+                    #               self.settings['magnet_channels']['z_channel']], new_voltages)
+                    # self.AO_run()
+                    # self.AO_waitToFinish()
+                    # self.AO_stop()
 
                     # even if multiple fields updated in the same pass, this will update all of them, so run this
                     # at most once
@@ -195,7 +198,10 @@ class MagnetCoils(NI9263):
         czy = self.settings['field_calibration']['z_coil']['y_field_max']
         czz = self.settings['field_calibration']['z_coil']['z_field_max']
 
-        C = np.matrix[[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]]
+        C = np.matrix([[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]])
+        print('C', C)
+
+        print('Cinv', np.linalg.inv(C))
         return(np.linalg.inv(C))
 
 
@@ -203,5 +209,7 @@ class MagnetCoils(NI9263):
 if __name__ == '__main__':
     instruments, failed = Instrument.load_and_append(instrument_dict={'MagnetCoils': MagnetCoils})
 
-    print(instruments['MagnetCoils'].is_connected())
+    instruments['MagnetCoils'].update({'magnetic_fields': {'z_field': 1}})
+
+    # print(instruments['MagnetCoils'].is_connected())
     # instruments['MagnetCoils'].update({'magnetic_fields':{'x_field': 1}})
