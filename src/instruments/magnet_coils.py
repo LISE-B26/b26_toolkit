@@ -126,13 +126,15 @@ class MagnetCoils(NI9263):
             """
             max_voltages = np.array([self.settings['field_calibration']['x_coil']['voltage_at_max_field'], self.settings['field_calibration']['y_coil']['voltage_at_max_field'], self.settings['field_calibration']['z_coil']['voltage_at_max_field']])
             Cinv = self.calc_conversion_matrix()
-            relative_voltages = Cinv * np.transpose(fields)
-            print('relative', relative_voltages)
-            new_voltages = np.dot(np.transpose(relative_voltages), max_voltages)
-            print('new', new_voltages )
+            relative_voltages = np.matmul(Cinv, fields)
+            new_voltages = np.array([relative_voltages[0,0] * max_voltages[0], relative_voltages[0,1] * max_voltages[1], relative_voltages[0,2] * max_voltages[2]])
 
-            if (new_voltages > max_voltages).any():
+            if (np.abs(new_voltages) > max_voltages).any():
                 raise ValueError('given field exceeds maximum possible field')
+            elif (new_voltages < 0).any():
+                mask = (new_voltages < 0)
+                negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
+                raise ValueError('Polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
 
             return(new_voltages)
 
@@ -146,9 +148,9 @@ class MagnetCoils(NI9263):
                     new_field_x = self.settings['magnetic_fields']['x_field']
                     new_field_y = self.settings['magnetic_fields']['y_field']
                     new_field_z = self.settings['magnetic_fields']['z_field']
-                    new_voltages = calc_voltages_for_fields(np.matrix([new_field_x, new_field_y, new_field_z]))
-                    new_voltages = [new_voltages] * 2 #convert to form required for daq output
+                    new_voltages = calc_voltages_for_fields(np.array([new_field_x, new_field_y, new_field_z]))
                     print('output voltages', new_voltages)
+                    new_voltages = [new_voltages] * 2 #convert to form required for daq output
                     # self.AO_init([self.settings['magnet_channels']['x_channel'], self.settings['magnet_channels']['y_channel'],
                     #               self.settings['magnet_channels']['z_channel']], new_voltages)
                     # self.AO_run()
@@ -209,7 +211,7 @@ class MagnetCoils(NI9263):
 if __name__ == '__main__':
     instruments, failed = Instrument.load_and_append(instrument_dict={'MagnetCoils': MagnetCoils})
 
-    instruments['MagnetCoils'].update({'magnetic_fields': {'z_field': 1}})
+    instruments['MagnetCoils'].update({'magnetic_fields': {'x_field': 1, 'y_field': -3, 'z_field': 10}})
 
     # print(instruments['MagnetCoils'].is_connected())
     # instruments['MagnetCoils'].update({'magnetic_fields':{'x_field': 1}})
