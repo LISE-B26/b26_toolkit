@@ -56,21 +56,31 @@ This script sets the magnetic field coils to the given magnetic field values
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
-        new_x_field = self.settings['magnetic_fields']['x_field']
-        new_y_field = self.settings['magnetic_fields']['y_field']
-        new_z_field = self.settings['magnetic_fields']['z_field']
+        # new_x_field = self.settings['magnetic_fields']['x_field']
+        # new_y_field = self.settings['magnetic_fields']['y_field']
+        # new_z_field = self.settings['magnetic_fields']['z_field']
+        new_x_field = 4
+        new_y_field = -4
+        new_z_field = 10
 
-        self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
+        try:
+            self.instruments['MagnetCoils']['instance'].calc_voltages_for_fields([new_x_field, new_y_field, new_z_field])
+        except ValueError:
+            self.log('Could not set magnetic field. Reverting to previous value.')
 
-        self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['point']['x'], self.settings['point']['y']))
+        # self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
+        #
+        # self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['point']['x'], self.settings['point']['y']))
 
 
 if __name__ == '__main__':
     from PyLabControl.src.core import Instrument
 
-    instruments, instruments_failed = Instrument.load_and_append({'daq':  'DAQ'})
+    instruments, instruments_failed = Instrument.load_and_append({'MagnetCoils': MagnetCoils })
 
-    script, failed, instruments = Script.load_and_append(script_dict={'SetLaser':'SetLaser'}, instruments = instruments)
+    script, failed, instruments = Script.load_and_append(script_dict={'SetMagneticCoils': SetMagneticCoils}, instruments = instruments)
+
+    script['SetMagneticCoils']._function()
 
     print(script)
     print(failed)
