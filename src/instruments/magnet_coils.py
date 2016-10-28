@@ -140,33 +140,12 @@ class MagnetCoils(NI9263):
                     # at most once
                     break
 
-
-            # if key == 'magnetic_fields':
-            #     if 'x_field' in value.keys():
-            #         new_field = calc_voltage_for_field(value['x_field'], 'x')
-            #         new_field =[new_field, new_field]
-            #         self.AO_init([self.settings['magnet_channels']['x_channel']], new_field)
-            #     elif 'y_field' in value.keys():
-            #         new_field = calc_voltage_for_field(value['y_field'], 'y')
-            #         new_field =[new_field, new_field]
-            #         self.AO_init([self.settings['magnet_channels']['y_channel']], new_field)
-            #     elif 'z_field' in value.keys():
-            #         new_field = calc_voltage_for_field(value['z_field'], 'z')
-            #         new_field =[new_field, new_field]
-            #         self.AO_init([self.settings['magnet_channels']['z_channel']], new_field)
-            #     else:
-            #         raise('Invalid field axis, must be either x_field, y_field, or z_field')
-            #
-            #     self.AO_run()
-            #     self.AO_waitToFinish()
-            #     self.AO_stop()
-
     def calc_conversion_matrix(self):
         """
         One can map input voltages V to output B fields through the matrix equation B = C V, where C is a 3x3 conversion
         matrix and, for example, the first row of the matrix equation gives B_x = C_xx V_x + C_yx V_y + C_zx V_z. We
         want to go the other way, converting from B fields to voltages, so this equation inverts C.
-        Returns:
+        Returns: conversion matrix to map from V to B, and its inverse to map from B to V
 
         """
         cxx = self.settings['field_calibration']['x_coil']['x_field_max']
@@ -203,7 +182,11 @@ class MagnetCoils(NI9263):
 
         if self.settings['use_approximate_fields']:
             if (np.abs(new_voltages) > max_voltages).any():
-                print('Given field exceeds maximum possible field')
+                relative_voltages = self.optimize_fields(fields, Cmat, max_voltages, relative_voltages)
+                new_voltages = np.array(
+                    [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
+                     relative_voltages[2] * max_voltages[2]])
+                print('Given field exceeds maximum possible field, outputting best approximation')
             elif (new_voltages < 0).any():
                 relative_voltages = self.optimize_fields(fields, Cmat, max_voltages, relative_voltages)
                 new_voltages = np.array(
@@ -213,10 +196,29 @@ class MagnetCoils(NI9263):
                 # mask = (new_voltages < 0)
                 # negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
                 # raise ValueError('Polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
+        else:
+            if (np.abs(new_voltages) > max_voltages).any():
+                raise ValueError('Given field exceeds maximum possible field, outputting best approximation')
+            elif (new_voltages < 0).any():
+                mask = (new_voltages < 0)
+                negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
+                raise ValueError('Field not reachable, polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
 
         return (new_voltages)
 
-    def optimize_fields(self, fields, Cmat, max_voltages, proposed_voltage):
+    def optimize_fields(self, fields, Cmat, proposed_voltage):
+        """
+        Finds closest approximation to fields based on the reachable space allowed by Cmat. In particular,
+        finds the output voltage V that minimizes |Cmat * V - fields|^2, or equivalently
+        |output_fields - requested_fields|^2
+        Args:
+            fields: field to match
+            Cmat: mapping from voltages to output fields
+            proposed_voltage: initial guess for fields. Cinv * fields is a good place to start.
+
+        Returns:
+
+        """
         import scipy.optimize as optimize
 
         def f(x):
