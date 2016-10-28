@@ -103,8 +103,8 @@ class MagnetCoils(NI9263):
                                     Parameter('z_field_max', 47.7, float, 'z field at max input voltage')
                                 ]
                                 )
-                  ])
-
+                  ]),
+        Parameter('use_approximate_fields', True, bool, 'if out of bounds fields given, uses closest allowed fields')
     ])
 
     def update(self, settings):
@@ -179,11 +179,8 @@ class MagnetCoils(NI9263):
         czy = self.settings['field_calibration']['z_coil']['y_field_max']
         czz = self.settings['field_calibration']['z_coil']['z_field_max']
 
-        C = np.matrix([[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]])
-        print('C', C)
-
-        print('Cinv', np.linalg.inv(C))
-        return(np.linalg.inv(C))
+        Cmat = np.matrix([[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]])
+        return(Cmat, np.linalg.inv(Cmat))
 
     def calc_voltages_for_fields(self, fields):
         """
@@ -198,25 +195,24 @@ class MagnetCoils(NI9263):
         max_voltages = np.array([self.settings['field_calibration']['x_coil']['voltage_at_max_field'],
                                  self.settings['field_calibration']['y_coil']['voltage_at_max_field'],
                                  self.settings['field_calibration']['z_coil']['voltage_at_max_field']])
-        Cinv = self.calc_conversion_matrix()
-        Cmat = np.linalg.inv(Cinv)
+        #first solve exactly for voltages to apply for the requested fields
+        Cmat, Cinv = self.calc_conversion_matrix()
         relative_voltages = np.matmul(Cinv, fields)
         new_voltages = np.array([relative_voltages[0, 0] * max_voltages[0], relative_voltages[0, 1] * max_voltages[1],
                                  relative_voltages[0, 2] * max_voltages[2]])
 
-        print('proposed_voltage', new_voltages)
-
-        if (np.abs(new_voltages) > max_voltages).any():
-            raise ValueError('given field exceeds maximum possible field')
-        # elif (new_voltages < 0).any():
-        elif True:
-            print('OPTIMIZED VALUES')
-            new_voltages = self.optimize_fields(fields, Cmat, max_voltages, new_voltages)
-            print('nv', new_voltages)
-            print('nf', np.dot(Cmat, new_voltages))
-            # mask = (new_voltages < 0)
-            # negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
-            # raise ValueError('Polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
+        if self.settings['use_approximate_fields']:
+            if (np.abs(new_voltages) > max_voltages).any():
+                print('Given field exceeds maximum possible field')
+            elif (new_voltages < 0).any():
+                relative_voltages = self.optimize_fields(fields, Cmat, max_voltages, relative_voltages)
+                new_voltages = np.array(
+                    [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
+                     relative_voltages[2] * max_voltages[2]])
+                print('Could not match desired fields, outputting best approximation')
+                # mask = (new_voltages < 0)
+                # negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
+                # raise ValueError('Polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
 
         return (new_voltages)
 
@@ -224,11 +220,15 @@ class MagnetCoils(NI9263):
         import scipy.optimize as optimize
 
         def f(x):
+            print('Cmat', Cmat)
+            print('x', x)
+            print('fields', fields)
             y = np.squeeze(np.asarray(np.dot(Cmat, x) - fields)) #convert from matrix to array
+            print('y', y)
             print('opt_criterion', np.dot(y,y))
             return np.dot(y, y)
 
-        bounds = ((0, max_voltages[0]), (0, max_voltages[1]), (0, max_voltages[2]))
+        bounds = ((0, 1), (0, 1), (0, 1))
         opt = optimize.minimize(f, proposed_voltage, bounds = bounds)
 
         return opt.x

@@ -59,13 +59,14 @@ This script sets the magnetic field coils to the given magnetic field values
         # new_x_field = self.settings['magnetic_fields']['x_field']
         # new_y_field = self.settings['magnetic_fields']['y_field']
         # new_z_field = self.settings['magnetic_fields']['z_field']
-        new_x_field = 4
-        new_y_field = -4
+        new_x_field = 0
+        new_y_field = 0
         new_z_field = 10
 
         try:
             self.instruments['MagnetCoils']['instance'].calc_voltages_for_fields([new_x_field, new_y_field, new_z_field])
         except ValueError:
+            raise
             self.log('Could not set magnetic field. Reverting to previous value.')
 
         # self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
