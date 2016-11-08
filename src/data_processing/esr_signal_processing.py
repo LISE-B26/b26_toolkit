@@ -25,7 +25,7 @@ from peakutils.peak import indexes # package required https://pypi.python.org/py
 from b26_toolkit.src.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian, lorentzian, double_lorentzian
 
 
-def fit_esr(freq, ampl):
+def fit_esr_old(freq, ampl):
     """
     Returns lorentzian fit parameters for a typical NV esr sweep, giving 4 or 6 parameters depending on if 1 or 2
     lorentzian dips are detected.
@@ -229,7 +229,7 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
     return freq_max, data_max
 
 
-def fit_esr_new(freq, ampl, strain_filtering=False, verbose = False):
+def fit_esr(freq, ampl, strain_filtering=False, verbose = False):
     """
     Returns lorentzian fit parameters for a typical NV esr sweep, giving 4 or 6 parameters depending on if 1 or 2
     lorentzian dips are detected.
