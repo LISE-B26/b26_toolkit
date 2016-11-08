@@ -31,9 +31,9 @@ This script sets the magnetic field coils to the given magnetic field values
     _DEFAULT_SETTINGS = [
         Parameter('magnetic_fields',
                   [
-                      Parameter('x_field', 0, float, 'x field in Gauss'),
-                      Parameter('y_field', 0, float, 'y field in Gauss'),
-                      Parameter('z_field', 0, float, 'z field in Gauss')
+                      Parameter('x_field', 0.0, float, 'x field in Gauss'),
+                      Parameter('y_field', 0.0, float, 'y field in Gauss'),
+                      Parameter('z_field', 0.0, float, 'z field in Gauss')
                   ])
     ]
 
@@ -56,23 +56,28 @@ This script sets the magnetic field coils to the given magnetic field values
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
-        # new_x_field = self.settings['magnetic_fields']['x_field']
-        # new_y_field = self.settings['magnetic_fields']['y_field']
-        # new_z_field = self.settings['magnetic_fields']['z_field']
-        new_x_field = 0
-        new_y_field = 0
-        new_z_field = 10
+        self.data = {}
 
-        try:
-            self.instruments['MagnetCoils']['instance'].calc_voltages_for_fields([new_x_field, new_y_field, new_z_field])
-        except ValueError:
-            raise
-            self.log('Could not set magnetic field. Reverting to previous value.')
+        new_x_field = self.settings['magnetic_fields']['x_field']
+        new_y_field = self.settings['magnetic_fields']['y_field']
+        new_z_field = self.settings['magnetic_fields']['z_field']
+        # new_x_field = 0
+        # new_y_field = 0
+        # new_z_field = 10
 
-        # self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
+        # try:
+        #     self.instruments['MagnetCoils']['instance'].calc_voltages_for_fields([new_x_field, new_y_field, new_z_field])
+        # except ValueError:
+        #     raise
+        #     self.log('Could not set magnetic field. Reverting to previous value.')
+
+        self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
         #
-        # self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['point']['x'], self.settings['point']['y']))
+        # self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['magnetic_fields']['x_field'], self.settings['magnetic_fields']['y_field']), self.settings['magnetic_fields']['z_field'])
 
+        self.data['new_voltages'] = self.instruments['MagnetCoils']['instance'].new_voltages
+        self.data['requested_fields'] = self.instruments['MagnetCoils']['instance'].requested_fields
+        self.data['applied_fields'] = self.instruments['MagnetCoils']['instance'].applied_fields
 
 if __name__ == '__main__':
     from PyLabControl.src.core import Instrument

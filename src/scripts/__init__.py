@@ -52,6 +52,8 @@ from autofocus import AutoFocusDAQ, AutoFocusTwoPoints
 from ni_fpga_galvo_scan import FPGA_GalvoScan
 
 from record_pressures import RecordPressures
+
+from set_magnetic_coils import SetMagneticCoils
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization

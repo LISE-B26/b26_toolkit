@@ -125,7 +125,6 @@ class MagnetCoils(NI9263):
                     new_field_y = self.settings['magnetic_fields']['y_field']
                     new_field_z = self.settings['magnetic_fields']['z_field']
                     new_voltages = self.calc_voltages_for_fields(np.array([new_field_x, new_field_y, new_field_z]))
-                    print('output voltages', new_voltages)
                     # convert to form required for daq output
                     new_voltages = np.transpose(np.column_stack((new_voltages[0], new_voltages[1], new_voltages[2])))
                     new_voltages = (np.repeat(new_voltages, 2, axis=1))
@@ -171,6 +170,7 @@ class MagnetCoils(NI9263):
         Returns: voltage
 
         """
+        used_approx_fields = False
         max_voltages = np.array([self.settings['field_calibration']['x_coil']['voltage_at_max_field'],
                                  self.settings['field_calibration']['y_coil']['voltage_at_max_field'],
                                  self.settings['field_calibration']['z_coil']['voltage_at_max_field']])
@@ -180,30 +180,42 @@ class MagnetCoils(NI9263):
         new_voltages = np.array([relative_voltages[0, 0] * max_voltages[0], relative_voltages[0, 1] * max_voltages[1],
                                  relative_voltages[0, 2] * max_voltages[2]])
 
+        print('new_voltages', new_voltages)
+
         if self.settings['use_approximate_fields']:
             if (np.abs(new_voltages) > max_voltages).any():
-                relative_voltages = self.optimize_fields(fields, Cmat, max_voltages, relative_voltages)
+                relative_voltages = self.optimize_fields(fields, Cmat, relative_voltages)
                 new_voltages = np.array(
                     [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
                      relative_voltages[2] * max_voltages[2]])
                 print('Given field exceeds maximum possible field, outputting best approximation')
+                print(new_voltages)
+                print(np.dot(Cmat, relative_voltages))
+                used_approx_fields = True
             elif (new_voltages < 0).any():
-                relative_voltages = self.optimize_fields(fields, Cmat, max_voltages, relative_voltages)
+                relative_voltages = self.optimize_fields(fields, Cmat, relative_voltages)
                 new_voltages = np.array(
                     [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
                      relative_voltages[2] * max_voltages[2]])
                 print('Could not match desired fields, outputting best approximation')
-                # mask = (new_voltages < 0)
-                # negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
-                # raise ValueError('Polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
+                print(new_voltages)
+                print(np.dot(Cmat, relative_voltages))
+                used_approx_fields = True
         else:
             if (np.abs(new_voltages) > max_voltages).any():
-                raise ValueError('Given field exceeds maximum possible field, outputting best approximation')
+                raise ValueError('Given field exceeds maximum possible field')
             elif (new_voltages < 0).any():
                 mask = (new_voltages < 0)
                 negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
                 raise ValueError('Field not reachable, polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
 
+        #to allow scripts to access data
+        self.new_voltages = new_voltages
+        self.requested_fields = fields
+        if used_approx_fields:
+            self.applied_fields = np.transpose(np.dot(Cmat, relative_voltages))
+        else:
+            self.applied_fields = fields
         return (new_voltages)
 
     def optimize_fields(self, fields, Cmat, proposed_voltage):
@@ -222,12 +234,7 @@ class MagnetCoils(NI9263):
         import scipy.optimize as optimize
 
         def f(x):
-            print('Cmat', Cmat)
-            print('x', x)
-            print('fields', fields)
             y = np.squeeze(np.asarray(np.dot(Cmat, x) - fields)) #convert from matrix to array
-            print('y', y)
-            print('opt_criterion', np.dot(y,y))
             return np.dot(y, y)
 
         bounds = ((0, 1), (0, 1), (0, 1))
