@@ -43,7 +43,7 @@ from pulse_delays import PulseDelays
 
 from light_control import ApplyLightControlSettings, CameraOn
 
-from correlate_images import Track_Correlate_Images
+from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
 # from ni_fpga_galvo_scan import FPGA_GalvoScan
 

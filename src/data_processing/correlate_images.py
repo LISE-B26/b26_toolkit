@@ -153,6 +153,8 @@ def shift_NVs(dx_voltage, dy_voltage, nv_pos_list):
     '''
     return [[pos[0]+dx_voltage, pos[1]+dy_voltage] for pos in nv_pos_list]
 
+def pair_NVs(image1, image2, nv_size):
+    f1 = tp.locate(image1, nv_size)
 
 '''
 data3 = Script.load_data(path = 'Z:\\Lab\\Cantilever\\Measurements\\__test_data_for_coding\\160524-18_52_29_magn_on_center_beam\\')
