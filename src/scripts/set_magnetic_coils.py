@@ -21,6 +21,7 @@ from matplotlib import patches
 
 from b26_toolkit.src.instruments import MagnetCoils
 from PyLabControl.src.core import Script, Parameter
+from b26_toolkit.src.data_processing.coordinate_conversions import spherical_to_cartesian
 
 
 class SetMagneticCoils(Script):
@@ -31,9 +32,10 @@ This script sets the magnetic field coils to the given magnetic field values
     _DEFAULT_SETTINGS = [
         Parameter('magnetic_fields',
                   [
-                      Parameter('x_field', 0.0, float, 'x field in Gauss'),
-                      Parameter('y_field', 0.0, float, 'y field in Gauss'),
-                      Parameter('z_field', 0.0, float, 'z field in Gauss')
+                      Parameter('x/r_field', 0.0, float, 'x or r component of field vector in Gauss'),
+                      Parameter('y/theta_field', 0.0, float, 'y or theta component of field vector in Gauss'),
+                      Parameter('z/phi_field', 0.0, float, 'z or phi component of field vector in Gauss'),
+                      Parameter('coordinate_system', 'Cartesian', ['Cartesian', 'Spherical'], 'Chooses what coordinate system to use to interpret field parameters')
                   ])
     ]
 
@@ -58,9 +60,14 @@ This script sets the magnetic field coils to the given magnetic field values
         """
         self.data = {}
 
-        new_x_field = self.settings['magnetic_fields']['x_field']
-        new_y_field = self.settings['magnetic_fields']['y_field']
-        new_z_field = self.settings['magnetic_fields']['z_field']
+        input_vector = [self.settings['magnetic_fields']['x/r_field'], self.settings['magnetic_fields']['y/theta_field'], self.settings['magnetic_fields']['z/phi_field']]
+
+        if self.settings['magnetic_fields']['coordinate_system'] == 'Spherical':
+            [new_x_field, new_y_field, new_z_field] = spherical_to_cartesian(input_vector)
+        elif self.settings['magnetic_fields']['coordinate_system'] == 'Cartesian':
+            [new_x_field, new_y_field, new_z_field] = input_vector
+
+        print('TYPE', type(new_x_field))
         # new_x_field = 0
         # new_y_field = 0
         # new_z_field = 10
@@ -71,7 +78,8 @@ This script sets the magnetic field coils to the given magnetic field values
         #     raise
         #     self.log('Could not set magnetic field. Reverting to previous value.')
 
-        self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': new_x_field, 'y_field': new_y_field, 'z_field': new_z_field}})
+        #need to cast from float64 in the 'Spherical' case
+        self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': float(new_x_field), 'y_field': float(new_y_field), 'z_field': float(new_z_field)}})
         #
         # self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['magnetic_fields']['x_field'], self.settings['magnetic_fields']['y_field']), self.settings['magnetic_fields']['z_field'])
 
