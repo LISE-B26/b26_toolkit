@@ -36,8 +36,8 @@ class Take_And_Correlate_Images(Script):
     ]
 
     _INSTRUMENTS = {}
-    # _SCRIPTS = {'GalvoScan': GalvoScan}
-    _SCRIPTS = {}
+    _SCRIPTS = {'GalvoScan': GalvoScan}
+    # _SCRIPTS = {}
 
     def __init__(self, instruments = None, name = None, settings = None, scripts = None, log_function = None, data_path = None):
         """
@@ -61,30 +61,31 @@ class Take_And_Correlate_Images(Script):
             self.log('No baseline image avaliable. Taking baseline.')
         elif self.data['image_extent'] == []:
             self.log('No image extent avaliable. Script may have been run in error.')
-        elif self.data['old_nv_list'] == []:
-            self.log('No nv list avaliable. Scipt may have been run in error.')
 
         if not self.data['baseline_image'] == []:
             # use same settings as initial image
-            scan = self.scripts['GalvoScan'].scripts['acquire_image']
+            scan = self.scripts['GalvoScan']
             scan.settings['point_a']['x'] = self.data['image_extent'][0]
             scan.settings['point_b']['x'] = self.data['image_extent'][1]
             scan.settings['point_a']['y'] = self.data['image_extent'][3]
             scan.settings['point_b']['y'] = self.data['image_extent'][2]
+            scan.settings['RoI_mode'] = 'corner'
 
             self.scripts['GalvoScan'].run()
 
-            self.data['new_image'] = self.scripts['GalvoScan'].scripts['acquire_image'].data['image_data']
+            self.data['new_image'] = self.scripts['GalvoScan'].data['image_data']
 
             dx_voltage, dy_voltage, self.data['correlation_image'] = correlation(self.data['baseline_image'],
                                                    self.data['image_extent'], self.data['new_image'],
                                                    self.data['image_extent'], use_trackpy=self.settings['use_trackpy'])
 
             self.data['shift'] = [dx_voltage, dy_voltage]
+            print(self.data['shift'])
 
         else:
             self.scripts['GalvoScan'].run()
             self.data['baseline_image'] = self.scripts['GalvoScan'].data['image_data']
+            self.data['image_extent'] = self.scripts['GalvoScan'].data['extent']
 
     def _plot(self, axes_list):
         '''
@@ -93,13 +94,17 @@ class Take_And_Correlate_Images(Script):
             axes_list: list of axes to plot to. Uses two axes.
 
         '''
-        # data = self.scripts['GalvoScan'].data['image_data']
-        # extent = self.scripts['GalvoScan'].data['extent']
-        data = self.data['new_image']
-        extent = self.data['image_extent']
-        plot_fluorescence_new(data, extent, axes_list[1])
-        if not self.data['correlation_image'] == []:
-            axes_list[0].imshow(self.data['correlation_image'])
+        if self.scripts['GalvoScan'].is_running:
+            self.scripts['GalvoScan']._plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                extent = self.data['image_extent']
+                plot_fluorescence_new(data, extent, axes_list[1])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            else:
+                self.scripts['GalvoScan']._plot(axes_list)
 
     def _update_plot(self, axes_list):
         '''
@@ -108,12 +113,16 @@ class Take_And_Correlate_Images(Script):
             axes_list: list of axes to plot to. Uses two axes.
 
         '''
-        # data = self.scripts['GalvoScan'].data['image_data']
-        # extent = self.scripts['GalvoScan'].data['extent']
-        data = self.data['new_image']
-        update_fluorescence(data, axes_list[1])
-        if not self.data['correlation_image'] == []:
-            axes_list[0].imshow(self.data['correlation_image'])
+        if self.scripts['GalvoScan'].is_running:
+            self.scripts['GalvoScan']._update_plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                update_fluorescence(data, axes_list[1])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            else:
+                self.scripts['GalvoScan']._update_plot(axes_list)
 
 
 class Track_Correlate_Images(Script):

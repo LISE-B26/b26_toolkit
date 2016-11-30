@@ -62,15 +62,24 @@ def find_image_shift(reference_image, reference_image_extent, shifted_image, shi
 
     # get correlation function, find max, return it
 
+    #It turns out that signal.correlate2d is extremely, extremely, extremely slow. It's poorly optimized for
+    # if correlation_padding:
+    #     correlation_image = signal.correlate2d(reference_image, shifted_image, mode='full')
+    # else:
+    #     correlation_image = signal.correlate2d(reference_image, shifted_image, mode='valid')
+
+    #[::-1,::-1] flips second array, since convolution flips the second array relative to correlations so it will be
+    #flipped back
     if correlation_padding:
-        correlation_image = signal.correlate2d(reference_image, shifted_image, mode='full')
+        correlation_image = signal.fftconvolve(reference_image, shifted_image[::-1,::-1], mode='full')
     else:
-        correlation_image = signal.correlate2d(reference_image, shifted_image, mode='valid')
+        correlation_image = signal.fftconvolve(reference_image, shifted_image[::-1,::-1], mode='valid')
 
     dy_pixel, dx_pixel = np.unravel_index(np.argmax(correlation_image), correlation_image.shape) - np.array(correlation_image.shape)/2
 
-    dx_voltage = -1.0 * ref_img_pix2vol[0] * dx_pixel - (np.mean(reference_image_extent[0:2]) - np.mean(shifted_image_extent[0:2]))
-    dy_voltage = -1.0 * ref_img_pix2vol[1] * dy_pixel - (np.mean(reference_image_extent[2:4]) - np.mean(shifted_image_extent[2:4]))
+    #convert, including one pixel shift from above processing
+    dx_voltage = -1.0 * ref_img_pix2vol[0] * (dx_pixel - 1) - (np.mean(reference_image_extent[0:2]) - np.mean(shifted_image_extent[0:2]))
+    dy_voltage = -1.0 * ref_img_pix2vol[1] * (dy_pixel - 1) - (np.mean(reference_image_extent[2:4]) - np.mean(shifted_image_extent[2:4]))
     return dx_voltage, dy_voltage, correlation_image
 
 def pixel_to_voltage_conversion_factor(image_shape, image_extent):
@@ -138,7 +147,7 @@ def correlation(baseline_image, baseline_image_extent, new_image, new_image_exte
 
     dx_voltage, dy_voltage, correlation_image = find_image_shift(baseline_image, baseline_image_extent, new_image, new_image_extent, correlation_padding=True)
 
-    return dx_voltage, dy_voltage, correlation_image, baseline_image, new_image
+    return dx_voltage, dy_voltage, correlation_image
 
 def shift_NVs(dx_voltage, dy_voltage, nv_pos_list):
     '''

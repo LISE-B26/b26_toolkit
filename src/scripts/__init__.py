@@ -16,8 +16,10 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from test_script import ScriptTest
-
+try:
+    from test_script import ScriptTest
+except Exception:
+    pass
 
 from galvo_scan import GalvoScan
 from set_laser import SetLaser
@@ -54,6 +56,8 @@ from ni_fpga_galvo_scan import FPGA_GalvoScan
 from record_pressures import RecordPressures
 
 from set_magnetic_coils import SetMagneticCoils
+
+from align_magnetic_field_to_NV import AlignFieldToNV
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
