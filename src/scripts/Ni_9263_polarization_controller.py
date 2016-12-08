@@ -282,9 +282,12 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 
 if __name__ == '__main__':
-    from PyLabControl.src.core import Instrument, Parameterfrom PyLabControl.src.core import Instrument, Parameter
+    from PyLabControl.src.core import Instrument, Parameter
 
-    daq, failed = Instrument.load_and_append({'daq': NI6259})
+    daq, failed = Instrument.load_and_append({'daq': NI9263})
     print(daq)
+
+    daq['daq'].ao0 = 0
+
 
 

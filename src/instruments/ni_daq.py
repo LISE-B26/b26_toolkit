@@ -23,7 +23,7 @@ import warnings
 from PyLabControl.src.core.read_write_functions import get_config_value
 
 from PyLabControl.src.core import Instrument, Parameter
-
+import numpy as np
 
 ##############################
 # Setup some typedefs and constants
@@ -588,6 +588,15 @@ class DAQ(Instrument):
         return self.data
 
     def get_analog_out_voltages(self, channel_list):
+        """
+
+        Args:
+            channel_list: list (length N) of channels from which to read the voltage
+
+        Returns:
+            list of voltages (length N)
+
+        """
         daq_channels_str = ''
         for channel in channel_list:
             assert channel in self.settings['analog_output']
@@ -608,6 +617,38 @@ class DAQ(Instrument):
         data[0] = data[0] + self.settings['ao_read_offset']
         data[1] = data[1] + self.settings['ao_read_offset']
         return data
+
+    def set_analog_voltages(self, output_dict):
+        """
+
+        Args:
+            output_dict: dictionary with names of channels as key and voltage as value, e.g. {'ao0': 0.1} or {'0':0.1} for setting channel 0 to 0.1
+
+        Returns: nothing
+
+        """
+        # daq API only accepts either one point and one channel or multiple points and multiple channels
+
+        #
+        # # make sure the key has the right format, e.g. ao0
+        # channels = ['ao'+k.replace('ao','') for k in output_dict.keys()]
+
+        channels = []
+        voltages = []
+        for k, v in output_dict.iteritems():
+            channels.append('ao'+k.replace('ao','')) # make sure the key has the right format, e.g. ao0
+            voltages.append(v)
+
+        voltages = np.array([voltages]).T
+        voltages = (np.repeat(voltages, 2, axis=1))
+        # pt = np.transpose(np.column_stack((pt[0],pt[1])))
+        # pt = (np.repeat(pt, 2, axis=1))
+
+
+        self.instruments['daq']['instance'].AO_init(channels, voltages)
+        self.instruments['daq']['instance'].AO_run()
+        self.instruments['daq']['instance'].AO_waitToFinish()
+        self.instruments['daq']['instance'].AO_stop()
 
     def _check_error(self, err):
         """
@@ -741,7 +782,7 @@ class NI9263(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ9184-1BA7633Mod4', (str), 'Name of DAQ device'),
+        Parameter('device', 'cDAQ9184-1BA7633Mod4', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4'], 'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
@@ -784,5 +825,12 @@ class NI9263(DAQ):
 
 if __name__ == '__main__':
 
-    daq, failed = Instrument.load_and_append({'daq': NI6259})
-    print(daq)
+    daq, failed = Instrument.load_and_append({'daq': NI9263})
+
+    print(daq['daq'].settings)
+
+    daq['daq'].device = 'cDAQ9184-1BA7633Mod3'
+
+    print(daq['daq'])
+    print('------')
+    print(daq['daq'].ao0)
