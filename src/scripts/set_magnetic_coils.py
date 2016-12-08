@@ -67,7 +67,6 @@ This script sets the magnetic field coils to the given magnetic field values
         elif self.settings['magnetic_fields']['coordinate_system'] == 'Cartesian':
             [new_x_field, new_y_field, new_z_field] = input_vector
 
-        print('TYPE', type(new_x_field))
         # new_x_field = 0
         # new_y_field = 0
         # new_z_field = 10

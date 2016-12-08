@@ -30,6 +30,7 @@ from temperature_controller import TemperatureController
 from montana import CryoStation
 from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
+from newport_smc100 import SMC100
 
 
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, FPGA_GalvoScan, NI7845RReadFifo

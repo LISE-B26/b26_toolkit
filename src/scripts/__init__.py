@@ -49,7 +49,7 @@ from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
 # from ni_fpga_galvo_scan import FPGA_GalvoScan
 
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints
+from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC
 
 from ni_fpga_galvo_scan import FPGA_GalvoScan
 

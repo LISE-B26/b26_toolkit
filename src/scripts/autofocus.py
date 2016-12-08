@@ -23,7 +23,7 @@ import numpy as np
 import scipy as sp
 from PyQt4.QtCore import pyqtSlot
 
-from b26_toolkit.src.instruments import PiezoController
+from b26_toolkit.src.instruments import PiezoController, SMC100
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser
@@ -168,6 +168,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         max_voltage = self.settings['piezo_center_voltage'] + self.settings['piezo_voltage_width']/2.0
 
         sweep_voltages = np.linspace(min_voltage, max_voltage, self.settings['num_sweep_points'])
+
 
         self.data['sweep_voltages'] = sweep_voltages
         self.data['focus_function_result'] = []
@@ -475,6 +476,29 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['piezo_center_voltage'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
+class AutoFocusDaqSMC(AutoFocusDAQ):
+    _INSTRUMENTS = {
+        'z_driver': SMC100
+    }
+
+    def _step_piezo(self, position, wait_time):
+        """
+        steps the piezo.  Has to be overwritten specifically for each different hardware realization
+        voltage: target piezo voltage
+        wait_time: settle time after voltage step
+        """
+        z_driver = self.instruments['z_driver']['instance']
+        # set the voltage on the piezo
+        z_driver.position = float(position)
+        time.sleep(wait_time)
+
+    def _function(self):
+        #update piezo settings
+        if self.settings['use_current_piezo_voltage']:
+            self.settings['piezo_center_voltage'] = self.instruments['z_driver']['instance'].read_probes('position')
+        AutoFocusGeneric._function(self)
+
+
 
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """
@@ -593,6 +617,9 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
                 self.progress = 100. * index / len(sweep_voltages)
                 self.updateProgress.emit(self.progress if self.progress < 100 else 99)
 
+        #update piezo settings
+        if self.settings['use_current_piezo_voltage']:
+            self.settings['piezo_center_voltage'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
 
         if self.settings['save'] or self.settings['save_images']:
             self.filename_image = '{:s}\\image'.format(self.filename())
