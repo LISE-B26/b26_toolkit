@@ -104,7 +104,7 @@ class SMC100(Instrument):
             time.sleep(.1)
 
 # a = SMC100()
-# a._set_position(21)
+# a._set_position(25)
 # a._set_position(10)
 # print(a._get_position())
 # inst, failed = Instrument.load_and_append({'SMC100': SMC100})
