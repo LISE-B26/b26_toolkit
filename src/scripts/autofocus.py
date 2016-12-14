@@ -38,13 +38,13 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     _DEFAULT_SETTINGS = [
         Parameter('save_images', False, bool, 'save image taken at each voltage'),
-        Parameter('piezo_center_voltage', 50, float, 'center point of piezo voltage sweep'),
-        Parameter('piezo_voltage_width', 5, float, 'V between the minimum and maximum points of the range'),
+        Parameter('z_axis_center_position', 50, float, 'center point of autofocus sweep'),
+        Parameter('scan_width', 5, float, 'distance (in V or mm) between the minimum and maximum points of the range'),
         Parameter('num_sweep_points', 10, int, 'number of values to sweep between min and max voltage'),
         Parameter('focusing_optimizer', 'standard_deviation',
                   ['mean', 'standard_deviation', 'normalized_standard_deviation'], 'optimization function for focusing'),
         Parameter('wait_time', 0.1, float),
-        Parameter('use_current_piezo_voltage', False, bool, 'Overrides piezo_center_voltage and instead uses the current piezo voltage as the center of the range'),
+        Parameter('use_current_z_axis_position', False, bool, 'Overrides z axis center position and instead uses the current piezo voltage as the center of the range'),
         Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in take_image'),
         Parameter('galvo_return_to_initial', False, bool, 'Check to return galvo location to initial value (before calling autofocus)'),
         # Parameter('galvo_position', 'take_image_pta', ['take_image', 'current_location', 'last_run'], 'select galvo location (center point in acquire_image, current location of galvo or location from previous run)')
@@ -164,8 +164,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         if self.settings['center_on_current_location']:
             self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
 
-        min_voltage = self.settings['piezo_center_voltage'] - self.settings['piezo_voltage_width']/2.0
-        max_voltage = self.settings['piezo_center_voltage'] + self.settings['piezo_voltage_width']/2.0
+        min_voltage = self.settings['z_axis_center_position'] - self.settings['scan_width']/2.0
+        max_voltage = self.settings['z_axis_center_position'] + self.settings['scan_width']/2.0
 
         sweep_voltages = np.linspace(min_voltage, max_voltage, self.settings['num_sweep_points'])
 
@@ -287,7 +287,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                 axis_focus.hold(False)
 
 
-        axis_focus.set_xlabel('Piezo Voltage [V]')
+        # axis_focus.set_xlabel('Piezo Voltage [V]')
+        axis_focus.set_xlabel(self.scan_label)
 
         if self.settings['focusing_optimizer'] == 'mean':
             ylabel = 'Image Mean [kcounts]'
@@ -330,7 +331,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
-
 
 class AutoFocusNIFPGA(AutoFocusGeneric):
     """
@@ -405,7 +405,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         return p2
 
-
 class AutoFocusDAQ(AutoFocusGeneric):
     """
 Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
@@ -428,6 +427,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
+        self.scan_label = 'Piezo Voltage [V]'
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
 
     def _step_piezo(self, voltage, wait_time):
@@ -472,14 +472,24 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     def _function(self):
         #update piezo settings
-        if self.settings['use_current_piezo_voltage']:
-            self.settings['piezo_center_voltage'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
+        if self.settings['use_current_z_axis_position']:
+            self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
 class AutoFocusDaqSMC(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_driver': SMC100
     }
+
+    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        self.scan_label = 'Motor Position [mm]'
+        Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
 
     def _step_piezo(self, position, wait_time):
         """
@@ -494,11 +504,9 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
 
     def _function(self):
         #update piezo settings
-        if self.settings['use_current_piezo_voltage']:
-            self.settings['piezo_center_voltage'] = self.instruments['z_driver']['instance'].read_probes('position')
+        if self.settings['use_current_z_axis_position']:
+            self.settings['z_axis_center_position'] = self.instruments['z_driver']['instance'].read_probes('position')
         AutoFocusGeneric._function(self)
-
-
 
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """
@@ -532,7 +540,6 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         """
         self.scripts['find_NV'].run()
         self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
-
 
 class AutoFocusTwoPoints(AutoFocusDAQ):
     _SCRIPTS = {
@@ -618,16 +625,16 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
                 self.updateProgress.emit(self.progress if self.progress < 100 else 99)
 
         #update piezo settings
-        if self.settings['use_current_piezo_voltage']:
-            self.settings['piezo_center_voltage'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
+        if self.settings['use_current_z_axis_position']:
+            self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
 
         if self.settings['save'] or self.settings['save_images']:
             self.filename_image = '{:s}\\image'.format(self.filename())
         else:
             self.filename_image = None
 
-        min_voltage = self.settings['piezo_center_voltage'] - self.settings['piezo_voltage_width']/2.0
-        max_voltage = self.settings['piezo_center_voltage'] + self.settings['piezo_voltage_width']/2.0
+        min_voltage = self.settings['z_axis_center_position'] - self.settings['scan_width']/2.0
+        max_voltage = self.settings['z_axis_center_position'] + self.settings['scan_width']/2.0
 
         sweep_voltages = np.linspace(min_voltage, max_voltage, self.settings['num_sweep_points'])
 
@@ -739,7 +746,6 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
-
 
 if __name__ == '__main__':
 
