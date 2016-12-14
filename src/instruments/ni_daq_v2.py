@@ -33,6 +33,7 @@ import numpy as np
 # the typedefs
 int32 = ctypes.c_long
 int64 = ctypes.c_longlong
+uInt8 = ctypes.c_uint8
 uInt32 = ctypes.c_ulong
 uInt64 = ctypes.c_ulonglong
 float64 = ctypes.c_double
@@ -318,7 +319,7 @@ class DAQ(Instrument):
                                                                DAQmx_Val_FiniteSamps, uInt64(task['sample_num'])))
         else:
             self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], counter_out_PFI_str,
-                                                               float64(self.DI_sample_rate), DAQmx_Val_Rising,
+                                                               float64(task['sample_rate']), DAQmx_Val_Rising,
                                                                DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
         # if (self.settings['override_buffer_size'] > 0):
         #     self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(self.settings['override_buffer_size'])))
@@ -410,6 +411,8 @@ class DAQ(Instrument):
         self._check_error(
             self.nidaq.DAQmxSetCIDupCountPrevent(task['task_handle'], input_channel_str_gated, bool32(True)))
 
+        return task_name
+
     # read sampleNum previously generated values from a buffer, and return the
     # corresponding 1D array of ctypes.c_double values
     def counter_read(self, task_name):
@@ -486,9 +489,9 @@ class DAQ(Instrument):
                 for j in range(task['sample_num']):
                     data[i, j] = waveform[i, j]
         else:
-            self.data = numpy.zeros((task['sample_num']), dtype=numpy.float64)
-            for i in range(self.periodLength):
-                self.data[i] = waveform[i]
+            data = numpy.zeros((task['sample_num']), dtype=numpy.float64)
+            for i in range(task['sample_num']):
+                data[i] = waveform[i]
         self._check_error(self.nidaq.DAQmxCreateTask("",
                                                      ctypes.byref(task['task_handle'])))
         self._check_error(self.nidaq.DAQmxCreateAOVoltageChan(task['task_handle'],
@@ -500,7 +503,7 @@ class DAQ(Instrument):
                                                               None))
         self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
                                                            clk_source,
-                                                           float64(self.task['sample_rate']),
+                                                           float64(task['sample_rate']),
                                                            DAQmx_Val_Rising,
                                                            DAQmx_Val_FiniteSamps,
                                                            uInt64(task['sample_num'])))
@@ -510,9 +513,12 @@ class DAQ(Instrument):
                                                          0,
                                                          float64(-1),
                                                          DAQmx_Val_GroupByChannel,
-                                                         self.data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
+                                                         data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
                                                          None,
                                                          None))
+
+
+        return task_name
 
     def AI_init(self, channel, num_samples_to_acquire):
         """
@@ -536,118 +542,119 @@ class DAQ(Instrument):
         if 'analog_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
-        task['num_samples'] = num_samples_to_acquire
-        data = numpy.zeros((self.AI_numSamples,), dtype=numpy.float64)
+        task['sample_num'] = num_samples_to_acquire
+        data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
         # now, on with the program
-        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(self.AI_taskHandle)))
-        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(self.AI_taskHandle, self.settings['device'], "",
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], self.settings['device'], "",
                                                               DAQmx_Val_Cfg_Default,
                                                               float64(-10.0), float64(10.0),
                                                               DAQmx_Val_Volts, None))
-        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(self.AI_taskHandle, "", float64(
-            self.settings['analog_input'][channel]['sample_rate']),
+        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+                                                           self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
-                                                           uInt64(self.AI_numSamples)))
+                                                           uInt64(task['sample_num'])))
 
-    # def DO_init(self, channels, waveform, clk_source=""):
-    #     """
-    #     Initializes a arbitrary number of digital output channels to output an arbitrary waveform
-    #     Args:
-    #         channels: List of channels to output, check in self.settings['digital_output'] for available channels
-    #         waveform: 2d array of boolean values to output, with each column giving the output values at a given time
-    #             (the timing given by the sample rate of the channel) with the channels going from top to bottom in
-    #             the column in the order given in channels
-    #         clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
-    #             internal clock
-    #
-    #     sets up creates self.DO_taskHandle
-    #     """
-    #
-    #     task = {
-    #         'handle': 0,
-    #         'sample_rate': 0,
-    #         'period_length': 0
-    #     }
-    #
-    #     if 'digital_output' not in self.settings.keys():
-    #         raise ValueError('This DAQ does not support digital output')
-    #     for c in channels:
-    #         if not c in self.settings['digital_output'].keys():
-    #             raise KeyError('This is not a valid digital output channel')
-    #     self.DO_sample_rate = float(
-    #         self.settings['digital_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
-    #     for c in channels:
-    #         if not self.settings['digital_output'][c]['sample_rate'] == self.DO_sample_rate:
-    #             raise ValueError('All sample rates must be the same')
-    #
-    #     lines_list = ''
-    #     for c in channels:
-    #         lines_list += self.settings['device'] + '/port0/line' + str(
-    #             self.settings['digital_output'][c]['channel']) + ','
-    #     lines_list = lines_list[:-1]  # remove the last comma
-    #     self.running = True
-    #     # special case 1D waveform since length(waveform[0]) is undefined
-    #     if (len(numpy.shape(waveform)) == 2):
-    #         self.numChannels = len(waveform)
-    #         self.periodLength = len(waveform[0])
-    #     else:
-    #         self.periodLength = len(waveform)
-    #         self.numChannels = 1
-    #
-    #     self.DO_taskHandle = TaskHandle(0)
-    #     # special case 1D waveform since length(waveform[0]) is undefined
-    #     # converts python array to ctypes array
-    #     if (len(numpy.shape(waveform)) == 2):
-    #         self.data = numpy.zeros((self.numChannels, self.periodLength), dtype=numpy.bool)
-    #         for i in range(self.numChannels):
-    #             for j in range(self.periodLength):
-    #                 self.data[i, j] = waveform[i, j]
-    #     else:
-    #         self.data = numpy.zeros((self.periodLength), dtype=numpy.bool)
-    #         for i in range(self.periodLength):
-    #             self.data[i] = waveform[i]
-    #     self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(self.DO_taskHandle)))
-    #     self._check_error(self.nidaq.DAQmxCreateDOChan(self.DO_taskHandle,
-    #                                                    lines_list,
-    #                                                    "",
-    #                                                    DAQmx_Val_ChanPerLine))
-    #
-    #     self._check_error(self.nidaq.DAQmxCfgSampClkTiming(self.DO_taskHandle,
-    #                                                        clk_source,
-    #                                                        float64(self.DO_sample_rate),
-    #                                                        DAQmx_Val_Rising,
-    #                                                        DAQmx_Val_FiniteSamps,
-    #                                                        uInt64(self.periodLength)))
-    #
-    #     self._check_error(self.nidaq.DAQmxWriteDigitalLines(self.DO_taskHandle,
-    #                                                         int32(self.periodLength),
-    #                                                         0,
-    #                                                         float64(-1),
-    #                                                         DAQmx_Val_GroupByChannel,
-    #                                                         self.data.ctypes.data_as(ctypes.POINTER(ctypes.c_bool)),
-    #                                                         None,
-    #                                                         None))
+        return task_name
 
-    def AI_run(self):
+    def DO_init(self, channels, waveform, clk_source=""):
         """
-        Start taking analog input and storing it in a buffer
-        """
-        self._check_error(self.nidaq.DAQmxStartTask(self.AI_taskHandle))
+        Initializes a arbitrary number of digital output channels to output an arbitrary waveform
+        Args:
+            channels: List of channels to output, check in self.settings['digital_output'] for available channels
+            waveform: 2d array of boolean values to output, with each column giving the output values at a given time
+                (the timing given by the sample rate of the channel) with the channels going from top to bottom in
+                the column in the order given in channels
+            clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
+                internal clock
 
-    def AI_read(self):
+        sets up creates self.DO_taskHandle
+        """
+
+        task = {
+            'task_handle': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_chan': None,
+            'timeout': None
+        }
+
+        task_name = "do{0:03d}".format(self.tasknum)
+        self.tasknum += 1
+        self.tasklist.update({task_name: task})
+
+        if 'digital_output' not in self.settings.keys():
+            raise ValueError('This DAQ does not support digital output')
+        for c in channels:
+            if not c in self.settings['digital_output'].keys():
+                raise KeyError('This is not a valid digital output channel')
+        task['sample_rate'] = float(
+            self.settings['digital_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
+        for c in channels:
+            if not self.settings['digital_output'][c]['sample_rate'] == task['sample_rate']:
+                raise ValueError('All sample rates must be the same')
+
+        lines_list = ''
+        for c in channels:
+            lines_list += self.settings['device'] + '/port0/line' + str(
+                self.settings['digital_output'][c]['channel']) + ','
+        lines_list = lines_list[:-1]  # remove the last comma
+        self.running = True
+        # special case 1D waveform since length(waveform[0]) is undefined
+        if (len(numpy.shape(waveform)) == 2):
+            numChannels = len(waveform)
+            task['sample_num'] = len(waveform[0])
+        else:
+            task['sample_num'] = len(waveform)
+            numChannels = 1
+
+        task['task_handle'] = TaskHandle(0)
+        # special case 1D waveform since length(waveform[0]) is undefined
+        # converts python array to ctypes array
+        if (len(numpy.shape(waveform)) == 2):
+            data = numpy.zeros((numChannels, task['sample_num']), dtype=numpy.bool)
+            for i in range(numChannels):
+                for j in range(task['sample_num']):
+                    data[i, j] = waveform[i, j]
+        else:
+            data = numpy.zeros((task['sample_num']), dtype=numpy.bool)
+            for i in range(task['sample_num']):
+                data[i] = waveform[i]
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+        self._check_error(self.nidaq.DAQmxCreateDOChan(task['task_handle'],
+                                                       lines_list,
+                                                       "",
+                                                       DAQmx_Val_ChanPerLine))
+
+        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
+                                                           clk_source,
+                                                           float64(task['sample_rate']),
+                                                           DAQmx_Val_Rising,
+                                                           DAQmx_Val_FiniteSamps,
+                                                           uInt64(task['sample_num'])))
+
+        self._check_error(self.nidaq.DAQmxWriteDigitalLines(task['task_handle'],
+                                                            int32(task['sample_num']),
+                                                            bool32(False),
+                                                            float64(-1),
+                                                            DAQmx_Val_GroupByChannel,
+                                                            data.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),
+                                                            None,
+                                                            None))
+
+    def AI_read(self, task_name):
         """
         Reads the AI voltage values from the buffer
         Returns: array of ctypes.c_long with the voltage data
         """
-        read = int32()
-        self._check_error(self.nidaq.DAQmxReadAnalogF64(self.AI_taskHandle, self.AI_numSamples, float64(10.0),
-                                                        DAQmx_Val_GroupByChannel, self.data.ctypes.data,
-                                                        self.AI_numSamples, ctypes.byref(read), None))
-        if self.AI_taskHandle.value != 0:
-            self.nidaq.DAQmxStopTask(self.AI_taskHandle)
-            self.nidaq.DAQmxClearTask(self.AI_taskHandle)
+        task = self.tasklist[task_name]
+        data = (float64 * task['sample_num'])()
+        samples_per_channel_read = int32()
+        self._check_error(self.nidaq.DAQmxReadAnalogF64(task['task_handle'], task['sample_num'], float64(10.0),
+                                                        DAQmx_Val_GroupByChannel, data.ctypes.data,
+                                                        task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
-        return self.data
+        return data, samples_per_channel_read
 
 
     # run the task specified by task_name
@@ -743,10 +750,10 @@ class DAQ(Instrument):
         print('channels', channels)
         print('voltages', voltages)
 
-        self.AO_init(channels, voltages)
-        self.AO_run()
-        self.AO_waitToFinish()
-        self.AO_stop()
+        task_name = self.AO_init(channels, voltages)
+        self.DAQ_run(task_name)
+        self.DAQ_waitToFinish(task_name)
+        self.DAQ_stop(task_name)
 
     def set_digital_output(self, output_dict):
         """
@@ -770,17 +777,15 @@ class DAQ(Instrument):
         print('channels', channels)
         print('voltages', values)
 
-        self.DO_init(channels, values)
+        task_name = self.DO_init(channels, values)
 
         # --- self.DO_run()
-        self._check_error(self.nidaq.DAQmxStartTask(self.DO_taskHandle))
+        self.DAQ_run(task_name)
         # -- self.DO_waitToFinish()
-        self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(self.DO_taskHandle,
-                                                            float64(self.periodLength / self.DO_sample_rate * 4 + 1)))
+        self.DAQ_waitToFinish(task_name)
+
         # -- self.DO_stop()
-        if self.DO_taskHandle.value != 0:
-            self.nidaq.DAQmxStopTask(self.DO_taskHandle)
-            self.nidaq.DAQmxClearTask(self.DO_taskHandle)
+        self.DAQ_stop(task_name)
 
     def _check_error(self, err):
         """

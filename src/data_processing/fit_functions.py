@@ -76,14 +76,8 @@ def get_lorentzian_fit_starting_values(x_values, y_values, negative_peak=True):
     Note that the Lorentzian is assumed to
     Args:
         x_values:
-        y_values:
-        negative_peak: if peak is negative or positive
-    Returns: estimated parameters as a list: [constant_offset, amplitude, center, fwhm]
-
+        y_values:the amplitude, that's why we reduce the amplitude by the stddev
     """
-    constant_offset = np.mean(y_values)
-    amplitude = min(y_values) - max(y_values) + 2 * np.std(
-        y_values)  # min - max overestimates the amplitude, that's why we reduce the amplitude by the stddev
     if negative_peak is False:
         amplitude = -amplitude
     center = np.mean(x_values)
