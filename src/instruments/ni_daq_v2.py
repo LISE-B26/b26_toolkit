@@ -70,8 +70,6 @@ class DAQ(Instrument):
     Also supports gated digital input, using one PFI channel as a counter
     and a second as a clock.
     """
-    tasklist = {}
-    tasknum = 0
 
     try:
         dll_path = get_config_value('NIDAQ_DLL_PATH',
@@ -216,13 +214,16 @@ class DAQ(Instrument):
             # except RuntimeError:
             #     self.hardware_detected = False
             super(DAQ, self).__init__(name, settings)
+        self.tasklist = {}
+        self.tasknum = 0
 
-    # unlike most instruments, all of the settings are sent to the DAQ on instantiation of
-    # a task, such as an input or output. Thus, changing the settings only updates the internal
-    # daq construct in the program and makes no hardware changes
+
     def update(self, settings):
         """
-        Updates daq settings for each channel in the software instrument
+        Updates daq settings for each channel in the software instrument.
+        Unlike most instruments, all of the settings are sent to the DAQ on instantiation of
+        a task, such as an input or output. Thus, changing the settings only updates the internal
+        daq construct in the program and makes no hardware changes.
         Args:
             settings: a settings dictionary in the standard form
         """
@@ -255,7 +256,7 @@ class DAQ(Instrument):
         except RuntimeError:
             return False
 
-    def counter_setup(self, channel, sampleNum, continuous_acquisition=False):
+    def counter_init(self, channel, sampleNum, continuous_acquisition=False):
         """
         Initializes a hardware-timed digital counter, bound to a hardware clock
         Args:
@@ -305,7 +306,7 @@ class DAQ(Instrument):
         task['task_handle'] = TaskHandle(1)
 
         # set up clock
-        self._dig_pulse_train_cont(task, .5)
+        self._dig_pulse_train_cont(task, .5, counter_out_str)
         # set up counter using clock as reference
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
         self._check_error(self.nidaq.DAQmxCreateCICountEdgesChan(task['task_handle_ctr'],
@@ -557,7 +558,7 @@ class DAQ(Instrument):
 
         return task_name
 
-    def DO_init(self, channels, waveform, clk_source=""):
+    def DO_init(self, channels):
         """
         Initializes a arbitrary number of digital output channels to output an arbitrary waveform
         Args:
@@ -599,46 +600,45 @@ class DAQ(Instrument):
             lines_list += self.settings['device'] + '/port0/line' + str(
                 self.settings['digital_output'][c]['channel']) + ','
         lines_list = lines_list[:-1]  # remove the last comma
+
         self.running = True
         # special case 1D waveform since length(waveform[0]) is undefined
-        if (len(numpy.shape(waveform)) == 2):
-            numChannels = len(waveform)
-            task['sample_num'] = len(waveform[0])
-        else:
-            task['sample_num'] = len(waveform)
-            numChannels = 1
+        # if (len(numpy.shape(waveform)) == 2):
+        #     numChannels = len(waveform)
+        #     task['sample_num'] = len(waveform[0])
+        # else:
+        #     task['sample_num'] = len(waveform)
+        #     numChannels = 1
 
         task['task_handle'] = TaskHandle(0)
         # special case 1D waveform since length(waveform[0]) is undefined
         # converts python array to ctypes array
-        if (len(numpy.shape(waveform)) == 2):
-            data = numpy.zeros((numChannels, task['sample_num']), dtype=numpy.bool)
-            for i in range(numChannels):
-                for j in range(task['sample_num']):
-                    data[i, j] = waveform[i, j]
-        else:
-            data = numpy.zeros((task['sample_num']), dtype=numpy.bool)
-            for i in range(task['sample_num']):
-                data[i] = waveform[i]
+        # if (len(numpy.shape(waveform)) == 2):
+        #     data = numpy.zeros((numChannels, task['sample_num']), dtype=numpy.bool)
+        #     for i in range(numChannels):
+        #         for j in range(task['sample_num']):
+        #             data[i, j] = waveform[i, j]
+        # else:
+        #     data = numpy.zeros((task['sample_num']), dtype=numpy.bool)
+        #     for i in range(task['sample_num']):
+        #         data[i] = waveform[i]
+        # task['data'] = data
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
         self._check_error(self.nidaq.DAQmxCreateDOChan(task['task_handle'],
                                                        lines_list,
                                                        "",
                                                        DAQmx_Val_ChanPerLine))
 
-        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
-                                                           clk_source,
-                                                           float64(task['sample_rate']),
-                                                           DAQmx_Val_Rising,
-                                                           DAQmx_Val_FiniteSamps,
-                                                           uInt64(task['sample_num'])))
+        return task_name
 
+    def DO_write(self, task_name, output_values):
+        task = self.tasklist[task_name]
         self._check_error(self.nidaq.DAQmxWriteDigitalLines(task['task_handle'],
                                                             int32(task['sample_num']),
                                                             bool32(False),
                                                             float64(-1),
                                                             DAQmx_Val_GroupByChannel,
-                                                            data.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),
+                                                            output_values.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),
                                                             None,
                                                             None))
 
@@ -663,14 +663,15 @@ class DAQ(Instrument):
         """
         start reading sampleNum values from counter into buffer
         """
-        self._check_error(self.nidaq.DAQmxStartTask(self.tasklist[task_name]))
+        task = self.tasklist[task_name]
+        self._check_error(self.nidaq.DAQmxStartTask(task['task_handle']))
 
     def DAQ_waitToFinish(self, task_name):
         """
         Wait until function has finished
         """
         task = self.tasklist[task_name]
-        self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(task,
+        self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(task['task_handle'],
                                                             float64(task['sample_num'] / task['sample_rate'] * 4 + 1)))
 
     def DAQ_stop(self, task_name):
@@ -771,20 +772,15 @@ class DAQ(Instrument):
             channels.append('do' + k.replace('do', ''))  # make sure the key has the right format, e.g. ao0
             values.append(v)
 
-        values = np.array([values]).T
-        values = (np.repeat(values, 2, axis=1))
-
         print('channels', channels)
         print('voltages', values)
 
-        task_name = self.DO_init(channels, values)
+        task_name = self.DO_init(channels)
 
-        # --- self.DO_run()
         self.DAQ_run(task_name)
-        # -- self.DO_waitToFinish()
-        self.DAQ_waitToFinish(task_name)
 
-        # -- self.DO_stop()
+        self.DO_write(task_name, values)
+
         self.DAQ_stop(task_name)
 
     def _check_error(self, err):
@@ -978,6 +974,7 @@ class NI9263(DAQ):
 
 
 if __name__ == '__main__':
+    pass
     # daq, failed = Instrument.load_and_append({'daq': NI9263, 'daq_in': NI6259})
     # print('FAILED', failed)
     # print(daq['daq'].settings)
@@ -997,5 +994,5 @@ if __name__ == '__main__':
     # print(daq['daq_in'])
     # print('GET', daq['daq_in'].get_analog_voltages(['ai1', 'ai2']))
 
-    daq, failed = Instrument.load_and_append({'daq_in': NI6259})
-    daq['daq_in'].set_digital_output({'do0': True})
+    # daq, failed = Instrument.load_and_append({'daq_in': NI6259})
+    # daq['daq_in'].set_digital_output({'do0': False})

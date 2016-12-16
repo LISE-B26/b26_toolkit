@@ -176,6 +176,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         self.data['current_image'] = np.zeros([1,1])
         self.data['extent'] = None
 
+
         autofocus_loop(sweep_voltages)
 
 

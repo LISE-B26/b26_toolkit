@@ -21,7 +21,7 @@ try:
 except Exception:
     pass
 
-from galvo_scan import GalvoScan
+from galvo_scan_v2 import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR

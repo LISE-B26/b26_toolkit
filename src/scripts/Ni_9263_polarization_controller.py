@@ -133,11 +133,14 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 
 
-        NI6259 = self.instruments['NI6259']['instance']
-        NI9263 = self.instruments['NI9263']['instance']
+        NIDAQ_DIO = self.instruments['NI6259']['instance'] # digital channel
+        NIDAQ_AI = self.instruments['NI6259']['instance']  # analog input
+        NIDAQ_AO = self.instruments['NI9263']['instance'] # analog output
 
         # turn controller on
-        NI6259[control_channel] = True
+        # NI6259[control_channel] = True
+        NIDAQ_DIO.set_digital_output({'control_channel': True})
+
         # fpga_io.update({'read_io':{control_channel: True}})
 
 
@@ -146,7 +149,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         for i in [1, 2, 3]:
             if self.settings['optimization']['start with current'] and i == wp_control:
                 # value = getattr(fpga_io, channel_out)
-                value = NI6259[channel_in]
+                value = NIDAQ_AO[channel_out]
                 if value == 0:
                     value = float(self.settings['setpoints']['V_{:d}'.format(i)])
                     self.log('current value is zero take setpoint {:0.3f} V as starting point'.format(value))
@@ -159,7 +162,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
             dictator.update({control_channel:value})
 
-        NI6259.update(dictator)
+        NIDAQ_AO.set_analog_voltages(dictator)
         time.sleep(settle_time)
 
         crossed_zero = False
@@ -168,12 +171,14 @@ script to balance photodetector to zero by adjusting polarization controller vol
                 break
 
             # set output
-            NI9263.update({channel_out: float(v_out)})
+            # NIDAQ_AO.update({channel_out: float(v_out)})
+            NIDAQ_AO.set_analog_voltages({channel_out: float(v_out)})
             # fpga_io.update({'read_io':{channel_out: float(v_out)}})
             # wait for system to settle
             time.sleep(settle_time)
             # read detector
-            detector_value = NI6259[channel_in]
+            # detector_value = NIDAQ_DIO[channel_in]
+            detector_value = NIDAQ_AI.get_analog_voltages([channel_in])
 
             self.data['voltage_waveplate'].append(v_out)
             self.data['detector_signal'].append(detector_value)
@@ -191,13 +196,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
                 # check for zero crossing
                 if self.data['detector_signal'][-2] * self.data['detector_signal'][-1] < 0:
                     self.log('detected zero crossing!')
-                    # direction *=-1 # since we crossed zero we have to go back the next time, i.e invert the direction
                     v_step /=2 # decrease the step size since we are closer to zero
-                # else:
-                #     if len(self.data['voltage_waveplate']) < 5 and len(self.data['voltage_waveplate']) >2 and abs(self.data['detector_signal'][-1]) > abs(self.data['detector_signal'][-2]):
-                #         self.log('seem to go into wrong direction: turning around')
-                #         # direction *= -1 # if in the first few measurements we go into the wrong direction, then turn around
-
 
             # calculate next output voltage
             v_out += v_step * direction
@@ -206,7 +205,6 @@ script to balance photodetector to zero by adjusting polarization controller vol
             if v_out > 5 or v_out <0:
                 v_out = 5 if v_out > 5 else 0 # set the output to be within the range
                 slope *= -1
-                # direction *= -1 # change direction since we hit the end of the valid output range
 
             if min(self.data['voltage_waveplate']) == 0 and max(self.data['voltage_waveplate']) ==5:
                 self.log('warning! scanned full range without finding zero. abort!')
@@ -214,7 +212,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 
         self.data['setpoint'] = v_out
-        print('starting contrinuous measurement')
+        print('starting continuous measurement')
 
         n_opt = len(self.data['voltage_waveplate'])
         n_cont = self.settings['measure_at_zero']['N']
@@ -222,7 +220,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
             for i in range(n_cont):
                 if self._abort:
                     break
-                detector_value = NI6259[channel_in]
+                detector_value = NIDAQ_AI.get_analog_voltages([channel_in])
                 self.data['det_signal_cont'].append(detector_value)
                 self.progress = 100.* (i+n_opt+1) /(n_cont+ n_opt)
 
@@ -261,8 +259,6 @@ script to balance photodetector to zero by adjusting polarization controller vol
                 axes_list[0].plot(signal_det, '-o')
                 axes_list[0].set_ylabel('detector signal (bit)')
                 axes_list[0].hold(False)
-
-
 
     def _update(self, axes_list):
         volt_range = np.array(self.data['voltage_waveplate'])

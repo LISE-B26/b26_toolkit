@@ -262,7 +262,7 @@ class GalvoScanDAQ(GalvoScanGeneric):
         returns the current position of the galvo
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
-        galvo_position = self.instruments['daq']['instance'].get_analog_out_voltages([
+        galvo_position = self.instruments['daq']['instance'].get_analog_voltages([
             self.settings['DAQ_channels']['x_ao_channel'],
             self.settings['DAQ_channels']['y_ao_channel']]
         )

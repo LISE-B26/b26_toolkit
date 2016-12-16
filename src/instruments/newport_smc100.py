@@ -103,6 +103,22 @@ class SMC100(Instrument):
                 break
             time.sleep(.1)
 
+    def _get_velocity(self):
+        i_ref = -1
+        s_ref = ''
+        result, response, errString = self.SMC.VA_Get(1, i_ref, s_ref)
+        if result == -1:
+            print('ERROR: ' + errString)
+            raise
+        return response
+
+    def _set_velocity(self, vel):
+        s_ref = ''
+        result, errString = self.SMC.VA_Set(1, vel, s_ref)
+        if result == -1:
+            print('ERROR: ' + errString)
+            raise
+
 # a = SMC100()
 # a._set_position(25)
 # a._set_position(10)
