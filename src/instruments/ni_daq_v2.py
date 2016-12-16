@@ -16,6 +16,13 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+#TODO:
+# use tasks to commuicate between inits, instead of passing other variables
+# daq_run takes a list
+# generic read
+# tasklist setter
+
+
 import ctypes
 import os
 import numpy
@@ -659,14 +666,14 @@ class DAQ(Instrument):
 
     # run the task specified by task_name
     # todo: AK - should this be threaded? original todo: is this actually blocking? Is the threading actually doing anything? see nidaq cookbook
-    def DAQ_run(self, task_name):
+    def run(self, task_name):
         """
         start reading sampleNum values from counter into buffer
         """
         task = self.tasklist[task_name]
         self._check_error(self.nidaq.DAQmxStartTask(task['task_handle']))
 
-    def DAQ_waitToFinish(self, task_name):
+    def waitToFinish(self, task_name):
         """
         Wait until function has finished
         """
@@ -674,7 +681,7 @@ class DAQ(Instrument):
         self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(task['task_handle'],
                                                             float64(task['sample_num'] / task['sample_rate'] * 4 + 1)))
 
-    def DAQ_stop(self, task_name):
+    def stop(self, task_name):
         #remove task to be cleared from tasklist
         task = self.tasklist.pop(task_name)
 
@@ -752,9 +759,9 @@ class DAQ(Instrument):
         print('voltages', voltages)
 
         task_name = self.AO_init(channels, voltages)
-        self.DAQ_run(task_name)
-        self.DAQ_waitToFinish(task_name)
-        self.DAQ_stop(task_name)
+        self.run(task_name)
+        self.waitToFinish(task_name)
+        self.stop(task_name)
 
     def set_digital_output(self, output_dict):
         """
@@ -777,11 +784,11 @@ class DAQ(Instrument):
 
         task_name = self.DO_init(channels)
 
-        self.DAQ_run(task_name)
+        self.run(task_name)
 
         self.DO_write(task_name, values)
 
-        self.DAQ_stop(task_name)
+        self.stop(task_name)
 
     def _check_error(self, err):
         """

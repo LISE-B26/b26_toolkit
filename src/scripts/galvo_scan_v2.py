@@ -130,19 +130,19 @@ class GalvoScan(Script):
             aotask = self.instruments['daq']['instance'].AO_init(
                 [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']],
                 self.initPt, "")
-            self.instruments['daq']['instance'].DAQ_run(aotask)
-            self.instruments['daq']['instance'].DAQ_waitToFinish(aotask)
-            self.instruments['daq']['instance'].DAQ_stop(aotask)
+            self.instruments['daq']['instance'].run(aotask)
+            self.instruments['daq']['instance'].waitToFinish(aotask)
+            self.instruments['daq']['instance'].stop(aotask)
 
             aotask = self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel']], self.x_array,
                                                         clk_source)
             # start counter and scanning sequence
-            self.instruments['daq']['instance'].DAQ_run(aotask)
-            self.instruments['daq']['instance'].DAQ_run(ctrtask)
-            self.instruments['daq']['instance'].DAQ_waitToFinish(aotask)
-            self.instruments['daq']['instance'].DAQ_stop(aotask)
+            self.instruments['daq']['instance'].run(aotask)
+            self.instruments['daq']['instance'].run(ctrtask)
+            self.instruments['daq']['instance'].waitToFinish(aotask)
+            self.instruments['daq']['instance'].stop(aotask)
             xLineData,_ = self.instruments['daq']['instance'].counter_read(ctrtask)
-            self.instruments['daq']['instance'].DAQ_stop(ctrtask)
+            self.instruments['daq']['instance'].stop(ctrtask)
             diffData = np.diff(xLineData)
 
             summedData = np.zeros(len(self.x_array)/self.clockAdjust)
@@ -201,9 +201,9 @@ class GalvoScan(Script):
         pt = (np.repeat(pt, 2, axis=1))
 
         task = daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        daq.DAQ_run(task)
-        daq.DAQ_waitToFinish(task)
-        daq.DAQ_stop(task)
+        daq.run(task)
+        daq.waitToFinish(task)
+        daq.stop(task)
 
     @staticmethod
     def pts_to_extent(pta, ptb, roi_mode):

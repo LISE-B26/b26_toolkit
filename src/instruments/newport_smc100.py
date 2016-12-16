@@ -24,7 +24,7 @@ class SMC100(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM9', str, 'serial number written on device'),
-        Parameter('position', 25, float, 'servo position (from 0 to 25 in mm)'),
+        Parameter('position', 25.0, float, 'servo position (from 0 to 25 in mm)'),
         Parameter('height_lower_limit', 0, float, 'lowest position servo can move to (in mm)')
     ])
 

@@ -65,9 +65,9 @@ This script points the laser to a point
         pt = (np.repeat(pt, 2, axis=1))
 
         task = self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        self.instruments['daq']['instance'].DAQ_run(task)
-        self.instruments['daq']['instance'].DAQ_waitToFinish(task)
-        self.instruments['daq']['instance'].DAQ_stop(task)
+        self.instruments['daq']['instance'].run(task)
+        self.instruments['daq']['instance'].waitToFinish(task)
+        self.instruments['daq']['instance'].stop(task)
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
     #must be passed figure with galvo plot on first axis
