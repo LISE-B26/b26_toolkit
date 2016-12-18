@@ -17,9 +17,6 @@
 """
 
 #TODO:
-# use tasks to commuicate between inits, instead of passing other variables
-# daq_run takes a list
-# generic read
 # tasklist setter
 
 
@@ -76,6 +73,18 @@ class DAQ(Instrument):
     analog output (ao), analog input (ai), and digital input (di) channels.
     Also supports gated digital input, using one PFI channel as a counter
     and a second as a clock.
+
+    In general, the order of calls to use one of these channels is:
+    setup
+    run
+    (read or write if required)
+    stop
+
+    In general, 'setup' sets up the buffer, either filling it with the values to
+    output or telling it to ready for input, and locks the task so the correct clock.
+    'Run' starts the input to or output from the buffer.
+    'Read' sends data from the buffer to the computer (if applicable).
+    'Stop' ends the task and cleans up.
     """
 
     try:
@@ -224,7 +233,6 @@ class DAQ(Instrument):
         self.tasklist = {}
         self.tasknum = 0
 
-
     def update(self, settings):
         """
         Updates daq settings for each channel in the software instrument.
@@ -240,6 +248,16 @@ class DAQ(Instrument):
             if key == 'device':
                 if not (self.is_connected):
                     raise EnvironmentError('Device invalid, cannot connect to DAQ')
+
+    def _add_to_tasklist(self, name, task):
+        matching = [x for x in self.tasklist if name in x]
+        if not matching:
+            task_name = name + '000'
+        else:
+            last_task = sorted(matching)[-1]
+            task_name = name + '{0:03d}'.format(int(last_task[-3:])+1)
+        self.tasklist.update({task_name: task})
+        return task_name
 
     @property
     def _PROBES(self):
@@ -282,15 +300,14 @@ class DAQ(Instrument):
         task = {
             'task_handle': None,
             'task_handle_ctr': None,
+            'counter_out_PFI_str': None,
             'sample_num': None,
             'sample_rate': None,
             'num_samples_per_chan': None,
             'timeout': None
         }
 
-        task_name = "ctr{0:03d}".format(self.tasknum)
-        self.tasknum += 1
-        self.tasklist.update({task_name: task})
+        task_name = self._add_to_tasklist('ctr', task)
 
         if 'digital_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support digital input')
@@ -306,7 +323,7 @@ class DAQ(Instrument):
             task['num_samples_per_chan'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
         input_channel_str = self.settings['device'] + '/' + channel
-        counter_out_PFI_str = '/' + self.settings['device'] + '/PFI' + str(
+        task['counter_out_PFI_str'] = '/' + self.settings['device'] + '/PFI' + str(
             channel_settings['clock_PFI_channel'])  # initial / required only here, see NIDAQ documentation
         counter_out_str = self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])
         task['task_handle_ctr'] = TaskHandle(0)
@@ -322,11 +339,11 @@ class DAQ(Instrument):
         # PFI13 is standard output channel for ctr1 channel used for clock and
         # is internally looped back to ctr1 input to be read
         if not continuous_acquisition:
-            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], counter_out_PFI_str,
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], task['counter_out_PFI_str'],
                                                                float64(task['sample_rate']), DAQmx_Val_Rising,
                                                                DAQmx_Val_FiniteSamps, uInt64(task['sample_num'])))
         else:
-            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], counter_out_PFI_str,
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], task['counter_out_PFI_str'],
                                                                float64(task['sample_rate']), DAQmx_Val_Rising,
                                                                DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
         # if (self.settings['override_buffer_size'] > 0):
@@ -335,7 +352,7 @@ class DAQ(Instrument):
 
         self._check_error(self.nidaq.DAQmxStartTask(task['task_handle_ctr']))
 
-        return task_name, counter_out_PFI_str
+        return task_name
 
     def _dig_pulse_train_cont(self, task, DutyCycle, counter_out_str):
         """
@@ -381,9 +398,7 @@ class DAQ(Instrument):
             'timeout': None
         }
 
-        task_name = "gatedctr{0:03d}".format(self.tasknum)
-        self.tasknum += 1
-        self.tasklist.update({task_name: task})
+        task_name = self._add_to_tasklist('gatedctr', task)
 
         input_channel_str_gated = self.settings['device'] + '/' + channel
         counter_out_PFI_str_gated = '/' + self.settings['device'] + '/PFI' + str(
@@ -467,9 +482,7 @@ class DAQ(Instrument):
             'timeout': None
         }
 
-        task_name = "ao{0:03d}".format(self.tasknum)
-        self.tasknum += 1
-        self.tasklist.update({task_name: task})
+        task_name = self._add_to_tasklist('ao', task)
 
         task['sample_rate'] = float(
             self.settings['analog_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
@@ -500,6 +513,10 @@ class DAQ(Instrument):
             data = numpy.zeros((task['sample_num']), dtype=numpy.float64)
             for i in range(task['sample_num']):
                 data[i] = waveform[i]
+
+        if not (clk_source == ""):
+            clk_source = task['counter_out_PFI_str']
+
         self._check_error(self.nidaq.DAQmxCreateTask("",
                                                      ctypes.byref(task['task_handle'])))
         self._check_error(self.nidaq.DAQmxCreateAOVoltageChan(task['task_handle'],
@@ -543,9 +560,8 @@ class DAQ(Instrument):
             'num_samples_per_chan': None,
             'timeout': None
         }
-        task_name = "ai{0:03d}".format(self.tasknum)
-        self.tasknum += 1
-        self.tasklist.update({task_name: task})
+
+        task_name = self._add_to_tasklist('ai', task)
 
         if 'analog_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support analog input')
@@ -587,9 +603,7 @@ class DAQ(Instrument):
             'timeout': None
         }
 
-        task_name = "do{0:03d}".format(self.tasknum)
-        self.tasknum += 1
-        self.tasklist.update({task_name: task})
+        task_name = self._add_to_tasklist('do', task)
 
         if 'digital_output' not in self.settings.keys():
             raise ValueError('This DAQ does not support digital output')
@@ -668,18 +682,48 @@ class DAQ(Instrument):
     # todo: AK - should this be threaded? original todo: is this actually blocking? Is the threading actually doing anything? see nidaq cookbook
     def run(self, task_name):
         """
-        start reading sampleNum values from counter into buffer
+        Runs the task or list of tasks specified in taskname. What 'running' does depends on the type of task that was
+        set up, but generally either begins output from a buffer or input to a buffer.
+
+        Args:
+            task_name: string identifying task
+
         """
-        task = self.tasklist[task_name]
-        self._check_error(self.nidaq.DAQmxStartTask(task['task_handle']))
+        #run list of tasks
+        if type(task_name) == list:
+            for name in task_name:
+                task = self.tasklist[name]
+                self._check_error(self.nidaq.DAQmxStartTask(task['task_handle']))
+        #run single task
+        else:
+            task = self.tasklist[task_name]
+            self._check_error(self.nidaq.DAQmxStartTask(task['task_handle']))
 
     def waitToFinish(self, task_name):
         """
-        Wait until function has finished
+        Blocks until the task specified by task_name is completed
+
+        Args:
+            task_name: string identifying task
+
         """
         task = self.tasklist[task_name]
         self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(task['task_handle'],
                                                             float64(task['sample_num'] / task['sample_rate'] * 4 + 1)))
+
+    def read(self, task_name):
+        if 'ctr' in task_name:
+            return(self.counter_read(task_name))
+        elif 'ai' in task_name:
+            return(self.AI_read(task_name))
+        else:
+            raise ValueError('This task does not allow reads.')
+
+    def write(self, task_name, output_values):
+        if 'do' in task_name:
+            self.DO_write(task_name, output_values)
+        else:
+            raise ValueError('This task does not allow writes.')
 
     def stop(self, task_name):
         #remove task to be cleared from tasklist

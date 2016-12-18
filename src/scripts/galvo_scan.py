@@ -136,6 +136,7 @@ class GalvoScan(Script):
             self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel']], self.x_array,
                                                         clk_source)
             # start counter and scanning sequence
+            # AO runs on DI clock, so start AO first, it waits for DI to start
             self.instruments['daq']['instance'].AO_run()
             self.instruments['daq']['instance'].DI_run()
             self.instruments['daq']['instance'].AO_waitToFinish()

@@ -4,31 +4,51 @@ import sys, os
 import time
 from PyLabControl.src.core.read_write_functions import get_config_value
 
-# dll_path = get_config_value('KINESIS_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
-dll_path = 'C:\Program Files (x86)\Newport\MotionControl\SMC100\Bin'
+
+dll_path = get_config_value('SMC100_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+# dll_path = 'C:\Program Files (x86)\Newport\MotionControl\SMC100\Bin'
 sys.path.insert(0,dll_path)
 from PyLabControl.src.core import Parameter, Instrument
-import System
 
+# Uses python for .net to add dll assembly to namespace
 clr.AddReference('Newport.SMC100.CommandInterface')
 import CommandInterfaceSMC100
 
+########################################################################################################################
+## INSTRUCTIONS ON USING THIS DLL AND PYTHON FOR .NET
+# Most of the functions in this DLL take three arguments. The first is the controller number (hardcoded as 1 for now),
+# the second is either a number to input or a by reference number to hold output, and the third is a string passed by
+# reference to record errors. The functions also a return an int, 0 for success and -1 for error. Since passing by
+# reference doesn't exist in python, python for .net will return all by reference values as part of an array. For
+# example, the function to get position with one return value and two by reference values returns
+# [int result, float position, str error]. However, YOU MUST GIVE DUMMY REFERENCE ARGUMENTS. The function to get
+# position takes (int, float byref, str byref), and all three must be provided even if the latter two are just constants
+# that get thrown out. This is contrary to the example in the provided documentation, but if you only provide (int),
+# python won't be able to match arguments and resolve the function.
+########################################################################################################################
 #status codes
 MOVING = '28'
 DONE_MOVING = '33'
 
 class SMC100(Instrument):
     '''
-
+Class to control the Newport SMC100 stepper motor driver. Class controlled over USB via DLL.
     '''
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM9', str, 'serial number written on device'),
         Parameter('position', 25.0, float, 'servo position (from 0 to 25 in mm)'),
+        Parameter('velocity', 1.0, float, 'servo velocity (from 0 to 1 in mm/s)'),
         Parameter('height_lower_limit', 0, float, 'lowest position servo can move to (in mm)')
     ])
 
     def __init__(self, name = None, settings = None):
+        """
+        Initializes connection to the device.
+        Args:
+            name: device name
+            settings: dictionary containing desired settings for instrument
+        """
         super(SMC100, self).__init__(name, settings)
 
         self.SMC = CommandInterfaceSMC100.SMC100()
@@ -39,7 +59,7 @@ class SMC100(Instrument):
 
     def update(self, settings):
         '''
-        Updates internal settings, as well as the position and velocity set on the physical device
+        Updates internal settings, as well as the position set on the physical device
         Args:
             settings: A dictionary in the form of settings as seen in default settings
         '''
@@ -71,12 +91,18 @@ class SMC100(Instrument):
 
     def __del__(self):
         '''
-        Cleans up TDC001 connection
-        :PostState: TDC001 is disconnected
+        Cleans up SMC100 connection
+        :PostState: SMC100 is disconnected
         '''
         self.SMC.CloseInstrument()
 
     def _get_position(self):
+        """
+        Reads current position of motor.
+
+        Returns: current position of motor in mm
+
+        """
         i_ref = -1
         s_ref = ''
         result, response, errString = self.SMC.TP(1, i_ref, s_ref)
@@ -86,6 +112,13 @@ class SMC100(Instrument):
         return response
 
     def _set_position(self, pos):
+        """
+        Sets motor to desired position.
+
+        Args:
+            pos: position to set in mm. Must be less than height_lower_limit in settings.
+
+        """
         if pos < self.settings['height_lower_limit']:
             raise ValueError('cannot set position below height_lower_limit')
         s_ref = ''
@@ -95,7 +128,7 @@ class SMC100(Instrument):
             raise
         #block until movement is done
         while True:
-            result, ErrorCode, StatusCode, errString = self.SMC.TS(1, s_ref, s_ref,s_ref)
+            result, ErrorCode, StatusCode, errString = self.SMC.TS(1, s_ref, s_ref, s_ref)
             if result == -1:
                 print('ERROR: ' + errString)
                 raise

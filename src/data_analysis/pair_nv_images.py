@@ -134,17 +134,24 @@ def perform_affine_transform(img_path_old, img_path_new, done_queue, return_queu
     shifted_nv_pts_old = []
 
     for pt in nv_pts_old:
-        circ = patches.Circle((pt[0], pt[1]), .0005, fc='b')
+        circ = patches.Circle((pt[0], pt[1]), .0005, fc='k', ec = 'k')
         ax0.add_patch(circ)
 
         vec = [pt[0], pt[1], 1]
         vec_prime = np.dot(Amat, vec)
 
-        circ = patches.Circle((vec_prime[0], vec_prime[1]), .0005, fc='b')
+        circ = patches.Circle((vec_prime[0], vec_prime[1]), .0005, fc='k', ec = 'k')
         ax1.add_patch(circ)
 
         shifted_nv_pts_old.append([vec_prime[0], vec_prime[1]])
 
+    for pt in nv_pts_new:
+        circ = patches.Circle((pt[0], pt[1]), .0005, fc='g', ec = 'g')
+        ax1.add_patch(circ)
+
     tree = scipy.spatial.KDTree(shifted_nv_pts_old)
     _, new_to_old_map = tree.query(nv_pts_new, distance_upper_bound=.005)
+    #kd tree returns value of len(new_to_old_map) if no match found, change this to -1
+    new_to_old_map = [x if x != len(nv_pts_old) else -1 for x in new_to_old_map]
+
     return_queue.put(new_to_old_map)

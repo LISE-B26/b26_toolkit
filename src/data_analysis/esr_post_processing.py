@@ -71,8 +71,8 @@ def process_esrs(source_folder, target_folder):
     thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, widget_list[4], widget_list[5]))
     thread.start()
 
-    thread.join()
-    visualize_magnetic_fields(source_folder, target_folder)
+    # thread.join()
+    # visualize_magnetic_fields(source_folder, target_folder)
 
     # for widget in widget_list:
     #     widget.close()
@@ -265,6 +265,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
         FindNV.plot_data([ax[1]], data_pos)
 
         # plot data and fits
+        print("fit_params: ", fit_params)
         plot_esr(ax[0], data['frequency'], data['data'], fit_params=fit_params)
 
         plt.tight_layout()
@@ -295,6 +296,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
     filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
     filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
     data_filepath = os.path.join(filepath, filename)
+
+    print('to_save path: ', os.path.join(filepath, filename))
+
 
     if not os.path.exists(filepath):
         os.makedirs(filepath)
@@ -410,7 +414,7 @@ def visualize_magnetic_fields(src_folder, target_folder, manual=True):
     # load the fit_data
     if manual:
         #         df = pd.read_csv(os.path.join(target_folder, '{:s}-manual.csv'.format(folder.split('./')[1].replace('/','-'))), index_col = 'id', skipinitialspace=True)
-        filename = '{:s}-manual.csv'.format(os.path.basename(src_folder))
+        filename = '{:s}\\data-manual.csv'.format(os.path.basename(src_folder))
     else:
         filename = '{:s}.csv'.format(os.path.basename(src_folder))
     # df = pd.read_csv(os.path.join(target_folder, '{:s}.csv'.format(folder.split('./')[1].replace('/','-'))), index_col = 'id', skipinitialspace=True)
