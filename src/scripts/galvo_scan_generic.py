@@ -282,7 +282,7 @@ class GalvoScanDAQ(GalvoScanGeneric):
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
-        daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        daq.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         daq.AO_run()
         daq.AO_waitToFinish()
         daq.AO_stop()
@@ -303,14 +303,14 @@ class GalvoScanDAQ(GalvoScanGeneric):
         self.initPt = (np.repeat(self.initPt, 2, axis=1))
 
         # move galvo to first point in line
-        self.instruments['daq']['instance'].AO_init(
+        self.instruments['daq']['instance'].setup_AO(
             [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']],
             self.initPt, "")
         self.instruments['daq']['instance'].AO_run()
         self.instruments['daq']['instance'].AO_waitToFinish()
         self.instruments['daq']['instance'].AO_stop()
-        self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel']], self.x_array,
-                                                    clk_source)
+        self.instruments['daq']['instance'].setup_AO([self.settings['DAQ_channels']['x_ao_channel']], self.x_array,
+                                                     clk_source)
         # start counter and scanning sequence
         self.instruments['daq']['instance'].AO_run()
         self.instruments['daq']['instance'].DI_run()

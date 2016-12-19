@@ -126,14 +126,11 @@ class MagnetCoils(NI9263):
                     new_field_z = self.settings['magnetic_fields']['z_field']
                     new_voltages = self.calc_voltages_for_fields(np.array([new_field_x, new_field_y, new_field_z]))
                     # convert to form required for daq output
-                    new_voltages = np.transpose(np.column_stack((new_voltages[0], new_voltages[1], new_voltages[2])))
-                    new_voltages = (np.repeat(new_voltages, 2, axis=1))
-                    print('nv', new_voltages)
-                    self.AO_init([self.settings['magnet_channels']['x_channel'], self.settings['magnet_channels']['y_channel'],
-                                  self.settings['magnet_channels']['z_channel']], new_voltages)
-                    self.AO_run()
-                    self.AO_waitToFinish()
-                    self.AO_stop()
+                    # new_voltages = np.transpose(np.column_stack((new_voltages[0], new_voltages[1], new_voltages[2])))
+                    # new_voltages = (np.repeat(new_voltages, 2, axis=1))
+                    # print('nv', new_voltages)
+                    self.set_analog_voltages({self.settings['magnet_channels']['x_channel']: new_voltages[0], self.settings['magnet_channels']['y_channel']: new_voltages[1],
+                                   self.settings['magnet_channels']['z_channel']: new_voltages[2]})
 
                     # even if multiple fields updated in the same pass, this will update all of them, so run this
                     # at most once

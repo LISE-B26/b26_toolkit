@@ -58,6 +58,8 @@ from record_pressures import RecordPressures
 from set_magnetic_coils import SetMagneticCoils
 
 from align_magnetic_field_to_NV import AlignFieldToNV
+
+from Ni_9263_polarization_controller import Ni9263_BalancePolarization
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization

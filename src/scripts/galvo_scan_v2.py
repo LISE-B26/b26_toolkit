@@ -119,29 +119,20 @@ class GalvoScan(Script):
 
             if self._abort:
                 break
+            #set galvo to initial point of next line
+            self.initPt = [self.x_array[0], self.y_array[yNum]]
+            self.instruments['daq']['instance'].set_analog_voltages({self.settings['DAQ_channels']['x_ao_channel']: self.initPt[0], self.settings['DAQ_channels']['y_ao_channel']: self.initPt[1]})
+
             # initialize APD thread
-            ctrtask, clk_source = self.instruments['daq']['instance'].counter_init(self.settings['DAQ_channels']['counter_channel'],
-                                                                     len(self.x_array) + 1)
-            self.initPt = np.transpose(np.column_stack((self.x_array[0],
-                                          self.y_array[yNum])))
-            self.initPt = (np.repeat(self.initPt, 2, axis=1))
-
-            # move galvo to first point in line
-            aotask = self.instruments['daq']['instance'].AO_init(
-                [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']],
-                self.initPt, "")
-            self.instruments['daq']['instance'].run(aotask)
-            self.instruments['daq']['instance'].waitToFinish(aotask)
-            self.instruments['daq']['instance'].stop(aotask)
-
-            aotask = self.instruments['daq']['instance'].AO_init([self.settings['DAQ_channels']['x_ao_channel']], self.x_array,
-                                                        clk_source)
+            ctrtask = self.instruments['daq']['instance'].setup_counter(self.settings['DAQ_channels']['counter_channel'],
+                                                                        len(self.x_array) + 1)
+            aotask = self.instruments['daq']['instance'].setup_AO([self.settings['DAQ_channels']['x_ao_channel']], self.x_array, ctrtask)
             # start counter and scanning sequence
             self.instruments['daq']['instance'].run(aotask)
             self.instruments['daq']['instance'].run(ctrtask)
             self.instruments['daq']['instance'].waitToFinish(aotask)
             self.instruments['daq']['instance'].stop(aotask)
-            xLineData,_ = self.instruments['daq']['instance'].counter_read(ctrtask)
+            xLineData,_ = self.instruments['daq']['instance'].read(ctrtask)
             self.instruments['daq']['instance'].stop(ctrtask)
             diffData = np.diff(xLineData)
 
@@ -169,7 +160,7 @@ class GalvoScan(Script):
             # pt = np.transpose(np.column_stack((pt[0], pt[1])))
             # pt = (np.repeat(pt, 2, axis=1))
 
-        # self.instruments['daq']['instance'].AO_init(
+        # self.instruments['daq']['instance'].setup_AO(
         #     [self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         # self.instruments['daq']['instance'].AO_run()
         # self.instruments['daq']['instance'].AO_waitToFinish()
@@ -200,7 +191,7 @@ class GalvoScan(Script):
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
-        task = daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        task = daq.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         daq.run(task)
         daq.waitToFinish(task)
         daq.stop(task)

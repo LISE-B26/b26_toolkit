@@ -43,8 +43,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
             Parameter('channel_WP_1', 'NI9263_ao0', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 1'),
             Parameter('channel_WP_2', 'NI9263_ao1', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 2'),
             Parameter('channel_WP_3', 'NI9263_ao2', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 3'),
-            Parameter('channel_OnOff', 'NI6259_DI011', ['NI6259_DI011'], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_detector', 'NI6259_AI1', ['NI6259_AI1'], 'analog input channel of the detector signal')
+            Parameter('channel_OnOff', 'NI6259_do8', ['NI6259_do8'], 'digital channel that turns polarization controller on/off'),
+            Parameter('channel_detector', 'NI6259_ai0', ['NI6259_ai0'], 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
@@ -69,9 +69,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
                     'NI9263': NI9263
                     }
 
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -129,6 +127,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         # get the channels
         control_channel = self.settings['channels']['channel_OnOff'].split('NI6259_')[1]
         channel_out = self.settings['channels']['channel_WP_{:d}'.format(wp_control)].split('NI9263_')[1]
+        print('cout', channel_out)
         channel_in = self.settings['channels']['channel_detector'].split('NI6259_')[1]
 
 
@@ -139,7 +138,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
         # turn controller on
         # NI6259[control_channel] = True
-        NIDAQ_DIO.set_digital_output({'control_channel': True})
+        NIDAQ_DIO.set_digital_output({control_channel: True})
 
         # fpga_io.update({'read_io':{control_channel: True}})
 
@@ -147,20 +146,22 @@ script to balance photodetector to zero by adjusting polarization controller vol
         # set the setpoints for all three waveplates
         dictator = {}
         for i in [1, 2, 3]:
-            if self.settings['optimization']['start with current'] and i == wp_control:
-                # value = getattr(fpga_io, channel_out)
-                value = NIDAQ_AO[channel_out]
-                if value == 0:
-                    value = float(self.settings['setpoints']['V_{:d}'.format(i)])
-                    self.log('current value is zero take setpoint {:0.3f} V as starting point'.format(value))
-                else:
-                    # value = int_to_voltage(value)
-                    v_out = value
-                    self.log('use current value {:0.3f} V as starting point'.format(value))
-            else:
-                value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+            # if self.settings['optimization']['start with current'] and i == wp_control:
+            #     # value = getattr(fpga_io, channel_out)
+            #     value = NIDAQ_AO[channel_out]
+            #     if value == 0:
+            #         value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+            #         self.log('current value is zero take setpoint {:0.3f} V as starting point'.format(value))
+            #     else:
+            #         # value = int_to_voltage(value)
+            #         v_out = value
+            #         self.log('use current value {:0.3f} V as starting point'.format(value))
+            # else:
+            #     value = float(self.settings['setpoints']['V_{:d}'.format(i)])
+            value = float(self.settings['setpoints']['V_{:d}'.format(i)])
 
-            dictator.update({control_channel:value})
+            daq_wp_channel = self.settings['channels']['channel_WP_{:d}'.format(i)].split('NI9263_')[1]
+            dictator.update({daq_wp_channel: value})
 
         NIDAQ_AO.set_analog_voltages(dictator)
         time.sleep(settle_time)
@@ -178,7 +179,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
             time.sleep(settle_time)
             # read detector
             # detector_value = NIDAQ_DIO[channel_in]
-            detector_value = NIDAQ_AI.get_analog_voltages([channel_in])
+            detector_value = NIDAQ_AI.get_analog_voltages([channel_in])[0]
 
             self.data['voltage_waveplate'].append(v_out)
             self.data['detector_signal'].append(detector_value)
@@ -278,12 +279,13 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 
 if __name__ == '__main__':
-    from PyLabControl.src.core import Instrument, Parameter
-
-    daq, failed = Instrument.load_and_append({'daq': NI9263})
-    print(daq)
-
-    daq['daq'].ao0 = 0
+    pass
+    # from PyLabControl.src.core import Instrument, Parameter
+    #
+    # daq, failed = Instrument.load_and_append({'daq': NI9263})
+    # print(daq)
+    #
+    # daq['daq'].ao0 = 0
 
 
 

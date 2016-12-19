@@ -65,10 +65,10 @@ class Daq_Read_Counter(Script):
 
         sample_num = 2
 
-        self.instruments['daq']['instance'].DI_init("ctr0", sample_num, continuous_acquisition=True)
+        task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
         # start counter and scanning sequence
-        self.instruments['daq']['instance'].DI_run()
+        self.instruments['daq']['instance'].run(task)
 
         while True:
             if self._abort:
@@ -76,7 +76,7 @@ class Daq_Read_Counter(Script):
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-            raw_data, _ = self.instruments['daq']['instance'].DI_read()
+            raw_data, _ = self.instruments['daq']['instance'].read(task)
 
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
@@ -87,7 +87,7 @@ class Daq_Read_Counter(Script):
             time.sleep(2.0 / sample_rate)
 
         # clean up APD tasks
-        self.instruments['daq']['instance'].DI_stop()
+        self.instruments['daq']['instance'].stop(task)
 
     def plot(self, figure_list):
         # COMMENT_ME

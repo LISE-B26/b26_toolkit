@@ -39,7 +39,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         Parameter('port', 'COM9', str, 'serial number written on device'),
         Parameter('position', 25.0, float, 'servo position (from 0 to 25 in mm)'),
         Parameter('velocity', 1.0, float, 'servo velocity (from 0 to 1 in mm/s)'),
-        Parameter('height_lower_limit', 0, float, 'lowest position servo can move to (in mm)')
+        Parameter('height_lower_limit', 9, float, 'lowest position servo can move to (in mm)')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -67,11 +67,14 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         for key, value in settings.iteritems():
             if key == 'position':
                 self._set_position(value)
+            elif key == 'velocity':
+                self._set_velocity(value)
 
     @property
     def _PROBES(self):
         return{
-            'position': 'servo position in mm'
+            'position': 'motor position in mm',
+            'velocity': 'motor velocity in mm/s'
         }
 
     def read_probes(self, key):
@@ -88,6 +91,8 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
 
         if key == 'position':
             return self._get_position()
+        elif key == 'velocity':
+            return self._get_velocity()
 
     def __del__(self):
         '''
@@ -122,6 +127,9 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         if pos < self.settings['height_lower_limit']:
             raise ValueError('cannot set position below height_lower_limit')
         s_ref = ''
+        # reenable computer control if keypad was used last
+        self._enable_computer_control() #reenable computer control if keypad was used last
+        #start movement
         result, errString = self.SMC.PA_Set(1, pos, s_ref)
         if result == -1:
             print('ERROR: ' + errString)
@@ -152,10 +160,19 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             print('ERROR: ' + errString)
             raise
 
+    def _enable_computer_control(self):
+        s_ref = ''
+        result, errString = self.SMC.MM_Set(1, 1, s_ref)
+        if result == -1:
+            print('ERROR: ' + errString)
+            raise
+
 # a = SMC100()
+# a._enable_computer_control()
+# a._set_position(15)
 # a._set_position(25)
 # a._set_position(10)
 # print(a._get_position())
 # inst, failed = Instrument.load_and_append({'SMC100': SMC100})
 # print(inst)
-# print(failed)
+# print(failed)szZzz y

@@ -219,7 +219,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         except(ValueError, RuntimeError):
             average_voltage = np.mean(self.data['sweep_voltages'])
             self.log(
-                'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
+                'Could not converge to fit parameters, setting piezo to middle of sweep range, {:0.3f} V'.format(
                     average_voltage))
             # z_piezo.update({'voltage': float(average_voltage)})
         finally:
@@ -228,10 +228,10 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             if not return_voltage is None:
                 if return_voltage > sweep_voltages[-1]:
                     return_voltage = float(sweep_voltages[-1])
-                    self.log('Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(return_voltage))
+                    self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
             elif return_voltage < sweep_voltages[0]:
                 return_voltage = float(sweep_voltages[0])
-                self.log('Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(return_voltage))
+                self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
 
             return return_voltage, p2
 
@@ -466,7 +466,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         # pt = np.transpose(np.column_stack((pt[0],pt[1])))
         # pt = (np.repeat(pt, 2, axis=1))
         #
-        # daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        # daq.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         # daq.AO_run()
         # daq.AO_waitToFinish()
         # daq.AO_stop()
@@ -500,7 +500,10 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
         """
         z_driver = self.instruments['z_driver']['instance']
         # set the voltage on the piezo
-        z_driver.position = float(position)
+        try:
+            z_driver.position = float(position)
+        except ValueError:
+            self.log('requested value not permitted. Did not set value to {:0.3f}'.format(position))
         time.sleep(wait_time)
 
     def _function(self):
