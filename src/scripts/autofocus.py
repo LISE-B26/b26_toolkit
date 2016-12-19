@@ -466,7 +466,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         # pt = np.transpose(np.column_stack((pt[0],pt[1])))
         # pt = (np.repeat(pt, 2, axis=1))
         #
-        # daq.AO_init([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        # daq.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         # daq.AO_run()
         # daq.AO_waitToFinish()
         # daq.AO_stop()

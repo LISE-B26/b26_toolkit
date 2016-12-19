@@ -100,8 +100,8 @@ class ESR(Script):
 
                 self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
 
-                ctrtask, _ = self.instruments['daq']['instance'].counter_init("ctr0",  len(freq_voltage_array) + 1)
-                aotask = self.instruments['daq']['instance'].AO_init(["ao2"], freq_voltage_array)
+                ctrtask, _ = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
+                aotask = self.instruments['daq']['instance'].setup_AO(["ao2"], freq_voltage_array)
 
                 # start counter and scanning sequence
                 self.instruments['daq']['instance'].run(ctrtask)
@@ -109,7 +109,7 @@ class ESR(Script):
                 self.instruments['daq']['instance'].waitToFinish(aotask)
                 self.instruments['daq']['instance'].stop(aotask)
 
-                raw_data, _ = self.instruments['daq']['instance'].counter_read(ctrtask)
+                raw_data, _ = self.instruments['daq']['instance'].read_counter(ctrtask)
 
                 # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
                 # counter counts continiously so we take the difference to get the counts per time interval

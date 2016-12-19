@@ -194,18 +194,17 @@ for a given experiment
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
         if num_daq_reads != 0:
-            self.instruments['daq']['instance'].gated_DI_init('ctr0', int(num_loops * num_daq_reads))
-            self.instruments['daq']['instance'].gated_DI_run()
+            task = self.instruments['daq']['instance'].setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+            self.instruments['daq']['instance'].run(task)
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            result_array, _ = self.instruments['daq']['instance'].gated_DI_read(
-                timeout=timeout)  # thread waits on DAQ getting the right number of gates
+            result_array, _ = self.instruments['daq']['instance'].read(task)  # thread waits on DAQ getting the right number of gates
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
         # clean up APD tasks
         if num_daq_reads != 0:
-            self.instruments['daq']['instance'].gated_DI_stop()
+            self.instruments['daq']['instance'].stop(task)
 
         return result
 
