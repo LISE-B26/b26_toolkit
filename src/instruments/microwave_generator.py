@@ -118,18 +118,24 @@ class MicrowaveGenerator(Instrument):
 
         #query always returns string, need to cast to proper return type
         if key in ['enable_output', 'enable_modulation']:
-            key = self._param_to_internal(key)
-            value = self.srs.query(key + '?')
+            key_internal = self._param_to_internal(key)
+            value = int(self.srs.query(key_internal + '?'))
             if value == 1:
                 value = True
             elif value == 0:
                 value = False
         elif key in ['modulation_type','modulation_function','pulse_modulation_function']:
-            key = self._param_to_internal(key)
-            value = int(self.srs.query(key + '?'))
+            key_internal = self._param_to_internal(key)
+            value = int(self.srs.query(key_internal + '?'))
+            if key == 'modulation_type':
+                value = self._internal_to_mod_type(value)
+            elif key == 'modulation_function':
+                value = self._internal_to_mod_func(value)
+            elif key == 'pulse_modulation_function':
+                value = self._internal_to_pulse_mod_func(value)
         else:
-            key = self._param_to_internal(key)
-            value = float(self.srs.query(key + '?'))
+            key_internal = self._param_to_internal(key)
+            value = float(self.srs.query(key_internal + '?'))
 
         return value
 
@@ -190,6 +196,25 @@ class MicrowaveGenerator(Instrument):
         else:
             raise KeyError
 
+    def _internal_to_mod_type(self, value):
+        #COMMENT_ME
+        if value == 0:
+            return 'AM'
+        elif value == 1:
+            return 'FM'
+        elif value == 2:
+            return 'PhaseM'
+        elif value == 3:
+            return 'Freq sweep'
+        elif value == 4:
+            return 'Pulse'
+        elif value == 5:
+            return 'Blank'
+        elif value == 6:
+            return 'IQ'
+        else:
+            raise KeyError
+
     def _mod_func_to_internal(self, value):
         #COMMENT_ME
         if value == 'Sine':
@@ -207,6 +232,23 @@ class MicrowaveGenerator(Instrument):
         else:
             raise KeyError
 
+    def _internal_to_mod_func(self, value):
+        #COMMENT_ME
+        if value == 0:
+            return 'Sine'
+        elif value == 1:
+            return 'Ramp'
+        elif value == 2:
+            return 'Triangle'
+        elif value == 3:
+            return 'Square'
+        elif value == 4:
+            return 'Noise'
+        elif value == 5:
+            return 'External'
+        else:
+            raise KeyError
+
     def _pulse_mod_func_to_internal(self, value):
         #COMMENT_ME
         if value == 'Square':
@@ -215,6 +257,17 @@ class MicrowaveGenerator(Instrument):
             return 4
         elif value == 'External':
             return 5
+        else:
+            raise KeyError
+
+    def _internal_to_pulse_mod_func(self, value):
+        #COMMENT_ME
+        if value == 3:
+            return 'Square'
+        elif value == 4:
+            return 'Noise(PRBS)'
+        elif value == 5:
+            return 'External'
         else:
             raise KeyError
 
