@@ -43,21 +43,23 @@ script to balance photodetector to zero by adjusting polarization controller vol
             Parameter('channel_WP_1', 'NI9263_ao0', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 1'),
             Parameter('channel_WP_2', 'NI9263_ao1', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 2'),
             Parameter('channel_WP_3', 'NI9263_ao2', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 3'),
-            Parameter('channel_OnOff', 'NI6259_do8', ['NI6259_do8'], 'digital channel that turns polarization controller on/off'),
+            # Parameter('channel_OnOff', 'NI6259_do8', ['NI6259_do8'], 'digital channel that turns polarization controller on/off'),
+            Parameter('channel_OnOff', 'NI6259_ao3', ['NI6259_ao3'], 'analog channel that turns polarization controller on/off'),
             Parameter('channel_detector', 'NI6259_ai0', ['NI6259_ai0'], 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
             Parameter('V_2', 4.0, float, 'voltage applied to waveplate 2'),
-            Parameter('V_3', 2.4, float, 'voltage applied to waveplate 3')
+            Parameter('V_3', 2.4, float, 'voltage applied to waveplate 3'),
+            Parameter('save_result_as_setpoint', False, bool, 'uses the current best result as the new setpoint')
         ]),
         Parameter('optimization',[
-            Parameter('target', 50, float, 'target max detector signal'),
+            Parameter('target', .01, float, 'target max detector signal'),
             Parameter('settle_time', 2., float, 'settle time (s)'),
             Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
             Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
-            Parameter('slope', 'negative', ['positive', 'negative'], 'is the slope around the zero crossing is positive or negative'),
-            Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
+            Parameter('slope', 'negative', ['positive', 'negative'], 'is the slope around the zero crossing is positive or negative')
+            # Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
         ]),
         Parameter('measure_at_zero',[
             Parameter('on', True, bool, 'if true keep measuring after zero is found'),
@@ -127,18 +129,18 @@ script to balance photodetector to zero by adjusting polarization controller vol
         # get the channels
         control_channel = self.settings['channels']['channel_OnOff'].split('NI6259_')[1]
         channel_out = self.settings['channels']['channel_WP_{:d}'.format(wp_control)].split('NI9263_')[1]
-        print('cout', channel_out)
         channel_in = self.settings['channels']['channel_detector'].split('NI6259_')[1]
 
 
 
-        NIDAQ_DIO = self.instruments['NI6259']['instance'] # digital channel
+        # NIDAQ_DIO = self.instruments['NI6259']['instance'] # digital channel
         NIDAQ_AI = self.instruments['NI6259']['instance']  # analog input
         NIDAQ_AO = self.instruments['NI9263']['instance'] # analog output
 
         # turn controller on
-        # NI6259[control_channel] = True
-        NIDAQ_DIO.set_digital_output({control_channel: True})
+        # NIDAQ_DIO.set_digital_output({control_channel: True}) #switched to analog output since digital output is
+                                                                #slightly undervolted and threshold is at 5V
+        NIDAQ_AO.set_analog_voltages({control_channel: 5.1})
 
         # fpga_io.update({'read_io':{control_channel: True}})
 
@@ -146,6 +148,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         # set the setpoints for all three waveplates
         dictator = {}
         for i in [1, 2, 3]:
+            # readout of daq output voltages not avaliable on Ni_9263, no analog input
             # if self.settings['optimization']['start with current'] and i == wp_control:
             #     # value = getattr(fpga_io, channel_out)
             #     value = NIDAQ_AO[channel_out]
@@ -227,6 +230,9 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
                 self.updateProgress.emit(self.progress)
                 time.sleep(settle_time)
+
+        if self.settings['setpoints']['save_result_as_setpoint']:
+            self.settings['setpoints']['V_{:d}'.format(self.settings['optimization']['WP_control'])] = v_out
 
 
     def _plot(self, axes_list):

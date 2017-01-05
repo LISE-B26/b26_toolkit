@@ -76,7 +76,12 @@ class Daq_Read_Counter(Script):
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-            raw_data, _ = self.instruments['daq']['instance'].read(task)
+            raw_data, num_read = self.instruments['daq']['instance'].read(task)
+            #skip first read, which gives an anomolous value
+            print(num_read)
+            if num_read.value == 1:
+                time.sleep(2.0 / sample_rate)
+                continue
 
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))

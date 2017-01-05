@@ -566,7 +566,7 @@ class B26PulseBlaster(PulseBlaster):
         # oh god this is confusing
         super(B26PulseBlaster, self).update(settings)
 
-    def read_probes(self):
+    def read_probes(self, key):
         pass
 
     def get_name(self, channel):
