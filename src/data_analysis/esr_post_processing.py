@@ -153,7 +153,7 @@ def autofit_esrs(folder):
         # find the NV index
         pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
-        findnv_folder = glob.glob(folder + '/data_subscripts/*find_nv*pt_{:02d}'.format(pt_id))[0]
+        findnv_folder = glob.glob(folder + '/data_subscripts/*find_nv*pt_*{:02d}'.format(pt_id))[0]
 
         # load data
         data = Script.load_data(esr_folder)
