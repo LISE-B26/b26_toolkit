@@ -45,6 +45,7 @@ import Queue
 import ipywidgets as widgets
 from IPython.display import display, clear_output
 import threading
+import sys
 
 freq_to_mag = 1. / (2 * 2.8e6)
 
@@ -207,117 +208,110 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
     Poststate: populates fit_data_set with manual corrections
     """
-    try:
-        fit_data_set_array = fit_data_set.as_matrix()
+    fit_data_set_array = fit_data_set.as_matrix()
 
-        w = widgets.HTML("Event information appears here when you click on the figure")
-        display(w)
+    w = widgets.HTML("Event information appears here when you click on the figure")
+    display(w)
 
-        # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
-        esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
+    # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
+    esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
 
-        # create folder to save images to
-        # filepath_image = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
-        # image_folder = os.path.join(filepath_image, '{:s}\\images'.format(os.path.basename(folder)))
-        image_folder = os.path.join(target_folder, '{:s}\\images'.format(folder[2:]))
-        print('image_folder', image_folder)
-        # image_folder = os.path.normpath(
-        #     os.path.abspath(os.path.join(os.path.join(target_folder, 'images'), os.path.basename(folders[0]))))
-        if not os.path.exists(image_folder):
-            os.makedirs(image_folder)
-        if not os.path.exists(os.path.join(image_folder, 'bad_data')):
-            os.makedirs(os.path.join(image_folder, 'bad_data'))
+    # create folder to save images to
+    # filepath_image = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
+    # image_folder = os.path.join(filepath_image, '{:s}\\images'.format(os.path.basename(folder)))
+    image_folder = os.path.join(target_folder, '{:s}\\images'.format(folder[2:]))
+    # image_folder = os.path.normpath(
+    #     os.path.abspath(os.path.join(os.path.join(target_folder, 'images'), os.path.basename(folders[0]))))
+    if not os.path.exists(image_folder):
+        os.makedirs(image_folder)
+    if not os.path.exists(os.path.join(image_folder, 'bad_data')):
+        os.makedirs(os.path.join(image_folder, 'bad_data'))
 
-        f = plt.figure(figsize=(12, 6))
+    f = plt.figure(figsize=(12, 6))
 
-        def onclick(event):
-            if event.button == 1:
-                lower_peak_widget.value = event.xdata
-            elif event.button == 3:
-                upper_peak_widget.value = event.xdata
+    def onclick(event):
+        if event.button == 1:
+            lower_peak_widget.value = event.xdata
+        elif event.button == 3:
+            upper_peak_widget.value = event.xdata
 
-        cid = f.canvas.mpl_connect('button_press_event', onclick)
+    cid = f.canvas.mpl_connect('button_press_event', onclick)
 
-        for i, esr_folder in enumerate(esr_folders):
+    for i, esr_folder in enumerate(esr_folders):
 
-            # find the NV index
-            pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
+        # find the NV index
+        pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
-            findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_{:02d}'.format(pt_id))[0]
+        findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:02d}'.format(pt_id))[0]
 
-            f.clf()
-            gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
-            ax0 = plt.subplot(gs[0])
-            ax1 = plt.subplot(gs[1])
-            ax = [ax0, ax1]
+        f.clf()
+        gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+        ax0 = plt.subplot(gs[0])
+        ax1 = plt.subplot(gs[1])
+        ax = [ax0, ax1]
 
-            # load data
-            data = Script.load_data(esr_folder)
-            fit_params = fit_data_set_array[pt_id, 2:8]
-            if np.isnan(fit_params[4]):
-                fit_params = fit_params[0:4]
+        sys.stdout.flush()
 
-            # get nv positions
-            #             data_pos = {'initial_point': [fit_data_set['xo'].values[pt_id]]}
-            data_pos = Script.load_data(findnv_folder)
-            #             pos = data_pos['maximum_point']
-            #             pos_init = data_pos['initial_point']
+        # load data
+        data = Script.load_data(esr_folder)
+        fit_params = fit_data_set_array[pt_id, 2:8]
+        if np.isnan(fit_params[4]):
+            fit_params = fit_params[0:4]
 
+        # get nv positions
+        #             data_pos = {'initial_point': [fit_data_set['xo'].values[pt_id]]}
+        data_pos = Script.load_data(findnv_folder)
+        #             pos = data_pos['maximum_point']
+        #             pos_init = data_pos['initial_point']
 
-            # plot NV image
-            FindNV.plot_data([ax[1]], data_pos)
+        # plot NV image
+        FindNV.plot_data([ax[1]], data_pos)
 
-            # plot data and fits
-            print("fit_params: ", fit_params)
-            plot_esr(ax[0], data['frequency'], data['data'], fit_params=fit_params)
+        # plot data and fits
+        print("fit_params: ", fit_params)
 
-            plt.tight_layout()
+        plot_esr(ax[0], data['frequency'], data['data'], fit_params=fit_params)
 
-            plt.draw()
-            plt.show()
+        plt.tight_layout()
 
-            print('showing image')
+        plt.draw()
+        plt.show()
 
-            while queue.empty():
-                time.sleep(.5)
+        while queue.empty():
+            time.sleep(.5)
 
-            if nv_type_manual == '':
-                if fit_params is None:
-                    f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
-                else:
-                    f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
+        if nv_type_manual == '':
+            if fit_params is None:
+                f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
             else:
-                if nv_type_manual[i] in ['bad', 'no_split']:
-                    f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
-                else:
-                    f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
+                f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
+        else:
+            if nv_type_manual[i] in ['bad', 'no_split']:
+                f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
+            else:
+                f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
 
-            queue.get()
+        queue.get()
 
-        f.canvas.mpl_disconnect(cid)
-        fit_data_set['manual_B_field'] = b_field_manual
-        fit_data_set['manual_nv_type'] = nv_type_manual
+    f.canvas.mpl_disconnect(cid)
+    fit_data_set['manual_B_field'] = b_field_manual
+    fit_data_set['manual_nv_type'] = nv_type_manual
 
-        filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
-        filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
-        data_filepath = os.path.join(filepath, filename)
+    filepath = os.path.join(target_folder, folder[2:])
+    data_filepath = os.path.join(filepath, 'data-manual.csv')
+    # filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
+    # filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
+    # data_filepath = os.path.join(filepath, filename)
 
-        print('to_save path: ', os.path.join(filepath, filename))
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
 
+    fit_data_set.to_csv(data_filepath)
 
-        if not os.path.exists(filepath):
-            os.makedirs(filepath)
+    create_shortcut(os.path.abspath(os.path.join(filepath, 'to_data.lnk')), os.path.abspath(folder))
+    create_shortcut(os.path.join(os.path.abspath(folder), 'to_processed.lnk'), os.path.abspath(filepath))
 
-        fit_data_set.to_csv(data_filepath)
-
-        create_shortcut(os.path.abspath(os.path.join(filepath, '{:s}\\to_data.lnk'.format(os.path.basename(folder)))), os.path.abspath(folder))
-        create_shortcut(os.path.join(os.path.abspath(folder), 'to_processed.lnk'), os.path.abspath(os.path.join(filepath, '{:s}'.format(os.path.basename(folder)))))
-
-
-        print('DONE!')
-    except Exception as e:
-        print('FAILED')
-        print e
+    print('DONE!')
 
 def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
     """
