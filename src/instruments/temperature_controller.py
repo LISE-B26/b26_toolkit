@@ -80,7 +80,7 @@ class TemperatureController(Instrument):
             value of the probe from the Pressure Gauge
         """
 
-        probe_name = probe_name.lower()  # catch stupid errors, making sure the probe is lowercase
+        probe_name = probe_name.lower()  # making sure the probe is lowercase
 
         if probe_name == 'temperature':
             return self._get_temperature()

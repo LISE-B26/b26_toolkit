@@ -124,6 +124,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             """
             # update instrument
 
+            take_image_tag = self.scripts['take_image'].settings['tag']
+
             for index, voltage in enumerate(sweep_voltages):
 
                 if self._abort:
@@ -134,7 +136,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 # set the voltage on the piezo
                 self._step_piezo(voltage, self.settings['wait_time'])
-
+                self.log('take scan, position {:0.2f}'.format(voltage))
+                # update the tag of the suvbscript to reflect the current z position
+                self.scripts['take_image'].settings['tag'] = '{:s}_{:0.2f}'.format(take_image_tag, voltage)
                 # take a galvo scan
                 self.scripts['take_image'].run()
                 self.data['current_image'] = deepcopy(self.scripts['take_image'].data['image_data'])
@@ -152,6 +156,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 self.progress = 100. * index / len(sweep_voltages)
                 self.updateProgress.emit(self.progress if self.progress < 100 else 99)
+
+            self.scripts['take_image'].settings['tag'] = take_image_tag
 
 
         if self.settings['save'] or self.settings['save_images']:
@@ -181,6 +187,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
 
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
+
+        self.log('autofocus fit result: {:s} V'.format(str(piezo_voltage)))
+
         self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
         if self.settings['galvo_return_to_initial']:
@@ -489,7 +498,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        self.scan_label = 'Motor Position [mm]'
+        self.scan_label = 'Motor Position [um]'
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
 
     def _step_piezo(self, position, wait_time):
@@ -503,7 +512,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
         try:
             z_driver.position = float(position)
         except ValueError:
-            self.log('requested value not permitted. Did not set value to {:0.3f}'.format(position))
+            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
         time.sleep(wait_time)
 
     def _function(self):

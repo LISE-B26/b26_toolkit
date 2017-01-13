@@ -351,7 +351,7 @@ class PulseBlaster(Instrument):
                                self.LONG_DELAY_THRESHOLD / 2 + remainder, command, command_arg))
             return instruction_list
 
-        # stupidly, you cannot call LONG_DELAY once, so youhave to call two CONTINUE instead of you were going to
+        # you cannot call LONG_DELAY once, so youhave to call two CONTINUE instead of you were going to
         # have it loop only once.
         elif num_long_delays == 1:
             instruction_list.append(

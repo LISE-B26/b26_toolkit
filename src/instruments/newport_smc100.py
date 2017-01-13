@@ -27,6 +27,8 @@ import CommandInterfaceSMC100
 # python won't be able to match arguments and resolve the function.
 ########################################################################################################################
 #status codes
+# https://www.newport.com/medias/sys_master/images/images/h8d/h3a/8797263101982/SMC100CC-SMC100PP-User-Manual.pdf
+# see page 65
 MOVING = '28'
 DONE_MOVING = '33'
 
@@ -37,7 +39,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM9', str, 'serial number written on device'),
-        Parameter('position', 25.0, float, 'servo position (from 0 to 25 in mm)'),
+        Parameter('position', 25000.0, float, 'servo position (from 0 to 25000 in um)'),
         Parameter('velocity', 1.0, float, 'servo velocity (from 0 to 1 in mm/s)'),
         Parameter('height_lower_limit', 9, float, 'lowest position servo can move to (in mm)')
     ])
@@ -66,14 +68,14 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         super(SMC100, self).update(settings)
         for key, value in settings.iteritems():
             if key == 'position':
-                self._set_position(value)
+                self._set_position(value/1e3)
             elif key == 'velocity':
                 self._set_velocity(value)
 
     @property
     def _PROBES(self):
         return{
-            'position': 'motor position in mm',
+            'position': 'motor position in um',
             'velocity': 'motor velocity in mm/s'
         }
 
@@ -90,7 +92,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         assert isinstance(key, str)
 
         if key == 'position':
-            return self._get_position()
+            return self._get_position()*1e3
         elif key == 'velocity':
             return self._get_velocity()
 
@@ -126,6 +128,10 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         """
         if pos < self.settings['height_lower_limit']:
             raise ValueError('cannot set position below height_lower_limit')
+
+
+        print('aaaaa - set pos to ', pos)
+
         s_ref = ''
         # reenable computer control if keypad was used last
         self._enable_computer_control() #reenable computer control if keypad was used last
@@ -140,10 +146,11 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             if result == -1:
                 print('ERROR: ' + errString)
                 raise
-            if StatusCode == DONE_MOVING:
+            if StatusCode == DONE_MOVING or '34':
                 break
             time.sleep(.1)
-
+            print('motor is moving - gui blocked StatusCode: {:s}'.format(str(StatusCode)))
+        print(' - done -')
     def _get_velocity(self):
         i_ref = -1
         s_ref = ''

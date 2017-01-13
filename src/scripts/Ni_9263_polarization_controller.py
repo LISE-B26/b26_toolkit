@@ -57,7 +57,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
             Parameter('target', .01, float, 'target max detector signal'),
             Parameter('settle_time', 2., float, 'settle time (s)'),
             Parameter('WP_control', 2, [1, 2, 3], 'control waveplate'),
-            Parameter('dV', 0.1, float, 'initial step size of search algorithm'),
+            Parameter('dV', 0.01, float, 'initial step size of search algorithm'),
             Parameter('slope', 'negative', ['positive', 'negative'], 'is the slope around the zero crossing is positive or negative')
             # Parameter('start with current', True, bool, 'uses the current output as starting point (instead of setpoint) if not zero'),
         ]),

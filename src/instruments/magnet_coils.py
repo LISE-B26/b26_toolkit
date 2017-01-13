@@ -77,30 +77,60 @@ class MagnetCoils(NI9263):
                       Parameter('y_field', 0, float, 'y field in Gauss'),
                       Parameter('z_field', 0, float, 'z field in Gauss')
                   ]),
+        # Parameter('field_calibration',
+        #           [
+        #               Parameter('x_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .368, float, 'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', 32.8, float, 'x field at max input voltage'),
+        #                             Parameter('y_field_max', 0.4, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', -11.4, float, 'z field at max input voltage')
+        #                         ]
+        #                         ),
+        #               Parameter('y_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .278, float, 'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', -5.7, float, 'x field at max input voltage'),
+        #                             Parameter('y_field_max', -24.0, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', -7.9, float, 'z field at max input voltage')
+        #                         ]
+        #                         ),
+        #               Parameter('z_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .245, float, 'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', 1.9, float, 'x field at max input voltage'),
+        #                             Parameter('y_field_max', -5.6, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', 47.7, float, 'z field at max input voltage')
+        #                         ]
+        #                         )
+        #           ]),
         Parameter('field_calibration',
                   [
                       Parameter('x_coil',
                                 [
-                                    Parameter('voltage_at_max_field', .368, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 32.8, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', 0.4, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -11.4, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .736, float,
+                                              'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 65.6, float, 'x field in Gauss at max input voltage'),
+                                    Parameter('y_field_max', .8, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', -22.8, float, 'z field at max input voltage')
                                 ]
                                 ),
                       Parameter('y_coil',
                                 [
-                                    Parameter('voltage_at_max_field', .278, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', -5.7, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', -24.0, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -7.9, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .556, float,
+                                              'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', -11.4, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', -48.0, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', -15.8, float, 'z field at max input voltage')
                                 ]
                                 ),
                       Parameter('z_coil',
                                 [
-                                    Parameter('voltage_at_max_field', .245, float, 'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 1.9, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', -5.6, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 47.7, float, 'z field at max input voltage')
+                                    Parameter('voltage_at_max_field', .49, float,
+                                              'input voltage corresponding to max field'),
+                                    Parameter('x_field_max', 3.8, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', -11.2, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 95.4, float, 'z field at max input voltage')
                                 ]
                                 )
                   ]),

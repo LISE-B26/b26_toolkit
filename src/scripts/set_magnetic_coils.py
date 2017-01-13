@@ -78,9 +78,20 @@ This script sets the magnetic field coils to the given magnetic field values
         #     self.log('Could not set magnetic field. Reverting to previous value.')
 
         #need to cast from float64 in the 'Spherical' case
-        self.instruments['MagnetCoils']['instance'].update({'magnetic_fields': {'x_field': float(new_x_field), 'y_field': float(new_y_field), 'z_field': float(new_z_field)}})
+
+        # take settings defined in the script and update with settings for the fields
+        dictator = self.instruments['MagnetCoils']['settings']
+        dictator.update({'magnetic_fields': {'x_field': float(new_x_field), 'y_field': float(new_y_field), 'z_field': float(new_z_field)}})
+
+        self.instruments['MagnetCoils']['instance'].update(dictator)
         #
-        # self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.settings['magnetic_fields']['x_field'], self.settings['magnetic_fields']['y_field']), self.settings['magnetic_fields']['z_field'])
+        self.log('Magnetic Field set to Bx={:.4}G, By={:.4}G, Bz={:.4}G'.format(self.instruments['MagnetCoils']['instance'].settings['magnetic_fields']['x_field'],
+                                                                                self.instruments['MagnetCoils']['instance'].settings['magnetic_fields']['y_field'],
+                                                                                self.instruments['MagnetCoils']['instance'].settings['magnetic_fields']['z_field'])
+                 )
+
+        print('requested fields', self.instruments['MagnetCoils']['instance'].requested_fields)
+        print('applied fields', self.instruments['MagnetCoils']['instance'].applied_fields)
 
         self.data['new_voltages'] = self.instruments['MagnetCoils']['instance'].new_voltages
         self.data['requested_fields'] = self.instruments['MagnetCoils']['instance'].requested_fields
