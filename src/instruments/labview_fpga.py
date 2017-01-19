@@ -148,18 +148,16 @@ class NI7845RMain(Instrument):
         'run_mode':'run_mode'
     }
     def __init__(self, name = None, settings = None):
-        super(NI7845RMain, self).__init__(name, settings)
-
         # start fpga
         self.fpga = self.FPGAlib.NI7845R()
         self.fpga.start()
-        self.update(self.settings)
+        super(NI7845RMain, self).__init__(name, settings)
+        # self.update(self.settings)
 
     def __del__(self):
         self.fpga.stop()
 
     def read_probes(self, key):
-
         if key is None:
             super(NI7845RMain, self).read_probes()
         else:

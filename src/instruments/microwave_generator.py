@@ -114,6 +114,8 @@ class MicrowaveGenerator(Instrument):
         }
 
     def read_probes(self, key):
+        # assert hasattr(self, 'srs') #will cause read_probes to fail if connection not yet established, such as when called in init
+        assert(self._settings_initialized) #will cause read_probes to fail if settings (and thus also connection) not yet initialized
         assert key in self._PROBES.keys()
 
         #query always returns string, need to cast to proper return type
