@@ -112,7 +112,8 @@ class MagnetCoils(NI9263):
                                               'input voltage corresponding to max field'),
                                     Parameter('x_field_max', 65.6, float, 'x field in Gauss at max input voltage'),
                                     Parameter('y_field_max', .8, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -22.8, float, 'z field at max input voltage')
+                                    Parameter('z_field_max', -22.8, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
                                 ]
                                 ),
                       Parameter('y_coil',
@@ -121,7 +122,8 @@ class MagnetCoils(NI9263):
                                               'input voltage corresponding to max field'),
                                     Parameter('x_field_max', -11.4, float, 'x field at max input voltage'),
                                     Parameter('y_field_max', -48.0, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -15.8, float, 'z field at max input voltage')
+                                    Parameter('z_field_max', -15.8, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
                                 ]
                                 ),
                       Parameter('z_coil',
@@ -130,7 +132,8 @@ class MagnetCoils(NI9263):
                                               'input voltage corresponding to max field'),
                                     Parameter('x_field_max', 3.8, float, 'x field at max input voltage'),
                                     Parameter('y_field_max', -11.2, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 95.4, float, 'z field at max input voltage')
+                                    Parameter('z_field_max', 95.4, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
                                 ]
                                 )
                   ]),
@@ -174,15 +177,22 @@ class MagnetCoils(NI9263):
         Returns: conversion matrix to map from V to B, and its inverse to map from B to V
 
         """
-        cxx = self.settings['field_calibration']['x_coil']['x_field_max']
-        cxy = self.settings['field_calibration']['x_coil']['y_field_max']
-        cxz = self.settings['field_calibration']['x_coil']['z_field_max']
-        cyx = self.settings['field_calibration']['y_coil']['x_field_max']
-        cyy = self.settings['field_calibration']['y_coil']['y_field_max']
-        cyz = self.settings['field_calibration']['y_coil']['z_field_max']
-        czx = self.settings['field_calibration']['z_coil']['x_field_max']
-        czy = self.settings['field_calibration']['z_coil']['y_field_max']
-        czz = self.settings['field_calibration']['z_coil']['z_field_max']
+        polarity = {'x:': 1, 'y': 1, 'z': 1}
+        if self.settings['field_calibration']['x_coil']['flip_polarity']:
+            polarity['x'] = -1
+        if self.settings['field_calibration']['y_coil']['flip_polarity']:
+            polarity['y'] = -1
+        if self.settings['field_calibration']['z_coil']['flip_polarity']:
+            polarity['z'] = -1
+        cxx = self.settings['field_calibration']['x_coil']['x_field_max'] * polarity['x']
+        cxy = self.settings['field_calibration']['x_coil']['y_field_max'] * polarity['x']
+        cxz = self.settings['field_calibration']['x_coil']['z_field_max'] * polarity['x']
+        cyx = self.settings['field_calibration']['y_coil']['x_field_max'] * polarity['y']
+        cyy = self.settings['field_calibration']['y_coil']['y_field_max'] * polarity['y']
+        cyz = self.settings['field_calibration']['y_coil']['z_field_max'] * polarity['y']
+        czx = self.settings['field_calibration']['z_coil']['x_field_max'] * polarity['z']
+        czy = self.settings['field_calibration']['z_coil']['y_field_max'] * polarity['z']
+        czz = self.settings['field_calibration']['z_coil']['z_field_max'] * polarity['z']
 
         Cmat = np.matrix([[cxx, cyx, czx], [cxy, cyy, czy], [cxz, cyz, czz]])
         return(Cmat, np.linalg.inv(Cmat))
@@ -207,7 +217,7 @@ class MagnetCoils(NI9263):
         new_voltages = np.array([relative_voltages[0, 0] * max_voltages[0], relative_voltages[0, 1] * max_voltages[1],
                                  relative_voltages[0, 2] * max_voltages[2]])
 
-        print('new_voltages', new_voltages)
+        self.log('Calculated voltages to reach desired field: ' + str(new_voltages))
 
         if self.settings['use_approximate_fields']:
             if (np.abs(new_voltages) > max_voltages).any():
@@ -215,9 +225,8 @@ class MagnetCoils(NI9263):
                 new_voltages = np.array(
                     [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
                      relative_voltages[2] * max_voltages[2]])
-                print('Given field exceeds maximum possible field, outputting best approximation')
-                print(new_voltages)
-                print(np.dot(Cmat, relative_voltages))
+                self.log('Given field exceeds maximum possible field, outputting best approximation with these voltages: ' + str(new_voltages))
+                self.log('Corresponding best possible field (in G): ' + str(np.dot(Cmat, relative_voltages)))
                 used_approx_fields = True
             elif (new_voltages < 0).any():
                 relative_voltages = self.optimize_fields(fields, Cmat, relative_voltages)
@@ -225,15 +234,17 @@ class MagnetCoils(NI9263):
                     [relative_voltages[0] * max_voltages[0], relative_voltages[1] * max_voltages[1],
                      relative_voltages[2] * max_voltages[2]])
                 print('Could not match desired fields, outputting best approximation')
-                print(new_voltages)
-                print(np.dot(Cmat, relative_voltages))
+                self.log('Given field exceeds maximum possible field, outputting best approximation with these voltages: ' + str(new_voltages))
+                self.log('Corresponding best possible field (in G): ' + str(np.dot(Cmat, relative_voltages)))
                 used_approx_fields = True
         else:
             if (np.abs(new_voltages) > max_voltages).any():
+                self.log('The requested field exceeds the maximum possible field')
                 raise ValueError('Given field exceeds maximum possible field')
             elif (new_voltages < 0).any():
                 mask = (new_voltages < 0)
                 negative_axes = [x[1] for x in zip(*(mask, ['x', 'y', 'z'])) if x[0]]
+                self.log('Field not reachable, polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
                 raise ValueError('Field not reachable, polarity switch required on ' + ','.join('{}'.format(k) for k in negative_axes))
 
         #to allow scripts to access data
