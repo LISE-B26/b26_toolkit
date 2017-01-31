@@ -82,7 +82,7 @@ class Daq_Read_Counter(Script):
             if num_read.value == 1:
                 time.sleep(2.0 / sample_rate)
                 continue
-
+            print('raw data length: ', len(raw_data))
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
                 self.last_value = value
