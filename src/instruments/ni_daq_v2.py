@@ -414,13 +414,14 @@ class DAQ(Instrument):
         MIN_TICKS = 0;
         MAX_TICKS = 100000;
 
+
         # setup counter to measure pulse widths
         self._check_error(
-            self.nidaq.DAQmxCreateCIPulseWidthChan(self.task['task_handle'], input_channel_str_gated, '', MIN_TICKS,
+            self.nidaq.DAQmxCreateCIPulseWidthChan(task['task_handle'], input_channel_str_gated, '', MIN_TICKS,
                                                    MAX_TICKS, DAQmx_Val_Ticks, DAQmx_Val_Rising, ''))
 
         # specify number of samples to acquire
-        self._check_error(self.nidaq.DAQmxCfgImplicitTiming(self.task['task_handle'],
+        self._check_error(self.nidaq.DAQmxCfgImplicitTiming(task['task_handle'],
                                                             DAQmx_Val_FiniteSamps, uInt64(task['sample_num'])))
 
         # set the terminal for the counter timebase source to the APD source
