@@ -204,7 +204,7 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
 
         mw_frequencies = data['mw_frequencies']
         esr_counts = np.array(data['esr_counts'])
-        print('ggggg', len(np.shape(esr_counts)))
+
         # if there is two measurement per run, the second serves as a normalization measurement
         if len(np.shape(esr_counts))== 2:
             esr_counts  = esr_counts[:,0]/esr_counts[:,1]

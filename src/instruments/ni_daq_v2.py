@@ -307,7 +307,7 @@ class DAQ(Instrument):
             'counter_out_PFI_str': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            'num_samples_per_channel': None,
             'timeout': None
         }
 
@@ -322,9 +322,9 @@ class DAQ(Instrument):
         task['sample_num'] = sampleNum
         task['sample_rate'] = float(channel_settings['sample_rate'])
         if not continuous_acquisition:
-            task['num_samples_per_chan'] = task['sample_num']
+            task['num_samples_per_channel'] = task['sample_num']
         else:
-            task['num_samples_per_chan'] = -1
+            task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
         input_channel_str = self.settings['device'] + '/' + channel
         task['counter_out_PFI_str'] = '/' + self.settings['device'] + '/PFI' + str(
@@ -395,7 +395,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            'num_samples_per_channel': None,
             'timeout': None
         }
 
@@ -405,9 +405,9 @@ class DAQ(Instrument):
         counter_out_PFI_str_gated = '/' + self.settings['device'] + '/PFI' + str(
             channel_settings['counter_PFI_channel'])  # initial / required only here, see NIDAQ documentation
 
-        #set both to same value, no option for continuous counting (num_samples_per_chan == -1) with gated counter
+        #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
         task['sample_num'] = num_samples
-        task['num_samples_per_chan'] = num_samples
+        task['num_samples_per_channel'] = num_samples
 
         task['task_handle'] = TaskHandle(0)
 
@@ -494,7 +494,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            'num_samples_per_channel': None,
             'timeout': None
         }
 
@@ -572,7 +572,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            'num_samples_per_channel': None,
             'timeout': None
         }
 
@@ -614,7 +614,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            'num_samples_per_channel': None,
             'timeout': None
         }
 
