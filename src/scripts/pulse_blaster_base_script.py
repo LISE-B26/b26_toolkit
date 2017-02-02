@@ -257,16 +257,36 @@ for a given experiment
             return ((signal - baseline_min) / (baseline_max - baseline_min))
 
     def _normalize_to_kCounts(self, signal, gate_width=1, num_averages=1):
-        # COMMENT_ME
+        """
+        Converts the signal from counts/gate_width as returned by the PB to kcounts/s
+        Args:
+            signal: data to normalize
+            gate_width: length of each bin
+            num_averages: number of times each bin is read
+
+        Returns:
+
+        """
         return (1. * signal * (1E6 / (gate_width * num_averages)))  # 1E6 is to convert from ns to ms
 
     def validate(self):
-        # COMMENT_ME
+        """
+        Checks if a pulse sequence is a valid input to the pulseblaster, that is the sequence has no overlapping
+        pulses, or time between pulses of <15ns
+        """
         def add_mw_switch_to_sequences(pulse_sequences):
+            """
+            Adds the microwave switch to a sequence by toggling it on/off for every microwave_i or microwave_q pulse,
+            with a buffer given by mw_switch_extra_time
+            Args:
+                pulse_sequences: Pulse sequence without mw switch
+
+            Returns: Pulse sequence with mw switch added in appropriate places
+
+            """
             if not 'mw_switch_extra_time' in self.settings.keys():
+                #default to a 40 ns buffer
                 mw_switch_time = 40
-                # return pulse_sequences
-            # mw_switch_time = self.settings['mw_switch_extra_time']
             for sequence in pulse_sequences:
                 mw_switch_pulses = []
                 # add a switch pulse for each microwave pulse
@@ -329,7 +349,14 @@ for a given experiment
         return self.pulse_sequences, num_averages, tau_list, measurement_gate_width, failure_list
 
     def _plot_validate(self, axes_list):
-        # COMMENT_ME
+        """
+        Preview pulse sequence by plotting first and last sequence to plots 1 and 2
+        Args:
+            axes_list: List containing axes to plot to
+
+        Returns:
+
+        """
         axis1 = axes_list[0]
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[0])
@@ -355,7 +382,10 @@ for a given experiment
         return pulse_sequences, num_averages, tau_list, measurement_gate_width
 
     def stop(self):
-        # COMMENT_ME
+        """
+        Stop currently executed pulse blaster sequence
+        NOT CURRENTLY WORKING, WILL CRASH PULSEBLASTER
+        """
         # self.instruments['PB']['instance'].stop()
         super(PulseBlasterBaseScript, self).stop()
 

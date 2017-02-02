@@ -34,6 +34,8 @@ from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr, find_
 from b26_toolkit.src.plotting.plots_1d import plot_esr
 from PyLabControl.src.core.helper_functions import datetime_from_str
 
+from b26_toolkit.src.data_processing.esr_signal_processing import get_lorentzian_fit_starting_values, fit_lorentzian, fit_double_lorentzian
+
 
 from b26_toolkit.src.scripts.find_nv import FindNV
 
@@ -69,7 +71,7 @@ def process_esrs(source_folder, target_folder):
 
     # launch manual_correction function on separate thread, as otherwise buttons will not respond until that
     # function ends, that function is waiting on buttons to continue, and you deadlock
-    thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, widget_list[4], widget_list[5]))
+    thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, widget_list[4], widget_list[5], widget_list[6], widget_list[7]))
     thread.start()
 
     # thread.join()
@@ -156,8 +158,6 @@ def autofit_esrs(folder):
 
         findnv_folder =  sorted(glob.glob(folder + '/data_subscripts/*find_nv*pt_*{:d}'.format(pt_id)))[0]
 
-        print('found {:s}'.format(findnv_folder))
-
         # load data
         data = Script.load_data(esr_folder)
         fit_params = fit_esr(data['frequency'], data['data'])
@@ -193,7 +193,7 @@ def autofit_esrs(folder):
 
     return fit_data_set
 
-def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, queue, lower_peak_widget, upper_peak_widget):
+def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, queue, lower_peak_widget, upper_peak_widget, lower_fit_widget, upper_fit_widget):
     """
     Backend code to display and fit ESRs, then once input has been received from front-end, incorporate the data into the
     current data set
@@ -210,110 +210,214 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
     Poststate: populates fit_data_set with manual corrections
     """
-    fit_data_set_array = fit_data_set.as_matrix()
+    try:
 
-    w = widgets.HTML("Event information appears here when you click on the figure")
-    display(w)
+        fit_data_set_array = fit_data_set.as_matrix()
 
-    # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
-    esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
+        w = widgets.HTML("Event information appears here when you click on the figure")
+        display(w)
 
-    # create folder to save images to
-    # filepath_image = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
-    # image_folder = os.path.join(filepath_image, '{:s}\\images'.format(os.path.basename(folder)))
-    image_folder = os.path.join(target_folder, '{:s}\\images'.format(folder[2:]))
-    # image_folder = os.path.normpath(
-    #     os.path.abspath(os.path.join(os.path.join(target_folder, 'images'), os.path.basename(folders[0]))))
-    if not os.path.exists(image_folder):
-        os.makedirs(image_folder)
-    if not os.path.exists(os.path.join(image_folder, 'bad_data')):
-        os.makedirs(os.path.join(image_folder, 'bad_data'))
+        # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
+        esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
 
-    f = plt.figure(figsize=(12, 6))
 
-    def onclick(event):
-        if event.button == 1:
-            lower_peak_widget.value = event.xdata
-        elif event.button == 3:
-            upper_peak_widget.value = event.xdata
+        # create folder to save images to
+        # filepath_image = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
+        # image_folder = os.path.join(filepath_image, '{:s}\\images'.format(os.path.basename(folder)))
+        image_folder = os.path.join(target_folder, '{:s}\\images'.format(folder[2:]))
+        # image_folder = os.path.normpath(
+        #     os.path.abspath(os.path.join(os.path.join(target_folder, 'images'), os.path.basename(folders[0]))))
+        if not os.path.exists(image_folder):
+            os.makedirs(image_folder)
+        if not os.path.exists(os.path.join(image_folder, 'bad_data')):
+            os.makedirs(os.path.join(image_folder, 'bad_data'))
 
-    cid = f.canvas.mpl_connect('button_press_event', onclick)
+        f = plt.figure(figsize=(12, 6))
 
-    for i, esr_folder in enumerate(esr_folders):
+        def onclick(event):
+            if event.button == 1:
+                if event.key == 'control':
+                    lower_fit_widget.value = event.xdata
+                else:
+                    lower_peak_widget.value = event.xdata
+            elif event.button == 3:
+                if event.key == 'control':
+                    upper_fit_widget.value = event.xdata
+                else:
+                    upper_peak_widget.value = event.xdata
 
-        # find the NV index
-        pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
+        cid = f.canvas.mpl_connect('button_press_event', onclick)
 
-        findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:02d}'.format(pt_id))[0]
+        lower_peak_manual = [np.nan] * len(fit_data_set)
+        upper_peak_manual = [np.nan] * len(fit_data_set)
 
-        f.clf()
-        gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
-        ax0 = plt.subplot(gs[0])
-        ax1 = plt.subplot(gs[1])
-        ax = [ax0, ax1]
 
-        sys.stdout.flush()
+        for i, esr_folder in enumerate(esr_folders):
 
-        # load data
-        data = Script.load_data(esr_folder)
-        fit_params = fit_data_set_array[pt_id, 2:8]
-        if np.isnan(fit_params[4]):
-            fit_params = fit_params[0:4]
+            lower_fit_widget.value = 0
+            upper_fit_widget.value = 10e9
 
-        # get nv positions
-        #             data_pos = {'initial_point': [fit_data_set['xo'].values[pt_id]]}
-        data_pos = Script.load_data(findnv_folder)
-        #             pos = data_pos['maximum_point']
-        #             pos_init = data_pos['initial_point']
+            lower_peak_widget.value = 2.87e9
+            upper_peak_widget.value = 0
 
-        # plot NV image
-        FindNV.plot_data([ax[1]], data_pos)
+            def display_data(lower_peak_widget = None, upper_peak_widget = None, display_fit = True):
+                # find the NV index
+                pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
-        # plot data and fits
-        print("fit_params: ", fit_params)
+                findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:02d}'.format(pt_id))[0]
 
-        plot_esr(ax[0], data['frequency'], data['data'], fit_params=fit_params)
+                f.clf()
+                gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+                ax0 = plt.subplot(gs[0])
+                ax1 = plt.subplot(gs[1])
+                ax = [ax0, ax1]
 
-        plt.tight_layout()
+                # load data
+                data = Script.load_data(esr_folder)
+                if lower_fit_widget.value == 0 and upper_fit_widget.value == 10e9:
+                    freq = data['frequency']
+                    ampl = data['data']
+                else:
+                    freq = data['frequency'][np.logical_and(data['frequency'] > lower_fit_widget.value, data['frequency'] < upper_fit_widget.value)]
+                    ampl = data['data'][np.logical_and(data['frequency'] > lower_fit_widget.value, data['frequency'] < upper_fit_widget.value)]
+                if lower_peak_widget is None:
+                    fit_params = fit_data_set_array[pt_id, 2:8]
+                else:
+                    lower_peak = lower_peak_widget.value
+                    upper_peak = upper_peak_widget.value
+                    if upper_peak == 0:
+                        start_vals = get_lorentzian_fit_starting_values(freq, ampl)
+                        start_vals[2] = lower_peak
+                        start_vals[1] = ampl[np.argmin(np.abs(freq - lower_peak))] - start_vals[0]
+                        try:
+                            fit_params = fit_lorentzian(freq, ampl, starting_params=start_vals,
+                                                 bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])
+                        except:
+                            # ESR fit failed!
+                            fit_params = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
 
-        plt.draw()
-        plt.show()
+                    else:
+                        center_freq = np.mean(freq)
+                        start_vals = []
+                        start_vals.append(
+                            get_lorentzian_fit_starting_values(freq[freq < center_freq], ampl[freq < center_freq]))
+                        start_vals.append(
+                            get_lorentzian_fit_starting_values(freq[freq > center_freq], ampl[freq > center_freq]))
+                        start_vals = [
+                            np.mean([start_vals[0][0], start_vals[1][0]]),  # offset
+                            np.sum([start_vals[0][3], start_vals[1][3]]),  # FWHM
+                            ampl[np.argmin(np.abs(freq-lower_peak))] - start_vals[0][0], ampl[np.argmin(np.abs(freq-upper_peak))]- start_vals[1][0],  # amplitudes
+                            lower_peak, upper_peak  # centers
+                        ]
+                        try:
+                            fit_params = fit_double_lorentzian(freq, ampl, starting_params=start_vals, bounds=
+                            [(0, 0, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
+                        except:
+                            fit_params = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
 
-        while queue.empty():
-            time.sleep(.5)
+                if len(fit_params) == 4 or np.isnan(fit_params[4]):
+                    fit_params = fit_params[0:4]
 
-        if nv_type_manual == '':
-            if fit_params is None:
-                f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
+                # get nv positions
+                #             data_pos = {'initial_point': [fit_data_set['xo'].values[pt_id]]}
+                data_pos = Script.load_data(findnv_folder)
+                #             pos = data_pos['maximum_point']
+                #             pos_init = data_pos['initial_point']
+
+                # plot NV image
+                FindNV.plot_data([ax[1]], data_pos)
+
+                # plot data and fits
+                # print("fit_params: ", fit_params)
+
+                sys.stdout.flush()
+
+                if display_fit:
+                    plot_esr(ax[0], data['frequency'], data['data'], fit_params=fit_params)
+                else:
+                    plot_esr(ax[0], data['frequency'], data['data'], fit_params=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+
+                plt.tight_layout()
+
+                plt.draw()
+                plt.show()
+
+                return fit_params, pt_id
+
+            fit_params, pt_id = display_data()
+
+            while True:
+                if queue.empty():
+                    time.sleep(.5)
+                else:
+                    value = queue.get()
+                    if value == -1:
+                        fit_params, point_id = display_data(lower_peak_widget=lower_peak_widget, upper_peak_widget=upper_peak_widget)
+                        continue
+                    elif value == -2:
+                        display_data(display_fit = False)
+                        fit_params = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                        lower_fit_widget.value = 0
+                        upper_fit_widget.value = 10e9
+                    else:
+                        break
+
+            if nv_type_manual[i] == 'split':
+                if np.isnan(fit_params[0]):
+                    lower_peak_manual[i] = lower_peak_widget.value
+                    upper_peak_manual[i] = upper_peak_widget.value
+                    b_field_manual[i] = ((upper_peak_widget.value - lower_peak_widget.value) / 5.6e6)
+                else:
+                    lower_peak_manual[i] = fit_params[4]
+                    upper_peak_manual[i] = fit_params[5]
+                    b_field_manual[i] = ((fit_params[5] - fit_params[4]) / 5.6e6)
+            elif nv_type_manual[i] == 'single':
+                if np.isnan(fit_params[0]):
+                    print('here')
+                    lower_peak_manual[i] = lower_peak_widget.value
+                    print('value: ', lower_peak_widget.value)
+                else:
+                    print('there')
+                    lower_peak_manual[i] = fit_params[2]
+
+            if nv_type_manual[i] == '':
+                if fit_params is None:
+                    f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
+                else:
+                    f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
             else:
-                f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
-        else:
-            if nv_type_manual[i] in ['bad', 'no_split']:
-                f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
-            else:
-                f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
+                if nv_type_manual[i] in ['bad', 'no_split']:
+                    f.savefig(os.path.join(os.path.join(image_folder, 'bad_data'), 'esr_pt_{:02d}.jpg'.format(pt_id)))
+                else:
+                    f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
 
-        queue.get()
+        f.canvas.mpl_disconnect(cid)
+        fit_data_set['manual_B_field'] = b_field_manual
+        fit_data_set['manual_nv_type'] = nv_type_manual
+        fit_data_set['manual_peak_1'] = lower_peak_manual
+        fit_data_set['manual_peak_2'] = upper_peak_manual
 
-    f.canvas.mpl_disconnect(cid)
-    fit_data_set['manual_B_field'] = b_field_manual
-    fit_data_set['manual_nv_type'] = nv_type_manual
+        filepath = os.path.join(target_folder, folder[2:])
+        data_filepath = os.path.join(filepath, 'data-manual.csv')
+        # filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
+        # filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
+        # data_filepath = os.path.join(filepath, filename)
 
-    filepath = os.path.join(target_folder, folder[2:])
-    data_filepath = os.path.join(filepath, 'data-manual.csv')
-    # filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
-    # filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
-    # data_filepath = os.path.join(filepath, filename)
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
 
-    if not os.path.exists(filepath):
-        os.makedirs(filepath)
+        fit_data_set.to_csv(data_filepath)
 
-    fit_data_set.to_csv(data_filepath)
+        create_shortcut(os.path.abspath(os.path.join(filepath, 'to_data.lnk')), os.path.abspath(folder))
+        create_shortcut(os.path.join(os.path.abspath(folder), 'to_processed.lnk'), os.path.abspath(filepath))
 
-    create_shortcut(os.path.abspath(os.path.join(filepath, 'to_data.lnk')), os.path.abspath(folder))
-    create_shortcut(os.path.join(os.path.abspath(folder), 'to_processed.lnk'), os.path.abspath(filepath))
+        print('DONE!')
 
-    print('DONE!')
+    except:
+        raise
+        # exc_type, exc_value, traceback = sys.exc_info()
+        # error_widget.value = str(exc_type) + ', ' + exc_value + ', ' + str(traceback)
+
 
 def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
     """
@@ -326,26 +430,45 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
     Returns:
 
     """
-    # define queue for inter-button communication
+    # define queue for inter-thread communication
     current_id_queue = Queue.Queue()
     current_id_queue.put(0)
 
     # define buttons to be added to display
+    # error_box = widgets.Text(description='error message')
     button_correct = widgets.Button(description="correct")
     button_bad = widgets.Button(description="bad")
     button_no_peak = widgets.Button(description="no_peak")
     button_peak = widgets.Button(description="peak")
+    button_refit = widgets.Button(description = "refit")
+    button_clear_refit = widgets.Button(description = "clear refit")
     lower_peak = widgets.FloatText(description='lower (single) peak')
-    upper_peak = widgets.FloatText(description='upper peak')
-    widget_list = [button_correct, button_bad, button_no_peak, button_peak, lower_peak, upper_peak]
+    upper_peak = widgets.FloatText(description='upper (second) peak')
+    lower_fit = widgets.FloatText(description = 'fitting lower bound')
+    upper_fit = widgets.FloatText(description = 'fitting upper bound')
+    widget_list = [button_correct, button_bad, button_no_peak, button_peak, lower_peak, upper_peak, lower_fit, upper_fit]
+
+    # box = widgets.VBox([widgets.HBox([button_correct, button_bad]),
+    #                     widgets.HBox([button_no_peak, button_peak]),
+    #                     widgets.HBox([button_refit, button_clear_refit]),
+    #                     widgets.HBox([lower_peak, upper_peak]),
+    #                     widgets.HBox([lower_fit, upper_fit])])
+    box = widgets.HBox([widgets.VBox([button_correct, button_no_peak, button_refit, lower_peak, lower_fit]),
+                        widgets.VBox([button_bad, button_peak, button_clear_refit, upper_peak, upper_fit])])
 
     # display all widgets
-    display(button_correct)
-    display(button_bad)
-    display(button_no_peak)
-    display(button_peak)
-    display(lower_peak)
-    display(upper_peak)
+    # display(error_box)
+    # display(button_correct)
+    # display(button_bad)
+    # display(button_no_peak)
+    # display(button_peak)
+    # display(button_refit)
+    # display(button_clear_refit)
+    # display(lower_peak)
+    # display(upper_peak)
+    # display(lower_fit)
+    # display(upper_fit)
+    display(box)
 
 
     def button_correct_clicked(b):
@@ -373,21 +496,30 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
     def button_peak_clicked(b):
         current_id = current_id_queue.get()
         if upper_peak.value == 0:
-            if np.abs(lower_peak.value - 2.87e9) > 0.01e9:
+            if np.abs(lower_peak.value - 2.87e9) > 0.05e9:
                 nv_type_manual[current_id] = 'split'
-                b_field_manual[current_id] = (np.abs(lower_peak.value - 2.87e9) * 2.) / (5.6e6)
+                # b_field_manual[current_id] = (np.abs(lower_peak.value - 2.87e9) * 2.) / (5.6e6)
                 lower_peak.value = 0
             else:
                 nv_type_manual[current_id] = 'single'
         else:
             nv_type_manual[current_id] = 'split'
-            b_field_manual[current_id] = (upper_peak.value - lower_peak.value) / (5.6e6)
-        lower_peak.value = 2.87e9
-        upper_peak.value = 0
+            # b_field_manual[current_id] = (upper_peak.value - lower_peak.value) / (5.6e6)
         current_id_queue.put(current_id + 1)
         next_queue.put(0)
 
     button_peak.on_click(button_peak_clicked)
+
+    def button_refit_clicked(b):
+        next_queue.put(-1)
+
+    button_refit.on_click(button_refit_clicked)
+
+
+    def button_clear_refit_clicked(b):
+        next_queue.put(-2)
+
+    button_clear_refit.on_click(button_clear_refit_clicked)
 
     return widget_list
 
