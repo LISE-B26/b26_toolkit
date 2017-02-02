@@ -57,11 +57,11 @@ This script applies a microwave pulse at fixed power and durations for varying f
             super(PulsedESR, self)._function(self.data)
             self.data['esr_counts'].append(self.data['counts'])
 
-    def _calc_progress(self):
-        #COMMENT_ME
-        # todo: change to _calc_progress(self, index):
-        progress = int(100. * (self._loop_count) / self.settings['freq_points'])
-        return progress
+    # def _calc_progress(self):
+    #     #COMMENT_ME
+    #     # todo: change to _calc_progress(self, index):
+    #     progress = int(100. * (self._loop_count) / self.settings['freq_points'])
+    #     return progress
 
     def _plot(self, axes_list, data = None):
         '''
@@ -165,11 +165,11 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
             super(PulsedESRSlow, self)._function(self.data)
             self.data['esr_counts'].append(self.data['counts'])
 
-    def _calc_progress(self):
-        #COMMENT_ME
-        # todo: change to _calc_progress(self, index):
-        progress = int(100. * (self._loop_count) / self.settings['freq_points'])
-        return progress
+    # def _calc_progress(self):
+    #     #COMMENT_ME
+    #     # todo: change to _calc_progress(self, index):
+    #     progress = int(100. * (self._loop_count) / self.settings['freq_points'])
+    #     return progress
 
     def _plot(self, axes_list, data = None):
         '''

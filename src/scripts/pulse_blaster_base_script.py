@@ -54,6 +54,18 @@ for a given experiment
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
+    def _calc_progress(self, index):
+        # progress of inner loop (in _run_sweep)
+        progress_inner = float(index) / len(self.pulse_sequences)
+
+        # progress of outer loop (in _function)
+        if self.current_averages >= MAX_AVERAGES_PER_SCAN:
+            progress = float(self.current_averages + (progress_inner - 1.0) * MAX_AVERAGES_PER_SCAN) / self.num_averages
+        else:
+            progress = progress_inner
+        self.progress = 100.0 * progress
+        return int(progress)
+
     def _function(self, in_data={}):
         '''
         This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
@@ -177,6 +189,7 @@ for a given experiment
             self.data['counts'][index] = self._normalize_to_kCounts(self.count_data[index], self.measurement_gate_width,
                                                                     self.current_averages)
             self.sequence_index = index
+
             self.updateProgress.emit(self._calc_progress(index))
 
     def _single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
@@ -224,17 +237,7 @@ for a given experiment
         '''
         raise NotImplementedError
 
-    def _calc_progress(self, index):
-        # progress of inner loop (in _run_sweep)
-        progress_inner = float(index) / len(self.pulse_sequences)
 
-        # progress of outer loop (in _function)
-        if self.current_averages >= MAX_AVERAGES_PER_SCAN:
-            progress = float(self.current_averages + (progress_inner - 1.0) * MAX_AVERAGES_PER_SCAN) / self.num_averages
-        else:
-            progress = progress_inner
-        self.progress = 100.0 * progress
-        return int(progress)
 
     def _normalize(self, signal, baseline_max=0, baseline_min=0):
         '''

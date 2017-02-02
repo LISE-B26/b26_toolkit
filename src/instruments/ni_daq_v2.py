@@ -395,7 +395,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            'num_samples_per_chan': None,
+            # 'num_samples_per_chan': None, # JG Feb 1st 2017 this is never asigned => delete?
             'timeout': None
         }
 
@@ -448,15 +448,36 @@ class DAQ(Instrument):
 
         """
         task = self.tasklist[task_name]
+
+        # difference between gated and non gated counter: the non-gated has a separate clock, while the gated one doesn't
+        # For the gated case the task it self is also the clock
+        # so if there is not extra handle for the clock we use the task_handle
+        if 'task_handle_ctr' in task:
+            task_handle_ctr = task['task_handle_ctr']
+        else:
+            task_handle_ctr = task['task_handle']
+
+        # another difference between the gated and non gated counter
+        # todo: Aaron explain
+        if 'num_samples_per_chan' in task:
+            num_samples_per_chan = task['num_samples_per_chan']
+        else:
+            num_samples_per_chan = task['sample_num']
+
+
         # initialize array and integer to pass as pointers
         data = (float64 * task['sample_num'])()
         samplesPerChanRead = int32()
-        self._check_error(self.nidaq.DAQmxReadCounterF64(task['task_handle_ctr'],
-                                                         int32(task['num_samples_per_chan']), float64(-1),
+
+
+        self._check_error(self.nidaq.DAQmxReadCounterF64(task_handle_ctr,
+                                                         int32(num_samples_per_chan), float64(-1),
                                                          ctypes.byref(data),
                                                          uInt32(task['sample_num']),
                                                          ctypes.byref(samplesPerChanRead),
                                                          None))
+
+
         return data, samplesPerChanRead
 
     def setup_AO(self, channels, waveform, clk_source=""):
