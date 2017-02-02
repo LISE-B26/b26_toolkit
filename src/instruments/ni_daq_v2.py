@@ -298,6 +298,9 @@ class DAQ(Instrument):
 
         """
 
+        # Note that for this counter, we have two tasks. The normal 'task_handle' corresponds to the clock, and this
+        # is the task which is started when run is called. The second 'task_handle_ctr' corresponds to the counter,
+        # and this waits for the clock and will be started simultaneously.
         task = {
             'task_handle': None,
             'task_handle_ctr': None,
@@ -379,11 +382,8 @@ class DAQ(Instrument):
         Initializes a gated digital input task. The gate acts as a clock for the counter, so if one has a fast ttl source
         this allows one to read the counter for a shorter time than would be allowed by the daq's internal clock.
         Args:
-            channel:
-            num_samples:
-
-        Returns:
-
+            channel: channel to use for counter input
+            num_samples: number of samples to read on counter
         """
         if 'digital_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support digital input')
@@ -395,7 +395,7 @@ class DAQ(Instrument):
             'task_handle': None,
             'sample_num': None,
             'sample_rate': None,
-            # 'num_samples_per_chan': None, # JG Feb 1st 2017 this is never asigned => delete?
+            'num_samples_per_chan': None,
             'timeout': None
         }
 
@@ -405,7 +405,9 @@ class DAQ(Instrument):
         counter_out_PFI_str_gated = '/' + self.settings['device'] + '/PFI' + str(
             channel_settings['counter_PFI_channel'])  # initial / required only here, see NIDAQ documentation
 
+        #set both to same value, no option for continuous counting (num_samples_per_chan == -1) with gated counter
         task['sample_num'] = num_samples
+        task['num_samples_per_chan'] = num_samples
 
         task['task_handle'] = TaskHandle(0)
 
@@ -457,26 +459,17 @@ class DAQ(Instrument):
         else:
             task_handle_ctr = task['task_handle']
 
-        # another difference between the gated and non gated counter
-        # todo: Aaron explain
-        if 'num_samples_per_chan' in task:
-            num_samples_per_chan = task['num_samples_per_chan']
-        else:
-            num_samples_per_chan = task['sample_num']
-
-
         # initialize array and integer to pass as pointers
         data = (float64 * task['sample_num'])()
         samplesPerChanRead = int32()
 
 
         self._check_error(self.nidaq.DAQmxReadCounterF64(task_handle_ctr,
-                                                         int32(num_samples_per_chan), float64(-1),
+                                                         int32(task['num_samples_per_channel']), float64(-1),
                                                          ctypes.byref(data),
                                                          uInt32(task['sample_num']),
                                                          ctypes.byref(samplesPerChanRead),
                                                          None))
-
 
         return data, samplesPerChanRead
 
