@@ -37,7 +37,7 @@ class ESR(Script):
         Parameter('esr_avg', 50, int, 'number of esr averages'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
-        Parameter('range_type', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
         Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
