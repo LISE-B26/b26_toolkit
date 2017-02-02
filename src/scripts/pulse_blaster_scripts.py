@@ -130,20 +130,34 @@ This script applies a microwave pulse at fixed power and durations for varying f
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
+
+
+
 class PulsedESRSlow(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power and durations for varying frequencies.
 This is the CW version, where we apply the MW only for short times but still much longer than a pi/2 pulse, ie. a few micro seconds to avoid heating of the sample.
 This is different from the actual pulsed ESR, where we apply pi/2 pulses to get the max contrast.
     """
+
+
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('meas_time', 300, float, ' time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('reset_time', 1000000, int, 'time with laser on at the beginning to reset state'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
-        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
+            Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
+            Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
+        ]),
+        Parameter('read_out', [
+            Parameter('mw_off_time', 4000, int, '1.) Time the MWs are off (us) and the measurement time. Laser is on and photons are counted during this time.'),
+            Parameter('mw_on_time', 250, float, '2.) Time the MWs are on (us). If measure_ref is True Laser is on and photons are counted during time of duration mw_off_time (i.e. the measurement time)!!.'),
+            Parameter('laser_off_time', 250, float, '3.) Laser is off during this time after mW_on and mw_off pulse (us). Set to zero to skip this.'),
+            Parameter('measure_ref', True, bool, 'If true take reference measurement. In that case mw_on_time has to be larger than mw_off_time. If not mw_on_time is set equal to mw_off_time'),
+            Parameter('delay_mw_readout', 100, int, 'delay between laser on and readout (in ns)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -151,19 +165,20 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
     def _function(self):
         #COMMENT_ME
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
-        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
-        assert self.settings['freq_start'] < self.settings['freq_stop']
+        assert self.settings['mw_pulses']['freq_start'] < self.settings['mw_pulses']['freq_stop']
 
-        self.data = {'mw_frequencies': np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
-                                                   self.settings['freq_points']), 'esr_counts': []}
+        self.data = {'mw_frequencies': np.linspace(self.settings['mw_pulses']['freq_start'], self.settings['mw_pulses']['freq_stop'],
+                                                   self.settings['mw_pulses']['freq_points']), 'esr_counts': []}
 
         for i, mw_frequency in enumerate(self.data['mw_frequencies']):
             self._loop_count = i
             self.instruments['mw_gen']['instance'].update({'frequency': float(mw_frequency)})
             super(PulsedESRSlow, self)._function(self.data)
-            self.data['esr_counts'].append(self.data['counts'])
+
+            self.data['esr_counts'].append(self.data['counts'][0])
 
     # def _calc_progress(self):
     #     #COMMENT_ME
@@ -185,19 +200,35 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
         if data is None:
             data = self.data
 
+
+
         mw_frequencies = data['mw_frequencies']
-        esr_counts = data['esr_counts']
+        esr_counts = np.array(data['esr_counts'])
+        print('ggggg', len(np.shape(esr_counts)))
+        # if there is two measurement per run, the second serves as a normalization measurement
+        if len(np.shape(esr_counts))== 2:
+            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+
+
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
             plot_esr(axis1, mw_frequencies[0:len(counts)], counts)
             axis1.hold(False)
+            # axis1.set_title('avrg count')
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[0])
 
+
     def _update_plot(self, axes_list):
         mw_frequencies = self.data['mw_frequencies']
-        esr_counts = self.data['esr_counts']
+        esr_counts = np.array(self.data['esr_counts'])
+
+
+        # if there is two measurement per run, the second serves as a normalization measurement
+        if len(np.shape(esr_counts)) == 2:
+            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
@@ -210,32 +241,89 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
 
         '''
 
-        Returns: pulse_sequences, num_averages, tau_list
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
             sequence must have the same number of daq read pulses
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
+            meas_time: the width (in ns) of the daq measurement(s)
         '''
-        reset_time = self.settings['reset_time']
-        meas_time =  self.settings['meas_time']
-        pulse_sequences = [[Pulse('laser', 0, reset_time),
-                            Pulse('microwave_i', reset_time,meas_time),
-                            Pulse('laser', reset_time, meas_time),
-                            Pulse('apd_readout', reset_time,meas_time)
-                            ]]
 
-        tau_list = [meas_time]
-        end_time_max = 0
-        for pulse_sequence in pulse_sequences:
-            for pulse in pulse_sequence:
-                end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
+
+        # on contrast to other script the following times are given in us and have to be converted to ns
+        mw_on_time = self.settings['read_out']['mw_on_time']*1e3
+        mw_off_time = self.settings['read_out']['mw_off_time']*1e3
+        laser_off_time = self.settings['read_out']['laser_off_time']*1e3
+
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        measure_ref = self.settings['read_out']['measure_ref']
+
+        # minimum pulse length is 15ns, if less set to zero, i.e. don't turn laser off
+        if laser_off_time <= 15:
+            laser_off_time = 0
+        # enforce minimum pulse length (15ns)
+        if delay_mw_readout <=15:
+            delay_mw_readout = 15
+
+        # if measuring the reference fluorescence duing the MW off time enforce that the MW are off at least as long as it takes to take the measurement
+        if (measure_ref is True) and (mw_off_time < mw_on_time):
+            mw_off_time = mw_on_time
+
+        # todo: JG - this is a quick fix and should be handled by pulse_blaster_script.validate, which adds a pulse for the microwave switch, this has a hard coded delay of 40ns /
+        # since here the mw pulse is the first pulse this results in negative times
+        mw_offset_time = 40
+
+
+        if laser_off_time == 0:
+            if (measure_ref is True):
+                pulse_sequences = [[Pulse('laser', mw_offset_time+ 0, mw_on_time+mw_off_time+2*delay_mw_readout),
+                                    Pulse('microwave_i', mw_offset_time+ 0, mw_on_time+delay_mw_readout),
+                                    Pulse('apd_readout', mw_offset_time+ delay_mw_readout, mw_on_time),
+                                    Pulse('apd_readout', mw_offset_time+ 2*delay_mw_readout+mw_on_time, mw_on_time), # the readout is actually on mw_on_time long but the mw are mw_off_time off
+                                    Pulse('off_channel', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + mw_off_time, 15)
+                                    # Pulse('laser', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + mw_off_time,15) # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    ]]
+            else:
+                pulse_sequences = [[Pulse('laser', mw_offset_time+ 0, mw_on_time+2*delay_mw_readout),
+                                    Pulse('microwave_i', mw_offset_time+ 0, mw_on_time+delay_mw_readout),
+                                    Pulse('apd_readout', mw_offset_time+ delay_mw_readout, mw_on_time),
+                                    Pulse('off_channel', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + mw_off_time, 15)
+                                    # Pulse('laser', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + mw_off_time,15) # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    ]]
+        else:
+            if (measure_ref is True):
+                pulse_sequences = [[Pulse('laser', mw_offset_time+ 0, mw_on_time+delay_mw_readout),
+                                    Pulse('microwave_i',mw_offset_time+  0, mw_on_time+delay_mw_readout),
+                                    Pulse('apd_readout',mw_offset_time+  delay_mw_readout, mw_on_time),
+                                    Pulse('laser', mw_offset_time+ mw_on_time + delay_mw_readout + laser_off_time, mw_off_time+delay_mw_readout),
+                                    Pulse('apd_readout', mw_offset_time+ 2*delay_mw_readout+mw_on_time+ laser_off_time, mw_on_time), # the readout is actually on mw_on_time long but the mw are mw_off_time off
+                                    Pulse('off_channel', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + 2 * laser_off_time + mw_off_time,15)
+                                    # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    # Pulse('laser', 2*delay_mw_readout+mw_on_time+ 2*laser_off_time +mw_off_time, 15) # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    ]]
+            else:
+                pulse_sequences = [[Pulse('laser', mw_offset_time+ 0, mw_on_time+delay_mw_readout),
+                                    Pulse('microwave_i',mw_offset_time+  0, mw_on_time+delay_mw_readout),
+                                    Pulse('apd_readout',mw_offset_time+  delay_mw_readout, mw_on_time),
+                                    Pulse('off_channel', mw_offset_time+ 2 * delay_mw_readout + mw_on_time + 2 * laser_off_time + mw_off_time,15)
+                                    # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    # Pulse('laser', 2*delay_mw_readout+mw_on_time+ 2*laser_off_time +mw_off_time, 15) # at the end we want mw and laser to be off, so we add this short laser pulse because 'off' doesn't exist
+                                    ]]
+
+
+        tau_list = [mw_on_time]
+        # end_time_max = 0
+        # for pulse_sequence in pulse_sequences:
+        #     for pulse in pulse_sequence:
+        #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
         # for pulse_sequence in pulse_sequences:
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
+        return pulse_sequences, self.settings['num_averages'], tau_list, mw_on_time
+
+
 class Rabi(PulseBlasterBaseScript):
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
@@ -287,7 +375,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
     def _create_pulse_sequences(self):
         '''
 
-        Returns: pulse_sequences, num_averages, tau_list
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
             sequence must have the same number of daq read pulses

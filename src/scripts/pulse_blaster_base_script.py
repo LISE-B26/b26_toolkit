@@ -88,7 +88,7 @@ for a given experiment
 
         self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._process_sequences()
 
-        print('number of sequences after validation ', len(self.pulse_sequences))
+        # print('number of sequences after validation ', len(self.pulse_sequences))
 
         #calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
         #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
