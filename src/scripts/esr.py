@@ -37,6 +37,7 @@ class ESR(Script):
         Parameter('esr_avg', 50, int, 'number of esr averages'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
+        Parameter('range_type', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
         Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
@@ -58,8 +59,28 @@ class ESR(Script):
         will be overwritten in the __init__
         """
         self.lines = []
-        freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
-        freq_range = max(freq_values) - min(freq_values)
+
+
+        if self.settings['range_type'] == 'start_stop':
+            if self.settings['freq_start']>self.settings['freq_stop']:
+                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self._abort = True
+
+            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+        elif self.settings['range_type'] == 'center_range':
+
+            if self.settings['freq_start']<self.settings['freq_stop']:
+                self.log('end freq. (range) must be smaller than start freq (center) when range_type is center_range. Abort script')
+                self._abort = True
+
+            freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
+                                      self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+        else:
+            self.log('unknown range parameter. Abort script')
+            self._abort = True
+
         num_freq_sections = int(freq_range) / int(self.instruments['microwave_generator']['instance'].settings['dev_width']*2) + 1
         clock_adjust = int((self.settings['integration_time'] + self.settings['settle_time']) / self.settings['settle_time'])
         freq_array = np.repeat(freq_values, clock_adjust)
