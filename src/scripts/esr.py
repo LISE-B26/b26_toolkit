@@ -165,12 +165,16 @@ class ESR(Script):
         self.instruments['daq']['instance'].settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
 
-        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
-        self.data = {'frequency': [], 'data': [], 'fit_params': []}
+
 
         # if no reference is requested turn on the MW and leave it on
         if take_ref is False:
             self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+        else:
+            esr_data_ref = np.zeros((self.settings['esr_avg'], len(freq_values)))
+
+        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
+        self.data = {'frequency': [], 'data': [], 'fit_params': []}
 
         # run sweeps
         for scan_num in xrange(0, self.settings['esr_avg']):
@@ -188,15 +192,36 @@ class ESR(Script):
                 if len(freq_voltage_array) is None:
                     continue
 
-                summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
+                # if we take reference measurements, have to turn on the mw for the esr measurment
+                if take_ref is True:
+                    self.instruments['microwave_generator']['instance'].update({'enable_output': True})
 
+                summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
                 # also normalizing to kcounts/sec
                 esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
+
+
+                # if we take reference measurements, have to turn off the mw for the reference measurement
+                if take_ref is True:
+                    self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+                    summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
+                    # also normalizing to kcounts/sec
+                    esr_data_ref[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
+
                 esr_data_pos += len(summed_data)
 
+            if take_ref is True:
+                esr_avg_ref = np.mean(esr_data_ref[0:(scan_num + 1)], axis=0)
             esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
-            fit_params = fit_esr(freq_values, esr_avg)
-            self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+
+            if take_ref is True:
+                fit_params = fit_esr(freq_values, esr_avg/esr_avg_ref)
+                self.data.update(
+                    {'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params, 'esr_avg_ref': esr_avg_ref})
+            else:
+                fit_params = fit_esr(freq_values, esr_avg)
+                self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)
@@ -223,8 +248,11 @@ class ESR(Script):
         """
         if data is None:
             data = self.data
+        if self.settings['take_ref'] is True:
+            plot_esr(axes_list[0], data['frequency'], data['data']/data['esr_avg_ref'], data['fit_params'])
+        else:
         # plot_esr(axes_list[0], self.data[-1]['frequency'], self.data[-1]['data'], self.data[-1]['fit_params'])
-        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+            plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
 
     def get_axes_layout(self, figure_list):
         """
