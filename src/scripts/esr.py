@@ -41,7 +41,8 @@ class ESR(Script):
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
         Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
-        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement')
+        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
+        Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra')
     ]
 
     _INSTRUMENTS = {
@@ -58,28 +59,99 @@ class ESR(Script):
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
+
+        def get_frequency_voltages(freq_values, sec_num, dev_width, freq_array):
+            """
+
+            Args:
+                freq_values: frequency values of the whole scan
+                sec_num: number of frequency section
+                dev_width: width of frequency section
+
+
+            Returns:
+
+            """
+
+            # calculate the minimum ad and max frequency of current section
+            sec_min = min(freq_values) +  dev_width* 2 * sec_num
+            sec_max = sec_min + dev_width * 2
+
+            # make freq. array for current section
+            freq_section_array = freq_array[np.where(np.logical_and(freq_array >= sec_min,freq_array < sec_max))]
+            # if section is empty skip
+            if len(freq_section_array) == 0:
+                center_frequency = None
+                freq_voltage_array = None
+
+            else:
+                center_frequency = (sec_max + sec_min) / 2.0
+                freq_voltage_array = ((freq_section_array - sec_min) / (dev_width * 2)) * 2 - 1  # normalize voltages to +-1 range
+
+            return freq_voltage_array, center_frequency
+
+        def read_freq_section(freq_voltage_array, center_freq, clock_adjust):
+            """
+            reads a frequency section from the DAQ
+
+            Args:
+                freq_voltage_array: voltages corresponding to the frequency section to be measured (see get_frequency_voltages())
+                center_freq:  center frequency corresponding to the frequency section to be measured (see get_frequency_voltages())
+                clock_adjust:
+
+            Returns: data from daq
+
+            """
+            # todo: JG @Aaron explain clock_adjust
+            self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
+
+            ctrtask = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
+            aotask = self.instruments['daq']['instance'].setup_AO(["ao2"], freq_voltage_array)
+
+            # start counter and scanning sequence
+            self.instruments['daq']['instance'].run(ctrtask)
+            self.instruments['daq']['instance'].run(aotask)
+            self.instruments['daq']['instance'].waitToFinish(aotask)
+            self.instruments['daq']['instance'].stop(aotask)
+
+            raw_data, _ = self.instruments['daq']['instance'].read_counter(ctrtask)
+
+            # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
+            # counter counts continiously so we take the difference to get the counts per time interval
+            diff_data = np.diff(raw_data)
+            summed_data = np.zeros(len(freq_voltage_array) / clock_adjust)
+            for i in range(0, int((len(freq_voltage_array) / clock_adjust))):
+                summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
+
+            # clean up APD tasks
+            self.instruments['daq']['instance'].stop(ctrtask)
+
+            return summed_data
+
+
         self.lines = []
 
+        take_ref = self.settings['take_ref']
 
+        # contruct the frequency array
         if self.settings['range_type'] == 'start_stop':
             if self.settings['freq_start']>self.settings['freq_stop']:
                 self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
-
             freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
             freq_range = max(freq_values) - min(freq_values)
         elif self.settings['range_type'] == 'center_range':
-
             if self.settings['freq_start']<self.settings['freq_stop']:
                 self.log('end freq. (range) must be smaller than start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
-
             freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
                                       self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
             freq_range = max(freq_values) - min(freq_values)
         else:
             self.log('unknown range parameter. Abort script')
             self._abort = True
+
 
         num_freq_sections = int(freq_range) / int(self.instruments['microwave_generator']['instance'].settings['dev_width']*2) + 1
         clock_adjust = int((self.settings['integration_time'] + self.settings['settle_time']) / self.settings['settle_time'])
@@ -96,54 +168,31 @@ class ESR(Script):
         esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
         self.data = {'frequency': [], 'data': [], 'fit_params': []}
 
+        # if no reference is requested turn on the MW and leave it on
+        if take_ref is False:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+
         # run sweeps
         for scan_num in xrange(0, self.settings['esr_avg']):
             if self._abort:
                 break
             esr_data_pos = 0
-            self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+
             for sec_num in xrange(0, num_freq_sections):
-                # initialize APD thread
 
-                # calculate the minimum ad and max frequency of current section
-                sec_min = min(freq_values) + self.instruments['microwave_generator']['instance'].settings['dev_width']*2 * sec_num
-                sec_max = sec_min + self.instruments['microwave_generator']['instance'].settings['dev_width']*2
-
-                # make freq. array for current section
-                freq_section_array = freq_array[np.where(np.logical_and(freq_array >= sec_min,
-                                                                        freq_array < sec_max))]
+                freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
+                                                                         sec_num,
+                                                                         self.instruments['microwave_generator']['instance'].settings['dev_width'],
+                                                                         freq_array)
                 # if section is empty skip
-                if len(freq_section_array) == 0:
+                if len(freq_voltage_array) is None:
                     continue
-                center_freq = (sec_max + sec_min) / 2.0
-                freq_voltage_array = ((
-                                      freq_section_array - sec_min) / (self.instruments['microwave_generator']['instance'].settings['dev_width']*2)) * 2 - 1  # normalize voltages to +-1 range
 
-                self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
+                summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
 
-                ctrtask = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
-                aotask = self.instruments['daq']['instance'].setup_AO(["ao2"], freq_voltage_array)
-
-                # start counter and scanning sequence
-                self.instruments['daq']['instance'].run(ctrtask)
-                self.instruments['daq']['instance'].run(aotask)
-                self.instruments['daq']['instance'].waitToFinish(aotask)
-                self.instruments['daq']['instance'].stop(aotask)
-
-                raw_data, _ = self.instruments['daq']['instance'].read_counter(ctrtask)
-
-                # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
-                # counter counts continiously so we take the difference to get the counts per time interval
-                diff_data = np.diff(raw_data)
-                summed_data = np.zeros(len(freq_voltage_array) / clock_adjust)
-                for i in range(0, int((len(freq_voltage_array) / clock_adjust))):
-                    summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
                 # also normalizing to kcounts/sec
                 esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
                 esr_data_pos += len(summed_data)
-
-                # clean up APD tasks
-                self.instruments['daq']['instance'].stop(ctrtask)
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
             fit_params = fit_esr(freq_values, esr_avg)
