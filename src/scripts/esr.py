@@ -25,6 +25,7 @@ from collections import deque
 
 from b26_toolkit.src.plotting.plots_1d import plot_esr
 from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr
+import time
 
 class ESR(Script):
     """
@@ -42,7 +43,8 @@ class ESR(Script):
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
         Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
-        Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra')
+        Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
+        Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually')
     ]
 
     _INSTRUMENTS = {
@@ -195,6 +197,7 @@ class ESR(Script):
                 # if we take reference measurements, have to turn on the mw for the esr measurment
                 if take_ref is True:
                     self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+                    time.sleep(1) # wait a second
 
                 summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
                 # also normalizing to kcounts/sec
@@ -204,6 +207,7 @@ class ESR(Script):
                 # if we take reference measurements, have to turn off the mw for the reference measurement
                 if take_ref is True:
                     self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+                    time.sleep(1)  # wait a second
                     summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
                     # also normalizing to kcounts/sec
                     esr_data_ref[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
@@ -221,6 +225,10 @@ class ESR(Script):
             else:
                 fit_params = fit_esr(freq_values, esr_avg)
                 self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+
+
+            if self.settings['save_full_esr']:
+                self.data.update({'esr_data':esr_data})
 
 
             progress = self._calc_progress(scan_num)
