@@ -446,7 +446,8 @@ class DAQ(Instrument):
         """
         read sampleNum previously generated values from a buffer, and return the
         corresponding 1D array of ctypes.c_double values
-        Returns: 1d array of ctypes.c_double values with the requested counts
+        Returns: 1d array of ctypes.c_double values with the requested counts. Counts as given by the daq are a running
+            total, that is if you get 5 counts/s, the returned array will be [5,10,15,20...]
 
         """
         task = self.tasklist[task_name]

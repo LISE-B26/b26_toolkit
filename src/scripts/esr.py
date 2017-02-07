@@ -40,8 +40,8 @@ class ESR(Script):
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
-        Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts'),
-        Parameter('settle_time', .0002, float, 'time to allow system to equilibrate after changing microwave powers'),
+        Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts (must be a multiple of settle time)'),
+        Parameter('settle_time', .0002, float, 'time wait after changing frequencies (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually')
@@ -100,12 +100,14 @@ class ESR(Script):
             Args:
                 freq_voltage_array: voltages corresponding to the frequency section to be measured (see get_frequency_voltages())
                 center_freq:  center frequency corresponding to the frequency section to be measured (see get_frequency_voltages())
-                clock_adjust:
+                clock_adjust: factor that specifies how many samples+1 go into the duration of the integration time in
+                    order to allow for settling time. For example, if the settle time is .0002 and the integration time
+                    is .01, the clock adjust is (.01+.0002)/.01 = 51, so 50 samples fit into the originally requested
+                    .01 seconds, and each .01 seconds has a 1 sample (.0002 second) rest time.
 
             Returns: data from daq
 
             """
-            # todo: JG @Aaron explain clock_adjust
             self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
 
             ctrtask = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)

@@ -95,7 +95,10 @@ class MicrowaveGenerator(Instrument):
 
                 # only send update to instrument if connection to instrument has been established
                 if self._initialized:
-                    self.srs.write(key + ' ' + str(value))
+                    self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
+                                                           # completion confirmed by query('*OPC?'), found delay of <10ms
+                    # print(self.srs.query('*OPC?'))
+
         # XXXXX MW ISSUE = END
         # ===========================================
 

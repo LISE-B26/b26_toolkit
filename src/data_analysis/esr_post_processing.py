@@ -251,7 +251,6 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
         lower_peak_manual = [np.nan] * len(fit_data_set)
         upper_peak_manual = [np.nan] * len(fit_data_set)
 
-
         for i, esr_folder in enumerate(esr_folders):
 
             lower_fit_widget.value = 0
@@ -264,7 +263,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 # find the NV index
                 pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
-                findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:02d}'.format(pt_id))[0]
+                findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:d}'.format(pt_id))[0]
 
                 f.clf()
                 gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
