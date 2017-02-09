@@ -77,6 +77,7 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     fit_data = None
 
     #  ======== plot fit =========
+    print('asdasdasda', fit_params )
     if fit_params is not None and fit_params[0] != -1:  # check if fit valid
         if len(fit_params) == 4:
             # single peak
@@ -294,7 +295,7 @@ def update_1d_simple(axis, times, counts_list):
     """
 
 
-    if len(np.shape(counts_list)) ==1:
+    if len(np.shape(counts_list)) == 1:
         counts_list = [counts_list]
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)

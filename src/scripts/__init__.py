@@ -25,6 +25,7 @@ from galvo_scan_v2 import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
+from esr_two_freq_continuous import ESRTwoFreqContinuous
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace

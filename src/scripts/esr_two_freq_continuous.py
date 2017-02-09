@@ -16,7 +16,6 @@ class ESRTwoFreqContinuous(Script):
 
     _DEFAULT_SETTINGS = [
         Parameter('power_out', -45.0, float, 'output power (dBm)'),
-        Parameter('esr_avg', 50, int, 'number of esr averages'),
         Parameter('freq_1', 2.82e9, float, 'first frequency (Hz)'),
         Parameter('freq_2', 2.92e9, float, 'second frequency (Hz)'),
         Parameter('measurement_time', 0.01, float, 'measurement time of fluorescent counts (s)'),
@@ -55,24 +54,20 @@ class ESRTwoFreqContinuous(Script):
             """
 
             # create DAQ task
-            task = daq.setup_counter("ctr0", sample_num=1)
+            task = daq.setup_counter("ctr0", sample_num=10) #comment here
             # set frequency
             mw_gen.update({'frequency': float(freq)})
             # wait for instrument to apply settings
             time.sleep(1e-3*settle_time)
             # run daq task to read APD
             daq.run(task)
-            daq.waitToFinish(task)
+            raw_data, _ = daq.read_counter(task) #blocking read
             daq.stop(task)
 
-            raw_data, _ = daq.read_counter(task)
-            count_rate = raw_data * sample_rate
+            count_rate = np.mean(np.diff(raw_data)) * sample_rate / 1000
             return count_rate
 
 
-        self.lines = []
-
-        take_ref = self.settings['take_ref']
         measurement_time = self.settings['measurement_time']
         settle_time = self.settings['settle_time']
 
@@ -80,20 +75,19 @@ class ESRTwoFreqContinuous(Script):
         freq_2 = self.settings['freq_2']
 
 
-        sample_rate = float(1) / measurement_time
-        normalization = self.settings['integration_time']/.001 # to convert from ms to s?
-        self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
+        sample_rate = float(10) / measurement_time
+        self.instruments['daq']['instance'].settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
         self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
-        self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
-        self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
+        # self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
+        self.instruments['microwave_generator']['instance'].update({'enable_modulation': False})
 
-        task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num = 1)
+        self.progress = 50
 
-
-        esr_data = deque()
         if self.settings['max_points']>0:
-            esr_data.maxlen = self.settings['max_points']
+            esr_data = [deque(maxlen = self.settings['max_points']), deque(maxlen = self.settings['max_points'])]
+        else:
+            esr_data = [deque(), deque()]
         self.data = {'frequency': [], 'data': esr_data, 'fit_params': []}
 
 
@@ -101,16 +95,18 @@ class ESRTwoFreqContinuous(Script):
             count_rate1 = set_freq_and_read_daq(freq_1, settle_time, self.instruments['daq']['instance'], self.instruments['microwave_generator']['instance'])
             count_rate2 = set_freq_and_read_daq(freq_2, settle_time, self.instruments['daq']['instance'], self.instruments['microwave_generator']['instance'])
 
-            esr_data.append([count_rate1, count_rate2])
+            esr_data[0].append(count_rate1)
+            esr_data[1].append(count_rate2)
 
 
+            self.updateProgress.emit(self.progress)
 
 
         if self.settings['turn_off_after']:
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
 
 
-    def _calc_progress(self, scan_num):
+    def _calc_progress(self):
         #COMMENT_ME
         self.progress = 50
         return int(self.progress)
@@ -127,5 +123,40 @@ class ESRTwoFreqContinuous(Script):
         if data is None:
             data = np.array(self.data['data'])
 
-        axes_list[0].plot(data[0:])
-        axes_list[1].plot(data[1:])
+        contrast = 100.*(data[1] - data[0])/(data[0] + data[1])
+
+        axes_list[0].plot(contrast, 'b')
+        axes_list[0].set_title('contrast')
+        axes_list[1].plot(data[0], 'r')
+        axes_list[1].plot(data[1], 'b')
+        axes_list[1].set_title('esr from each freq. (1=r), (2=b)')
+        axes_list[0].set_xlabel('time (arb units)')
+        axes_list[1].set_xlabel('time (arb units)')
+        axes_list[0].set_ylabel('kCounts/s')
+        axes_list[1].set_ylabel('contrast (%)')
+
+
+    def _update_plot(self, axes_list, data = None):
+        if data is None:
+            data = np.array(self.data['data'])
+
+        contrast = 100.*(data[1] - data[0])/(data[0] + data[1])
+
+        axes_list[0].lines[0].set_xdata(range(0, len(data[0])))
+        axes_list[0].lines[0].set_ydata(contrast)
+
+        axes_list[0].relim()
+        axes_list[0].autoscale_view()
+
+        axes_list[1].lines[0].set_xdata(range(0,len(data[0])))
+        axes_list[1].lines[0].set_ydata(data[0])
+        axes_list[1].lines[1].set_xdata(range(0, len(data[1])))
+        axes_list[1].lines[1].set_ydata(data[1])
+
+        axes_list[0].set_xlabel('time (arb units)')
+        axes_list[1].set_xlabel('time (arb units)')
+        axes_list[0].set_ylabel('kCounts/s')
+        axes_list[1].set_ylabel('contrast (%)')
+
+        axes_list[1].relim()
+        axes_list[1].autoscale_view()

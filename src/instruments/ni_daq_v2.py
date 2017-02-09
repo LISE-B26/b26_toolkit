@@ -282,12 +282,12 @@ class DAQ(Instrument):
         except RuntimeError:
             return False
 
-    def setup_counter(self, channel, sampleNum, continuous_acquisition=False):
+    def setup_counter(self, channel, sample_num, continuous_acquisition=False):
         """
         Initializes a hardware-timed digital counter, bound to a hardware clock
         Args:
             channel: digital channel to initialize for read in
-            sampleNum: number of samples to read in for finite operation, or number of samples between
+            sample_num: number of samples to read in for finite operation, or number of samples between
                        reads for continuous operation (to set buffer size)
             continuous_acquisition: run in continuous acquisition mode (ex for a continuous counter) or
                                     finite acquisition mode (ex for a scan, where the number of samples needed
@@ -319,7 +319,7 @@ class DAQ(Instrument):
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
         self.running = True
-        task['sample_num'] = sampleNum
+        task['sample_num'] = sample_num
         task['sample_rate'] = float(channel_settings['sample_rate'])
         if not continuous_acquisition:
             task['num_samples_per_channel'] = task['sample_num']
