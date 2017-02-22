@@ -80,6 +80,7 @@ class Daq_Read_Counter(Script):
             #skip first read, which gives an anomolous value
             print(num_read)
             if num_read.value == 1:
+                self.last_value = num_read.value
                 time.sleep(2.0 / sample_rate)
                 continue
             print('raw data length: ', len(raw_data))
