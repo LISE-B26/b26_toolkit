@@ -473,7 +473,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
             axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
             pi_time = 2*np.pi / fits[1] / 2
-            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.0f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
         else:
             super(Rabi, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
@@ -1030,11 +1030,12 @@ Tau/2 is the time between the center of the pulses!
 
             # next_pi_pulse_time = reset_time + delay_mw_init + pi_half_time + tau
             # # 16-08-19 JG: changed :
-            next_pi_pulse_time = reset_time + delay_mw_init + tau/2
+            next_pi_pulse_time = reset_time + delay_mw_init
             # # 16-08-25 JG: changed :
             # next_pi_pulse_time = reset_time + delay_mw_init - pi_half_time / 2 + tau / 2
 
             for n in range(1, number_of_pi_pulses + 1):
+                next_pi_pulse_time += tau/2
                 pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time - pi_time/2, pi_time)])
                 # next_pi_pulse_time += tau*2 + pi_time
                 # 16-08-19 JG: changed:
