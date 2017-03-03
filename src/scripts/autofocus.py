@@ -970,9 +970,10 @@ class AutoFocusTwoPointsFR(AutoFocusDAQ):
         focus_data_2 = self.data['focus_function_result_2']
         sweep_voltages = self.data['sweep_voltages']
         if len(focus_data) > 0:
-            axis_focus.hold(True)
             axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, 'r', label='Fluorescence')
+            axis_focus.hold(True)
             axis_focus.plot(sweep_voltages[0:len(focus_data_2)], focus_data_2, 'g', label='Reflection')
+            axis_focus.legend()
             axis_focus.hold(False)
 
         axis_focus.set_xlabel('Piezo Voltage [V]')

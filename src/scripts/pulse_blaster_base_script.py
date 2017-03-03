@@ -110,7 +110,10 @@ for a given experiment
         #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E6_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
 
+        self.log("Averaging over {0} blocks of 1e5".format(num_1E6_avg_pb_programs))
+
         for average_loop in range(int(num_1E6_avg_pb_programs)):
+            self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E6_avg_pb_programs)))
             if self._abort:
                 break
             # print('loop ' + str(average_loop))

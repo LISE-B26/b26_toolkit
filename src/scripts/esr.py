@@ -41,7 +41,8 @@ class ESR(Script):
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts (must be a multiple of settle time)'),
-        Parameter('settle_time', .0002, float, 'time wait after changing frequencies (s)'),
+        Parameter('settle_time', .0002, float, 'time wait after changing frequencies using daq (s)'),
+        Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually')
@@ -109,6 +110,8 @@ class ESR(Script):
 
             """
             self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
+
+            time.sleep(self.settings['mw_generator_switching_time'])
 
             ctrtask = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
             aotask = self.instruments['daq']['instance'].setup_AO(["ao2"], freq_voltage_array)

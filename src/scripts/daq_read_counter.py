@@ -78,9 +78,8 @@ class Daq_Read_Counter(Script):
             # than it acquires, this should be replaced with a blocking read in the future
             raw_data, num_read = self.instruments['daq']['instance'].read(task)
             #skip first read, which gives an anomolous value
-            print(num_read)
             if num_read.value == 1:
-                self.last_value = num_read.value
+                self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
                 time.sleep(2.0 / sample_rate)
                 continue
             print('raw data length: ', len(raw_data))
