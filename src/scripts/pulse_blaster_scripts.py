@@ -205,10 +205,16 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
         mw_frequencies = data['mw_frequencies']
         esr_counts = np.array(data['esr_counts'])
 
-        # if there is two measurement per run, the second serves as a normalization measurement
-        if len(np.shape(esr_counts))== 2:
-            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+        if len(np.shape(esr_counts))== 3:
+            esr_counts  = esr_counts[:,0,0]/esr_counts[:,0,1]
 
+        # print('sXXadsdasda', np.shape(esr_counts)[-1])
+        #
+        # # if there is two measurement per run, the second serves as a normalization measurement
+        # if len(esr_counts.T) == 2:
+        #     print('sadsdasda', np.shape(esr_counts))
+        #     esr_counts = esr_counts[:,0] / esr_counts[:,1]
+        #     print('ggggg', len(esr_counts))
 
         axis1 = axes_list[0]
         if not esr_counts == []:
@@ -226,9 +232,11 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
 
 
         # if there is two measurement per run, the second serves as a normalization measurement
-        if len(np.shape(esr_counts)) == 2:
-            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+        if len(np.shape(esr_counts))== 3:
+            esr_counts  = esr_counts[:,0,0]/esr_counts[:,0,1]
 
+
+        print(len(esr_counts))
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
@@ -1022,12 +1030,12 @@ Tau/2 is the time between the center of the pulses!
 
             # next_pi_pulse_time = reset_time + delay_mw_init + pi_half_time + tau
             # # 16-08-19 JG: changed :
-            # next_pi_pulse_time = reset_time + delay_mw_init + tau/2
+            next_pi_pulse_time = reset_time + delay_mw_init + tau/2
             # # 16-08-25 JG: changed :
-            next_pi_pulse_time = reset_time + delay_mw_init - pi_half_time / 2 + tau / 2
+            # next_pi_pulse_time = reset_time + delay_mw_init - pi_half_time / 2 + tau / 2
 
             for n in range(1, number_of_pi_pulses + 1):
-                pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time,pi_time)])
+                pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time - pi_time/2, pi_time)])
                 # next_pi_pulse_time += tau*2 + pi_time
                 # 16-08-19 JG: changed:
                 # next_pi_pulse_time += tau
@@ -1045,11 +1053,11 @@ Tau/2 is the time between the center of the pulses!
             #                         ])
             # pulse_sequences.append(pulse_sequence)
             # 16 - 08 -24 JG: changed
-            pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time + pi_half_time, pi_half_time),
-                                   Pulse('laser', next_pi_pulse_time + pi_time + delay_mw_readout, meas_time),
-                                   Pulse('apd_readout', next_pi_pulse_time + pi_time + delay_mw_readout,
-                                         meas_time)
-                                   ])
+            # pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time + pi_half_time, pi_half_time),
+            #                        Pulse('laser', next_pi_pulse_time + pi_time + delay_mw_readout, meas_time),
+            #                        Pulse('apd_readout', next_pi_pulse_time + pi_time + delay_mw_readout,
+            #                              meas_time)
+            #                        ])
 
             # # 16-08-25 JG: changed :
             pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time - pi_half_time/2, pi_half_time),
