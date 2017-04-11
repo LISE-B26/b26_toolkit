@@ -31,7 +31,8 @@ class MicrowaveGenerator(Instrument):
     """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 27, range(0,31), 'GPIB port on which to connect'),
+        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('port', 13, range(0,31), 'GPIB or COM port on which to connect'),
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -54,15 +55,23 @@ class MicrowaveGenerator(Instrument):
         #===========================================
         # Issue where visa.ResourceManager() takes 4 minutes no longer happens after using pdb to debug (??? not sure why???)
         try:
-            rm = visa.ResourceManager()
-            self.srs = rm.open_resource(u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
-            self.srs.query('*IDN?') # simple call to check connection
+            self._connect()
         except pyvisa.errors.VisaIOError:
-            print('No Microwave Controller Detected!!')
+            print('No Microwave Controller Detected!. Check that you are using the correct communication type')
             raise
         #XXXXX MW ISSUE = END
         #===========================================
 
+    def _connect(self):
+        rm = visa.ResourceManager()
+        if self.settings['connection_type'] == 'GPIB':
+            self.srs = rm.open_resource(
+                u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
+        elif self.settings['connection_type'] == 'RS232':
+            print('COM' + str(self.settings['port']))
+            self.srs = rm.open_resource('COM' + str(self.settings['port']))
+            self.srs.baud_rate = 115200
+        self.srs.query('*IDN?')
 
     #Doesn't appear to be necessary, can't manually make two sessions conflict, rms may share well
     # def __del__(self):
@@ -79,7 +88,9 @@ class MicrowaveGenerator(Instrument):
         # XXXXX MW ISSUE = START
         # ===========================================
         for key, value in settings.iteritems():
-            if not (key == 'port' or key == 'GPIB_num'):
+            if key == 'connection_type':
+                self._connect()
+            elif not (key == 'port' or key == 'GPIB_num'):
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif key == 'modulation_type':
@@ -275,6 +286,7 @@ class MicrowaveGenerator(Instrument):
             return 'External'
         else:
             raise KeyError
+
 
 if __name__ == '__main__':
     # from src.core import Instrument
