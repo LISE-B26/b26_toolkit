@@ -165,6 +165,7 @@ class ESR(Script):
         freq_array = np.repeat(freq_values, clock_adjust)
         self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
         self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
+        self.instruments['microwave_generator']['instance'].update({'dev_width': 3.2E7})
         self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
 
         sample_rate = float(1) / self.settings['settle_time']
