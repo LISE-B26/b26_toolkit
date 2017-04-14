@@ -146,15 +146,23 @@ class ESR(Script):
             if self.settings['freq_start']>self.settings['freq_stop']:
                 self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
+
+            if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
+                self.log('start or stop frequency out of bounds')
+                self._abort = True
+
             freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
             freq_range = max(freq_values) - min(freq_values)
         elif self.settings['range_type'] == 'center_range':
-            if self.settings['freq_start']<self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than start freq (center) when range_type is center_range. Abort script')
+            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
+                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
             freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
                                       self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
             freq_range = max(freq_values) - min(freq_values)
+
+            if self.settings['freq_stop'] > 1e9:
+                self.log('freq_stop (range) is quite large --- did you mean to set \'range_type\' to \'start_stop\'? ')
         else:
             self.log('unknown range parameter. Abort script')
             self._abort = True
