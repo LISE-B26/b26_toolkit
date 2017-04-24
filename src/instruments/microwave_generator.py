@@ -56,12 +56,16 @@ class MicrowaveGenerator(Instrument):
         try:
             rm = visa.ResourceManager()
             self.srs = rm.open_resource(u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
-            self.srs.query('*IDN?') # simple call to check connection
+            self.srs.query('*IDN?')  # simple call to check connection
         except pyvisa.errors.VisaIOError:
             print('No Microwave Controller Detected!!')
             raise
+        except Exception as e:
+            raise(e)
         #XXXXX MW ISSUE = END
         #===========================================
+
+
 
 
     #Doesn't appear to be necessary, can't manually make two sessions conflict, rms may share well
@@ -94,7 +98,7 @@ class MicrowaveGenerator(Instrument):
                 key = self._param_to_internal(key)
 
                 # only send update to instrument if connection to instrument has been established
-                if self._initialized:
+                if self._settings_initialized:
                     self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
                     # print(self.srs.query('*OPC?'))
