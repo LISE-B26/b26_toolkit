@@ -20,7 +20,7 @@ from PyLabControl.src.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.src.instruments import MicrowaveGenerator, NI6259
+from b26_toolkit.src.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402
 from collections import deque
 
 from b26_toolkit.src.plotting.plots_1d import plot_esr
@@ -44,18 +44,29 @@ class ESR(Script):
         Parameter('settle_time', .0002, float, 'time wait after changing frequencies (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
-        Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually')
+        Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
     _INSTRUMENTS = {
         'microwave_generator': MicrowaveGenerator,
-        'daq': NI6259
+        'NI6259': NI6259,
+        'NI9263': NI9263,
+        'NI9402': NI9402
     }
 
     _SCRIPTS = {}
 
     def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path = None):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            self.daq_out = self.instruments['NI9263']['instance']
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -110,16 +121,16 @@ class ESR(Script):
             """
             self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
 
-            ctrtask = self.instruments['daq']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
-            aotask = self.instruments['daq']['instance'].setup_AO(["ao2"], freq_voltage_array)
+            ctrtask = self.daq_in.setup_counter("ctr0", len(freq_voltage_array) + 1)
+            aotask = self.daq_out.setup_AO(["ao2"], freq_voltage_array)
 
             # start counter and scanning sequence
-            self.instruments['daq']['instance'].run(ctrtask)
-            self.instruments['daq']['instance'].run(aotask)
-            self.instruments['daq']['instance'].waitToFinish(aotask)
-            self.instruments['daq']['instance'].stop(aotask)
+            self.daq_in.run(ctrtask)
+            self.daq_out.run(aotask)
+            self.daq_out.waitToFinish(aotask)
+            self.daq_out.stop(aotask)
 
-            raw_data, _ = self.instruments['daq']['instance'].read_counter(ctrtask)
+            raw_data, _ = self.daq_in.read_counter(ctrtask)
 
             # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
             # counter counts continiously so we take the difference to get the counts per time interval
@@ -129,7 +140,7 @@ class ESR(Script):
                 summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
 
             # clean up APD tasks
-            self.instruments['daq']['instance'].stop(ctrtask)
+            self.daq_in.stop(ctrtask)
 
             return summed_data
 
@@ -165,8 +176,8 @@ class ESR(Script):
         self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
 
         sample_rate = float(1) / self.settings['settle_time']
-        self.instruments['daq']['instance'].settings['analog_output']['ao2']['sample_rate'] = sample_rate
-        self.instruments['daq']['instance'].settings['digital_input']['ctr0']['sample_rate'] = sample_rate
+        self.daq_out.settings['analog_output']['ao2']['sample_rate'] = sample_rate
+        self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
 
 
@@ -296,6 +307,201 @@ class ESR(Script):
         # # defines a lorentzian with some amplitude, width, center, and offset to use with opt.curve_fit
         # def lorentzian(self, x, amplitude, width, center, offset):
         #     return (-(amplitude*(.5*width)**2)/((x-center)**2+(.5*width)**2))+offset
+
+class ESR_cDAQ(ESR):
+    """
+    This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
+    a DAQ.
+    """
+
+    _INSTRUMENTS = {
+        'microwave_generator': MicrowaveGenerator,
+        'daq_in': NI9402,
+        'daq_out': NI9263
+    }
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+
+        def get_frequency_voltages(freq_values, sec_num, dev_width, freq_array):
+            """
+
+            Args:
+                freq_values: frequency values of the whole scan
+                sec_num: number of frequency section
+                dev_width: width of frequency section
+
+
+            Returns:
+
+            """
+
+            # calculate the minimum ad and max frequency of current section
+            sec_min = min(freq_values) +  dev_width* 2 * sec_num
+            sec_max = sec_min + dev_width * 2
+
+            # make freq. array for current section
+            freq_section_array = freq_array[np.where(np.logical_and(freq_array >= sec_min,freq_array < sec_max))]
+            # if section is empty skip
+            if len(freq_section_array) == 0:
+                center_frequency = None
+                freq_voltage_array = None
+
+            else:
+                center_frequency = (sec_max + sec_min) / 2.0
+                freq_voltage_array = ((freq_section_array - sec_min) / (dev_width * 2)) * 2 - 1  # normalize voltages to +-1 range
+
+            return freq_voltage_array, center_frequency
+
+        def read_freq_section(freq_voltage_array, center_freq, clock_adjust):
+            """
+            reads a frequency section from the DAQ
+
+            Args:
+                freq_voltage_array: voltages corresponding to the frequency section to be measured (see get_frequency_voltages())
+                center_freq:  center frequency corresponding to the frequency section to be measured (see get_frequency_voltages())
+                clock_adjust: factor that specifies how many samples+1 go into the duration of the integration time in
+                    order to allow for settling time. For example, if the settle time is .0002 and the integration time
+                    is .01, the clock adjust is (.01+.0002)/.01 = 51, so 50 samples fit into the originally requested
+                    .01 seconds, and each .01 seconds has a 1 sample (.0002 second) rest time.
+
+            Returns: data from daq
+
+            """
+            self.instruments['microwave_generator']['instance'].update({'frequency': float(center_freq)})
+
+            ctrtask = self.instruments['daq_in']['instance'].setup_counter("ctr0", len(freq_voltage_array) + 1)
+            aotask = self.instruments['daq_out']['instance'].setup_AO(["ao2"], freq_voltage_array, ctrtask)
+
+            # start counter and scanning sequence
+            self.instruments['daq_out']['instance'].run(aotask)
+            self.instruments['daq_in']['instance'].run(ctrtask)
+            self.instruments['daq_out']['instance'].waitToFinish(aotask)
+            self.instruments['daq_out']['instance'].stop(aotask)
+
+            raw_data, _ = self.instruments['daq_in']['instance'].read_counter(ctrtask)
+
+            # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
+            # counter counts continiously so we take the difference to get the counts per time interval
+            diff_data = np.diff(raw_data)
+            summed_data = np.zeros(len(freq_voltage_array) / clock_adjust)
+            for i in range(0, int((len(freq_voltage_array) / clock_adjust))):
+                summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
+
+            # clean up APD tasks
+            self.instruments['daq_in']['instance'].stop(ctrtask)
+
+            return summed_data
+
+
+        self.lines = []
+
+        take_ref = self.settings['take_ref']
+
+        # contruct the frequency array
+        if self.settings['range_type'] == 'start_stop':
+            if self.settings['freq_start']>self.settings['freq_stop']:
+                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self._abort = True
+            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+        elif self.settings['range_type'] == 'center_range':
+            if self.settings['freq_start']<self.settings['freq_stop']:
+                self.log('end freq. (range) must be smaller than start freq (center) when range_type is center_range. Abort script')
+                self._abort = True
+            freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
+                                      self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+        else:
+            self.log('unknown range parameter. Abort script')
+            self._abort = True
+
+
+        num_freq_sections = int(freq_range) / int(self.instruments['microwave_generator']['instance'].settings['dev_width']*2) + 1
+        clock_adjust = int((self.settings['integration_time'] + self.settings['settle_time']) / self.settings['settle_time'])
+        freq_array = np.repeat(freq_values, clock_adjust)
+        self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
+        self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
+        self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
+
+        sample_rate = float(1) / self.settings['settle_time']
+        self.instruments['daq_out']['instance'].settings['analog_output']['ao2']['sample_rate'] = sample_rate
+        self.instruments['daq_in']['instance'].settings['digital_input']['ctr0']['sample_rate'] = sample_rate
+
+
+
+
+        # if no reference is requested turn on the MW and leave it on
+        if take_ref is False:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+        else:
+            esr_data_ref = np.zeros((self.settings['esr_avg'], len(freq_values)))
+
+        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
+        self.data = {'frequency': [], 'data': [], 'fit_params': []}
+
+        # run sweeps
+        for scan_num in xrange(0, self.settings['esr_avg']):
+            if self._abort:
+                break
+            esr_data_pos = 0
+
+            for sec_num in xrange(0, num_freq_sections):
+
+                freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
+                                                                         sec_num,
+                                                                         self.instruments['microwave_generator']['instance'].settings['dev_width'],
+                                                                         freq_array)
+                # if section is empty skip
+                if len(freq_voltage_array) is None:
+                    continue
+
+                # if we take reference measurements, have to turn on the mw for the esr measurment
+                if take_ref is True:
+                    self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+                    time.sleep(1) # wait a second
+
+                summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
+                # also normalizing to kcounts/sec
+                esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
+
+
+                # if we take reference measurements, have to turn off the mw for the reference measurement
+                if take_ref is True:
+                    self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+                    time.sleep(1)  # wait a second
+                    summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
+                    # also normalizing to kcounts/sec
+                    esr_data_ref[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
+
+                esr_data_pos += len(summed_data)
+
+            if take_ref is True:
+                esr_avg_ref = np.mean(esr_data_ref[0:(scan_num + 1)], axis=0)
+            esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
+
+            if take_ref is True:
+                fit_params = fit_esr(freq_values, esr_avg/esr_avg_ref)
+                self.data.update(
+                    {'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params, 'esr_avg_ref': esr_avg_ref})
+            else:
+                fit_params = fit_esr(freq_values, esr_avg)
+                self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+
+
+            if self.settings['save_full_esr']:
+                self.data.update({'esr_data':esr_data})
+
+
+            progress = self._calc_progress(scan_num)
+            self.updateProgress.emit(progress)
+
+        if self.settings['turn_off_after']:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': False})
 
 if __name__ == '__main__':
     script = {}

@@ -130,8 +130,136 @@ This script applies a microwave pulse at fixed power and durations for varying f
 
         return pulse_sequences, self.settings['num_averages'], tau_list, self.settings['meas_time']
 
+# NOT FINSISHED - TESTING PHASE!!!
+class ESRSingleFreqCont(PulseBlasterBaseScript):
+    """
+This script applies a microwave pulse at fixed power and durations for varying frequencies.
+This is the CW version, where we apply the MW only for short times but still much longer than a pi/2 pulse, ie. a few micro seconds to avoid heating of the sample.
+This is different from the actual pulsed ESR, where we apply pi/2 pulses to get the max contrast.
+    """
 
 
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('frequency', 2.82e9, float, 'frequency (Hz)')
+        ]),
+        Parameter('read_out', [
+            Parameter('integration_time', 4000, int, '1.) Time the MWs are off (us) and the measurement time. Laser is on and photons are counted during this time.'),
+            Parameter('delay_mw_readout', 100, int, 'delay between laser on and readout (in ns)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
+        Parameter('max_points', 100, int, 'number of points to display if 0 show all')
+    ]
+
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    def _function(self):
+        #COMMENT_ME
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+
+        self.data = {'mw_frequencies': np.linspace(self.settings['mw_pulses']['freq_start'], self.settings['mw_pulses']['freq_stop'],
+                                                   self.settings['mw_pulses']['freq_points']), 'esr_counts': []}
+
+        self.instruments['mw_gen']['instance'].update({'frequency': float(self.settings['mw_pulses']['frequency'])})
+
+        while self._abort is False:
+
+            super(ESRSingleFreqCont, self)._function(self.data)
+
+            self.data['esr_counts'].append(self.data['counts'][0])
+
+
+    def _plot(self, axes_list, data = None):
+        '''
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot, if not provided use self.data
+        '''
+        if data is None:
+            data = self.data
+
+
+
+        mw_frequencies = data['mw_frequencies']
+        esr_counts = np.array(data['esr_counts'])
+
+        # if there is two measurement per run, the second serves as a normalization measurement
+        if len(np.shape(esr_counts))== 2:
+            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+
+
+        axis1 = axes_list[0]
+        if not esr_counts == []:
+            counts = esr_counts
+            plot_esr(axis1, mw_frequencies[0:len(counts)], counts)
+            axis1.hold(False)
+            # axis1.set_title('avrg count')
+        axis2 = axes_list[1]
+        plot_pulses(axis2, self.pulse_sequences[0])
+
+
+    def _update_plot(self, axes_list):
+        mw_frequencies = self.data['mw_frequencies']
+        esr_counts = np.array(self.data['esr_counts'])
+
+
+        # if there is two measurement per run, the second serves as a normalization measurement
+        if len(np.shape(esr_counts)) == 2:
+            esr_counts  = esr_counts[:,0]/esr_counts[:,1]
+
+        axis1 = axes_list[0]
+        if not esr_counts == []:
+            counts = esr_counts
+            plot_esr(axis1, mw_frequencies[0:len(counts)], counts)
+            axis1.hold(False)
+            # axis2 = axes_list[1]
+            # update_pulse_plot(axis2, self.pulse_sequences[0])
+
+    def _create_pulse_sequences(self):
+
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement(s)
+        '''
+
+
+        # on contrast to other script the following times are given in us and have to be converted to ns
+        integration_time = self.settings['read_out']['integration_time']*1e3
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+
+
+        pulse_sequences = [[Pulse('laser', 0, 2*integration_time+2*delay_mw_readout),
+                            Pulse('apd_readout', delay_mw_readout, integration_time), #read fluourescence
+                            Pulse('microwave_i',2*delay_mw_readout + integration_time, integration_time),
+                            Pulse('apd_readout',2*delay_mw_readout + integration_time, integration_time)
+                            ]]
+
+        tau_list = [integration_time]
+        # end_time_max = 0
+        # for pulse_sequence in pulse_sequences:
+        #     for pulse in pulse_sequence:
+        #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
+        # for pulse_sequence in pulse_sequences:
+        #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
+
+        return pulse_sequences, self.settings['num_averages'], tau_list, mw_on_time
 
 class PulsedESRSlow(PulseBlasterBaseScript):
     """

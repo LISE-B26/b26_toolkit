@@ -210,6 +210,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
     Poststate: populates fit_data_set with manual corrections
     """
+
+    #TODO: Add saving as you go, add ability to start at arbitrary NV, add ability to specify a next NV number, rename PEAK to accept_fit
+
     try:
 
         fit_data_set_array = fit_data_set.as_matrix()
@@ -366,6 +369,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                     lower_peak_manual[i] = lower_peak_widget.value
                     upper_peak_manual[i] = upper_peak_widget.value
                     b_field_manual[i] = ((upper_peak_widget.value - lower_peak_widget.value) / 5.6e6)
+                elif len(fit_params) == 4:
+                    lower_peak_manual[i] = fit_params[2]
+                    b_field_manual[i] = (np.abs(2.87e9-fit_params[2]) / 2.8e6)
                 else:
                     lower_peak_manual[i] = fit_params[4]
                     upper_peak_manual[i] = fit_params[5]

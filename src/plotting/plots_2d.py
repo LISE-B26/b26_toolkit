@@ -85,7 +85,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
     if max_counts < 0:
         implot.autoscale()
 
-    if colorbar is not None:
+    if colorbar is not None and max_counts < 0:
         # colorbar_min = 0
         colorbar_min = np.min(image_data)
         colorbar_max = np.max(image_data)
@@ -127,7 +127,10 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         colorbar_min = 0
     else:
         colorbar_min = np.min(image_data)
-    colorbar_max = np.max(image_data)
+    if max_counts < 0:
+        colorbar_max = np.max(image_data)
+    else:
+        colorbar_max = max_counts
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
 
     if not max_counts > 0:

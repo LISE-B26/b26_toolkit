@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.src.instruments import NI6259
+from b26_toolkit.src.instruments import NI6259, NI9263
 from PyLabControl.src.core import Script, Parameter
 
 
@@ -36,10 +36,11 @@ This script points the laser to a point
         Parameter('DAQ_channels',
             [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
             Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
-            ])
+            ]),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'daq':  NI6259}
+    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263}
 
     _SCRIPTS = {}
 
@@ -52,6 +53,10 @@ This script points the laser to a point
             settings (optional): settings for this script, if empty same as default settings
         """
         Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_out = self.instruments['NI9263']['instance']
 
     def _function(self):
         """
@@ -64,10 +69,10 @@ This script points the laser to a point
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
-        task = self.instruments['daq']['instance'].setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
-        self.instruments['daq']['instance'].run(task)
-        self.instruments['daq']['instance'].waitToFinish(task)
-        self.instruments['daq']['instance'].stop(task)
+        task = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        self.daq_out.run(task)
+        self.daq_out.waitToFinish(task)
+        self.daq_out.stop(task)
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
     #must be passed figure with galvo plot on first axis
@@ -80,13 +85,47 @@ This script points the laser to a point
         patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), .0005, fc='r')
         axes_Image.add_patch(patch)
 
+class SetLaser_cDAQ(SetLaser):
+    """
+This script points the laser to a point
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('point',
+                  [Parameter('x', -0.4, float, 'x-coordinate'),
+                   Parameter('y', -0.4, float, 'y-coordinate')
+                   ]),
+        Parameter('DAQ_channels',
+            [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+            Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
+            ])
+    ]
+
+    _INSTRUMENTS = {'daq_out':  NI9263}
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+        pt = (self.settings['point']['x'], self.settings['point']['y'])
+
+        # daq API only accepts either one point and one channel or multiple points and multiple channels
+        pt = np.transpose(np.column_stack((pt[0],pt[1])))
+        pt = (np.repeat(pt, 2, axis=1))
+
+        task = self.instruments['daq_out']['instance'].setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+        self.instruments['daq_out']['instance'].run(task)
+        self.instruments['daq_out']['instance'].waitToFinish(task)
+        self.instruments['daq_out']['instance'].stop(task)
+        self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
 if __name__ == '__main__':
     from PyLabControl.src.core import Instrument
 
-    instruments, instruments_failed = Instrument.load_and_append({'daq':  'DAQ'})
+    # instruments, instruments_failed = Instrument.load_and_append({'daq':  'NI6259'})
 
-    script, failed, instruments = Script.load_and_append(script_dict={'SetLaser':'SetLaser'}, instruments = instruments)
+    script, failed, instruments = Script.load_and_append(script_dict={'SetLaser_cDAQ': 'SetLaser_cDAQ'})
 
     print(script)
     print(failed)

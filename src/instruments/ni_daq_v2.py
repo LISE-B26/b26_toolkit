@@ -105,6 +105,9 @@ class DAQ(Instrument):
     except:
         raise
 
+    tasklist = {}
+    tasknum = 0
+
     # currently includes four analog outputs, five analog inputs, and one digital counter input. Add
     # more as needed and your device allows
     _DEFAULT_SETTINGS = Parameter([
@@ -231,8 +234,6 @@ class DAQ(Instrument):
             # except RuntimeError:
             #     self.hardware_detected = False
             super(DAQ, self).__init__(name, settings)
-        self.tasklist = {}
-        self.tasknum = 0
 
     def update(self, settings):
         """
@@ -840,12 +841,14 @@ class DAQ(Instrument):
 
         """
         if err < 0:
-            buffer_size = 100
+            buffer_size = 1000
             buffer = ctypes.create_string_buffer('\000' * buffer_size)
-            self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
-            raise RuntimeError('nidaq call failed with error %d: %s' % (err, repr(buffer.value)))
+            # self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
+            self.nidaq.DAQmxGetExtendedErrorInfo(ctypes.byref(buffer), buffer_size)
+            # raise RuntimeError('nidaq call failed with error %d: %s' % (err, repr(buffer.value)))
+            raise RuntimeError('nidaq call failed with error %d: %s' % (err, buffer.value))
         if err > 0:
-            buffer_size = 100
+            buffer_size = 1000
             buffer = ctypes.create_string_buffer('\000' * buffer_size)
             self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
             raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
@@ -978,14 +981,13 @@ class NI6259(DAQ):
                   )
     ])
 
-
 class NI9263(DAQ):
     """
     This class implements the NI9263 DAQ, which includes 4 AO channels. It inherits output functionality from the DAQ
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ9184-1BA7633Mod4', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4'],
+        Parameter('device', 'cDAQ9188-1BFB6F2Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9188-1BFB6F2Mod1', 'cDAQ9184-1BA7633Mod1'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
@@ -1027,6 +1029,115 @@ class NI9263(DAQ):
                   )
     ])
 
+class NI9402(DAQ):
+    """
+    This class implements the NI9263 DAQ, which includes 4 AO channels. It inherits output functionality from the DAQ
+    class.
+    """
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'cDAQ9188-1BFB6F2', ['cDAQ9188-1BFB6F2', 'cDAQ9184-1BA7633'], 'Name of DAQ device - check in NiMax'),
+        Parameter('module', 'Mod2', ['Mod1', 'Mod2', 'Mod3', 'Mod4', 'Mod5', 'Mod6', 'Mod7', 'Mod8']),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
+        Parameter('digital_input',
+                  [
+                      Parameter('ctr0',
+                                [
+                                    Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 0, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 1, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 2, range(0, 32), 'channel for clock output'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                ]
+                                ),
+                      Parameter('ctr2',
+                                [
+                                    Parameter('input_channel', 2, range(0, 32), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 1, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 2, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 3, range(0, 32), 'channel for clock output'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                ]
+                                )
+                  ]
+                  ),
+    ])
+
+    def setup_counter(self, channel, sample_num, continuous_acquisition=False):
+        """
+        Initializes a hardware-timed digital counter, bound to a hardware clock
+        Args:
+            channel: digital channel to initialize for read in
+            sample_num: number of samples to read in for finite operation, or number of samples between
+                       reads for continuous operation (to set buffer size)
+            continuous_acquisition: run in continuous acquisition mode (ex for a continuous counter) or
+                                    finite acquisition mode (ex for a scan, where the number of samples needed
+                                    is known a priori)
+
+        Returns: source of clock that this method sets up, which can be given to another function to synch that
+        input or output to the same clock
+
+        """
+
+        # Note that for this counter, we have two tasks. The normal 'task_handle' corresponds to the clock, and this
+        # is the task which is started when run is called. The second 'task_handle_ctr' corresponds to the counter,
+        # and this waits for the clock and will be started simultaneously.
+        task = {
+            'task_handle': None,
+            'task_handle_ctr': None,
+            'counter_out_PFI_str': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+
+        task_name = self._add_to_tasklist('ctr', task)
+
+        if 'digital_input' not in self.settings.keys():
+            raise ValueError('This DAQ does not support digital input')
+        if not channel in self.settings['digital_input'].keys():
+            raise KeyError('This is not a valid digital input channel')
+
+        channel_settings = self.settings['digital_input'][channel]
+        self.running = True
+        task['sample_num'] = sample_num
+        task['sample_rate'] = float(channel_settings['sample_rate'])
+        if not continuous_acquisition:
+            task['num_samples_per_channel'] = task['sample_num']
+        else:
+            task['num_samples_per_channel'] = -1
+        task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
+        input_channel_str = self.settings['device'] + self.settings['module'] + '/' + channel
+        task['counter_out_PFI_str'] = '/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput'
+        counter_out_str = self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])
+        task['task_handle_ctr'] = TaskHandle(0)
+        task['task_handle'] = TaskHandle(1)
+
+        # set up clock
+        self._dig_pulse_train_cont(task, .5, counter_out_str)
+        # set up counter using clock as reference
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
+        self._check_error(self.nidaq.DAQmxCreateCICountEdgesChan(task['task_handle_ctr'],
+                                                                 input_channel_str, "", DAQmx_Val_Rising, 0,
+                                                                 DAQmx_Val_CountUp))
+
+        if not continuous_acquisition:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], task['counter_out_PFI_str'],
+                                                               float64(task['sample_rate']), DAQmx_Val_Rising,
+                                                               DAQmx_Val_FiniteSamps, uInt64(task['sample_num'])))
+        else:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle_ctr'], task['counter_out_PFI_str'],
+                                                               float64(task['sample_rate']), DAQmx_Val_Rising,
+                                                               DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
+        # if (self.settings['override_buffer_size'] > 0):
+        #     self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(self.settings['override_buffer_size'])))
+        # self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(sampleNum)))
+
+        self._check_error(self.nidaq.DAQmxStartTask(task['task_handle_ctr']))
+
+
+        return task_name
 
 if __name__ == '__main__':
     pass

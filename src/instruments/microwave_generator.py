@@ -21,7 +21,8 @@ import pyvisa.errors
 
 from PyLabControl.src.core import Parameter, Instrument
 
-RANGE_MIN = 2025000000 #2.025 GHz
+# RANGE_MIN = 2025000000 #2.025 GHz
+RANGE_MIN = 1012500000
 RANGE_MAX = 4050000000 #4.050 GHZ
 
 class MicrowaveGenerator(Instrument):
@@ -58,7 +59,6 @@ class MicrowaveGenerator(Instrument):
             self._connect()
         except pyvisa.errors.VisaIOError:
             print('No Microwave Controller Detected!. Check that you are using the correct communication type')
-            raise
         #XXXXX MW ISSUE = END
         #===========================================
 

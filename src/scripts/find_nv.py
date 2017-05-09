@@ -24,7 +24,7 @@ from matplotlib import patches
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 from PyLabControl.src.core import Script, Parameter
-from b26_toolkit.src.scripts import GalvoScan, SetLaser
+from b26_toolkit.src.scripts import GalvoScan, SetLaser, GalvoScan_cDAQ, SetLaser_cDAQ
 
 
 class FindNV(Script):
@@ -210,6 +210,16 @@ Known issues:
         # empty the plot contained on figure 2
         return super(FindNV, self).get_axes_layout([figure_list[0]])
 
+class FindNV_cDAQ(FindNV):
+    """
+GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
+resulting in an image in the current field of view of the objective.
+
+Known issues:
+    1.) if fits are poor, check  sweep_range. It should extend significantly beyond end of NV on both sides.
+    """
+
+    _SCRIPTS = {'take_image': GalvoScan_cDAQ, 'set_laser': SetLaser_cDAQ}
 
 
 
