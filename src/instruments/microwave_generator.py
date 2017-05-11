@@ -33,7 +33,7 @@ class MicrowaveGenerator(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 13, range(0,31), 'GPIB or COM port on which to connect'),
+        Parameter('port', 27, range(0,31), 'GPIB or COM port on which to connect'),
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -59,6 +59,9 @@ class MicrowaveGenerator(Instrument):
             self._connect()
         except pyvisa.errors.VisaIOError:
             print('No Microwave Controller Detected!. Check that you are using the correct communication type')
+            raise
+        except Exception as e:
+            raise(e)
         #XXXXX MW ISSUE = END
         #===========================================
 
@@ -105,7 +108,7 @@ class MicrowaveGenerator(Instrument):
                 key = self._param_to_internal(key)
 
                 # only send update to instrument if connection to instrument has been established
-                if self._initialized:
+                if self._settings_initialized:
                     self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
                     # print(self.srs.query('*OPC?'))
@@ -286,7 +289,6 @@ class MicrowaveGenerator(Instrument):
             return 'External'
         else:
             raise KeyError
-
 
 if __name__ == '__main__':
     # from src.core import Instrument

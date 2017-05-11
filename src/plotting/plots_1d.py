@@ -77,8 +77,7 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     fit_data = None
 
     #  ======== plot fit =========
-    print('asdasdasda', fit_params )
-    if fit_params is not None and fit_params[0] != -1:  # check if fit valid
+    if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
         if len(fit_params) == 4:
             # single peak
             fit_data = lorentzian(frequency, *fit_params)
@@ -210,7 +209,6 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
         # create rectangles for the pulses
         patch_list = []
         for pulse in pulse_collection:
-            print('xxxx', pulse.channel_id, instrument_names, pulse_colors)
             patch_list.append(
                 patches.Rectangle((pulse.start_time, instrument_names.index(pulse.channel_id) - .25), pulse.duration, 0.5,
                                   fc=pulse_colors.get(pulse.channel_id, 'b')))

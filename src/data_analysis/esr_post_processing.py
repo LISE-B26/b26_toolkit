@@ -304,6 +304,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 ax0 = plt.subplot(gs[0])
                 ax1 = plt.subplot(gs[1])
                 ax = [ax0, ax1]
+                plt.suptitle('NV #{:d}'.format(pt_id), fontsize=16)
 
                 # load data
                 data = data_array[i]
@@ -371,6 +372,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                     plot_esr(ax[0], data['frequency'], data['data'], fit_params=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
 
                 plt.tight_layout()
+                plt.subplots_adjust(top=0.85) # Makes room at top of plot for figure suptitle
 
                 plt.draw()
                 plt.show()
@@ -453,7 +455,8 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
         print('DONE!')
 
-    except:
+    except Exception as e:
+        print(e)
         raise
         # exc_type, exc_value, traceback = sys.exc_info()
         # error_widget.value = str(exc_type) + ', ' + exc_value + ', ' + str(traceback)

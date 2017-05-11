@@ -77,10 +77,11 @@ class PiezoController(Instrument):
         '''
         super(PiezoController, self).update(settings)
         for key, value in settings.iteritems():
-            if key == 'voltage':
-                self.set_voltage(value)
-            elif key == 'voltage_limit':
-                raise EnvironmentError('Voltage limit cannot be set in software. Change physical switch on back of device')
+            if self._settings_initialized:
+                if key == 'voltage':
+                    self.set_voltage(value)
+                elif key == 'voltage_limit':
+                    raise EnvironmentError('Voltage limit cannot be set in software. Change physical switch on back of device')
 
     @property
     def _PROBES(self):

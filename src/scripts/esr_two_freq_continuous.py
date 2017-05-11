@@ -21,7 +21,9 @@ class ESRTwoFreqContinuous(Script):
         Parameter('measurement_time', 0.01, float, 'measurement time of fluorescent counts (s)'),
         Parameter('settle_time', 10, float, 'dead time after switching frequency (ms)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
-        Parameter('max_points', 100, int, 'number of points to display if 0 show all')
+        Parameter('max_points', 100, int, 'number of points to display if 0 show all'),
+        Parameter('range_type', 'freq_1_2', ['freq_1_2', 'freq_1_delta'],
+                  'freq_1_2: measure at frequency 1 and frequency 2 freq_0_delta: measure at frequency 1 and (frequency 1 - frequency 2)'),
     ]
 
     _INSTRUMENTS = {
@@ -71,8 +73,15 @@ class ESRTwoFreqContinuous(Script):
         measurement_time = self.settings['measurement_time']
         settle_time = self.settings['settle_time']
 
-        freq_1 = self.settings['freq_1']
-        freq_2 = self.settings['freq_2']
+
+        if self.settings['range_type'] == 'freq_1_2':
+            freq_1 = self.settings['freq_1']
+            freq_2 = self.settings['freq_2']
+        elif self.settings['range_type'] == 'freq_1_delta':
+            freq_1 = self.settings['freq_1']
+            freq_2 = self.settings['freq_1'] - self.settings['freq_2']
+        else:
+            raise NotImplementedError,'unknown setting for range_type'
 
 
         sample_rate = float(10) / measurement_time
@@ -123,17 +132,20 @@ class ESRTwoFreqContinuous(Script):
         if data is None:
             data = np.array(self.data['data'])
 
+        max_points = self.settings['max_points']
+
         contrast = 100.*(data[1] - data[0])/(data[0] + data[1])
 
         axes_list[0].plot(contrast, 'b')
+        axes_list[0].plot([0,max_points],[0,0],'k-')
         axes_list[0].set_title('contrast')
         axes_list[1].plot(data[0], 'r')
         axes_list[1].plot(data[1], 'b')
         axes_list[1].set_title('esr from each freq. (1=r), (2=b)')
         axes_list[0].set_xlabel('time (arb units)')
         axes_list[1].set_xlabel('time (arb units)')
-        axes_list[0].set_ylabel('kCounts/s')
-        axes_list[1].set_ylabel('contrast (%)')
+        axes_list[1].set_ylabel('kCounts/s')
+        axes_list[0].set_ylabel('contrast (%)')
 
 
     def _update_plot(self, axes_list, data = None):
@@ -155,8 +167,8 @@ class ESRTwoFreqContinuous(Script):
 
         axes_list[0].set_xlabel('time (arb units)')
         axes_list[1].set_xlabel('time (arb units)')
-        axes_list[0].set_ylabel('kCounts/s')
-        axes_list[1].set_ylabel('contrast (%)')
+        axes_list[1].set_ylabel('kCounts/s')
+        axes_list[0].set_ylabel('contrast (%)')
 
         axes_list[1].relim()
         axes_list[1].autoscale_view()

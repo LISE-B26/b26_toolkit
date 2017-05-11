@@ -38,7 +38,7 @@ from find_nv import FindNV, FindNV_cDAQ
 
 from atto_scan import AttoStep
 
-from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY, T1SpinFlip, PulsedESR,PulsedESRSlow
+from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY4, T1SpinFlip, PulsedESR,PulsedESRSlow
 from esr_and_rabi import ESRAndRabi
 from keysight_get_spectrum import KeysightGetSpectrum
 
@@ -50,7 +50,7 @@ from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
 # from ni_fpga_galvo_scan import FPGA_GalvoScan
 
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC
+from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC, AutoFocusTwoPointsFR
 
 from ni_fpga_galvo_scan import FPGA_GalvoScan
 
@@ -61,6 +61,8 @@ from set_magnetic_coils import SetMagneticCoils
 from align_magnetic_field_to_NV import AlignFieldToNV
 
 from Ni_9263_polarization_controller import Ni9263_BalancePolarization
+
+from stability_with_microwaves import Stability_With_Microwaves
 #
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization

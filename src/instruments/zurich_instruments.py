@@ -35,8 +35,8 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
         _lib_detected = True
     except ImportError:
         # make a fake ZI instrument
-        import warnings
-        warnings.warn('Unable to import ZI library. Check that it has been installed from the ZI website.')
+        #import warnings
+        #warnings.warn('Unable to import ZI library. Check that it has been installed from the ZI website.')
         _lib_detected = False
     except:
         raise

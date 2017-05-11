@@ -601,7 +601,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
             axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
             pi_time = 2*np.pi / fits[1] / 2
-            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.0f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
         else:
             super(Rabi, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
@@ -795,9 +795,9 @@ This script applies a microwave pulse at fixed power for varying durations to me
         super(Pulsed_ESR_Pulsed_Laser, self)._function()
 
     def _create_pulse_sequences(self):
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
+        """
+        Returns:
+            pulse_sequences, num_averages, tau_list
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
             sequence must have the same number of daq read pulses
@@ -805,7 +805,8 @@ This script applies a microwave pulse at fixed power for varying durations to me
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
 
-        '''
+        """
+
         pulse_sequences = []
         tau_list = range(int(max(15, self.settings['time_step'])), int(self.settings['time'] + 15),
                          int(self.settings['time_step']))
@@ -926,6 +927,7 @@ This script runs a CPMG pulse sequence.
             # Parameter('mw_switch_extra_time', 15, int, 'Time to add before and after microwave switch is turned on'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
             Parameter('number_of_pulse_blocks', 1, range(1, 17), 'number of alternating x-y-x-y-y-x-y-x pulses'),
+            Parameter('end_in_0', False, bool, 'end with 3pi/2 pulse so end state is |0> rather than |1>')
         ]),
         Parameter('tau_times',[
             Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000],
@@ -995,6 +997,171 @@ This script runs a CPMG pulse sequence.
             pulse_sequence.extend([Pulse('laser', 0, reset_time - ref_meas_off_time - 15 - meas_time),
                                    Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
                                    Pulse('laser', reset_time - 15 - meas_time, meas_time),
+                                   Pulse('microwave_i', reset_time + delay_mw_init-pi_half_time/2, pi_half_time)
+                                   ])
+
+            #CPMG xyxyyxyx loops added number_of_pulse_blocks times
+            section_begin_time = reset_time + delay_mw_init - tau/2 #for the first pulse, only wait tau/2
+            # JG 16-08-19 - begin changed to pi time instead of pi/2
+            # section_begin_time = reset_time + delay_mw_init + pi_time
+            # JG 16-08-19 - end
+
+            # for i in range(0, number_of_pulse_blocks):
+            #     pulse_sequence.extend([Pulse('microwave_i', section_begin_time + 1*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_q', section_begin_time + 2*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_i', section_begin_time + 3*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_q', section_begin_time + 4*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_q', section_begin_time + 5*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_i', section_begin_time + 6*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_q', section_begin_time + 7*tau - pi_half_time, pi_time),
+            #                            Pulse('microwave_i', section_begin_time + 8*tau - pi_half_time, pi_time)
+            #                           ])
+            #     section_begin_time += 8*tau
+
+            # AK 17-02-28 - switched to yx rather than xy since we saw echo was better with rephasing pulses
+            #               perpendicular to pi/2 pulses
+            for i in range(0, number_of_pulse_blocks):
+                pulse_sequence.extend([Pulse('microwave_q', section_begin_time + 1*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_i', section_begin_time + 2*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_q', section_begin_time + 3*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_i', section_begin_time + 4*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_i', section_begin_time + 5*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_q', section_begin_time + 6*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_i', section_begin_time + 7*tau - pi_half_time, pi_time),
+                                       Pulse('microwave_q', section_begin_time + 8*tau - pi_half_time, pi_time)
+                                      ])
+                section_begin_time += 8*tau
+
+
+            if self.settings['mw_pulses']['end_in_0']:
+                # 3pi/2 and readout
+                pulse_sequence.extend([Pulse('microwave_i', section_begin_time + tau / 2 - 3*pi_half_time/4, 3*pi_half_time),
+                                       Pulse('laser', section_begin_time + tau / 2 + pi_half_time + delay_mw_readout,
+                                             meas_time),
+                                       Pulse('apd_readout',
+                                             section_begin_time + tau / 2 + pi_half_time + delay_mw_readout,
+                                             meas_time)])
+            else:
+                #pi/2 and readout
+                pulse_sequence.extend([Pulse('microwave_i', section_begin_time + tau/2 - pi_half_time/2, pi_half_time),
+                                       Pulse('laser',       section_begin_time + tau/2 + pi_half_time + delay_mw_readout, meas_time),
+                                       Pulse('apd_readout', section_begin_time + tau/2 + pi_half_time + delay_mw_readout, meas_time)])
+
+            # JG 16-08-19 - begin changed to pi time instead of pi/2
+            # pulse_sequence.extend([Pulse('microwave_i', section_begin_time + tau, pi_half_time),
+            #                        Pulse('laser',       section_begin_time + tau + pi_half_time + delay_mw_readout, meas_time),
+            #                        Pulse('apd_readout', section_begin_time + tau + pi_half_time + delay_mw_readout, meas_time)])
+            # JG 16-08-19 - end
+
+
+            pulse_sequences.append(pulse_sequence)
+
+        # end_time_max = 0
+        # for pulse_sequence in pulse_sequences:
+        #     for pulse in pulse_sequence:
+        #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
+        # for pulse_sequence in pulse_sequences:
+        #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
+
+        return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
+
+
+    def _plot(self, axislist, data = None):
+        """
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
+        """
+
+        super(XY8, self)._plot(axislist, data)
+        axislist[0].set_title('XY8')
+        axislist[0].legend(labels=('Ref Fluorescence', 'XY8 data'), fontsize=8)
+
+class XY4(PulseBlasterBaseScript):
+    """
+This script runs a CPMG pulse sequence.
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses',[
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            # Parameter('mw_switch_extra_time', 15, int, 'Time to add before and after microwave switch is turned on'),
+            Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
+            Parameter('number_of_pulse_blocks', 1, range(1, 17), 'number of alternating x-y-x-y-y-x-y-x pulses'),
+        ]),
+        Parameter('tau_times',[
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000],
+                      'time step increment of time between pulses (in ns)'),
+            Parameter('min_time', 100, float, 'minimum time between pulses (in ns)'),
+            Parameter('max_time', 1000, float, 'maximum time between pulses (in ns)'),
+        ]),
+        Parameter('read_out',[
+            Parameter('delay_mw_init', 1000, int, 'delay between initialization and mw (in ns)'),
+            Parameter('delay_mw_readout', 200, int, 'delay between mw and readout (in ns)'),
+            Parameter('meas_time', 250, float, 'measurement time after CPMG sequence (in ns)'),
+            Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state'),
+            Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)')
+        ]),
+        Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
+    ]
+
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _SCRIPTS = {}
+
+    def _function(self):
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
+        super(XY4, self)._function()
+
+    def _create_pulse_sequences(self):
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        '''
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['min_delay_time'])), int(self.settings['max_delay_time'] + 15),
+        #                  self.settings['delay_time_step'])
+
+        # JG: changed the previous because the 15ns is taken care of later
+        tau_list = range(int(self.settings['tau_times']['min_time']),
+                         int(self.settings['tau_times']['max_time']),
+                         self.settings['tau_times']['time_step']
+                         )
+
+        reset_time = self.settings['read_out']['nv_reset_time']
+        pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        pi_half_time = pi_time/2.0
+
+        ref_meas_off_time = self.settings['read_out']['ref_meas_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_init = self.settings['read_out']['delay_mw_init']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        number_of_pulse_blocks = self.settings['mw_pulses']['number_of_pulse_blocks']
+
+
+        for tau in tau_list:
+
+            pulse_sequence = []
+
+            #initialize and pi/2 pulse
+            pulse_sequence.extend([Pulse('laser', 0, reset_time - ref_meas_off_time - 15 - meas_time),
+                                   Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
+                                   Pulse('laser', reset_time - 15 - meas_time, meas_time),
                                    Pulse('microwave_i', reset_time + delay_mw_init, pi_half_time)
                                    ])
 
@@ -1009,12 +1176,8 @@ This script runs a CPMG pulse sequence.
                                        Pulse('microwave_q', section_begin_time + 2*tau - pi_half_time, pi_time),
                                        Pulse('microwave_i', section_begin_time + 3*tau - pi_half_time, pi_time),
                                        Pulse('microwave_q', section_begin_time + 4*tau - pi_half_time, pi_time),
-                                       Pulse('microwave_q', section_begin_time + 5*tau - pi_half_time, pi_time),
-                                       Pulse('microwave_i', section_begin_time + 6*tau - pi_half_time, pi_time),
-                                       Pulse('microwave_q', section_begin_time + 7*tau - pi_half_time, pi_time),
-                                       Pulse('microwave_i', section_begin_time + 8*tau - pi_half_time, pi_time)
                                       ])
-                section_begin_time += 8*tau
+                section_begin_time += 4*tau
 
             #pi/2 and readout
             pulse_sequence.extend([Pulse('microwave_i', section_begin_time + tau/2, pi_half_time),
@@ -1053,14 +1216,16 @@ This script runs a CPMG pulse sequence.
             data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
         """
 
-        super(XY8, self)._plot(axislist, data)
-        axislist[0].set_title('XY8')
-        axislist[0].legend(labels=('Ref Fluorescence', 'XY8 data'), fontsize=8)
+        super(XY4, self)._plot(axislist, data)
+        axislist[0].set_title('XY4')
+        axislist[0].legend(labels=('Ref Fluorescence', 'XY4 data'), fontsize=8)
+
 
 class PDD(PulseBlasterBaseScript):
     """
 This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different number of pi pulses.
 For a single pi-pulse this is a Hahn-echo sequence.
+For zero pulses this is a Ramsey sequence.
 
 The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
 
@@ -1073,7 +1238,7 @@ Tau/2 is the time between the center of the pulses!
             Parameter('mw_power', -2, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pi_pulses', 1, range(1, 17), 'number of pi pulses')
+            Parameter('number_of_pi_pulses', 1, range(0, 17), 'number of pi pulses')
         ]),
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'min value for tau, the free evolution time in between pulses (in ns)'),
@@ -1158,17 +1323,21 @@ Tau/2 is the time between the center of the pulses!
 
             # next_pi_pulse_time = reset_time + delay_mw_init + pi_half_time + tau
             # # 16-08-19 JG: changed :
-            next_pi_pulse_time = reset_time + delay_mw_init + tau/2
+            next_pi_pulse_time = reset_time + delay_mw_init
             # # 16-08-25 JG: changed :
             # next_pi_pulse_time = reset_time + delay_mw_init - pi_half_time / 2 + tau / 2
 
             for n in range(1, number_of_pi_pulses + 1):
+                next_pi_pulse_time += tau/2
                 pulse_sequence.extend([Pulse('microwave_q', next_pi_pulse_time - pi_time/2, pi_time)])
                 # next_pi_pulse_time += tau*2 + pi_time
                 # 16-08-19 JG: changed:
                 # next_pi_pulse_time += tau
                 # 16 - 08 -24 JG: changed
                 next_pi_pulse_time += tau/2
+
+            if number_of_pi_pulses == 0:
+                next_pi_pulse_time += tau
 
             # pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time-tau, pi_half_time),
             #                         Pulse('laser', next_pi_pulse_time-tau + delay_mw_readout + pi_half_time, meas_time),

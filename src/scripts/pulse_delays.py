@@ -19,6 +19,8 @@
 from b26_toolkit.src.instruments import Pulse
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseScript
+from b26_toolkit.src.plotting.plots_1d import plot_pulses, plot_1d_simple_timetrace_ns
+
 
 
 class PulseDelays(PulseBlasterBaseScript):
@@ -60,6 +62,30 @@ class PulseDelays(PulseBlasterBaseScript):
                                     ])
         return pulse_sequences, self.settings['num_averages'], gate_delays, self.settings[
             'measurement_gate_pulse_width']
+
+
+def _plot(self, axes_list, data=None):
+    """
+    Very similar to plot for PulseBlasterBaseScript but here deals with case where first plot has counts=[], using
+    PulseBlasterBaseScript plot leads to errors
+    Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+    received for each time
+    Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+    performed
+
+    Args:
+        axes_list: list of axes to write plots to (uses first 2)
+        data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
+    """
+    if data is None:
+        data = self.data
+
+    counts = data['counts']
+    x_data = data['tau']
+    axis1 = axes_list[0]
+    plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
+    axis2 = axes_list[1]
+    plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
 
 
 if __name__ == '__main__':
