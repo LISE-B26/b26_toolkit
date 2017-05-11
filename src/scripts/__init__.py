@@ -21,10 +21,10 @@ try:
 except Exception:
     pass
 
-from galvo_scan_v2 import GalvoScan, GalvoScan_cDAQ
-from set_laser import SetLaser, SetLaser_cDAQ
+from galvo_scan_v2 import GalvoScan
+from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
-from esr import ESR, ESR_cDAQ
+from esr import ESR
 from esr_two_freq_continuous import ESRTwoFreqContinuous
 # from keysight_get_spectrum import KeysightGetSpectrum
 
@@ -34,7 +34,7 @@ from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_Calib
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
 
-from find_nv import FindNV, FindNV_cDAQ
+from find_nv import FindNV
 
 from atto_scan import AttoStep
 
