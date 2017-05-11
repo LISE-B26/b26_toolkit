@@ -65,13 +65,14 @@ def process_esrs(source_folder, target_folder):
 
     # define queue for inter-thread communication
     next_queue = Queue.Queue()
+    current_id_queue = Queue.Queue()
 
     #set up manual correction gui
-    widget_list = process_manual_esrs(nv_type_manual, b_field_manual, next_queue)
+    widget_list = process_manual_esrs(nv_type_manual, b_field_manual, next_queue, current_id_queue)
 
     # launch manual_correction function on separate thread, as otherwise buttons will not respond until that
     # function ends, that function is waiting on buttons to continue, and you deadlock
-    thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, widget_list[4], widget_list[5], widget_list[6], widget_list[7]))
+    thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, current_id_queue, widget_list[4], widget_list[5], widget_list[6], widget_list[7]))
     thread.start()
 
     # thread.join()
@@ -193,7 +194,7 @@ def autofit_esrs(folder):
 
     return fit_data_set
 
-def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, queue, lower_peak_widget, upper_peak_widget, lower_fit_widget, upper_fit_widget):
+def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, queue, current_id_queue, lower_peak_widget, upper_peak_widget, lower_fit_widget, upper_fit_widget):
     """
     Backend code to display and fit ESRs, then once input has been received from front-end, incorporate the data into the
     current data set
@@ -211,9 +212,11 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
     Poststate: populates fit_data_set with manual corrections
     """
 
-    #TODO: Add saving as you go, add ability to start at arbitrary NV, add ability to specify a next NV number, rename PEAK to accept_fit
+    #TODO: Add saving as you go, add ability to start at arbitrary NV, add ability to specify a next NV number, eliminate peak/correct -> only have 'accept fit'
 
     try:
+
+        print('STARTING')
 
         fit_data_set_array = fit_data_set.as_matrix()
 
@@ -222,6 +225,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
         # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
         esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
+        print('esr_folders', esr_folders)
 
 
         # create folder to save images to
@@ -254,7 +258,34 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
         lower_peak_manual = [np.nan] * len(fit_data_set)
         upper_peak_manual = [np.nan] * len(fit_data_set)
 
-        for i, esr_folder in enumerate(esr_folders):
+        data_array = []
+        data_pos_array = []
+        sys.stdout.flush()
+        for esr_folder in esr_folders:
+            print('READING')
+            print(esr_folder)
+            sys.stdout.flush()
+            data = Script.load_data(esr_folder)
+            print(data)
+            sys.stdout.flush()
+            data_array.append(data)
+            print('LOOPING')
+            sys.stdout.flush()
+
+
+        nv_folders = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*')[0]
+        for nv_folder in nv_folders:
+            data_pos_array.append(Script.load_data(nv_folder))
+
+        print(data_array[0])
+
+
+        while True:
+
+
+        # for i, esr_folder in enumerate(esr_folders):
+
+            i = current_id_queue.get()
 
             lower_fit_widget.value = 0
             upper_fit_widget.value = 10e9
@@ -264,9 +295,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
             def display_data(lower_peak_widget = None, upper_peak_widget = None, display_fit = True):
                 # find the NV index
-                pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
+                # pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
-                findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:d}'.format(pt_id))[0]
+                # findnv_folder = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*{:d}'.format(pt_id))[0]
 
                 f.clf()
                 gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
@@ -275,7 +306,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 ax = [ax0, ax1]
 
                 # load data
-                data = Script.load_data(esr_folder)
+                data = data_array[i]
                 if lower_fit_widget.value == 0 and upper_fit_widget.value == 10e9:
                     freq = data['frequency']
                     ampl = data['data']
@@ -322,7 +353,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
                 # get nv positions
                 #             data_pos = {'initial_point': [fit_data_set['xo'].values[pt_id]]}
-                data_pos = Script.load_data(findnv_folder)
+                data_pos = data_pos_array[i]
                 #             pos = data_pos['maximum_point']
                 #             pos_init = data_pos['initial_point']
 
@@ -355,6 +386,12 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                     value = queue.get()
                     if value == -1:
                         fit_params, point_id = display_data(lower_peak_widget=lower_peak_widget, upper_peak_widget=upper_peak_widget)
+                        if len(fit_params) == 6:
+                            lower_peak_widget.value = fit_params[4]
+                            upper_peak_widget.value = fit_params[5]
+                        elif len(fit_params) == 4:
+                            lower_peak_widget.value = fit_params[2]
+                            upper_peak_widget.value = 0
                         continue
                     elif value == -2:
                         display_data(display_fit = False)
@@ -378,11 +415,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                     b_field_manual[i] = ((fit_params[5] - fit_params[4]) / 5.6e6)
             elif nv_type_manual[i] == 'single':
                 if np.isnan(fit_params[0]):
-                    print('here')
                     lower_peak_manual[i] = lower_peak_widget.value
                     print('value: ', lower_peak_widget.value)
                 else:
-                    print('there')
                     lower_peak_manual[i] = fit_params[2]
 
             if nv_type_manual[i] == '':
@@ -424,7 +459,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
         # error_widget.value = str(exc_type) + ', ' + exc_value + ', ' + str(traceback)
 
 
-def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
+def process_manual_esrs(nv_type_manual, b_field_manual, next_queue, current_id_queue):
     """
     Sets up the gui for manual correction.
     Args:
@@ -436,22 +471,21 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
 
     """
     # define queue for inter-thread communication
-    current_id_queue = Queue.Queue()
     current_id_queue.put(0)
 
     # define buttons to be added to display
     # error_box = widgets.Text(description='error message')
-    button_correct = widgets.Button(description="correct")
+    button_correct = widgets.Button(description="accept fit")
     button_bad = widgets.Button(description="bad")
     button_no_peak = widgets.Button(description="no_peak")
-    button_peak = widgets.Button(description="peak")
     button_refit = widgets.Button(description = "refit")
     button_clear_refit = widgets.Button(description = "clear refit")
+    next_NV_index = widgets.IntText(description = 'next NV number')
     lower_peak = widgets.FloatText(description='lower (single) peak')
     upper_peak = widgets.FloatText(description='upper (second) peak')
     lower_fit = widgets.FloatText(description = 'fitting lower bound')
     upper_fit = widgets.FloatText(description = 'fitting upper bound')
-    widget_list = [button_correct, button_bad, button_no_peak, button_peak, lower_peak, upper_peak, lower_fit, upper_fit]
+    widget_list = [button_correct, next_NV_index, button_bad, button_no_peak, lower_peak, upper_peak, lower_fit, upper_fit]
 
     # box = widgets.VBox([widgets.HBox([button_correct, button_bad]),
     #                     widgets.HBox([button_no_peak, button_peak]),
@@ -459,7 +493,7 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
     #                     widgets.HBox([lower_peak, upper_peak]),
     #                     widgets.HBox([lower_fit, upper_fit])])
     box = widgets.HBox([widgets.VBox([button_correct, button_no_peak, button_refit, lower_peak, lower_fit]),
-                        widgets.VBox([button_bad, button_peak, button_clear_refit, upper_peak, upper_fit])])
+                        widgets.VBox([next_NV_index, button_bad, button_clear_refit, upper_peak, upper_fit])])
 
     # display all widgets
     # display(error_box)
@@ -477,31 +511,10 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
 
 
     def button_correct_clicked(b):
-        current_id_queue.put(current_id_queue.get() + 1)
-        next_queue.put(0)
-
-    button_correct.on_click(button_correct_clicked)
-
-    def button_bad_clicked(b):
-        current_id = current_id_queue.get()
-        nv_type_manual[current_id] = 'bad'
-        current_id_queue.put(current_id + 1)
-        next_queue.put(0)
-
-    button_bad.on_click(button_bad_clicked)
-
-    def button_no_split_clicked(b):
-        current_id = current_id_queue.get()
-        nv_type_manual[current_id] = 'no_split'
-        current_id_queue.put(current_id + 1)
-        next_queue.put(0)
-
-    button_no_peak.on_click(button_no_split_clicked)
-
-    def button_peak_clicked(b):
         current_id = current_id_queue.get()
         if upper_peak.value == 0:
             if np.abs(lower_peak.value - 2.87e9) > 0.05e9:
+                print('current_id', current_id)
                 nv_type_manual[current_id] = 'split'
                 # b_field_manual[current_id] = (np.abs(lower_peak.value - 2.87e9) * 2.) / (5.6e6)
                 lower_peak.value = 0
@@ -510,10 +523,32 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue):
         else:
             nv_type_manual[current_id] = 'split'
             # b_field_manual[current_id] = (upper_peak.value - lower_peak.value) / (5.6e6)
-        current_id_queue.put(current_id + 1)
+        # current_id_queue.put(current_id + 1)
+        current_id_queue.put(next_NV_index.value)
+        next_NV_index.value = next_NV_index.value + 1
         next_queue.put(0)
 
-    button_peak.on_click(button_peak_clicked)
+    button_correct.on_click(button_correct_clicked)
+
+    def button_bad_clicked(b):
+        current_id = current_id_queue.get()
+        nv_type_manual[current_id] = 'bad'
+        # current_id_queue.put(current_id + 1)
+        current_id_queue.put(next_NV_index.value)
+        next_NV_index.value = next_NV_index.value + 1
+        next_queue.put(0)
+
+    button_bad.on_click(button_bad_clicked)
+
+    def button_no_split_clicked(b):
+        current_id = current_id_queue.get()
+        nv_type_manual[current_id] = 'no_split'
+        # current_id_queue.put(current_id + 1)
+        current_id_queue.put(next_NV_index.value)
+        next_NV_index.value = next_NV_index.value + 1
+        next_queue.put(0)
+
+    button_no_peak.on_click(button_no_split_clicked)
 
     def button_refit_clicked(b):
         next_queue.put(-1)
