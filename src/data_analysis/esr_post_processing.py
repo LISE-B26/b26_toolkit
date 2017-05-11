@@ -374,11 +374,9 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                     b_field_manual[i] = ((fit_params[5] - fit_params[4]) / 5.6e6)
             elif nv_type_manual[i] == 'single':
                 if np.isnan(fit_params[0]):
-                    print('here')
                     lower_peak_manual[i] = lower_peak_widget.value
                     print('value: ', lower_peak_widget.value)
                 else:
-                    print('there')
                     lower_peak_manual[i] = fit_params[2]
 
             if nv_type_manual[i] == '':
@@ -414,7 +412,8 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
         print('DONE!')
 
-    except:
+    except Exception as e:
+        print(e)
         raise
         # exc_type, exc_value, traceback = sys.exc_info()
         # error_widget.value = str(exc_type) + ', ' + exc_value + ', ' + str(traceback)

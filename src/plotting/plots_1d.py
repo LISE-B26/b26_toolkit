@@ -77,7 +77,7 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     fit_data = None
 
     #  ======== plot fit =========
-    if fit_params is not None and fit_params.size and fit_params[0] != -1:  # check if fit valid
+    if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
         if len(fit_params) == 4:
             # single peak
             fit_data = lorentzian(frequency, *fit_params)

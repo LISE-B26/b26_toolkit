@@ -151,8 +151,9 @@ for a given experiment
         x_data = data['tau']
         axis1 = axes_list[0]
         # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
-        if counts != []:
-            plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
+        # if counts != []:
+        #     plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
+        plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
 

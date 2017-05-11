@@ -927,7 +927,6 @@ This script runs a CPMG pulse sequence.
 
 
             pulse_sequences.append(pulse_sequence)
-            print(pulse_sequence)
 
         # end_time_max = 0
         # for pulse_sequence in pulse_sequences:
@@ -1098,6 +1097,7 @@ class PDD(PulseBlasterBaseScript):
     """
 This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different number of pi pulses.
 For a single pi-pulse this is a Hahn-echo sequence.
+For zero pulses this is a Ramsey sequence.
 
 The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
 
@@ -1110,7 +1110,7 @@ Tau/2 is the time between the center of the pulses!
             Parameter('mw_power', -2, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pi_pulses', 1, range(1, 17), 'number of pi pulses')
+            Parameter('number_of_pi_pulses', 1, range(0, 17), 'number of pi pulses')
         ]),
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'min value for tau, the free evolution time in between pulses (in ns)'),
@@ -1207,6 +1207,9 @@ Tau/2 is the time between the center of the pulses!
                 # next_pi_pulse_time += tau
                 # 16 - 08 -24 JG: changed
                 next_pi_pulse_time += tau/2
+
+            if number_of_pi_pulses == 0:
+                next_pi_pulse_time += tau
 
             # pulse_sequence.extend([Pulse('microwave_i', next_pi_pulse_time-tau, pi_half_time),
             #                         Pulse('laser', next_pi_pulse_time-tau + delay_mw_readout + pi_half_time, meas_time),
