@@ -607,7 +607,153 @@ This script applies a microwave pulse at fixed power for varying durations to me
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
+class Rabi_double_init(PulseBlasterBaseScript): # ER 5.25.2017
+    """
+This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
+        ]),
+        Parameter('tau_times', [
+            Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+                  'time step increment of rabi pulse duration (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
+    ]
 
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    def _function(self):
+        #COMMENT_ME
+
+        self.data['fits'] = None
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
+        super(Rabi_double_init, self)._function(self.data)
+
+        counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
+        tau = self.data['tau']
+
+
+        try:
+            fits = fit_rabi_decay(tau, counts, varibale_phase=True)
+            self.data['fits'] = fits
+        except:
+            self.data['fits'] = None
+            self.log('rabi fit failed')
+
+    def _create_pulse_sequences(self):
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        '''
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+        tau_list = range(0, int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+        print('tau_list', tau_list)
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = \
+                [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
+                 Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time),
+                 ]
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence += [Pulse(microwave_channel, laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time, tau)]
+
+            pulse_sequence += [
+                Pulse('laser', laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout, nv_reset_time),
+                Pulse('apd_readout', laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout + delay_readout, meas_time)
+            ]
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+
+
+            # pulse_sequences.append([Pulse('laser', 0,       nv_reset_time - ref_meas_off_time - meas_time - ref_meas_off_time),
+            #                         Pulse('apd_readout',    nv_reset_time - ref_meas_off_time - meas_time, meas_time),
+            #                         Pulse('laser',          nv_reset_time - ref_meas_off_time - meas_time, meas_time),
+            #                         Pulse(microwave_channel,nv_reset_time,  tau),
+            #                         Pulse('laser',          nv_reset_time + tau + delay_mw_readout, meas_time),
+            #                         Pulse('apd_readout',    nv_reset_time + tau + delay_mw_readout, meas_time)
+            #                         ])
+
+
+        # end_time_max = 0
+        # for pulse_sequence in pulse_sequences:
+        #     for pulse in pulse_sequence:
+        #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
+        # for pulse_sequence in pulse_sequences:
+        #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
+        print('number of sequences before validation ', len(pulse_sequences))
+        return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
+
+
+
+    def _plot(self, axislist, data = None):
+        '''
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
+        '''
+
+        if data is None:
+            data = self.data
+
+        if data['fits'] is not None:
+            counts = data['counts'][:,1]/ data['counts'][:,0]
+            tau = data['tau']
+            fits = data['fits']
+
+            axislist[0].plot(tau, counts, 'b')
+            axislist[0].hold(True)
+
+            axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
+            pi_time = 2*np.pi / fits[1] / 2
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time))
+        else:
+            super(Rabi_double_init, self)._plot(axislist)
+            axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
+            axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 
 class Rabi_Power_Sweep_Single_Tau(PulseBlasterBaseScript):

@@ -24,6 +24,7 @@ import numpy as np
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from PyLabControl.src.core.scripts import Script
+import random
 
 MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
@@ -185,14 +186,23 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         '''
+
+        # randomize the indexes of the pulse sequences to run, to reduce heating. ER 5/25/2017
+        rand_indexes = []
+        for i in range(0, len(pulse_sequences)):
+            rand_indexes.append(i)
+        random.shuffle(rand_indexes)
         for index, sequence in enumerate(pulse_sequences):
+            print(sequence)
+            rand_index = rand_indexes[index]
             if self._abort:
                 break
-            result = self._single_sequence(sequence, num_loops_sweep, num_daq_reads)  # keep entire array
-            self.count_data[index] = self.count_data[index] + result
-            self.data['counts'][index] = self._normalize_to_kCounts(self.count_data[index], self.measurement_gate_width,
+            #result = self._single_sequence(sequence, num_loops_sweep, num_daq_reads)  # keep entire array
+            result = self._single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
+            self.count_data[rand_index] = self.count_data[rand_index] + result
+            self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)
-            self.sequence_index = index
+            self.sequence_index = rand_index
 
             self.updateProgress.emit(self._calc_progress(index))
 

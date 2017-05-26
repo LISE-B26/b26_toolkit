@@ -46,7 +46,7 @@ class ESR(Script):
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
     _INSTRUMENTS = {
@@ -143,7 +143,7 @@ class ESR(Script):
                 summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
 
             # clean up APD tasks
-            self.instruments['daq']['instance'].stop(ctrtask)
+            self.daq_in.stop(ctrtask)
 
             return summed_data
 
