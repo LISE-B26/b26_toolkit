@@ -21,9 +21,10 @@ from copy import deepcopy
 
 import numpy as np
 
+from b26_toolkit.src.scripts import FindNV
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
-from PyLabControl.src.core.scripts import Script
+from PyLabControl.src.core.scripts import Script, Parameter
 import random
 
 MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
@@ -39,21 +40,32 @@ standard Script such as plotting.
 To use this class, the inheriting class need only overwrite _create_pulse_sequences to create the proper pulse sequence
 for a given experiment
     '''
-    _DEFAULT_SETTINGS = []
+    _DEFAULT_SETTINGS = [
+        Parameter('Tracking', [
+            Parameter('on/off', True, bool, 'used to turn on tracking'),
+            Parameter('threshold', 0.85, float, 'threshold for tracking'),
+        ]),
+        Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
+
+
+    ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {}
+    _SCRIPTS = {'find_nv': FindNV}
 
-    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+    def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
         Standard script initialization
         Args:
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
+        self._DEFAULT_SETTINGS += PulseBlasterBaseScript._DEFAULT_SETTINGS
+
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
+
 
     def _calc_progress(self, index):
         # progress of inner loop (in _run_sweep)
@@ -111,6 +123,13 @@ for a given experiment
         #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E6_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
 
+        # run find_nv if tracking is on ER 5/30/2017
+        if self.settings['Tracking']['on/off']:
+            self.scripts['find_nv'].run()
+            if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
+                self._abort = 1
+            #self._plot_refresh = True
+
         self.log("Averaging over {0} blocks of 1e5".format(num_1E6_avg_pb_programs))
 
         for average_loop in range(int(num_1E6_avg_pb_programs)):
@@ -145,15 +164,20 @@ for a given experiment
             axes_list: list of axes to write plots to (uses first 2)
             data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
         """
+
+#        if self.scripts['find_nv'].is_running: #self.scripts['find_nv'].data['maximum_point']:
+#            # self.scripts['find_nv'].plot(axes_list)
+#             self.scripts['find_nv']._plot(axes_list)
+#             self._plot_refresh = True
+#        else:
         if data is None:
             data = self.data
-
         counts = data['counts']
         x_data = data['tau']
         axis1 = axes_list[0]
-        # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
-        # if counts != []:
-        #     plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
+    # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
+    # if counts != []:
+    #     plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
         plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
@@ -165,6 +189,9 @@ for a given experiment
             axes_list: list of axes to write plots to (uses first 2)
 
         '''
+#        if self.scripts['find_nv'].is_running:
+#            self.scripts['find_nv']._update_plot(axes_list)
+#        else:
         counts = self.data['counts']
         x_data = self.data['tau']
         axis1 = axes_list[0]
@@ -191,19 +218,35 @@ for a given experiment
         rand_indexes = []
         for i in range(0, len(pulse_sequences)):
             rand_indexes.append(i)
-        random.shuffle(rand_indexes)
+        if self.settings['randomize']:
+            random.shuffle(rand_indexes)
         for index, sequence in enumerate(pulse_sequences):
-            print(sequence)
             rand_index = rand_indexes[index]
             if self._abort:
                 break
-            #result = self._single_sequence(sequence, num_loops_sweep, num_daq_reads)  # keep entire array
             result = self._single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
+            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)
             self.sequence_index = rand_index
+            counts_temp = counts_to_check[0]
+            # throw error if tracking is on and you haven't ran find nv ER 6/2/17
+            if self.settings['Tracking']['on/off']:
+                if self.scripts['find_nv'].data['fluorescence']:
+                    self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
+                else:
+                    raise AttributeError('need to run find NV first for tracking!')
 
+            # track to the NV if necessary ER 5/31/17
+            if (self.settings['Tracking']['on/off']):
+                if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
+                            (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
+             #      self._plot_refresh = True
+                    print('TRACKING TO NV...')
+                    self.scripts['find_nv'].run()
+              #     self._plot_refresh = True
+                    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
 
     def _single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
