@@ -67,7 +67,7 @@ from stability_with_microwaves import Stability_With_Microwaves
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
 
-
+from read_temperature_lakeshore import ReadTemperatureLakeshore
 # old imports with try/except
 # verbose = False
 

@@ -25,6 +25,9 @@ from PyLabControl.src.core import Parameter, Script
 
 
 class Daq_Read_Counter(Script):
+    """
+This script reads the Counter input from the DAQ and plots it.
+    """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point'),
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')

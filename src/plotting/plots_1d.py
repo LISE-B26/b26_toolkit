@@ -241,6 +241,24 @@ def plot_counts(axis, data):
     axis.set_ylabel('kCounts/sec')
 
 
+def plot_temperature(axis, data, sample_rate):
+    """
+    plots the temperature
+
+    Args:
+        axis:
+        data:
+        sample_rate: at which data has been acquired
+    Returns:
+
+    """
+    time = np.arange(len(data))/sample_rate
+    axis.plot(data)
+    axis.hold(False)
+
+    axis.set_xlabel('time (s)')
+    axis.set_ylabel('temperature (K)')
+
 def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', title=None):
     """
     plots a time trace for a list of data assuming that the times are give in ns
