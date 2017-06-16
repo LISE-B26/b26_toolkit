@@ -103,7 +103,6 @@ class TemperatureController(Instrument):
 
         # response returns string with temperature values interspaced with \x characters
         response = self.serial_connection.readline()
-        print('-- term', repr(response))
 
         # ======================================
         # output when cold (>100K)

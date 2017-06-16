@@ -72,7 +72,6 @@ This script reads the temperature from the Lakeshore controller.
                 print(temperature)
                 temperature = 0
             self.data['temperature'].append(temperature)
-            print('temperature', temperature)
             self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 

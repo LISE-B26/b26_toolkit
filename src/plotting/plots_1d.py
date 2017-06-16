@@ -253,10 +253,18 @@ def plot_temperature(axis, data, sample_rate):
 
     """
     time = np.arange(len(data))/sample_rate
-    axis.plot(data)
+
+    label = 'time (s)'
+    if max(time)>60:
+        time /= 60
+        label = 'time (min)'
+    if max(time)>60:
+        time /= 60
+        label = 'time (h)'
+    axis.plot(time, data)
     axis.hold(False)
 
-    axis.set_xlabel('time (s)')
+    axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
 
 def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', title=None):
