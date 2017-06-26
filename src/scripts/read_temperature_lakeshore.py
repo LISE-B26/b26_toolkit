@@ -31,7 +31,8 @@ This script reads the temperature from the Lakeshore controller.
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('sample_rate', 1, float, 'Rate at which temperature is recorded in seconds.'),
+        Parameter('sample_rate', 1, float, 'Rate at which temperature is recorded in seconds'),
+        Parameter('max_samples', 10, int, 'Number of samples'),
     ]
 
     _INSTRUMENTS = {'temp_controller': TemperatureController}
@@ -47,7 +48,7 @@ This script reads the temperature from the Lakeshore controller.
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'temperature': deque()}
+        self.data = None
 
 
     def _function(self):
@@ -57,10 +58,13 @@ This script reads the temperature from the Lakeshore controller.
         """
 
         sample_rate = self.settings['sample_rate']
-        self.data = {'temperature': deque()}
+        max_samples = self.settings['max_samples']
 
+        self.data = {'temperature': deque()}
+        c = 0
         while True:
             if self._abort:
+                self.data['temperature'] = np.array(self.data['temperature'])
                 break
 
             temperature = self.instruments['temp_controller']['instance'].temperature
@@ -75,8 +79,13 @@ This script reads the temperature from the Lakeshore controller.
             self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 
-            time.sleep(1.0 / sample_rate)
 
+            c +=1
+            if c>=max_samples and max_samples>0:
+                self._abort = True
+                self.data['temperature'] = np.array(self.data['temperature'])
+
+            time.sleep(1.0 / sample_rate)
 
     def _plot(self, axes_list, data = None):
 

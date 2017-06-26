@@ -252,14 +252,15 @@ def plot_temperature(axis, data, sample_rate):
     Returns:
 
     """
-    time = np.arange(len(data))/sample_rate
+
+    time = np.arange(len(data))/float(sample_rate)
 
     label = 'time (s)'
     if max(time)>60:
-        time /= 60
+        time /= 60.
         label = 'time (min)'
     if max(time)>60:
-        time /= 60
+        time /= 60.
         label = 'time (h)'
     axis.plot(time, data)
     axis.hold(False)

@@ -222,9 +222,6 @@ class ESR(Script):
 
 
             avrg_counts[scan_num] = np.mean(esr_data[scan_num])
-            print('JG20170615 avrg counts',scan_num, avrg_counts[scan_num] )
-            print('JG20170515 shape of esr daagta', np.shape(esr_data[0:(scan_num + 1)]))
-            print('JG20170515 len(freq_values)', len(freq_values))
 
             if take_ref is True:
                 esr_data[scan_num] /=avrg_counts[scan_num]

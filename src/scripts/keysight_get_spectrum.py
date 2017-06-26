@@ -61,11 +61,7 @@ class KeysightGetSpectrum(Script):
         trace = instrument.trace
 
         self.data = trace
-
-        # if self.settings['save']:
-        #     self.save_b26()
-        #     self.save_data()
-        #     self.save_log()
+        print('acquired spectrume')
 
 
 

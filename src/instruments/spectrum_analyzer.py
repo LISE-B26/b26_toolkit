@@ -32,17 +32,18 @@ class SpectrumAnalyzer(Instrument):
     # String returned by spectrum analyzer upon querying it with '*IDN?'
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('visa_resource', 'USB0::0x0957::0xFFEF::CN0323B356::INSTR', (str),
+        Parameter('visa_resource', 'USB0::0x0957::0xFFEF::CN0323B356::INSTR', (str),
                       'pyVisa instrument identifier, to make a connection using the pyVisa package.'),
         Parameter('start_frequency', 9e3, float, 'start frequency of spectrum analyzer frequency range'),
-            Parameter('mode', 'SpectrumAnalyzer', ['SpectrumAnalyzer', 'TrackingGenerator'],
-                      'switches between normal spectrum analyzer mode or spectrum analyzer PLUS output, '
-                      'i.e., tracking generator'),
-            Parameter('stop_frequency', 3e9, float, 'stop frequency of spectrum analyzer frequency range'),
-            Parameter('output_on', False, bool, 'toggles the tracking generator'),
-            Parameter('connection_timeout', 1000, int, 'the time to wait for a response '
-                                                       'from the spectrum analyzer with each query (units??)'),
-            Parameter('output_power', -20.0, float, 'the output power (in dBm) of the tracking generator')
+        Parameter('mode', 'SpectrumAnalyzer', ['SpectrumAnalyzer', 'TrackingGenerator'],
+                  'switches between normal spectrum analyzer mode or spectrum analyzer PLUS output, '
+                  'i.e., tracking generator'),
+        Parameter('stop_frequency', 3e9, float, 'stop frequency of spectrum analyzer frequency range'),
+        # Parameter('frequency_step', 10e6, float, 'frequency interval of spectrum analyzer frequency range'),
+        Parameter('output_on', False, bool, 'toggles the tracking generator'),
+        Parameter('connection_timeout', 1000, int, 'the time to wait for a response '
+                                                   'from the spectrum analyzer with each query (units??)'),
+        Parameter('output_power', -20.0, float, 'the output power (in dBm) of the tracking generator')
         ])
 
     _PROBES = {'start_frequency': 'the lower bound of the frequency sweep',
@@ -67,12 +68,17 @@ class SpectrumAnalyzer(Instrument):
         self._last_update_time = time.time()
 
         rm = visa.ResourceManager()
+
+        # todo: JG 20170623 implement proper error handling when insturment is not connected.
+        # try:
         self.spec_anal = rm.open_resource(self.settings['visa_resource'])
         self.spec_anal.read_termination = '\n'
         self.spec_anal.timeout = self.settings['connection_timeout']
         self.spec_anal.write('*RST')
         self._wait_for_spec_anal()
         self.update({'mode':'SpectrumAnalyzer'})
+        # except:
+        #     raise
 
     def update(self, settings):
         #COMMENT_ME
@@ -83,6 +89,9 @@ class SpectrumAnalyzer(Instrument):
             self._wait_for_spec_anal()
             self._set_mode(settings['mode'])
             print('mode',settings['mode'])
+            # since changes in the output_power are not applied to the instruments when in SpectrumAnalyzer mode, we make sure that is is updated once switched back to TrackingAnalyzer
+            if settings['mode'] == 'TrackingGenerator':
+                self.update({'output_power':self.settings['output_power']})
 
         if 'start_frequency' in settings:
             assert 9e3 <= settings[
@@ -90,6 +99,10 @@ class SpectrumAnalyzer(Instrument):
                 settings['start_frequency'])
             self._wait_for_spec_anal()
             self._set_start_frequency(settings['start_frequency'])
+
+        # if 'frequency_step' in settings:
+        #     self._wait_for_spec_anal()
+        #     self._set_frequency_step(settings['frequency_step'])
 
         if 'stop_frequency' in settings:
             assert 9e3 <= settings[
@@ -102,7 +115,11 @@ class SpectrumAnalyzer(Instrument):
             self._wait_for_spec_anal()
             self._toggle_output(settings['output_on'])
 
-        if 'output_power' in settings:
+            # todo: JG 201700623 check if the power is set properly (see comment in "if 'mode' in settings:" (~ line 87)
+            print('warning! output turned on.\ncheck if the output power is corresponds to the value in the settings!\nCheck code for more details' )
+
+
+        if 'output_power' in settings and self.settings['output_on']:
             self._wait_for_spec_anal()
             self._set_output_power(settings['output_power'])
 
@@ -157,6 +174,10 @@ class SpectrumAnalyzer(Instrument):
     def _set_start_frequency(self, start_freq):
         #COMMENT_ME
         self.spec_anal.write('SENS:FREQ:START ' + str(start_freq))
+
+    def _set_frequency_span(self, frequency_step):
+        #COMMENT_ME
+        self.spec_anal.write('SENS:FREQ:SPAN ' + str(frequency_step))
 
     def _get_start_frequency(self):
         #COMMENT_ME
@@ -255,7 +276,7 @@ if __name__ == '__main__':
         #     }
         # }
         #
-        print('creat spectrume analyzer instance:')
+        print('creat spectrum analyzer instance:')
         spec_anal = SpectrumAnalyzer()
         print spec_anal.is_connected()
         print spec_anal.mode
