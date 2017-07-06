@@ -63,6 +63,8 @@ def process_esrs(source_folder, target_folder):
     nv_type_manual = [''] * len(fit_data_set)
     b_field_manual = [np.nan] * len(fit_data_set)
 
+
+
     # define queue for inter-thread communication
     next_queue = Queue.Queue()
     current_id_queue = Queue.Queue()
@@ -74,6 +76,8 @@ def process_esrs(source_folder, target_folder):
     # function ends, that function is waiting on buttons to continue, and you deadlock
     thread = threading.Thread(target=manual_correction, args=(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, current_id_queue, widget_list[4], widget_list[5], widget_list[6], widget_list[7]))
     thread.start()
+    # manual_correction(source_folder, target_folder, fit_data_set, nv_type_manual, b_field_manual, next_queue, current_id_queue, widget_list[4], widget_list[5], widget_list[6], widget_list[7])
+
 
     # thread.join()
     # visualize_magnetic_fields(source_folder, target_folder)
@@ -212,9 +216,25 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
     Poststate: populates fit_data_set with manual corrections
     """
 
+    lower_peak_manual = [np.nan] * len(fit_data_set)
+    upper_peak_manual = [np.nan] * len(fit_data_set)
+
+    filepath = os.path.join(target_folder, folder[2:])
+    data_filepath = os.path.join(filepath, 'data-manual.csv')
+    if os.path.exists(data_filepath):
+        prev_data = pd.read_csv(data_filepath)
+        if 'manual_peak_1' in prev_data.keys():
+            for i in range(0, len(prev_data['manual_B_field'])):
+                b_field_manual[i] = prev_data['manual_B_field'][i]
+                nv_type_manual[i] = prev_data['manual_nv_type'][i]
+            lower_peak_manual = prev_data['manual_peak_1']
+            upper_peak_manual = prev_data['manual_peak_2']
+
+
     #TODO: Add saving as you go, add ability to start at arbitrary NV, add ability to specify a next NV number, eliminate peak/correct -> only have 'accept fit'
 
     try:
+
 
         print('STARTING')
 
@@ -225,8 +245,6 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
         # loop over all the folders in the data_subscripts subfolder and retrieve fitparameters and position of NV
         esr_folders = glob.glob(os.path.join(folder, '.\\data_subscripts\\*esr*'))
-        print('esr_folders', esr_folders)
-
 
         # create folder to save images to
         # filepath_image = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
@@ -255,37 +273,29 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
         cid = f.canvas.mpl_connect('button_press_event', onclick)
 
-        lower_peak_manual = [np.nan] * len(fit_data_set)
-        upper_peak_manual = [np.nan] * len(fit_data_set)
-
         data_array = []
         data_pos_array = []
-        sys.stdout.flush()
         for esr_folder in esr_folders:
-            print('READING')
             print(esr_folder)
             sys.stdout.flush()
             data = Script.load_data(esr_folder)
-            print(data)
-            sys.stdout.flush()
             data_array.append(data)
-            print('LOOPING')
+            print('looping')
             sys.stdout.flush()
 
 
-        nv_folders = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*')[0]
+        nv_folders = glob.glob(folder + '\\data_subscripts\\*find_nv*pt_*')
         for nv_folder in nv_folders:
             data_pos_array.append(Script.load_data(nv_folder))
-
-        print(data_array[0])
-
 
         while True:
 
 
         # for i, esr_folder in enumerate(esr_folders):
 
-            i = current_id_queue.get()
+            i = current_id_queue.queue[0]
+            if i >= len(data_array):
+                break
 
             lower_fit_widget.value = 0
             upper_fit_widget.value = 10e9
@@ -293,7 +303,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
             lower_peak_widget.value = 2.87e9
             upper_peak_widget.value = 0
 
-            def display_data(lower_peak_widget = None, upper_peak_widget = None, display_fit = True):
+            def display_data(pt_id, lower_peak_widget = None, upper_peak_widget = None, display_fit = True):
                 # find the NV index
                 # pt_id = int(os.path.basename(esr_folder).split('pt_')[-1])
 
@@ -379,7 +389,13 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
 
                 return fit_params, pt_id
 
-            fit_params, pt_id = display_data()
+            fit_params, pt_id = display_data(i)
+            if len(fit_params) == 6:
+                lower_peak_widget.value = fit_params[4]
+                upper_peak_widget.value = fit_params[5]
+            elif len(fit_params) == 4:
+                lower_peak_widget.value = fit_params[2]
+                upper_peak_widget.value = 0
 
             while True:
                 if queue.empty():
@@ -387,7 +403,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 else:
                     value = queue.get()
                     if value == -1:
-                        fit_params, point_id = display_data(lower_peak_widget=lower_peak_widget, upper_peak_widget=upper_peak_widget)
+                        fit_params, point_id = display_data(i, lower_peak_widget=lower_peak_widget, upper_peak_widget=upper_peak_widget)
                         if len(fit_params) == 6:
                             lower_peak_widget.value = fit_params[4]
                             upper_peak_widget.value = fit_params[5]
@@ -418,9 +434,10 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
             elif nv_type_manual[i] == 'single':
                 if np.isnan(fit_params[0]):
                     lower_peak_manual[i] = lower_peak_widget.value
-                    print('value: ', lower_peak_widget.value)
+                    b_field_manual[i] = 0
                 else:
                     lower_peak_manual[i] = fit_params[2]
+                    b_field_manual[i] = 0
 
             if nv_type_manual[i] == '':
                 if fit_params is None:
@@ -433,14 +450,22 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 else:
                     f.savefig(os.path.join(image_folder, 'esr_pt_{:02d}.jpg'.format(pt_id)))
 
+            if not os.path.exists(filepath):
+                os.makedirs(filepath)
+            fit_data_set['manual_B_field'] = b_field_manual
+            fit_data_set['manual_nv_type'] = nv_type_manual
+            fit_data_set['manual_peak_1'] = lower_peak_manual
+            fit_data_set['manual_peak_2'] = upper_peak_manual
+            fit_data_set.to_csv(data_filepath)
+
         f.canvas.mpl_disconnect(cid)
         fit_data_set['manual_B_field'] = b_field_manual
         fit_data_set['manual_nv_type'] = nv_type_manual
         fit_data_set['manual_peak_1'] = lower_peak_manual
         fit_data_set['manual_peak_2'] = upper_peak_manual
 
-        filepath = os.path.join(target_folder, folder[2:])
-        data_filepath = os.path.join(filepath, 'data-manual.csv')
+        # filepath = os.path.join(target_folder, folder[2:])
+        # data_filepath = os.path.join(filepath, 'data-manual.csv')
         # filename = '{:s}\\data-manual.csv'.format(os.path.basename(folder))
         # filepath = os.path.join(target_folder, os.path.dirname(folder).split('./')[1])
         # data_filepath = os.path.join(filepath, filename)
@@ -484,6 +509,7 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue, current_id_q
     button_refit = widgets.Button(description = "refit")
     button_clear_refit = widgets.Button(description = "clear refit")
     next_NV_index = widgets.IntText(description = 'next NV number')
+    next_NV_index.value = 1
     lower_peak = widgets.FloatText(description='lower (single) peak')
     upper_peak = widgets.FloatText(description='upper (second) peak')
     lower_fit = widgets.FloatText(description = 'fitting lower bound')

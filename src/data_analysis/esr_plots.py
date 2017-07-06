@@ -201,7 +201,6 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
             x_coor.append(distance_point_to_line([x, y], pt1, pt2))
     ax1.plot(x_coor, np.array(subset_dict['B-field (gauss)']) / freq_to_mag * 1e-6, 'ro')
 
-
     for i, j, n in zip(x_coor, np.array(subset_dict['B-field (gauss)']) / freq_to_mag * 1e-6, subset_dict['index']):
         corr = 0.0005  # adds a little correction to put annotation in marker's centrum
         ax1.annotate(str(n), xy=(i + corr, j + corr))
@@ -215,7 +214,10 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
         ax1.set_xlabel('Distance to magnet edge (V)')
     ax1.set_ylabel('Splitting (MHz)')
     if not scatter_plot_axis == 'line':
-        ax1.set_xlim([extent[0], extent[1]])
+        if scatter_plot_axis == 'y':
+            ax1.set_xlim([extent[3], extent[2]])
+        else:
+            ax1.set_xlim([extent[0], extent[1]])
 
     plt.axvline(x=0, color = 'black', linestyle = 'dashed', linewidth = 2)
 
@@ -223,6 +225,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
     mn, mx = ax1.get_ylim()
     ax2.set_ylim(mn * freq_to_mag * 1e6, mx * freq_to_mag * 1e6)
     ax2.set_ylabel('Magnetic Field Projection (Gauss)')
+
 
     # f.set_tight_layout(True)
 
@@ -281,6 +284,9 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
 
     # plot the map
     # ax0.imshow(image_data, extent=extent, interpolation='nearest', cmap='pink')
+
+    if line_points_array is None:
+        line_points_array = np.repeat(0,len(folders))
 
     for folder, label, line_points in zip(folders, labels, line_points_array):
         # load the fit_data
@@ -377,7 +383,10 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
         ax1.set_xlabel('Distance to magnet edge (V)')
     ax1.set_ylabel('Splitting (MHz)')
     if not scatter_plot_axis == 'line':
-        ax1.set_xlim([extent[0], extent[1]])
+        if scatter_plot_axis == 'y':
+            ax1.set_xlim([extent[3], extent[2]])
+        else:
+            ax1.set_xlim([extent[0], extent[1]])
 
     plt.axvline(x=0, color = 'black', linestyle = 'dashed', linewidth = 2)
 
