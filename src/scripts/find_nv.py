@@ -64,9 +64,11 @@ Known issues:
         """
 
         attempt_num = 1
-
+        print(self.scripts['take_image'].instruments)
         if self.settings['center_on_current_location']:
-            daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
+            # fixed for cold setup and new DAQ ER 6/4/17
+            #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
+            daq_pt = self.scripts['take_image'].instruments['NI6259']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
             self.settings['initial_point'].update({'x': daq_pt[0], 'y': daq_pt[1]})
         initial_point = self.settings['initial_point']
         nv_size = self.settings['nv_size']
@@ -75,7 +77,8 @@ Known issues:
         self.data = {'maximum_point': None,
                      'initial_point': initial_point,
                      'image_data': [],
-                     'extent': []
+                     'extent': [],
+                     'fluorescence': None
                      }
 
         def pixel_to_voltage(pt, extent, image_dimensions):
@@ -114,29 +117,37 @@ Known issues:
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
-        while True:
-            f = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
-
+        while True: # modified ER 5/27/2017 to implement tracking
+            locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
             po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
-            if len(f) == 0:
+            if len(locate_info) == 0:
                 self.data['maximum_point'] = {'x': float(po[0]), 'y': float(po[1])}
             else:
 
                 # all the points that have been identified as valid NV centers
                 pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
-                       f[['x', 'y']].as_matrix()]
+                       locate_info[['x', 'y']].as_matrix()]
+                #print(pts)
                 if len(pts) > 1:
                     self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
                 # pick the one that is closest to the original one
                 pm = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
                 self.data['maximum_point'] = {'x': float(pm[0]), 'y': float(pm[1])}
+                counter = 0
+                for p in pts: # record maximum counts = fluorescence
+                    if p[1] == self.data['maximum_point']['y']:
+                        self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
+                        print('fluorescence of the NV, kCps:')
+                        print(self.data['fluorescence'])
+                        counter += 1
                 break
 
             if attempt_num <= self.settings['number_of_attempts']:
                 min_mass = min_mass_adjustment(min_mass)
                 attempt_num += 1
             else:
-                self.log('FindNV did not find and NV --- setting laser to initial point instead')
+                self.log('FindNV did not find an NV --- setting laser to initial point instead, setting fluorescence to zero')
+                self.data['fluorescence'] = 0.0
                 break
 
         self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])

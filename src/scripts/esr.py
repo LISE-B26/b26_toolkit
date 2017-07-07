@@ -44,9 +44,9 @@ class ESR(Script):
         Parameter('settle_time', .0002, float, 'time wait after changing frequencies using daq (s)'),
         Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
-        Parameter('take_ref', True, bool, 'If true take a reference measurement with MW off to normalize spectra'),
+        Parameter('take_ref', True, bool, 'If true normalize each frequency sweep by the average counts. This should be renamed at some point because now we dont take additional data for the reference.'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
     _INSTRUMENTS = {
@@ -143,7 +143,7 @@ class ESR(Script):
                 summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
 
             # clean up APD tasks
-            self.instruments['daq']['instance'].stop(ctrtask)
+            self.daq_in.stop(ctrtask)
 
             return summed_data
 
@@ -191,17 +191,11 @@ class ESR(Script):
         self.daq_out.settings['analog_output']['ao2']['sample_rate'] = sample_rate
         self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
-
-
-
-        # if no reference is requested turn on the MW and leave it on
-        if take_ref is False:
-            self.instruments['microwave_generator']['instance'].update({'enable_output': True})
-        else:
-            esr_data_ref = np.zeros((self.settings['esr_avg'], len(freq_values)))
+        self.instruments['microwave_generator']['instance'].update({'enable_output': True})
 
         esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
-        self.data = {'frequency': [], 'data': [], 'fit_params': []}
+        avrg_counts = np.zeros(self.settings['esr_avg']) # here we save the avrg of the esr scan which we will use to normalize
+        self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts' : avrg_counts}
 
         # run sweeps
         for scan_num in xrange(0, self.settings['esr_avg']):
@@ -219,37 +213,23 @@ class ESR(Script):
                 if len(freq_voltage_array) is None:
                     continue
 
-                # if we take reference measurements, have to turn on the mw for the esr measurment
-                if take_ref is True:
-                    self.instruments['microwave_generator']['instance'].update({'enable_output': True})
-                    time.sleep(1) # wait a second
-
                 summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
+
                 # also normalizing to kcounts/sec
                 esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
 
-
-                # if we take reference measurements, have to turn off the mw for the reference measurement
-                if take_ref is True:
-                    self.instruments['microwave_generator']['instance'].update({'enable_output': False})
-                    time.sleep(1)  # wait a second
-                    summed_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
-                    # also normalizing to kcounts/sec
-                    esr_data_ref[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
-
                 esr_data_pos += len(summed_data)
 
-            if take_ref is True:
-                esr_avg_ref = np.mean(esr_data_ref[0:(scan_num + 1)], axis=0)
-            esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
+
+            avrg_counts[scan_num] = np.mean(esr_data[scan_num])
 
             if take_ref is True:
-                fit_params = fit_esr(freq_values, esr_avg/esr_avg_ref)
-                self.data.update(
-                    {'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params, 'esr_avg_ref': esr_avg_ref})
-            else:
-                fit_params = fit_esr(freq_values, esr_avg)
-                self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+                esr_data[scan_num] /=avrg_counts[scan_num]
+
+            esr_avg = np.mean(esr_data[0:(scan_num + 1)] , axis=0)
+
+            fit_params = fit_esr(freq_values, esr_avg)
+            self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
 
 
             if self.settings['save_full_esr']:
@@ -281,11 +261,8 @@ class ESR(Script):
         """
         if data is None:
             data = self.data
-        if self.settings['take_ref'] is True:
-            plot_esr(axes_list[0], data['frequency'], data['data']/data['esr_avg_ref'], data['fit_params'])
-        else:
-        # plot_esr(axes_list[0], self.data[-1]['frequency'], self.data[-1]['data'], self.data[-1]['fit_params'])
-            plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+
+        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
 
     def get_axes_layout(self, figure_list):
         """

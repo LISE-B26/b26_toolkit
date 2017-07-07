@@ -32,7 +32,7 @@ class MicrowaveGenerator(Instrument):
     """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('connection_type', 'GPIB', ['GPIB', 'RS232'], 'type of connection to open to controller'),
         Parameter('port', 27, range(0,31), 'GPIB or COM port on which to connect'),
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),

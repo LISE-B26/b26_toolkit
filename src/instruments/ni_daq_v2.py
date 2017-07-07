@@ -745,7 +745,8 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-
+        print('self.settings in get_analog_voltages:')
+        print(self.settings)
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:

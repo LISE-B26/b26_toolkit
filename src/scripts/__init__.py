@@ -38,7 +38,7 @@ from find_nv import FindNV
 
 from atto_scan import AttoStep
 
-from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY4, T1SpinFlip, PulsedESR,PulsedESRSlow
+from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY4, T1SpinFlip, PulsedESR,PulsedESRSlow, Rabi_double_init, HahnEcho_double_init, PulsedESR_double_init
 from esr_and_rabi import ESRAndRabi
 from keysight_get_spectrum import KeysightGetSpectrum
 
@@ -67,7 +67,7 @@ from stability_with_microwaves import Stability_With_Microwaves
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
 
-
+from read_temperature_lakeshore import ReadTemperatureLakeshore
 # old imports with try/except
 # verbose = False
 

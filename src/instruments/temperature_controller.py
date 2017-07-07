@@ -52,10 +52,12 @@ class TemperatureController(Instrument):
         handshake. These are all default for Serial and therefore not input
         below
         """
-
+        print('calling super asdad')
         super(TemperatureController, self).__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
                                                timeout=self.settings['timeout'], parity = serial.PARITY_ODD, bytesize=serial.SEVENBITS)
+
+        print('JG10170616: serial',self.serial_connection)
 
     @property
     def _PROBES(self):
@@ -101,7 +103,6 @@ class TemperatureController(Instrument):
 
         # response returns string with temperature values interspaced with \x characters
         response = self.serial_connection.readline()
-        print('-- term', repr(response))
 
         # ======================================
         # output when cold (>100K)
