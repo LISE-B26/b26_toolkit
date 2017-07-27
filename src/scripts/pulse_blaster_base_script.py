@@ -107,6 +107,7 @@ for a given experiment
         #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
         #never receives the rest of the counts (number too high)
         num_daq_reads = 0
+        print(self.pulse_sequences)
         for pulse in self.pulse_sequences[0]:
             if pulse.channel_id == 'apd_readout':
                 num_daq_reads += 1

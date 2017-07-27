@@ -286,7 +286,6 @@ def fit_cose_parameter(t, y, verbose = False):
     Returns: [ax, wx, phi, offset] = [amplitude, angular frequency, phase and offset]
 
     """
-
     [ax, wx, phi, offset] = guess_cose_parameter(t, y)
     if verbose:
         print('initial estimates [ax, wx, phi, offset]:', [ax, wx, phi, offset])
@@ -300,6 +299,7 @@ def fit_cose_parameter(t, y, verbose = False):
         return np.sum((sig - y)**2)
 
     opt = optimize.minimize(cost_function_fit, [ax, wx, phi, offset])
+
     if verbose:
         print('optimization result:', opt)
     [ax, wx, phi, offset] = opt.x
@@ -426,10 +426,11 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     [_, to] = fit_exp_decay(t_decay, y_decay, )
 
     if varibale_phase:
-        initial_parameter = [ax, wx, phi, offset, to]
+        # added by ER 7.27.17 to make Rabi frequency from fit always positive
+        initial_parameter = [ax, abs(wx), phi, offset, to]
     else:
-        initial_parameter = [ax, wx, offset, to]
-
+        initial_parameter = [ax, abs(wx), offset, to]
+    verbose = 1
     if verbose:
         if varibale_phase:
             print('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter)
@@ -442,10 +443,14 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
         """
         if varibale_phase:
             ao, wo, po, offset, to = x
+            # added by ER 7.27.17 to make Rabi frequency from fit always positive
+            wo = abs(wo)
             sig = cose_with_decay(t, ao, wo, po, offset, to)
             # sig = ao * np.exp(-t / to) * np.cos(wo * t + po) + offset
         else:
             ao, wo, offset, to = x
+            # added by ER 7.27.17 to make Rabi frequency from fit always positive
+            wo = abs(wo)
             sig = cose_with_decay(t, ao, wo, 0, offset, to)
             # sig = ao * np.exp(-t / to) * np.cos(wo * t) + offset
         return np.sum((sig - y) ** 2)
