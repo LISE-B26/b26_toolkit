@@ -36,7 +36,8 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
                    Parameter('max', 100, float, 'max voltage'),
                    Parameter('N', 25, int, 'voltage steps')
                   ]),
-        Parameter('dt', 0.1, float, 'time between voltage steps (seconds)')
+        Parameter('dt', 0.1, float, 'time between voltage steps (seconds)'),
+        Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3'], 'Daq channel used for voltage analog input')
     ]
 
     _SCRIPTS = {
@@ -46,7 +47,7 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         'daq':NI6259,
         'z_piezo': PiezoController
     }
-    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+    def __init__(self, instruments, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """
         Example of a script that emits a QT signal for the gui
         Args:
@@ -61,16 +62,19 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         will be overwritten in the __init__
         """
         self.data['signal'] = []
+        self.data['voltages'] = []
 
         dt = self.settings['dt']
         sweep_voltages = np.linspace(self.settings['voltages']['min'], self.settings['voltages']['max'], self.settings['voltages']['N'])
 
-        for voltage in sweep_voltages:
+        for index, voltage in enumerate(sweep_voltages):
             self._step_piezo(voltage, dt)
             signal = self._get_voltage()
             self.data['signal'].append(signal)
 
-        self.data['voltages'] = sweep_voltages
+            self.data['voltages'].append(voltage)
+            self.progress = 100. * index / len(sweep_voltages)
+            self.updateProgress.emit(self.progress if self.progress < 100 else 99)
 
 
 
@@ -92,8 +96,22 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
 
         """
         voltage = self.instruments['daq']['instance'].get_analog_voltages([
-            self.settings['ao_channel']
+            self.settings['ai_channel']
         ])
 
         return voltage
 
+
+    def _plot(self, axes_list, data=None):
+        # fit the data and set piezo to focus spot
+        if data is None:
+            data = self.data
+
+        axis_focus, axis_image = axes_list
+
+        axis_focus.plot(data['voltages'],data['signal'], 'o-')
+
+        axis_focus.hold(False)
+
+        axis_focus.set_xlabel('Piezo Voltage [V]')
+        axis_focus.set_ylabel('Detector Voltage [V]')
