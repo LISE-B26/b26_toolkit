@@ -21,7 +21,7 @@ import time
 import numpy as np
 
 
-from b26_toolkit.src.instruments import NI6259,PiezoController
+from b26_toolkit.src.instruments import NI6259,PiezoController, NI9263, NI9402
 from PyLabControl.src.core import Parameter, Script
 
 
@@ -36,15 +36,17 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
                    Parameter('max', 100, float, 'max voltage'),
                    Parameter('N', 25, int, 'voltage steps')
                   ]),
-        Parameter('dt', 0.1, float, 'time between voltage steps (seconds)')
+        Parameter('dt', 0.1, float, 'time between voltage steps (seconds)'),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
     _SCRIPTS = {
     }
 
     _INSTRUMENTS = {
-        'daq':NI6259,
-        'z_piezo': PiezoController
+        'NI6259': NI6259,
+        'z_piezo': PiezoController,
+        'NI9263': NI9263, 'NI9402': NI9402
     }
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
         """
@@ -55,6 +57,13 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         """
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
 
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            self.daq_out = self.instruments['NI9263']['instance']
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -91,7 +100,7 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         Returns: list with two floats, which give the x and y position of the galvo mirror
 
         """
-        voltage = self.instruments['daq']['instance'].get_analog_voltages([
+        voltage = self.daq_in.get_analog_voltages([
             self.settings['ao_channel']
         ])
 

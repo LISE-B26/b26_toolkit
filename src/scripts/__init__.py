@@ -71,6 +71,9 @@ from read_temperature_lakeshore import ReadTemperatureLakeshore
 # old imports with try/except
 # verbose = False
 
+
+
+from daq_simple_piezosweep import SimplePiezoSweep
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
 
