@@ -74,7 +74,7 @@ class SpectrumAnalyzer(Instrument):
         self.spec_anal = rm.open_resource(self.settings['visa_resource'])
         self.spec_anal.read_termination = '\n'
         self.spec_anal.timeout = self.settings['connection_timeout']
-        self.spec_anal.write('*RST')
+        self.spec_anal.write('*RST') #Places the oscilloscope in the factory default setup state.
         self._wait_for_spec_anal()
         self.update({'mode':'SpectrumAnalyzer'})
         # except:
