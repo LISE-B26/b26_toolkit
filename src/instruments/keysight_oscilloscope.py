@@ -285,8 +285,6 @@ class Oscilloscope(Instrument):
         else:
             print('WARNING UNKNOWN DATA FORMAT')
 
-        print('ffff', format)
-        print('ffff', data)
         if len(data)>0:
             dt = float(self.time_base_to_nr3(self.settings['waveform']['timebase'], self.settings['waveform']['timebase_unit']))*10/len(data)
         else:

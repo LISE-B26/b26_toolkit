@@ -23,6 +23,8 @@ except Exception:
 
 from galvo_scan_v2 import GalvoScan
 from set_laser import SetLaser
+from find_nv import FindNV
+from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC, AutoFocusTwoPointsFR
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
 from esr_two_freq_continuous import ESRTwoFreqContinuous
@@ -33,8 +35,6 @@ from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_Calib
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
-
-from find_nv import FindNV
 
 from atto_scan import AttoStep
 
@@ -49,8 +49,6 @@ from light_control import ApplyLightControlSettings, CameraOn
 from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
 # from ni_fpga_galvo_scan import FPGA_GalvoScan
-
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC, AutoFocusTwoPointsFR
 
 from ni_fpga_galvo_scan import FPGA_GalvoScan
 
@@ -72,6 +70,11 @@ from read_temperature_lakeshore import ReadTemperatureLakeshore
 # verbose = False
 
 from daq_simple_piezosweep import SimplePiezoSweep
+
+
+from keysight_osci_get_timetrace import KeysightOsciGetTimeTrace
+from galvo_scan_osci import GalvoScaOsci
+
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
 

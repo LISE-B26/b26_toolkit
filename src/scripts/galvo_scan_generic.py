@@ -22,6 +22,8 @@ from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
+#todo: JG - move generic galvo to Pylabcontrol
+#todo: JG - clean up legacy galvo scan
 class GalvoScanGeneric(Script):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
@@ -94,9 +96,16 @@ class GalvoScanGeneric(Script):
 
         # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
         initial_position = self.get_galvo_location()
+        if initial_position == []:
+            print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
+            self.settings['ending_behavior'] = 'leave_at_corner'
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
+
+        if self._ACQ_TYPE == 'point':
+            self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
+
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
@@ -114,6 +123,7 @@ class GalvoScanGeneric(Script):
                 line_data = self.read_line(self.y_array[yNum])
                 self.data['image_data'][yNum] = line_data
                 self.progress = float(yNum + 1) / Ny * 100
+                self.updateProgress.emit(int(self.progress))
 
             elif self._ACQ_TYPE == 'point':
                 for xNum in xrange(0, Nx):
@@ -121,13 +131,19 @@ class GalvoScanGeneric(Script):
                         break
 
                     point_data = self.read_point(self.x_array[xNum], self.y_array[yNum])
-                    self.data['image_data'][yNum * Nx + xNum] = point_data
+                    self.data['image_data'][yNum, xNum] = np.mean(point_data)
+
+                    self.data['point_data'].append(point_data)
                     self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
 
                     # JG: tmp print info about progress
                     print('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress))
 
-            self.updateProgress.emit(int(self.progress))
+                    self.updateProgress.emit(int(self.progress))
+                    
+                # fill the rest of the array with the mean of the data up to now (otherwise it's zero and the data is not visible in the plot)
+                if yNum<Ny:
+                    self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :])
 
         #set point after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':

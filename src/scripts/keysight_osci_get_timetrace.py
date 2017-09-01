@@ -36,6 +36,7 @@ class KeysightOsciGetTimeTrace(Script):
         'osci' : Oscilloscope
     }
 
+
     _SCRIPTS = {}
 
     def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
@@ -88,9 +89,36 @@ class KeysightOsciGetTimeTrace(Script):
 
         F, P = power_spectral_density(data, dt)
 
+        print('JG adasd', data, dt)
+
         axes_list[1].plot(F, P, '-')
         axes_list[1].set_xlabel('freq (Hz)')
         axes_list[1].set_ylabel('signal (arb.)')
 
         axes_list[1].set_xscale("log")
-        axes_list[1].set_yscale("log")
+        # JG: try to display on a log scale, this doesn't work if the psd is negative or zero (which might happen if the oscilloscope is out of range)
+        if np.mean(data) > 0:
+            axes_list[1].set_yscale("log")
+
+
+
+
+if __name__ == '__main__':
+    from PyLabControl.src.core import Instrument
+    # from b26_toolkit.src.instruments import NI7845RMain
+    #
+    # fpga = NI7845RMain()
+    #
+    #
+    # g = GalvoScanFPGA(instruments={'NI7845RMain':fpga}, name='test_fpga_scan', settings=None, log_function=None, data_path=None)
+    # print(fpga)
+
+
+    # instruments, failed =  Instrument.load_and_append(instrument_dict ={'NI7845RMain': 'NI7845RMain'}, raise_errors=True )
+
+    script, failed, instruments = Script.load_and_append(script_dict={'GalvoScanFPGA': 'GalvoScanFPGA'}, raise_errors=True)
+    #
+    print(script)
+    print(failed)
+    # # print(instruments)
+
