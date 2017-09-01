@@ -16,12 +16,13 @@
     along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.src.instruments import SpectrumAnalyzer
-    # , MicrowaveGenerator, CryoStation
+from b26_toolkit.src.instruments import Oscilloscope
 from PyLabControl.src.core import Script
+import numpy as np
 
+from PyLabControl.src.data_processing.signal_processing import power_spectral_density
 
-class KeysightGetSpectrum(Script):
+class KeysightOsciGetTimeTrace(Script):
     # COMMENT_ME
 
     _DEFAULT_SETTINGS = [
@@ -32,7 +33,7 @@ class KeysightGetSpectrum(Script):
     ]
 
     _INSTRUMENTS = {
-        'spectrum_analyzer' : SpectrumAnalyzer
+        'osci' : Oscilloscope
     }
 
     _SCRIPTS = {}
@@ -54,14 +55,16 @@ class KeysightGetSpectrum(Script):
 
 
 
-        instrument = self.instruments['spectrum_analyzer']['instance']
-        settings = self.instruments['spectrum_analyzer']['settings']
+        instrument = self.instruments['osci']['instance']
+        settings = self.instruments['osci']['settings']
+
+        instrument.reset()
 
         instrument.update(settings)
-        trace = instrument.trace
+        trace, preamble = instrument.get_timetrace()
 
-        self.data = trace
-        print('acquired spectrume')
+        self.data = {'voltage': trace, 'meta_data': preamble}
+        print('acquired spectrum')
 
 
 
@@ -75,6 +78,19 @@ class KeysightGetSpectrum(Script):
         if data is None:
             data = self.data
 
-        axes_list[0].plot(data['frequencies'], data['amplitudes'])
-        axes_list[0].set_xlabel('frequencies')
-        axes_list[0].set_xlabel('spectrum (??)')
+        dt = self.data['meta_data']['xincrement']
+        data = self.data['voltage']
+        time = dt*np.arange(len(data))
+        axes_list[0].plot(time, data, '-')
+        axes_list[0].set_xlabel('time (s)')
+        axes_list[0].set_ylabel('signal (arb.)')
+
+
+        F, P = power_spectral_density(data, dt)
+
+        axes_list[1].plot(F, P, '-')
+        axes_list[1].set_xlabel('freq (Hz)')
+        axes_list[1].set_ylabel('signal (arb.)')
+
+        axes_list[1].set_xscale("log")
+        axes_list[1].set_yscale("log")

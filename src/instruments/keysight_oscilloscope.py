@@ -35,7 +35,9 @@ class Oscilloscope(Instrument):
     _DEFAULT_SETTINGS = Parameter([
         Parameter('visa_resource', 'USB0::0x0957::0x0588::CN56301388::0::INSTR', (str),
                       'pyVisa instrument identifier, to make a connection using the pyVisa package.'),
-        Parameter('timebase', 'main', ['main'], 'time base mode'),
+        Parameter('timebase',[
+            Parameter('format', 'yt', ['yt', 'xy', 'roll'], 'time base format')
+        ]),
         # Parameter('frequency_step', 10e6, float, 'frequency interval of spectrum analyzer frequency range'),
         Parameter('acquisition',[
                       Parameter('type','normal',['normal'], 'acquisition type'),
@@ -46,19 +48,22 @@ class Oscilloscope(Instrument):
             Parameter('points', 10240, int, 'waveform length, max is 10240 (mode raw) or 600 (mode normal)'),
             Parameter('format', 'word', ['word', 'ascii', 'byte'], 'waveform format '),
             Parameter('channel', 1, [1, 2, 3, 4], 'channel from which to read the data'),
-            Parameter('timebase', 1, [1,2,5], 'timebase: units per devision'),
-            Parameter('timebase_unit', 'ms', ['ns', 'us','ms', 's'], 'timebase: units per devision'),
-            Parameter('vert_scale', '2E-1', ['2E-3', '5E-3', '1E-2', '2E-2', '5E-2', '1E-1', '2E-1', '5E-1'], 'vert_scale volts per division (2 mV to 10 V)')
+            Parameter('timebase', 1, [1,2,5, 10, 20, 50, 100], 'timebase: units per devision'),
+            Parameter('timebase_unit', 's', ['ns', 'us','ms', 's'], 'timebase: units per devision'),
+            Parameter('vert_scale', '1E-1', ['2E-3', '5E-3', '1E-2', '2E-2', '5E-2', '1E-1', '2E-1', '5E-1'], 'vert_scale volts per division (2 mV to 10 V)'),
+            Parameter('probe', '1X', ['1X', '10X'], 'multipliation factor for y scale')
         ]),
         Parameter('trigger', [
             Parameter('on', True, bool, 'trigger on or off'),
             Parameter('channel', 2, [1, 2, 3, 4], 'channel from which to trigger'),
             Parameter('mode', 'edge_pos', ['edge_pos', 'edge_neg'], 'trigger mode (psotive edge, negative edge)'),
-            Parameter('level', 0.1, [0.1, 1], 'trigger level (I think in fractions of a devision between -6 and 6 could also be in volt)'),
+            Parameter('level', 0.0, [0.0, 0.1, 1], 'trigger level (I think in fractions of a devision between -6 and 6 could also be in volt)'),
 
         ]),
         Parameter('connection_timeout', 1000, int, 'the time to wait for a response from the oscilloscope with each query (units??)'),
         ])
+
+
 
     _PROBES = {}
     # _PROBES = {'start_frequency': 'the lower bound of the frequency sweep',
@@ -86,7 +91,6 @@ class Oscilloscope(Instrument):
         rm = visa.ResourceManager()
 
         # todo: JG 20170623 implement proper error handling when insturment is not connected.
-        # try:
         self.osci = rm.open_resource(self.settings['visa_resource'])
         self.osci.read_termination = '\n'
         self.osci.timeout = self.settings['connection_timeout']
@@ -99,7 +103,13 @@ class Oscilloscope(Instrument):
         # except:
         #     raise
 
+    def reset(self):
+        """
+        resets the oscilloscope to the default values
+        Returns:
 
+        """
+        self.osci.write('*RST') #Places the oscilloscope in the factory default setup state.
 
     def update(self, settings):
         """
@@ -117,7 +127,8 @@ class Oscilloscope(Instrument):
         if 'timebase' in settings:
             # self._wait_for_osci()
             # self._set_timebase(settings['timebase'])
-            self.osci.write(':TIMEBASE:MODE ' + settings['timebase'].upper())
+            self.osci.write(':TIMEBASE:MODE MAIN')
+            self.osci.write(':TIMEBASE:FORM ' + settings['timebase']['format'].upper())
 
         if 'acquisition' in settings:
             # self._wait_for_osci()
@@ -127,14 +138,16 @@ class Oscilloscope(Instrument):
 
         if 'waveform' in settings:
             channel = str(settings['waveform']['channel'])
+            waveform = settings['waveform']
             # self._wait_for_osci()
             # self._set_waveform(settings['waveform'])
-            self.osci.write(':WAV:POINTS:MODE ' + settings['waveform']['mode'].upper())
-            self.osci.write(':WAV:POINTS ' + str(settings['waveform']['points']))
-            self.osci.write(':WAV:FORMAT ' + settings['waveform']['format'].upper())
+            self.osci.write(':WAV:POINTS:MODE ' + waveform['mode'].upper())
+            self.osci.write(':WAV:POINTS ' + str(waveform['points']))
+            self.osci.write(':WAV:FORMAT ' + waveform['format'].upper())
             self.osci.write(':WAV:SOURCE CHAN' + channel)
-            self.osci.write(':TIM:SCAL ' + self.time_base_to_nr3(settings['waveform']['timebase'], settings['waveform']['timebase_unit']))
-            self.osci.write(':CHAN' + channel + ':SCAL ' + settings['waveform']['vert_scale'])
+            self.osci.write(':TIM:SCAL ' + self.time_base_to_nr3(waveform['timebase'], waveform['timebase_unit']))
+            self.osci.write(':CHAN' + channel + ':SCAL ' + waveform['vert_scale'])
+            self.osci.write(':CHAN' + channel + ':PROB ' + waveform['probe'])
 
         if 'trigger' in settings:
             channel = str(settings['trigger']['channel'])
@@ -148,6 +161,15 @@ class Oscilloscope(Instrument):
             self.osci.write(':TRIG:EDGE:LEV ' + str(settings['trigger']['level']))
 
 
+    def acq_time(self):
+        """
+        estimates the acquisition time
+        Returns:
+
+        """
+        waveform = self.settings['waveform']
+        total_time = float(self.time_base_to_nr3(waveform['timebase'], waveform['timebase_unit']))*10
+        return total_time
 
 
     def read_probes(self, probe_name):
@@ -182,72 +204,31 @@ class Oscilloscope(Instrument):
         identification = self.osci.query('*IDN?')
         return identification == self._INSTRUMENT_IDENTIFIER
 
-
-    # def _set_source_channel(self, chan):
-    #     """
-    #     sets the source channel for acquisition
-    #
-    #     Returns:
-    #
-    #     """
-    #     self.osci.write(':WAVEFORM:SOURCE CHAN' + str(chan))
-    #
-    # def _set_timebase(self, timebase):
-    #     """
-    #     sets the source channel for acquisition
-    #
-    #     Returns:
-    #
-    #     """
-    #     self.osci.write(':TIMEBASE:MODE ' + timebase.upper())
-
     def get_timetrace(self):
         """
         reads a time trace from the intruments
         Returns:
 
         """
+        self.osci.write(':SINGLE') # start a single acquisition
+        self.osci.write(':FORCetrig') # force trigger to make sure that the acquisition starts
 
 
-        id = self.osci.query('*IDN?')
-        print('xx id', id)
+        # estimate acquisition time and wait until acquisition is finished
+        # JG: This seems to work, just wait enough time so that the oscilloscope can acquire the data
+        # output counter to terminal to show that the program didn't freeze
+        total_time = self.acq_time()
+        total_time = int(total_time )*10 # multiply by 10 because the wait loop time is 100ms
+        total_time = int(total_time * 1.2+1) # give another percent margin, this is empirical
 
-        wave_points = self.osci.query(':WAV:POINTS?')
-        print('wave_points ', wave_points )
+        for i in range(total_time):
+            print('waiting {:d}/{:d}'.format(i, total_time))
+            time.sleep(0.1)
 
-        tmp = self.osci.query(':WAV:SOURCE?')
-        print('SOURCE ', tmp )
-
-        tmp = self.osci.query(':WAV:FORMAT?')
-        print('FORMAT ', tmp )
-
-        tmp = self.osci.query(':TIMebase:SCALe?')
-        print(':TIMebase[:MAIN]:SCALe? ', tmp , 1./float(tmp))
-        tmp = self.osci.query(':ACQuire:SRATe?')
-        print(':ACQuire:SRATe? ', tmp)
-        tmp = self.osci.query(':WAVeform:XINCrement?')
-        print(':WAVeform:XINCrement?  ', tmp)
-
-        tmp = self.osci.query(':WAVeform:YINCrement?')
-        print(':WAVeform:YINCrement?  ', tmp)
-
-        self.osci.write(':RUN')
-
-        operationComplete = self.osci.query('*OPC?')
-        print('operationComplete', operationComplete)
-        time.sleep(1)
-        operationComplete = self.osci.query('*OPC?')
-        print('operationComplete', operationComplete)
-        self.osci.write(':STOP')
-        operationComplete = self.osci.query('*OPC?')
-
-        self.osci.write(':DIGITIZE CHAN1') # JG: tmp
-
-
+        operationComplete = bool(self.osci.query('*OPC?'))
         print('operationComplete', operationComplete)
 
-        # Get the data back as a WORD (i.e., INT16), other options are ASCII and BYTE
-        # self.osci.write(':WAV:FORMAT WORD')
+
         # Get the preamble block
         preambleBlock = self.osci.query(':WAV:PREAMBLE?')
         # preable contains the curren settings
@@ -262,12 +243,18 @@ class Oscilloscope(Instrument):
         #   YORIGIN       : float32 - value is the voltage at center screen.
         #   YREFERENCE    : int32 - specifies the data point where y-origin occurs
 
-        print('preambleBlock', preambleBlock)
+        # convert into dictionary
+        preamble = {k:float(v) for k, v in zip(['format', 'type', 'points', 'count', 'xincrement', 'xorigin', 'xreference', 'yincrement', 'yorigin', 'yreference'], preambleBlock.split(','))}
 
 
 
+        print('adadaada', self.settings['waveform'])
+        format = str(self.settings['waveform']['format']).lower()
         # depending on the setting we get differnet data back
-        if self.settings['waveform']['format'] is 'ascii':
+        if format == 'ascii':
+            print('datatype ascii')
+            print('JG: WARNING ascii NOT TESTED!')
+
             # send command to read data
             # raw_data = self.osci.query(':WAV:DATA?')
             raw_data = self.osci.query_ascii_values(':WAV:DATA?')
@@ -277,27 +264,37 @@ class Oscilloscope(Instrument):
             # data = [float(d) for d in data]
             data = np.array(data)
 
-        elif self.settings['waveform']['format'] is 'word':
-            raw_data = self.osci.query_binary_values(':WAV:DATA?', datatype='H')
-
+        elif format == 'word':
+            print('datatype word')
+            # try until we get the data
+            max_attempts = 100
+            count = 0
+            raw_data = []
+            while len(raw_data) == 0 and count<max_attempts:
+                raw_data = self.osci.query_binary_values(':WAV:DATA?', datatype='H')
+                print('data empty retry, attempt {:02d}/{:02d}'.format(count, max_attempts))
+                count += 1
+                time.sleep(0.1)
             data = raw_data
 
-        elif self.settings['waveform']['format'] is 'byte':
+        elif format == 'byte':
+            print('datatype byte')
+            print('JG: WARNING BYTE NOT TESTED!')
             raw_data = self.osci.query_binary_values(':WAV:DATA?')
             data = raw_data
+        else:
+            print('WARNING UNKNOWN DATA FORMAT')
 
-
-        # values = self.osci.query_ascii_values('CURV?')
-
-        # print(values)
-        # data = [float(i) for i in str(self.osci.query('TRACE:DATA? TRACE1' + ';*OPC?')).rstrip(';1').split(',')]
-        # num_points = len(amplitudes)
-        # frequencies = np.linspace(start=self.start_frequency, stop=self.stop_frequency,
-        #                           num=num_points).tolist()
-        # # return [(frequencies[i], amplitudes[i])for i in range(num_points)]
-
-        # return {'frequencies':frequencies, 'amplitudes':amplitudes}\
-        return data
+        print('ffff', format)
+        print('ffff', data)
+        if len(data)>0:
+            dt = float(self.time_base_to_nr3(self.settings['waveform']['timebase'], self.settings['waveform']['timebase_unit']))*10/len(data)
+        else:
+            dt = 1
+        # add more meta data to the preamble
+        preamble['dt']= dt
+        preamble['vert_scale'] =float(self.settings['waveform']['vert_scale'])*float(self.settings['waveform']['probe'].split('X')[0]) #  vertical scale of osci
+        return data, preamble
 
 
     def __del__(self):
@@ -366,12 +363,11 @@ if __name__ == '__main__':
 
         print(oscil.settings)
 
-        data = oscil.get_timetrace()
+        data, preambleBlock = oscil.get_timetrace()
 
-        dt = Oscilloscope.time_base_to_nr3(oscil.settings['waveform']['timebase'], oscil.settings['waveform']['timebase_unit'])
-        print('dft', float(dt))
-        print('len', len(data))
+        dt = preambleBlock['dt']
+        time = dt*np.arange(len(data))
         print('data', data)
-        plt.plot(data, '-x')
+        plt.plot(time, data, '-x')
 
         plt.show()
