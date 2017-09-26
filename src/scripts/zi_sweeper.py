@@ -141,11 +141,11 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
             last_progress = new_progress
 
             self.progress = float(100.*(self.sweeper.progress()+loopcount) / N_loops)
-            self.sweeper.finished
+            # self.sweeper.finished
             data = self.sweeper.read(True)# True: flattened dictionary
 
             #  ensures that first point has completed before attempting to read data
-            if path not in data:
+            if (path not in data) or not (data[path][0]):
                 continue
 
             data = data[path][0][0] # the data is nested, we remove the outer brackets with [0][0]
@@ -171,7 +171,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
 
 
 
-    def _plot(self, axes_list, data = None):
+    def _plot(self, axes_list, data = None, trace_only = False):
         """
         plots the zi instrument frequency sweep
 
@@ -203,15 +203,16 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
 
         # axes.set_xlim([min(freq), max(freq)])
         axes.set_ylim([min(r), max(r)])
-        axes.set_ylabel('amplitude (??)')
+        axes.set_ylabel('amplitude (Vrms)')
 
         # plot phase
-        axes = axes_list[1]
-        axes.hold(False)
-        plot_psd(freq, phase, axes, x_scaling=x_scaling, y_scaling='lin')
-        # axes.set_xlim([min(freq), max(freq)])
-        axes.set_ylim([min(phase), max(phase)])
-        axes.set_ylabel('phase (rad)')
+        if not trace_only:
+            axes = axes_list[1]
+            axes.hold(False)
+            plot_psd(freq, phase, axes, x_scaling=x_scaling, y_scaling='lin')
+            # axes.set_xlim([min(freq), max(freq)])
+            axes.set_ylim([min(phase), max(phase)])
+            axes.set_ylabel('phase (rad)')
 
 
 if __name__ == '__main__':
