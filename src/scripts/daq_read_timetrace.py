@@ -172,15 +172,15 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         # clean up APD tasks
         self.instruments['daq']['instance'].stop(task)
 
-    #
-    # def _plot(self, axes_list, data = None):
-    #     # COMMENT_ME
-    #
-    #     if data is None:
-    #         data = self.data
-    #
-    #     axes_list[0].hold(False)
-    #
-    #     if data:
-    #         # plot_1d_simple_timetrace_ns(axes_list[0], self.data['times'][0:len(data['voltages'])], np.array(data['voltages']))
-    #         axes_list[0].plot(data['voltages'])
+
+    def _plot(self, axes_list, data = None):
+        # COMMENT_ME
+
+        if data is None:
+            data = self.data
+
+        axes_list[0].hold(False)
+
+        if data:
+            # plot_1d_simple_timetrace_ns(axes_list[0], self.data['times'][0:len(data['voltages'])], np.array(data['voltages']))
+            axes_list[0].plot(data['voltages'])
