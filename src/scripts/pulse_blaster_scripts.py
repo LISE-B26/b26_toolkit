@@ -21,7 +21,9 @@ from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseSc
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_esr, plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from PyLabControl.src.core import Parameter, Script
+from PyLabControl.src.scripts import SelectPoints
 from b26_toolkit.src.data_processing.fit_functions import fit_rabi_decay, cose_with_decay, fit_exp_decay, exp_offset
+from b26_toolkit.src.scripts import ESR
 
 class PulsedESR_double_init(PulseBlasterBaseScript): # ER 20170616 - wrote for symmetry between 0 and -1 state
     """
@@ -3121,6 +3123,55 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
         else:
             super(T1_single_init, self)._plot(axislist)
             axislist[0].set_title('T1 decay of ms = 0 population')
+
+
+class T1_double_init_many_NVs():
+    _DEFAULT_SETTINGS = [
+        Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
+    ]
+    _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi_double_init, 'T1': T1_double_init}
+
+
+    def _function(self):
+        for num, nv_loc in enumerate(SelectPoints.data['nv_locations']):
+            find_NV = self.scripts['T1'].scripts['find_nv']
+            find_NV.settings['initial_point']['x'] = nv_loc[0]
+            find_NV.settings['initial_point']['y'] = nv_loc[1]
+            find_NV.run()
+            self.scripts['ESR'].run()
+            fit_params = self.scripts['ESR'].data['fit_params']
+            if fit_params is None:
+                continue
+            if len(fit_params) == 4:
+                freqs = [fit_params[2]]
+            elif len(fit_params == 6):
+                if self.settings['esr_peak'] == 'lower':
+                    freqs = [fit_params[4]]
+                elif self.settings['esr_peak'] == 'upper':
+                    freqs = [fit_params[5]]
+                elif self.settings['esr_peak'] == 'both':
+                    freqs = [fit_params[4], fit_params[5]]
+            for freq in freqs:
+                rabi = self.scripts['Rabi']
+                rabi.settings['mw_pulses']['mw_frquency'] = freq
+                rabi.run()
+                rabi_fit = rabi.data['fits']
+                if rabi_fit is None:
+                    continue
+                pi_time = (np.pi - rabi_fit[2])/rabi_fit[1]
+                T1 = self.scripts['T1']
+                T1.settings['mw_pulse']['pi_time'] = pi_time
+                T1.settings['tag'] = T1.settings['tag'] + '_NV' + str(num) + '_' + str(freq) + 'Hz'
+                T1.run()
+
+    def plot(self, figure_list):
+        if self._current_subscript_stage is not None:
+            if self._current_subscript_stage['current_subscript'] is not None:
+                self._current_subscript_stage['current_subscript'].plot(figure_list)
+
+
+
+
 
 if __name__ == '__main__':
     script = {}
