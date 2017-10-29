@@ -47,6 +47,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         Parameter('use_current_z_axis_position', False, bool, 'Overrides z axis center position and instead uses the current piezo voltage as the center of the range'),
         Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in take_image'),
         Parameter('galvo_return_to_initial', False, bool, 'Check to return galvo location to initial value (before calling autofocus)'),
+        Parameter('reverse_scan', False, bool, 'If true, scans from highest value to lowest')
         # Parameter('galvo_position', 'take_image_pta', ['take_image', 'current_location', 'last_run'], 'select galvo location (center point in acquire_image, current location of galvo or location from previous run)')
     ]
 
@@ -174,6 +175,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         max_voltage = self.settings['z_axis_center_position'] + self.settings['scan_width']/2.0
 
         sweep_voltages = np.linspace(min_voltage, max_voltage, self.settings['num_sweep_points'])
+        if self.settings['reverse_scan']:
+            sweep_voltages = sweep_voltages[::-1]
 
 
         self.data['sweep_voltages'] = sweep_voltages
@@ -185,12 +188,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         autofocus_loop(sweep_voltages)
 
-
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
 
         self.log('autofocus fit result: {:s} V'.format(str(piezo_voltage)))
 
-        self._step_piezo(piezo_voltage, self.settings['wait_time'])
+        # self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
         if self.settings['galvo_return_to_initial']:
             self._set_galvo_location(daq_pt)
@@ -522,6 +524,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
         try:
             z_driver.position = float(position)
         except ValueError:
+            raise
             self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
         time.sleep(wait_time)
 
@@ -770,9 +773,9 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
 
-class AutoFocusTwoPointsFR(AutoFocusDAQ):
+class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
     _INSTRUMENTS = {
-        'z_piezo': PiezoController,
+        'z_driver': SMC100,
         'filter_wheel': MaestroLightControl
     }
 
@@ -851,8 +854,8 @@ class AutoFocusTwoPointsFR(AutoFocusDAQ):
                 self.updateProgress.emit(self.progress if self.progress < 100 else 99)
 
         #update piezo settings
-        if self.settings['use_current_z_axis_position']:
-            self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
+        # if self.settings['use_current_z_axis_position']:
+        #     self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
 
         if self.settings['save'] or self.settings['save_images']:
             self.filename_image = '{:s}\\image'.format(self.filename())
@@ -993,17 +996,6 @@ class AutoFocusTwoPointsFR(AutoFocusDAQ):
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
 
-    def _step_piezo(self, voltage, wait_time):
-        """
-        steps the piezo.  Has to be overwritten specifically for each different hardware realization
-        voltage: target piezo voltage
-        wait_time: settle time after voltage step
-        """
-        z_piezo = self.instruments['z_piezo']['instance']
-        # set the voltage on the piezo
-        z_piezo.voltage = float(voltage)
-        time.sleep(wait_time)
-
 if __name__ == '__main__':
 
 
@@ -1056,7 +1048,7 @@ if __name__ == '__main__':
     # af = AutoFocusNIFPGA(scripts=scripts)
     # print(af)
 
-    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusTwoPoints})
+    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusTwoPointsFR})
     print('===++++++===========++++++===========++++++========')
     print(scripts)
     print('===++++++===========++++++===========++++++========')

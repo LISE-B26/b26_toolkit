@@ -104,40 +104,77 @@ class MagnetCoils(NI9263):
         #                         ]
         #                         )
         #           ]),
+        # Parameter('field_calibration',
+        #           [
+        #               Parameter('x_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .736, float,
+        #                                       'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', 65.6, float, 'x field in Gauss at max input voltage'),
+        #                             Parameter('y_field_max', .8, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', -22.8, float, 'z field at max input voltage'),
+        #                             Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+        #                         ]
+        #                         ),
+        #               Parameter('y_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .556, float,
+        #                                       'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', -11.4, float, 'x field at max input voltage'),
+        #                             Parameter('y_field_max', -48.0, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', -15.8, float, 'z field at max input voltage'),
+        #                             Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+        #                         ]
+        #                         ),
+        #               Parameter('z_coil',
+        #                         [
+        #                             Parameter('voltage_at_max_field', .49, float,
+        #                                       'input voltage corresponding to max field'),
+        #                             Parameter('x_field_max', 3.8, float, 'x field at max input voltage'),
+        #                             Parameter('y_field_max', -11.2, float, 'y field at max input voltage'),
+        #                             Parameter('z_field_max', 95.4, float, 'z field at max input voltage'),
+        #                             Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+        #                         ]
+        #                         )
+        #           ]),
         Parameter('field_calibration',
                   [
                       Parameter('x_coil',
                                 [
                                     Parameter('voltage_at_max_field', .736, float,
                                               'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 65.6, float, 'x field in Gauss at max input voltage'),
-                                    Parameter('y_field_max', .8, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -22.8, float, 'z field at max input voltage'),
-                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+                                    Parameter('x_field_max', 0, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 0, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 0, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool,
+                                              'if true, signs of the field as defined above above are flipped')
                                 ]
                                 ),
                       Parameter('y_coil',
                                 [
                                     Parameter('voltage_at_max_field', .556, float,
                                               'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', -11.4, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', -48.0, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', -15.8, float, 'z field at max input voltage'),
-                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+                                    Parameter('x_field_max', 0, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 0, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 0, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool,
+                                              'if true, signs of the field as defined above above are flipped')
                                 ]
                                 ),
                       Parameter('z_coil',
                                 [
-                                    Parameter('voltage_at_max_field', .49, float,
+                                    Parameter('voltage_at_max_field', .408, float,
                                               'input voltage corresponding to max field'),
-                                    Parameter('x_field_max', 3.8, float, 'x field at max input voltage'),
-                                    Parameter('y_field_max', -11.2, float, 'y field at max input voltage'),
-                                    Parameter('z_field_max', 95.4, float, 'z field at max input voltage'),
-                                    Parameter('flip_polarity', False, bool, 'if true, signs of the field as defined above above are flipped')
+                                    Parameter('x_field_max', 0, float, 'x field at max input voltage'),
+                                    Parameter('y_field_max', 0, float, 'y field at max input voltage'),
+                                    Parameter('z_field_max', 152.88, float, 'z field at max input voltage'),
+                                    Parameter('flip_polarity', False, bool,
+                                              'if true, signs of the field as defined above above are flipped')
                                 ]
                                 )
                   ]),
-        Parameter('use_approximate_fields', True, bool, 'if out of bounds fields given, uses closest allowed fields')
+        Parameter('use_approximate_fields', True, bool, 'if out of bounds fields given, uses closest allowed fields'),
+        Parameter('magnetic fields input type', 'Gauss', ['Gauss, Volts'])
     ])
 
     def update(self, settings):
@@ -177,7 +214,7 @@ class MagnetCoils(NI9263):
         Returns: conversion matrix to map from V to B, and its inverse to map from B to V
 
         """
-        polarity = {'x:': 1, 'y': 1, 'z': 1}
+        polarity = {'x': 1, 'y': 1, 'z': 1}
         if self.settings['field_calibration']['x_coil']['flip_polarity']:
             polarity['x'] = -1
         if self.settings['field_calibration']['y_coil']['flip_polarity']:

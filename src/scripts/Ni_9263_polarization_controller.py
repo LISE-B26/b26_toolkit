@@ -44,7 +44,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
             Parameter('channel_WP_2', 'NI9263_ao1', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 2'),
             Parameter('channel_WP_3', 'NI9263_ao2', ['NI9263_ao0', 'NI9263_ao1', 'NI9263_ao2'], 'analog channel that controls waveplate 3'),
             # Parameter('channel_OnOff', 'NI6259_do8', ['NI6259_do8'], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_OnOff', 'NI6259_ao3', ['NI6259_ao3'], 'analog channel that turns polarization controller on/off'),
+            Parameter('channel_OnOff', 'NI9263_ao3', ['NI9263_ao3'], 'analog channel that turns polarization controller on/off'),
             Parameter('channel_detector', 'NI6259_ai0', ['NI6259_ai0'], 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
@@ -127,7 +127,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
         slope = 1 if self.settings['optimization']['slope'] == 'positive' else -1
 
         # get the channels
-        control_channel = self.settings['channels']['channel_OnOff'].split('NI6259_')[1]
+        print(self.settings['channels']['channel_OnOff'])
+        control_channel = self.settings['channels']['channel_OnOff'].split('NI9263_')[1]
         channel_out = self.settings['channels']['channel_WP_{:d}'.format(wp_control)].split('NI9263_')[1]
         channel_in = self.settings['channels']['channel_detector'].split('NI6259_')[1]
 

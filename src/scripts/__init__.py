@@ -21,7 +21,7 @@ try:
 except Exception:
     pass
 
-from galvo_scan_v2 import GalvoScan
+from galvo_scan_v2_legacy import GalvoScan
 from set_laser import SetLaser
 from find_nv import FindNV
 from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC, AutoFocusTwoPointsFR
@@ -38,7 +38,7 @@ from zi_high_res_sweep import ZISweeperHighResolution
 
 from atto_scan import AttoStep
 
-from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY4, T1SpinFlip, PulsedESR,PulsedESRSlow, Rabi_double_init, HahnEcho_double_init, PulsedESR_double_init, CPMG_double_init, XY8_double_init
+from pulse_blaster_scripts import XY8, T1, Rabi, CalibrateMeasurementWindow, PDD, XY4, T1SpinFlip, PulsedESR,PulsedESRSlow, Rabi_double_init, HahnEcho_double_init, PulsedESR_double_init, CPMG_double_init, XY8_double_init, readout_double_init, readout_T_double_init, T1_single_init, T1_double_init
 from esr_and_rabi import ESRAndRabi
 from keysight_get_spectrum import KeysightGetSpectrum
 
@@ -54,9 +54,9 @@ from ni_fpga_galvo_scan import FPGA_GalvoScan
 
 from record_pressures import RecordPressures
 
-from set_magnetic_coils import SetMagneticCoils
+# from set_magnetic_coils import SetMagneticCoils # 170909 JG: commented out because of assertion error upon loading
 
-from align_magnetic_field_to_NV import AlignFieldToNV
+# from align_magnetic_field_to_NV import AlignFieldToNV# 170909 JG: commented out because of assertion error upon loading
 
 from Ni_9263_polarization_controller import Ni9263_BalancePolarization
 
@@ -73,8 +73,11 @@ from daq_simple_piezosweep import SimplePiezoSweep
 
 
 from keysight_osci_get_timetrace import KeysightOsciGetTimeTrace
-from galvo_scan_osci import GalvoScaOsci
+from galvo_scan_osci import GalvoScanOsci
+from galvo_scan_ZI import GalvoScanZI
+from galvo_scan_ZI_3D import GalvoScanZI3D
 
+from daq_read_timetrace import DAQ_Timetrace
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
 

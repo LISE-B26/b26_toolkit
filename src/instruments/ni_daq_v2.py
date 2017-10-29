@@ -562,7 +562,7 @@ class DAQ(Instrument):
 
         return task_name
 
-    def setup_AI(self, channel, num_samples_to_acquire):
+    def setup_AI(self, channel, num_samples_to_acquire, continuous = False):
         """
         Initializes an input channel to read on
         Args:
@@ -580,6 +580,9 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('ai', task)
 
+        channel_list = ''
+        channel_list += self.settings['device'] + '/' + channel + ','
+
         if 'analog_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
@@ -587,13 +590,19 @@ class DAQ(Instrument):
         data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
         # now, on with the program
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
-        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], self.settings['device'], "",
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
                                                               DAQmx_Val_Cfg_Default,
                                                               float64(-10.0), float64(10.0),
                                                               DAQmx_Val_Volts, None))
-        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+        if not continuous:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
                                                            self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
+                                                           uInt64(task['sample_num'])))
+        else:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+                                                            self.settings['analog_input'][channel]['sample_rate']),
+                                                           DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                            uInt64(task['sample_num'])))
 
         return task_name
@@ -671,7 +680,7 @@ class DAQ(Instrument):
         data = (float64 * task['sample_num'])()
         samples_per_channel_read = int32()
         self._check_error(self.nidaq.DAQmxReadAnalogF64(task['task_handle'], task['sample_num'], float64(10.0),
-                                                        DAQmx_Val_GroupByChannel, data.ctypes.data,
+                                                        DAQmx_Val_GroupByChannel, ctypes.byref(data),
                                                         task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
         return data, samples_per_channel_read
@@ -988,7 +997,7 @@ class NI9263(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ9188-1BFB6F2Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9188-1BFB6F2Mod1', 'cDAQ9184-1BA7633Mod1'],
+        Parameter('device', 'cDAQ9184-1BA7633Mod3', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9188-1BFB6F2Mod1', 'cDAQ9184-1BA7633Mod1'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),

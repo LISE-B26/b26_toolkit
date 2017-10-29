@@ -17,7 +17,7 @@
 """
 
 import numpy as np
-
+import time
 from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
@@ -140,10 +140,10 @@ class GalvoScanGeneric(Script):
                     print('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress))
 
                     self.updateProgress.emit(int(self.progress))
-                    
+
                 # fill the rest of the array with the mean of the data up to now (otherwise it's zero and the data is not visible in the plot)
                 if yNum<Ny:
-                    self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :])
+                    self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :].flatten())
 
         #set point after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':
@@ -388,5 +388,5 @@ if __name__ == '__main__':
     #
     print(script)
     print(failed)
-    # # print(instruments)
+# # print(instruments)
 
