@@ -29,7 +29,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM3', str, 'serial port on which to connect'),
+        Parameter('port', 'COM15', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -151,7 +151,10 @@ class PiezoController(Instrument):
         # * and ! are values returned by controller on success or failure respectively
         #if(successCheck[0] == '*'):
         #    print('Voltage set')
-        if successCheck[0] == '!':
+        if len(successCheck) == 0:
+            message = 'Something went wrong --- check that you are using the right port!'
+            raise ValueError(message)
+        elif successCheck[0] == '!':
             message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
             raise ValueError(message)
 
@@ -285,4 +288,6 @@ class MDT693A(Instrument):
             raise ValueError(message)
 
 if __name__ == '__main__':
-    a = PiezoController('hi')
+    a = PiezoController('hi', settings={'port':'COM15'})
+ #   a.axis = 'y'
+    a.voltage = 45.5

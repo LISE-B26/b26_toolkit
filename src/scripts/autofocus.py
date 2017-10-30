@@ -165,10 +165,10 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         else:
             self.filename_image = None
 
-        daq_pt = self._get_galvo_location()
+        # daq_pt = self._get_galvo_location()
 
-        if self.settings['center_on_current_location']:
-            self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
+        # if self.settings['center_on_current_location']:
+        #     self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
 
         min_voltage = self.settings['z_axis_center_position'] - self.settings['scan_width']/2.0
         max_voltage = self.settings['z_axis_center_position'] + self.settings['scan_width']/2.0
@@ -192,8 +192,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
-        if self.settings['galvo_return_to_initial']:
-            self._set_galvo_location(daq_pt)
+        # if self.settings['galvo_return_to_initial']:
+        #     self._set_galvo_location(daq_pt)
 
     def init_image(self):
         """
@@ -530,6 +530,18 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
         if self.settings['use_current_z_axis_position']:
             self.settings['z_axis_center_position'] = self.instruments['z_driver']['instance'].read_probes('position')
         AutoFocusGeneric._function(self)
+
+class AutoFocusDAQWarm(AutoFocusDAQ):
+    """
+Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
+            is focused.
+    """
+
+    # _DEFAULT_SETTINGS = []
+
+    _INSTRUMENTS = {
+        'z_piezo': PiezoController
+    }
 
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """

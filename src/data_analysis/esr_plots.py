@@ -146,7 +146,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
     subset = df[df['NV type'] == 'split']
     for i, j, n in zip(subset['xo'], subset['yo'], subset.index):
         corr = +0.005  # adds a little correction to put annotation in marker's centrum
-        ax0.annotate(str(n), xy=(i + corr, j + corr), fontsize=8, color='w')
+        ax0.annotate(str(n), xy=(i + corr, j + corr), fontsize=4, color='w')
     ax0.set_xlabel('x (V)')
     ax0.set_ylabel('y (V)')
 
@@ -171,7 +171,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
     subset = df[df['NV type'] == 'single']
     for i, j, n in zip(subset['xo'], subset['yo'], subset.index):
         corr = +0.005  # adds a little correction to put annotation in marker's centrum
-        ax0.annotate(str(n), xy=(i + corr, j + corr), fontsize=8, color='w')
+        ax0.annotate(str(n), xy=(i + corr, j + corr), fontsize=4, color='w')
 
     subset = df[df['NV type'] == 'single']
     subset_dict = {'xo': [], 'yo': [], 'B-field (gauss)': [], 'index': []}
@@ -236,7 +236,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
               pad_inches=0)
 
 
-def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_location = 'upper right', bbox_to_anchor = (1,1), scatter_plot_axis = 'x', line_points_array = None):
+def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_location = 'upper right', bbox_to_anchor = (1,1), scatter_plot_axis = 'x', line_points_array = None, transformation_matrix = None):
     """
     Creates, plots, and saves two plots of NV data. The first is a plot of the fluoresence image, with a tag on each NV
     indicating whether it is split or unsplit. The second is a plot of the magnitude of the splitting and associated
@@ -288,6 +288,7 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
     if line_points_array is None:
         line_points_array = np.repeat(0,len(folders))
 
+    folder_num = 0
     for folder, label, line_points in zip(folders, labels, line_points_array):
         # load the fit_data
         if manual:
@@ -319,17 +320,31 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
         # ax0.set_xlabel('x (V)')
         # ax0.set_ylabel('y (V)')
 
-        # plot the fields on a 1D plot
         subset = df[df['NV type'] == 'split']
+
+        if transformation_matrix is None or folder_num == 0:
+            nv_xs = subset['xo']
+            nv_ys = subset['yo']
+        else:
+            if folder_num >= 0:
+                nv_coors = list()
+                coordinates = zip(subset['xo'], subset['yo'])
+                for c in coordinates:
+                    c3 = [c[0], c[1], 1]
+                    c3_trans = np.dot(transformation_matrix,c3)
+                    nv_coors.append([c3_trans[0], c3_trans[1]])
+                    nv_xs, nv_ys = zip(*nv_coors)
+
+        # plot the fields on a 1D plot
         if scatter_plot_axis == 'x':
-            x_coor = subset['xo']
+            x_coor = nv_xs
         elif scatter_plot_axis == 'y':
-            x_coor = subset['yo']
+            x_coor = nv_ys
         elif scatter_plot_axis == 'line':
             pt1 = line_points[0]
             pt2 = line_points[1]
             x_coor = []
-            for x,y in zip(subset['xo'], subset['yo']):
+            for x,y in zip(nv_xs, nv_ys):
                 x_coor.append(distance_point_to_line([x,y], pt1, pt2))
         prev_plot = ax1.plot(x_coor, subset['B-field (gauss)'] / freq_to_mag * 1e-6, 'o', label = label)
 
@@ -374,6 +389,8 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
             corr = 0.0005  # adds a little correction to put annotation in marker's centrum
             ax1.annotate(str(n), xy=(i + corr, j + corr))
 
+        folder_num += 1
+
     ax1.set_title('ESR Splittings')
     if scatter_plot_axis == 'x':
         ax1.set_xlabel('x coordinate (V)')
@@ -399,8 +416,8 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
 
     # f.set_tight_layout(True)
 
-    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))))
+    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))))
 
-    f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))),
+    f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))),
               bbox_inches='tight',
               pad_inches=0)

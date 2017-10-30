@@ -147,6 +147,7 @@ class GalvoScanGeneric(Script):
 
         """
         raise NotImplementedError
+
     @staticmethod
     def pts_to_extent(pta, ptb, roi_mode):
         """

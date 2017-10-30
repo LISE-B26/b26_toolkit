@@ -745,8 +745,7 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-        print('self.settings in get_analog_voltages:')
-        print(self.settings)
+
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:
@@ -988,7 +987,7 @@ class NI9263(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ9188-1BFB6F2Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9188-1BFB6F2Mod1', 'cDAQ9184-1BA7633Mod1'],
+        Parameter('device', 'cDAQ1Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
@@ -1036,7 +1035,7 @@ class NI9402(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ9188-1BFB6F2', ['cDAQ9188-1BFB6F2', 'cDAQ9184-1BA7633'], 'Name of DAQ device - check in NiMax'),
+        Parameter('device', 'cDAQ1', ['cDAQ1', 'cDAQ9184-1BA7633'], 'Name of DAQ device - check in NiMax'),
         Parameter('module', 'Mod2', ['Mod1', 'Mod2', 'Mod3', 'Mod4', 'Mod5', 'Mod6', 'Mod7', 'Mod8']),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),

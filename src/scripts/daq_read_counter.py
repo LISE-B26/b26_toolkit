@@ -19,7 +19,7 @@
 import time
 from collections import deque
 
-from b26_toolkit.src.instruments import NI6259
+from b26_toolkit.src.instruments import NI9402
 from b26_toolkit.src.plotting.plots_1d import plot_counts
 from PyLabControl.src.core import Parameter, Script
 
@@ -33,7 +33,7 @@ This script reads the Counter input from the DAQ and plots it.
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
     ]
 
-    _INSTRUMENTS = {'daq': NI6259}
+    _INSTRUMENTS = {'daq': NI9402}
 
     _SCRIPTS = {
 

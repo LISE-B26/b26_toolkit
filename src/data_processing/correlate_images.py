@@ -78,8 +78,10 @@ def find_image_shift(reference_image, reference_image_extent, shifted_image, shi
     dy_pixel, dx_pixel = np.unravel_index(np.argmax(correlation_image), correlation_image.shape) - np.array(correlation_image.shape)/2
 
     #convert, including one pixel shift from above processing
-    dx_voltage = -1.0 * ref_img_pix2vol[0] * (dx_pixel - 1) - (np.mean(reference_image_extent[0:2]) - np.mean(shifted_image_extent[0:2]))
-    dy_voltage = -1.0 * ref_img_pix2vol[1] * (dy_pixel - 1) - (np.mean(reference_image_extent[2:4]) - np.mean(shifted_image_extent[2:4]))
+    # dx_voltage = -1.0 * ref_img_pix2vol[0] * (dx_pixel - 1) - (np.mean(reference_image_extent[0:2]) - np.mean(shifted_image_extent[0:2]))
+    # dy_voltage = -1.0 * ref_img_pix2vol[1] * (dy_pixel - 1) - (np.mean(reference_image_extent[2:4]) - np.mean(shifted_image_extent[2:4]))
+    dx_voltage = -1.0 * ref_img_pix2vol[0] * (dx_pixel) - (np.mean(reference_image_extent[0:2]) - np.mean(shifted_image_extent[0:2]))
+    dy_voltage = -1.0 * ref_img_pix2vol[1] * (dy_pixel) - (np.mean(reference_image_extent[2:4]) - np.mean(shifted_image_extent[2:4]))
     return dx_voltage, dy_voltage, correlation_image
 
 def pixel_to_voltage_conversion_factor(image_shape, image_extent):

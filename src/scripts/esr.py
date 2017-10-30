@@ -46,7 +46,12 @@ class ESR(Script):
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true normalize each frequency sweep by the average counts. This should be renamed at some point because now we dont take additional data for the reference.'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
-        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('fit_constants',
+                  [
+                      Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
+                      Parameter('contrast_factor', 1.5, float, 'minimum contrast for an ESR to not be considered noise')
+                  ])
     ]
 
     _INSTRUMENTS = {
@@ -228,7 +233,8 @@ class ESR(Script):
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)] , axis=0)
 
-            fit_params = fit_esr(freq_values, esr_avg)
+            fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['min_counts'],
+                                 contrast_factor=self.settings['fit_constants']['contrast_factor'])
             self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
 
 

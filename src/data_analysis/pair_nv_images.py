@@ -130,6 +130,7 @@ def perform_affine_transform(img_path_old, img_path_new, done_queue, return_queu
 
     Avec = calc_transform_matrix((pt11, pt12, pt13), (pt21, pt22, pt23))
     Amat = [[Avec[0], Avec[1], Avec[2]], [Avec[3], Avec[4], Avec[5]], [0, 0, 1]]
+    print(Amat)
 
     shifted_nv_pts_old = []
 
