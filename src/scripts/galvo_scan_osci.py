@@ -6,7 +6,7 @@ from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluo
 from b26_toolkit.src.plotting.plots_1d import plot_psd
 from PyLabControl.src.data_processing.signal_processing import power_spectral_density
 
-class GalvoScaOsci(GalvoScanGeneric):
+class GalvoScanOsci(GalvoScanGeneric):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
     resulting in an image in the current field of view of the objective.
@@ -117,7 +117,7 @@ class GalvoScaOsci(GalvoScanGeneric):
         last_data = self.data['point_data'][-1]
         dt = self.data['meta_data']['xincrement']
         freq, psd = power_spectral_density(last_data, dt)
-        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='lin')
+        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
 
 
     def _update_plot(self, axes_list):
@@ -126,7 +126,6 @@ class GalvoScaOsci(GalvoScanGeneric):
         Args:
             axes_list: list of axes objects on which to plot plots the esr on the first axes object
         """
-
         print('axes list lenght update', len(axes_list))
 
         update_fluorescence(self.data['image_data'], axes_list[0])
@@ -134,7 +133,8 @@ class GalvoScaOsci(GalvoScanGeneric):
         last_data = self.data['point_data'][-1]
         dt = self.data['meta_data']['xincrement']
         freq, psd = power_spectral_density(last_data, dt)
-        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='lin')
+        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+        axes_list[1].hold(False)
 
 
     def get_axes_layout(self, figure_list):

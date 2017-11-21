@@ -25,7 +25,7 @@ from pulse_blaster import B26PulseBlaster, Pulse
 from maestro import MaestroLightControl
 from attocube import Attocube
 from microwave_generator import MicrowaveGenerator
-from magnet_coils import MagnetCoils
+# from magnet_coils import MagnetCoils #JG 170909: commented out because Assertino erro upon loading
 from temperature_controller import TemperatureController
 from montana import CryoStation
 from labview_fpga import NI7845RMain

@@ -13,7 +13,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
@@ -33,7 +33,7 @@ This script takes a high resolution frequency sweep with the Zurich Instrument H
 First it acquires a sweep over a larger frequecy range. Then it finds the maximum signal and performs a second sweep with high resolution around that maximum.
     """
     _DEFAULT_SETTINGS = [
-        Parameter('high_res_df', 1000, float, 'frequency step of high res. scan'),
+        Parameter('high_res_df', 1000, float, 'frequency step of high res. scan (Hz)'),
         Parameter('high_res_N', 21, int, 'number of data points of high res. scan'),
     ]
 

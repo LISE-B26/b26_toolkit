@@ -345,8 +345,8 @@ for a given experiment
 
             """
             if not 'mw_switch_extra_time' in self.settings.keys():
-                #default to a 40 ns buffer
-                mw_switch_time = 40
+                #default to a 50 ns buffer
+                mw_switch_time = 50
             for sequence in pulse_sequences:
                 mw_switch_pulses = []
                 # add a switch pulse for each microwave pulse

@@ -34,22 +34,18 @@ from PyLabControl.src.core import Parameter, Instrument
 # makes each dll, corresponding to a namespace, avaliable to python at runtime
 clr.AddReference('ThorLabs.MotionControl.DeviceManagerCLI')
 clr.AddReference('Thorlabs.MotionControl.TCube.DCServoCLI')
+clr.AddReference('Thorlabs.MotionControl.KCube.DCServoCLI')
 clr.AddReference('System')
 
 # imports classes from the namespaces. All read as unresolved references because python doesn't know about the dlls
 # until runtime
 from Thorlabs.MotionControl.DeviceManagerCLI import DeviceManagerCLI
 from Thorlabs.MotionControl.TCube.DCServoCLI import TCubeDCServo
+from Thorlabs.MotionControl.TCube.DCServoCLI import KCubeDCServo
 # adds .NET stuctures corresponding to primitives
 from System import Decimal, Double
 
-class TDC001(Instrument):
-    '''
-    Class to control the thorlabs TDC001 servo. Note that ALL DLL FUNCTIONS TAKING NUMERIC INPUT REQUIRE A SYSTEM.DECIMAL
-    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api.
-    The class communicates with the device over USB.
-    '''
-
+class ThorlabsServo(Instrument):
     _DEFAULT_SETTINGS = Parameter([
         Parameter('serial_number', 83832028, int, 'serial number written on device'),
         Parameter('position', 0, float, 'servo position (from 0 to 6 in mm)'),
@@ -57,38 +53,7 @@ class TDC001(Instrument):
     ])
 
     def __init__(self, name = None, settings = None):
-        super(TDC001, self).__init__(name, settings)
-        try:
-            DeviceManagerCLI.BuildDeviceList()
-            serial_number_list = DeviceManagerCLI.GetDeviceList(TCubeDCServo.DevicePrefix)
-        except (Exception):
-            print("Exception raised by BuildDeviceList")
-        if not (str(self.settings['serial_number']) in serial_number_list):
-            print(str(self.settings['serial_number']) + " is not a valid serial number")
-            raise
-
-        self.device = TCubeDCServo.CreateTCubeDCServo(str(self.settings['serial_number']))
-        if(self.device == None):
-            print(self.settings['serial_number'] + " is not a TCubeDCServo")
-            raise
-
-        try:
-            self.device.Connect(str(self.settings['serial_number']))
-        except Exception:
-            print('Failed to open device ' + str(self.settings['serial_number']))
-            raise
-
-        if not self.device.IsSettingsInitialized():
-            try:
-                self.device.WaitForSettingsInitialized(5000)
-            except Exception:
-                print("Settings failed to initialize")
-                raise
-
-        self.device.StartPolling(250)
-
-        motorSettings = self.device.GetMotorConfiguration(str(self.settings['serial_number']))
-        currentDeviceSettings = self.device.MotorDeviceSettings
+        raise NotImplementedError
 
     def update(self, settings):
         '''
@@ -96,7 +61,7 @@ class TDC001(Instrument):
         Args:
             settings: A dictionary in the form of settings as seen in default settings
         '''
-        super(TDC001, self).update(settings)
+        super(ThorlabsServo, self).update(settings)
         for key, value in settings.iteritems():
             if key == 'position':
                 self._move_servo(value)
@@ -123,7 +88,7 @@ class TDC001(Instrument):
     @property
     def is_connected(self):
         DeviceManagerCLI.BuildDeviceList()
-        return(str(self.settings['serial_number']) in DeviceManagerCLI.GetDeviceList(TCubeDCServo.DevicePrefix))
+        return(str(self.settings['serial_number']) in DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix))
 
     def __del__(self):
         '''
@@ -201,6 +166,91 @@ class TDC001(Instrument):
         :return: the input as a python float
         '''
         return float(str(value))
+
+class TDC001(ThorlabsServo):
+    '''
+    Class to control the thorlabs TDC001 servo. Note that ALL DLL FUNCTIONS TAKING NUMERIC INPUT REQUIRE A SYSTEM.DECIMAL
+    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api.
+    The class communicates with the device over USB.
+    '''
+
+    def __init__(self, name = None, settings = None):
+        super(ThorlabsServo, self).__init__(name, settings)
+        self.Servo = TCubeDCServo
+        try:
+            DeviceManagerCLI.BuildDeviceList()
+            serial_number_list = DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix)
+        except (Exception):
+            print("Exception raised by BuildDeviceList")
+        if not (str(self.settings['serial_number']) in serial_number_list):
+            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            raise
+
+        self.device = self.Servo.CreateTCubeDCServo(str(self.settings['serial_number']))
+        if(self.device == None):
+            print(self.settings['serial_number'] + " is not a TCubeDCServo")
+            raise
+
+        try:
+            self.device.Connect(str(self.settings['serial_number']))
+        except Exception:
+            print('Failed to open device ' + str(self.settings['serial_number']))
+            raise
+
+        if not self.device.IsSettingsInitialized():
+            try:
+                self.device.WaitForSettingsInitialized(5000)
+            except Exception:
+                print("Settings failed to initialize")
+                raise
+
+        self.device.StartPolling(250)
+
+        motorSettings = self.device.GetMotorConfiguration(str(self.settings['serial_number']))
+        currentDeviceSettings = self.device.MotorDeviceSettings
+
+class KDC001(ThorlabsServo):
+    '''
+    Class to control the thorlabs TDC001 servo. Note that ALL DLL FUNCTIONS TAKING NUMERIC INPUT REQUIRE A SYSTEM.DECIMAL
+    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api.
+    The class communicates with the device over USB.
+    '''
+
+    def __init__(self, name=None, settings=None):
+        super(ThorlabsServo, self).__init__(name, settings)
+        self.Servo = KCubeDCServo
+        try:
+            DeviceManagerCLI.BuildDeviceList()
+            serial_number_list = DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix)
+        except (Exception):
+            print("Exception raised by BuildDeviceList")
+        if not (str(self.settings['serial_number']) in serial_number_list):
+            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            raise
+
+        self.device = self.Servo.CreateKCubeDCServo(str(self.settings['serial_number']))
+        if (self.device == None):
+            print(self.settings['serial_number'] + " is not a TCubeDCServo")
+            raise
+
+        try:
+            self.device.Connect(str(self.settings['serial_number']))
+        except Exception:
+            print('Failed to open device ' + str(self.settings['serial_number']))
+            raise
+
+        if not self.device.IsSettingsInitialized():
+            try:
+                self.device.WaitForSettingsInitialized(5000)
+            except Exception:
+                print("Settings failed to initialize")
+                raise
+
+        self.device.StartPolling(250)
+
+        motorSettings = self.device.GetMotorConfiguration(str(self.settings['serial_number']))
+        currentDeviceSettings = self.device.MotorDeviceSettings
+
 
 if __name__ == '__main__':
     #A test function for the device. Tries to connect to the

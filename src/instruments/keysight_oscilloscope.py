@@ -48,9 +48,12 @@ class Oscilloscope(Instrument):
             Parameter('points', 10240, int, 'waveform length, max is 10240 (mode raw) or 600 (mode normal)'),
             Parameter('format', 'word', ['word', 'ascii', 'byte'], 'waveform format '),
             Parameter('channel', 1, [1, 2, 3, 4], 'channel from which to read the data'),
-            Parameter('timebase', 1, [1,2,5, 10, 20, 50, 100], 'timebase: units per devision'),
-            Parameter('timebase_unit', 's', ['ns', 'us','ms', 's'], 'timebase: units per devision'),
-            Parameter('vert_scale', '1E-1', ['2E-3', '5E-3', '1E-2', '2E-2', '5E-2', '1E-1', '2E-1', '5E-1'], 'vert_scale volts per division (2 mV to 10 V)'),
+            Parameter('timebase', 1, [1,2,5, 10, 20, 50, 100, 200, 500], 'timebase: units per devision'),
+            Parameter('timebase_unit', 'ms', ['ns', 'us','ms', 's'], 'timebase: units per devision'),
+            Parameter('vert_scale', '5E-2', ['2E-3', '5E-3', '1E-2', '2E-2', '5E-2', '1E-1', '2E-1', '5E-1'], 'vert_scale volts per division (2 mV to 10 V)'),
+            #Parameter('offset', 0.0, float, 'vertical scale off set in V'),
+            Parameter('offset', '-1E-2', ['-5E-1', '-2E-1', '-1E-1', '-5E-2', '-2E-2', '-1E-2', '-5E-3', '-2E-3', '2E-3', '5E-3', '1E-2', '2E-2', '5E-2', '1E-1', '2E-1', '5E-1'],
+                      'offset on channel in volts'),
             Parameter('probe', '1X', ['1X', '10X'], 'multipliation factor for y scale')
         ]),
         Parameter('trigger', [
@@ -121,9 +124,6 @@ class Oscilloscope(Instrument):
         """
         super(Oscilloscope, self).update(settings)
 
-
-
-
         if 'timebase' in settings:
             # self._wait_for_osci()
             # self._set_timebase(settings['timebase'])
@@ -146,8 +146,9 @@ class Oscilloscope(Instrument):
             self.osci.write(':WAV:FORMAT ' + waveform['format'].upper())
             self.osci.write(':WAV:SOURCE CHAN' + channel)
             self.osci.write(':TIM:SCAL ' + self.time_base_to_nr3(waveform['timebase'], waveform['timebase_unit']))
+            self.osci.write(':CHAN' + channel + ':PROB ' + waveform['probe']) #PROBE MUST BE SET BEFORE SCALE
             self.osci.write(':CHAN' + channel + ':SCAL ' + waveform['vert_scale'])
-            self.osci.write(':CHAN' + channel + ':PROB ' + waveform['probe'])
+            self.osci.write(':CHAN' + channel + ':OFFS ' + waveform['offset'])#'{:0.02e}'.format(waveform['offset']))
 
         if 'trigger' in settings:
             channel = str(settings['trigger']['channel'])

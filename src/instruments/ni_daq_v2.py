@@ -562,7 +562,7 @@ class DAQ(Instrument):
 
         return task_name
 
-    def setup_AI(self, channel, num_samples_to_acquire):
+    def setup_AI(self, channel, num_samples_to_acquire, continuous = False):
         """
         Initializes an input channel to read on
         Args:
@@ -580,6 +580,9 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('ai', task)
 
+        channel_list = ''
+        channel_list += self.settings['device'] + '/' + channel + ','
+
         if 'analog_input' not in self.settings.keys():
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
@@ -587,13 +590,19 @@ class DAQ(Instrument):
         data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
         # now, on with the program
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
-        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], self.settings['device'], "",
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
                                                               DAQmx_Val_Cfg_Default,
                                                               float64(-10.0), float64(10.0),
                                                               DAQmx_Val_Volts, None))
-        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+        if not continuous:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
                                                            self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
+                                                           uInt64(task['sample_num'])))
+        else:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+                                                            self.settings['analog_input'][channel]['sample_rate']),
+                                                           DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                            uInt64(task['sample_num'])))
 
         return task_name
@@ -745,7 +754,8 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-
+        print('self.settings in get_analog_voltages:')
+        print(self.settings)
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:

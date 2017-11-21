@@ -1148,7 +1148,6 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-
 class readout_T_double_init(PulseBlasterBaseScript):  # ER 10.21.2017
     """
 This script sweeps the readout pulse rise time. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
@@ -1749,8 +1748,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             next_pi_t =  start_of_second_CPMG + pi_half_time/2. + tau/2 - pi_time/2.
             counter = 0
             for ind in range(0, N):
-                print("counter take 2")
-                print(counter)
                 if counter == 0 or counter == 2 or counter == 5 or counter == 7:
                     pulse_sequence += [
                         Pulse(microwave_channel_pi2, next_pi_t, pi_time) # pulses along x
@@ -3124,20 +3121,22 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
             super(T1_single_init, self)._plot(axislist)
             axislist[0].set_title('T1 decay of ms = 0 population')
 
-
-class T1_double_init_many_NVs():
+class T1_double_init_many_NVs(Script):
     _DEFAULT_SETTINGS = [
         Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
     ]
+    _INSTRUMENTS = {}
     _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi_double_init, 'T1': T1_double_init}
 
-
     def _function(self):
-        for num, nv_loc in enumerate(SelectPoints.data['nv_locations']):
-            find_NV = self.scripts['T1'].scripts['find_nv']
-            find_NV.settings['initial_point']['x'] = nv_loc[0]
-            find_NV.settings['initial_point']['y'] = nv_loc[1]
-            find_NV.run()
+        for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
+            if self._abort:
+                break
+            find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
+            find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
+            find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
+            find_NV_rabi.run()
+            self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
             self.scripts['ESR'].run()
             fit_params = self.scripts['ESR'].data['fit_params']
             if fit_params is None:
@@ -3152,16 +3151,24 @@ class T1_double_init_many_NVs():
                 elif self.settings['esr_peak'] == 'both':
                     freqs = [fit_params[4], fit_params[5]]
             for freq in freqs:
+                if self._abort:
+                    break
                 rabi = self.scripts['Rabi']
-                rabi.settings['mw_pulses']['mw_frquency'] = freq
+                rabi.settings['tag'] = 'rabi_NV' + str(num)
+                rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
                 rabi.run()
                 rabi_fit = rabi.data['fits']
                 if rabi_fit is None:
                     continue
-                pi_time = (np.pi - rabi_fit[2])/rabi_fit[1]
+                pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
+                pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
+                find_NV_T1 = self.scripts['T1'].scripts['find_nv']
+                find_NV_T1.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
+                find_NV_T1.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
                 T1 = self.scripts['T1']
-                T1.settings['mw_pulse']['pi_time'] = pi_time
-                T1.settings['tag'] = T1.settings['tag'] + '_NV' + str(num) + '_' + str(freq) + 'Hz'
+                T1.settings['mw_pulse']['mw_frequency'] = float(freq)
+                T1.settings['mw_pulse']['pi_time'] = float(pi_time)
+                T1.settings['tag'] = 't1_' + '_NV' + str(num)
                 T1.run()
 
     def plot(self, figure_list):
@@ -3170,13 +3177,82 @@ class T1_double_init_many_NVs():
                 self._current_subscript_stage['current_subscript'].plot(figure_list)
 
 
+    def skip_next(self):
+        for script in self.scripts.itervalues():
+            script.stop()
+
+class HE_double_init_many_NVs(Script):
+    _DEFAULT_SETTINGS = [
+        Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
+    ]
+    _INSTRUMENTS = {}
+    _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi_double_init, 'HE': HahnEcho_double_init}
+
+    def _function(self):
+        for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
+            if self._abort:
+                break
+            find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
+            find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
+            find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
+            find_NV_rabi.run()
+            self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
+            self.scripts['ESR'].run()
+            fit_params = self.scripts['ESR'].data['fit_params']
+            if fit_params is None:
+                continue
+            if len(fit_params) == 4:
+                freqs = [fit_params[2]]
+            elif len(fit_params == 6):
+                if self.settings['esr_peak'] == 'lower':
+                    freqs = [fit_params[4]]
+                elif self.settings['esr_peak'] == 'upper':
+                    freqs = [fit_params[5]]
+                elif self.settings['esr_peak'] == 'both':
+                    freqs = [fit_params[4], fit_params[5]]
+            for freq in freqs:
+                if self._abort:
+                    break
+                print('running rabi')
+                rabi = self.scripts['Rabi']
+                rabi.settings['tag'] = 'rabi_NV' + str(num)
+                rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
+                print('about to run rabi')
+                rabi.run()
+                rabi_fit = rabi.data['fits']
+                if rabi_fit is None:
+                    continue
+                pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
+                pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
+                pi_half_time = min(max((np.pi / 2 - rabi_fit[2]) / rabi_fit[1], 15.), 300)
+                three_pi_half_time = min(max((3 * np.pi / 2 - rabi_fit[2]) / rabi_fit[1], 15.), 300)
+                find_NV_HE = self.scripts['HE'].scripts['find_nv']
+                find_NV_HE.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
+                find_NV_HE.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
+                HE = self.scripts['HE']
+                HE.settings['mw_pulses']['mw_frequency'] = float(freq)
+                HE.settings['mw_pulses']['pi_time'] = float(pi_time)
+                HE.settings['mw_pulses']['pi_half_time'] = float(pi_half_time)
+                HE.settings['mw_pulses']['3pi_half_time'] = float(three_pi_half_time)
+                HE.settings['tag'] = 'HE' + '_NV' + str(num)
+                HE.run()
+
+    def plot(self, figure_list):
+        if self._current_subscript_stage is not None:
+            if self._current_subscript_stage['current_subscript'] is not None:
+                self._current_subscript_stage['current_subscript'].plot(figure_list)
+
+
+    def skip_next(self):
+        for script in self.scripts.itervalues():
+            script.stop()
 
 
 
 if __name__ == '__main__':
     script = {}
     instr = {}
-    script, failed, instr = Script.load_and_append({'CalibrateMeasurementWindow': 'CalibrateMeasurementWindow'}, script, instr)
+    script, failed, instr = Script.load_and_append({'T1_double_init_many_NVs': 'T1_double_init_many_NVs'}, script, instr)
     print(script)
     print('failed', failed)
     print(instr)
