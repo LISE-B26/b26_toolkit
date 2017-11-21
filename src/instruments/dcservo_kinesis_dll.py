@@ -41,32 +41,58 @@ clr.AddReference('System')
 # until runtime
 from Thorlabs.MotionControl.DeviceManagerCLI import DeviceManagerCLI
 from Thorlabs.MotionControl.TCube.DCServoCLI import TCubeDCServo
-from Thorlabs.MotionControl.TCube.DCServoCLI import KCubeDCServo
+from Thorlabs.MotionControl.KCube.DCServoCLI import KCubeDCServo
 # adds .NET stuctures corresponding to primitives
 from System import Decimal, Double
 
 class ThorlabsServo(Instrument):
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('serial_number', 83832028, int, 'serial number written on device'),
+        Parameter('serial_number', 27501986, int, 'serial number written on device'),
         Parameter('position', 0, float, 'servo position (from 0 to 6 in mm)'),
         Parameter('velocity', 0, float, 'servo maximum velocity in mm/s')
     ])
 
     def __init__(self, name = None, settings = None):
+        """
+        Initializes and connects to motors. Must define a variable self.Servo that aliases the correct device, ex.
+        self.Servo = KCubeDCServo, and must call self._connect at some point.
+        Args:
+            name:
+            settings:
+        """
+        raise NotImplementedError
+
+    def _connect(self):
+        """
+        Connects to the servo using parameters defined elsewhere in the code.
+        """
         raise NotImplementedError
 
     def update(self, settings):
         '''
-        Updates internal settings, as well as the position and velocity set on the physical device
+        Updates internal settings, as well as the position and velocity set on the physical device. If the instrument's
+        serial number is changed, will disconnect from the current device (if any) and reconnect to the new device.
         Args:
             settings: A dictionary in the form of settings as seen in default settings
         '''
         super(ThorlabsServo, self).update(settings)
-        for key, value in settings.iteritems():
-            if key == 'position':
-                self._move_servo(value)
-            elif key == 'velocity':
-                self._set_velocity(value)
+        #update will usually trigger in super.__init__, which is generally the first line of self.__init__. At this
+        #point, the servo won't be connected, so don't make changes in hardware at this point. After the end of the
+        #__init__ when initialization is complete and the servo is connected, we can then have changes update hardware
+        if self._settings_initialized:
+            for key, value in settings.iteritems():
+                if key == 'position':
+                    self._move_servo(value)
+                elif key == 'velocity':
+                    self._set_velocity(value)
+                elif key == 'serial_number':
+                    #if it exists, disconnect from previous device
+                    try:
+                        self.device.StopPolling()
+                        self.device.Disconnect()
+                    #either the old connection was severed or there was no old connection, so now (re)connect
+                    finally:
+                        self._connect()
 
     @property
     def _PROBES(self):
@@ -90,13 +116,13 @@ class ThorlabsServo(Instrument):
         DeviceManagerCLI.BuildDeviceList()
         return(str(self.settings['serial_number']) in DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix))
 
-    def __del__(self):
-        '''
-        Cleans up TDC001 connection
-        :PostState: TDC001 is disconnected
-        '''
-        self.device.StopPolling()
-        self.device.Disconnect()
+    # def __del__(self):
+    #     '''
+    #     Cleans up TDC001 connection
+    #     :PostState: TDC001 is disconnected
+    #     '''
+    #     self.device.StopPolling()
+    #     self.device.Disconnect()
 
     def goto_home(self):
         '''
@@ -146,8 +172,6 @@ class ThorlabsServo(Instrument):
         '''
         return self._Undo_Decimal(self.device.GetVelocityParams().MaxVelocity)
 
-
-
     def _Py_Decimal(self, value):
         '''
         Casting a python double to System.Decimal results in the Decimal having only integer values, likely due to an
@@ -177,6 +201,10 @@ class TDC001(ThorlabsServo):
     def __init__(self, name = None, settings = None):
         super(ThorlabsServo, self).__init__(name, settings)
         self.Servo = TCubeDCServo
+
+        self._connect()
+
+    def _connect(self):
         try:
             DeviceManagerCLI.BuildDeviceList()
             serial_number_list = DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix)
@@ -195,7 +223,7 @@ class TDC001(ThorlabsServo):
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
             print('Failed to open device ' + str(self.settings['serial_number']))
-            raise
+            # raise
 
         if not self.device.IsSettingsInitialized():
             try:
@@ -219,6 +247,10 @@ class KDC001(ThorlabsServo):
     def __init__(self, name=None, settings=None):
         super(ThorlabsServo, self).__init__(name, settings)
         self.Servo = KCubeDCServo
+
+        self._connect()
+
+    def _connect(self):
         try:
             DeviceManagerCLI.BuildDeviceList()
             serial_number_list = DeviceManagerCLI.GetDeviceList(self.Servo.DevicePrefix)
@@ -226,25 +258,25 @@ class KDC001(ThorlabsServo):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
             print(str(self.settings['serial_number']) + " is not a valid serial number")
-            raise
+            # raise
 
         self.device = self.Servo.CreateKCubeDCServo(str(self.settings['serial_number']))
         if (self.device == None):
-            print(self.settings['serial_number'] + " is not a TCubeDCServo")
-            raise
+            print(self.settings['serial_number'] + " is not a KCubeDCServo")
+            # raise
 
         try:
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
             print('Failed to open device ' + str(self.settings['serial_number']))
-            raise
+            return
 
         if not self.device.IsSettingsInitialized():
             try:
                 self.device.WaitForSettingsInitialized(5000)
             except Exception:
                 print("Settings failed to initialize")
-                raise
+                # raise
 
         self.device.StartPolling(250)
 
@@ -252,7 +284,10 @@ class KDC001(ThorlabsServo):
         currentDeviceSettings = self.device.MotorDeviceSettings
 
 
+
+
 if __name__ == '__main__':
     #A test function for the device. Tries to connect to the
-    a = TDC001()
-    a.is_connected
+    a = KDC001()
+    print(a.is_connected)
+    a._move_servo(5)
