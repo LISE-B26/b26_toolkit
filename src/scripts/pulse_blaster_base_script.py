@@ -27,7 +27,7 @@ from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_
 from PyLabControl.src.core.scripts import Script, Parameter
 import random
 
-MAX_AVERAGES_PER_SCAN = 100000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
+MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
 
 
@@ -107,21 +107,19 @@ for a given experiment
         #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
         #never receives the rest of the counts (number too high)
         num_daq_reads = 0
+
         for pulse in self.pulse_sequences[0]:
             if pulse.channel_id == 'apd_readout':
                 num_daq_reads += 1
-
         signal = [0.0]
         norms = np.repeat([0.0], (num_daq_reads - 1))
         self.count_data = np.repeat([np.append(signal, norms)], len(self.pulse_sequences), axis=0)
-
         self.data = in_data
         self.data.update({'tau': np.array(tau_list), 'counts': deepcopy(self.count_data)})
-
         #divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainer.
         #This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
         #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
-        (num_1E6_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
+        (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
 
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
@@ -130,10 +128,10 @@ for a given experiment
                 self._abort = 1
             #self._plot_refresh = True
 
-        self.log("Averaging over {0} blocks of 1e5".format(num_1E6_avg_pb_programs))
+        self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
 
-        for average_loop in range(int(num_1E6_avg_pb_programs)):
-            self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E6_avg_pb_programs)))
+        for average_loop in range(int(num_1E5_avg_pb_programs)):
+            self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
                 break
             # print('loop ' + str(average_loop))
@@ -226,6 +224,11 @@ for a given experiment
                 break
             result = self._single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
+
+            # emma 10/22/17: just for readout loop
+            #self.measurement_gate_width = sequence[2][3]
+            #print self.measurement_gate_width
+
             counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)

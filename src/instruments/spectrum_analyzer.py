@@ -74,14 +74,20 @@ class SpectrumAnalyzer(Instrument):
         self.spec_anal = rm.open_resource(self.settings['visa_resource'])
         self.spec_anal.read_termination = '\n'
         self.spec_anal.timeout = self.settings['connection_timeout']
-        self.spec_anal.write('*RST')
+        self.spec_anal.write('*RST') #Places the oscilloscope in the factory default setup state.
         self._wait_for_spec_anal()
         self.update({'mode':'SpectrumAnalyzer'})
         # except:
         #     raise
 
     def update(self, settings):
-        #COMMENT_ME
+        """
+        updates the instrument parameters
+
+        Args:
+            settings: dictionary that contains the parameter indentifiers (keys) and the new parameters values (value)
+
+        """
         super(SpectrumAnalyzer, self).update(settings)
 
         # set mode first
@@ -101,7 +107,7 @@ class SpectrumAnalyzer(Instrument):
             self._set_start_frequency(settings['start_frequency'])
 
         # if 'frequency_step' in settings:
-        #     self._wait_for_spec_anal()
+        #     self._wait_for_osci()
         #     self._set_frequency_step(settings['frequency_step'])
 
         if 'stop_frequency' in settings:

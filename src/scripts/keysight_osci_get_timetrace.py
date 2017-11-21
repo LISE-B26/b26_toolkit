@@ -16,12 +16,13 @@
     along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.src.instruments import SpectrumAnalyzer
-    # , MicrowaveGenerator, CryoStation
+from b26_toolkit.src.instruments import Oscilloscope
 from PyLabControl.src.core import Script
+import numpy as np
 
+from PyLabControl.src.data_processing.signal_processing import power_spectral_density
 
-class KeysightGetSpectrum(Script):
+class KeysightOsciGetTimeTrace(Script):
     # COMMENT_ME
 
     _DEFAULT_SETTINGS = [
@@ -32,8 +33,9 @@ class KeysightGetSpectrum(Script):
     ]
 
     _INSTRUMENTS = {
-        'spectrum_analyzer' : SpectrumAnalyzer
+        'osci' : Oscilloscope
     }
+
 
     _SCRIPTS = {}
 
@@ -54,14 +56,16 @@ class KeysightGetSpectrum(Script):
 
 
 
-        instrument = self.instruments['spectrum_analyzer']['instance']
-        settings = self.instruments['spectrum_analyzer']['settings']
+        instrument = self.instruments['osci']['instance']
+        settings = self.instruments['osci']['settings']
+
+        instrument.reset()
 
         instrument.update(settings)
-        trace = instrument.trace
+        trace, preamble = instrument.get_timetrace()
 
-        self.data = trace
-        print('acquired spectrume')
+        self.data = {'voltage': trace, 'meta_data': preamble}
+        print('acquired spectrum')
 
 
 
@@ -75,6 +79,46 @@ class KeysightGetSpectrum(Script):
         if data is None:
             data = self.data
 
-        axes_list[0].plot(data['frequencies'], data['amplitudes'])
-        axes_list[0].set_xlabel('frequencies')
-        axes_list[0].set_xlabel('spectrum (??)')
+        dt = self.data['meta_data']['xincrement']
+        data = self.data['voltage']
+        time = dt*np.arange(len(data))
+        axes_list[0].plot(time, data, '-')
+        axes_list[0].set_xlabel('time (s)')
+        axes_list[0].set_ylabel('signal (arb.)')
+
+
+        F, P = power_spectral_density(data, dt)
+
+        print('JG adasd', data, dt)
+
+        axes_list[1].plot(F, P, '-')
+        axes_list[1].set_xlabel('freq (Hz)')
+        axes_list[1].set_ylabel('signal (arb.)')
+
+        axes_list[1].set_xscale("log")
+        # JG: try to display on a log scale, this doesn't work if the psd is negative or zero (which might happen if the oscilloscope is out of range)
+        if np.mean(data) > 0:
+            axes_list[1].set_yscale("log")
+
+
+
+
+if __name__ == '__main__':
+    from PyLabControl.src.core import Instrument
+    # from b26_toolkit.src.instruments import NI7845RMain
+    #
+    # fpga = NI7845RMain()
+    #
+    #
+    # g = GalvoScanFPGA(instruments={'NI7845RMain':fpga}, name='test_fpga_scan', settings=None, log_function=None, data_path=None)
+    # print(fpga)
+
+
+    # instruments, failed =  Instrument.load_and_append(instrument_dict ={'NI7845RMain': 'NI7845RMain'}, raise_errors=True )
+
+    script, failed, instruments = Script.load_and_append(script_dict={'GalvoScanFPGA': 'GalvoScanFPGA'}, raise_errors=True)
+    #
+    print(script)
+    print(failed)
+    # # print(instruments)
+

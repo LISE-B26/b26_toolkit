@@ -2,18 +2,18 @@
     This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    PyLabControl is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    PyLabControl is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
@@ -22,6 +22,8 @@ from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
+#todo: JG - move generic galvo to Pylabcontrol
+#todo: JG - clean up legacy galvo scan
 class GalvoScanGeneric(Script):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
@@ -59,6 +61,8 @@ class GalvoScanGeneric(Script):
     _INSTRUMENTS = {}
     _SCRIPTS = {}
 
+    _ACQ_TYPE = 'line' #this defines if the galvo acquisition is line by line or point by point, the default is line
+
     def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
         '''
         Initializes GalvoScan script for use in gui
@@ -73,6 +77,8 @@ class GalvoScanGeneric(Script):
         '''
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
                         data_path = data_path)
+
+
 
     def setup_scan(self):
         """
@@ -90,9 +96,16 @@ class GalvoScanGeneric(Script):
 
         # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
         initial_position = self.get_galvo_location()
+        if initial_position == []:
+            print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
+            self.settings['ending_behavior'] = 'leave_at_corner'
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
+
+        if self._ACQ_TYPE == 'point':
+            self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
+
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
@@ -100,19 +113,37 @@ class GalvoScanGeneric(Script):
 
         self.setup_scan()
 
-
-
-        Ny = self.settings['num_points']['y']
+        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
         for yNum in xrange(0, Ny):
 
-            if self._abort:
-                break
-            line_data = self.read_line(self.y_array[yNum])
-            self.data['image_data'][yNum] = line_data
-            self.progress = float(yNum + 1) / Ny * 100
-            self.updateProgress.emit(int(self.progress))
+            if self._ACQ_TYPE == 'line':
+                if self._abort:
+                    break
+                line_data = self.read_line(self.y_array[yNum])
+                self.data['image_data'][yNum] = line_data
+                self.progress = float(yNum + 1) / Ny * 100
+                self.updateProgress.emit(int(self.progress))
 
+            elif self._ACQ_TYPE == 'point':
+                for xNum in xrange(0, Nx):
+                    if self._abort:
+                        break
+
+                    point_data = self.read_point(self.x_array[xNum], self.y_array[yNum])
+                    self.data['image_data'][yNum, xNum] = np.mean(point_data)
+
+                    self.data['point_data'].append(point_data)
+                    self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
+
+                    # JG: tmp print info about progress
+                    print('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress))
+
+                    self.updateProgress.emit(int(self.progress))
+                    
+                # fill the rest of the array with the mean of the data up to now (otherwise it's zero and the data is not visible in the plot)
+                if yNum<Ny:
+                    self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :])
 
         #set point after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':
@@ -139,10 +170,21 @@ class GalvoScanGeneric(Script):
 
     def read_line(self, y_pos):
         """
-        reads a line of data from the DAQ
+        reads a line of data from the DAQ, this function is used if _ACQ_TYPE = 'line'
         Args:
             y_pos: y position of the scan
 
+        Returns:
+
+        """
+        raise NotImplementedError
+
+    def read_point(self, x_pos, y_pos):
+        """
+        reads a line of data from the DAQ, this function is used if _ACQ_TYPE = 'point'
+        Args:
+            x_pos: x position of the scan
+            y_pos: y position of the scan
         Returns:
 
         """

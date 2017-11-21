@@ -75,6 +75,23 @@ This script points the laser to a point
         self.daq_out.stop(task)
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
+
+    def get_galvo_position(self):
+        """
+        reads the current position from the x and y channels and returns it
+        Returns:
+
+        """
+        if self.settings['daq_type'] == 'PCI':
+            galvo_position = self.instruments['NI6259']['instance'].get_analog_voltages([
+                self.settings['DAQ_channels']['x_ao_channel'],
+                self.settings['DAQ_channels']['y_ao_channel']]
+            )
+        elif self.settings['daq_type'] == 'cDAQ':
+            print("WARNING cDAQ doesn't allow to read values")
+            galvo_position = []
+
+        return galvo_position
     #must be passed figure with galvo plot on first axis
     def plot(self, figure_list):
         axes_Image = figure_list[0].axes[0]

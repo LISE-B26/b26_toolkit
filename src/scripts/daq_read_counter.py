@@ -96,6 +96,7 @@ This script reads the Counter input from the DAQ and plots it.
 
         # clean up APD tasks
         self.instruments['daq']['instance'].stop(task)
+        self.data['counts'] = list(self.data['counts'])
 
     def plot(self, figure_list):
         # COMMENT_ME
