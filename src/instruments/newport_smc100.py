@@ -6,6 +6,7 @@ from PyLabControl.src.core.read_write_functions import get_config_value
 from PyLabControl.src.core import Parameter, Instrument
 
 dll_path = get_config_value('SMC100_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+print(dll_path)
 # dll_path = 'C:\Program Files (x86)\Newport\MotionControl\SMC100\Bin'
 sys.path.insert(0,dll_path)
 
