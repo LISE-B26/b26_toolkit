@@ -37,11 +37,8 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
                    Parameter('N', 25, int, 'voltage steps')
                   ]),
         Parameter('dt', 0.1, float, 'time between voltage steps (seconds)'),
-<<<<<<< HEAD
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
-=======
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3'], 'Daq channel used for voltage analog input')
->>>>>>> origin/master
     ]
 
     _SCRIPTS = {
@@ -107,14 +104,10 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         Returns: list with two floats, which give the x and y position of the galvo mirror
 
         """
-<<<<<<< HEAD
-        voltage = self.daq_in.get_analog_voltages([
-            self.settings['ao_channel']
-=======
+
+        voltage = self.daq_in.get_analog_voltages(self.settings['ao_channel'])
         voltage = self.instruments['daq']['instance'].get_analog_voltages([
-            self.settings['ai_channel']
->>>>>>> origin/master
-        ])
+            self.settings['ai_channel']])
 
         return voltage
 

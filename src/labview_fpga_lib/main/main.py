@@ -13,7 +13,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from ctypes import *
@@ -25,8 +25,8 @@ from PyLabControl.src.core.read_write_functions import get_config_value
 # =========================================================================
 # ======= LOAD DLL ========================================================
 # =========================================================================
-_libfpga = WinDLL('C:/Users/Experiment/PycharmProjects/b26_toolkit/src/labview_fpga_lib/main/main.dll')
 
+_libfpga = WinDLL('C:/Users/Experiment/PycharmProjects/b26_toolkit/src/labview_fpga_lib/main/main.dll')
 
 # =========================================================================
 # ======= DEFINE constants =========================================

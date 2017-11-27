@@ -21,7 +21,7 @@ try:
 except Exception:
     pass
 
-from galvo_scan_v2 import GalvoScan
+from galvo_scan_v2_legacy import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
@@ -29,7 +29,10 @@ from esr_two_freq_continuous import ESRTwoFreqContinuous
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
-from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector, FPGA_BalancePolarizationAndActivateFB
+try:
+    from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector, FPGA_BalancePolarizationAndActivateFB
+except:
+    print("Could not export polarization controller scripts")
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
@@ -50,17 +53,34 @@ from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
 # from ni_fpga_galvo_scan import FPGA_GalvoScan
 
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusDaqSMC, AutoFocusTwoPointsFR
+from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR
 
-from ni_fpga_galvo_scan import FPGA_GalvoScan
+try:
+    from autofocus import AutoFocusDaqSMC
+except:
+    print("Could not export autofocus scripts involving the SMC stage")
+
+try:
+    from ni_fpga_galvo_scan import FPGA_GalvoScan
+except:
+    print("Could not load FPGA Galvo Scan")
 
 from record_pressures import RecordPressures
 
-from set_magnetic_coils import SetMagneticCoils
+try:
+    from set_magnetic_coils import SetMagneticCoils
+except:
+    print("Could not import Magnetic Coils")
 
-from align_magnetic_field_to_NV import AlignFieldToNV
+try:
+    from align_magnetic_field_to_NV import AlignFieldToNV
+except:
+    print("Could not import AlignFieldToNV")
 
-from Ni_9263_polarization_controller import Ni9263_BalancePolarization
+try:
+    from Ni_9263_polarization_controller import Ni9263_BalancePolarization
+except:
+    print("Could not import BalancePolarization")
 
 from stability_with_microwaves import Stability_With_Microwaves
 #
@@ -72,8 +92,10 @@ from read_temperature_lakeshore import ReadTemperatureLakeshore
 # verbose = False
 
 
-
-from daq_simple_piezosweep import SimplePiezoSweep
+try:
+    from daq_simple_piezosweep import SimplePiezoSweep
+except:
+    print("Couldn't load SimplePiezoSweep")
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
 

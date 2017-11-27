@@ -3,16 +3,18 @@ import clr # run pip install pythonnet
 import sys, os
 import time
 from PyLabControl.src.core.read_write_functions import get_config_value
-
+from PyLabControl.src.core import Parameter, Instrument
 
 dll_path = get_config_value('SMC100_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
 # dll_path = 'C:\Program Files (x86)\Newport\MotionControl\SMC100\Bin'
 sys.path.insert(0,dll_path)
-from PyLabControl.src.core import Parameter, Instrument
 
 # Uses python for .net to add dll assembly to namespace
-clr.AddReference('Newport.SMC100.CommandInterface')
-import CommandInterfaceSMC100
+try:
+    clr.AddReference('Newport.SMC100.CommandInterface')
+    import CommandInterfaceSMC100
+except Exception:
+    print('driver import failed')
 
 ########################################################################################################################
 ## INSTRUCTIONS ON USING THIS DLL AND PYTHON FOR .NET
@@ -33,9 +35,9 @@ MOVING = '28'
 DONE_MOVING = '33'
 
 class SMC100(Instrument):
-    '''
+    """
 Class to control the Newport SMC100 stepper motor driver. Class controlled over USB via DLL.
-    '''
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM9', str, 'serial number written on device'),
