@@ -32,17 +32,11 @@ from montana import CryoStation
 # Will not be using labview_fpga code because we aren't using it now and it's a pain
 # from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
-
 from newport_smc100 import SMC100
-
-
 from awg import AWG
 from keysight_oscilloscope import Oscilloscope
+from dcservo_kinesis_dll import KDC001
 
-try:
-    from dcservo_kinesis_dll import KDC001
-except:
-    print("Could not load Kinesis DC Servo")
 
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, FPGA_GalvoScan, NI7845RReadFifo
 
