@@ -33,10 +33,8 @@ from montana import CryoStation
 # from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
 
-try:
-    from newport_smc100 import SMC100
-except:
-    print("Could not load SMC100")
+from newport_smc100 import SMC100
+
 
 from awg import AWG
 from keysight_oscilloscope import Oscilloscope
