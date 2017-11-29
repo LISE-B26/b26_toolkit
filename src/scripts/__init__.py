@@ -2,7 +2,7 @@
     This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
@@ -13,15 +13,11 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-try:
-    from test_script import ScriptTest
-except Exception:
-    pass
-
-from galvo_scan_v2_legacy import GalvoScan
+from test_script import ScriptTest
+from galvo_scan_v3 import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
@@ -29,10 +25,6 @@ from esr_two_freq_continuous import ESRTwoFreqContinuous
 # from keysight_get_spectrum import KeysightGetSpectrum
 
 # from labview_fpga_get_timetrace import LabviewFpgaTimetrace
-try:
-    from ni_fpga_polarization_controller import FPGA_BalancePolarization, FPGA_CalibrateDetector, FPGA_BalancePolarizationAndActivateFB
-except:
-    print("Could not export polarization controller scripts")
 
 from zi_sweeper import ZISweeper
 from zi_high_res_sweep import ZISweeperHighResolution
@@ -51,36 +43,15 @@ from light_control import ApplyLightControlSettings, CameraOn
 
 from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
-# from ni_fpga_galvo_scan import FPGA_GalvoScan
-
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR
-
-try:
-    from autofocus import AutoFocusDaqSMC
-except:
-    print("Could not export autofocus scripts involving the SMC stage")
-
-try:
-    from ni_fpga_galvo_scan import FPGA_GalvoScan
-except:
-    print("Could not load FPGA Galvo Scan")
+from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC
 
 from record_pressures import RecordPressures
 
-try:
-    from set_magnetic_coils import SetMagneticCoils
-except:
-    print("Could not import Magnetic Coils")
+from set_magnetic_coils import SetMagneticCoils
 
-try:
-    from align_magnetic_field_to_NV import AlignFieldToNV
-except:
-    print("Could not import AlignFieldToNV")
+from align_magnetic_field_to_NV import AlignFieldToNV
 
-try:
-    from Ni_9263_polarization_controller import Ni9263_BalancePolarization
-except:
-    print("Could not import BalancePolarization")
+from Ni_9263_polarization_controller import Ni9263_BalancePolarization
 
 from stability_with_microwaves import Stability_With_Microwaves
 #
@@ -91,11 +62,8 @@ from read_temperature_lakeshore import ReadTemperatureLakeshore
 # old imports with try/except
 # verbose = False
 
+from daq_simple_piezosweep import SimplePiezoSweep
 
-try:
-    from daq_simple_piezosweep import SimplePiezoSweep
-except:
-    print("Couldn't load SimplePiezoSweep")
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
 

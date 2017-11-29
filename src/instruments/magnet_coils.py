@@ -174,7 +174,7 @@ class MagnetCoils(NI9263):
                                 )
                   ]),
         Parameter('use_approximate_fields', True, bool, 'if out of bounds fields given, uses closest allowed fields'),
-        Parameter('magnetic fields input type', 'Gauss', ['Gauss, Volts'])
+        Parameter('magnetic fields input type', 'Gauss', ['Gauss', 'Volts'])
     ])
 
     def update(self, settings):
