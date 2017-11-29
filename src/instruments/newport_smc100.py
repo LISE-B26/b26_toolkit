@@ -3,16 +3,32 @@ import clr # run pip install pythonnet
 import sys, os
 import time
 from PyLabControl.src.core.read_write_functions import get_config_value
-
-
-dll_path = get_config_value('SMC100_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
-# dll_path = 'C:\Program Files (x86)\Newport\MotionControl\SMC100\Bin'
-sys.path.insert(0,dll_path)
 from PyLabControl.src.core import Parameter, Instrument
 
-# Uses python for .net to add dll assembly to namespace
-clr.AddReference('Newport.SMC100.CommandInterface')
-import CommandInterfaceSMC100
+
+# import dll for SMC100
+
+
+dll_path = get_config_value('SMC100_DLL_PATH',
+                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+
+print(dll_path)
+if dll_path:
+
+    sys.path.insert(0, dll_path)
+
+    # Uses python for .net to add dll assembly to namespace
+    try:
+        clr.AddReference('Newport.SMC100.CommandInterface')
+        import CommandInterfaceSMC100
+    except Exception as exception_details:
+        print('Could not load SMC100 dll from path specified in configuration file. Check path is correct.')
+        print('exception encountered: ' + str(exception_details))
+        CommandInterfaceSMC100 = None
+else:
+    print("Could not import SMC100CommandInterface, will not be able to initialize SMC100 object.")
+    CommandInterfaceSMC100 = None
+
 
 ########################################################################################################################
 ## INSTRUCTIONS ON USING THIS DLL AND PYTHON FOR .NET
@@ -33,12 +49,12 @@ MOVING = '28'
 DONE_MOVING = '33'
 
 class SMC100(Instrument):
-    '''
+    """
 Class to control the Newport SMC100 stepper motor driver. Class controlled over USB via DLL.
-    '''
+    """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM9', str, 'serial number written on device'),
+        Parameter('port', 'COM3', str, 'serial number written on device'),
         Parameter('position', 25000.0, float, 'servo position (from 0 to 25000 in um)'),
         Parameter('velocity', 1.0, float, 'servo velocity (from 0 to 1 in mm/s)'),
         Parameter('height_lower_limit', 9, float, 'lowest position servo can move to (in mm)')
@@ -51,6 +67,10 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             name: device name
             settings: dictionary containing desired settings for instrument
         """
+        if CommandInterfaceSMC100 is None:
+            print("SMC100 dll not imported --- cannot initialize SMC100 object without dll")
+            raise
+
         super(SMC100, self).__init__(name, settings)
 
         self.SMC = CommandInterfaceSMC100.SMC100()
@@ -174,7 +194,9 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             print('ERROR: ' + errString)
             raise
 
-# a = SMC100()
+if __name__ == "__main__":
+    a = SMC100()
+# print(a.position)
 # a._enable_computer_control()
 # a._set_position(15)
 # a._set_position(25)

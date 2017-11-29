@@ -23,7 +23,14 @@ import numpy as np
 import scipy as sp
 from PyQt4.QtCore import pyqtSlot
 
-from b26_toolkit.src.instruments import PiezoController, SMC100, MaestroLightControl
+from b26_toolkit.src.instruments import PiezoController, MaestroLightControl
+
+try:
+    from b26_toolkit.src.instruments import SMC100
+except:
+    print("can't import SMC100")
+    # SMC100 = None
+
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Parameter, Script
 from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser
@@ -1059,8 +1066,8 @@ if __name__ == '__main__':
     #
     # af = AutoFocusNIFPGA(scripts=scripts)
     # print(af)
-
-    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusDAQ})
-    print('===++++++===========++++++===========++++++========')
-    print(scripts)
-    print('===++++++===========++++++===========++++++========')
+    pass
+    # scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusTwoPointsFR})
+    # print('===++++++===========++++++===========++++++========')
+    # print(scripts)
+    # print('===++++++===========++++++===========++++++========')

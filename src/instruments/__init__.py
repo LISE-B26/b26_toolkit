@@ -28,12 +28,15 @@ from microwave_generator import MicrowaveGenerator
 # from magnet_coils import MagnetCoils #JG 170909: commented out because Assertino erro upon loading
 from temperature_controller import TemperatureController
 from montana import CryoStation
-from labview_fpga import NI7845RMain
+
+# Will not be using labview_fpga code because we aren't using it now and it's a pain
+# from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
 from newport_smc100 import SMC100
 from awg import AWG
 from keysight_oscilloscope import Oscilloscope
 from dcservo_kinesis_dll import KDC001
+
 
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, FPGA_GalvoScan, NI7845RReadFifo
 

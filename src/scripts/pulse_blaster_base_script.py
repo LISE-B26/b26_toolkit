@@ -334,15 +334,15 @@ for a given experiment
         Checks if a pulse sequence is a valid input to the pulseblaster, that is the sequence has no overlapping
         pulses, or time between pulses of <15ns
         """
-        def add_mw_switch_to_sequences(pulse_sequences):
+        def add_mw_switch_to_sequences(pulse_sequences, gating = 'mw_switch'):
             """
             Adds the microwave switch to a sequence by toggling it on/off for every microwave_i or microwave_q pulse,
             with a buffer given by mw_switch_extra_time
             Args:
                 pulse_sequences: Pulse sequence without mw switch
+                gating: determines if mw pulses are gated on mw switch or on mw i and q
 
             Returns: Pulse sequence with mw switch added in appropriate places
-
             """
             if not 'mw_switch_extra_time' in self.settings.keys():
                 #default to a 50 ns buffer
@@ -350,10 +350,19 @@ for a given experiment
             for sequence in pulse_sequences:
                 mw_switch_pulses = []
                 # add a switch pulse for each microwave pulse
-                for pulse in sequence:
-                    if pulse.channel_id in ['microwave_i', 'microwave_q']:
-                        mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time,
-                                                      pulse.duration + 2 * mw_switch_time))
+                if gating == 'mw_iq':
+                    for pulse in sequence:
+                        if pulse.channel_id in ['microwave_i', 'microwave_q']:
+                            mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time,
+                                                          pulse.duration + 2 * mw_switch_time))
+                elif gating == 'mw_switch':
+                    for index, pulse in enumerate(sequence):
+                        if pulse.channel_id in ['microwave_i', 'microwave_q']:
+                            mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time, pulse.duration))
+                            new_pulse = Pulse(pulse.channel_id, pulse.start_time - mw_switch_time, pulse.duration,
+                                              pulse.duration + 2 * mw_switch_time)
+                            sequence.remove(pulse)
+                            sequence.insert(index, new_pulse)
                 # combine overlapping pulses and those that are within 2*mw_switch_extra_time
                 mw_switch_pulses = sorted(mw_switch_pulses, key=lambda pulse: pulse.start_time)
                 index = 0

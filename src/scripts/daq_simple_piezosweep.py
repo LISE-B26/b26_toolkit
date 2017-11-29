@@ -104,11 +104,10 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         Returns: list with two floats, which give the x and y position of the galvo mirror
 
         """
-        voltage = self.daq_in.get_analog_voltages([
-            self.settings['ao_channel']
-        # voltage = self.instruments['daq']['instance'].get_analog_voltages([
-        #     self.settings['ai_channel']
-        ])
+
+        voltage = self.daq_in.get_analog_voltages(self.settings['ao_channel'])
+        voltage = self.instruments['daq']['instance'].get_analog_voltages([
+            self.settings['ai_channel']])
 
         return voltage
 
