@@ -343,79 +343,79 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
-
-class AutoFocusNIFPGA(AutoFocusGeneric):
-    """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
-    """
-
-    _SCRIPTS = {
-        # 'take_image': FPGA_GalvoScan
-    }
-
-    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
-        """
-        Example of a script that emits a QT signal for the gui
-        Args:
-            name (optional): name of script, if empty same as class name
-            settings (optional): settings for this script, if empty same as default settings
-        """
-        Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
-
-    def _step_piezo(self, voltage, wait_time):
-        """
-        steps the piezo.  Has to be overwritten specifically for each different hardware realization
-        voltage: target piezo voltage
-        wait_time: settle time after voltage step
-        """
-        fpga_instr = self.scripts['take_image'].instruments['FPGA_GalvoScan']['instance']
-        # set the voltage on the piezo
-        fpga_instr.piezo = float(voltage)
-        time.sleep(wait_time)
-
-    def fit_focus(self):
-        '''
-        fit the data and set piezo to focus spot
-        '''
-        gaussian = lambda x, noise, amp, center, width: noise + amp * np.exp(
-            -1.0 * (np.square((x - center)) / (2 * (width ** 2))))
-
-        noise_guess = np.min(self.data['focus_function_result'])
-        amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
-        center_guess = np.mean(self.data['sweep_voltages'])
-        width_guess = 0.8
-
-        reasonable_params = [noise_guess, amplitude_guess, center_guess, width_guess]
-
-        try:
-            p2, success = sp.optimize.curve_fit(gaussian, self.data['sweep_voltages'],
-                                                self.data['focus_function_result'], p0=reasonable_params,
-                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
-
-            self.log('Found fit parameters: ' + str(p2))
-
-            if p2[2] > sweep_voltages[-1]:
-                fpga_instr.piezo = float(sweep_voltages[-1])
-                self.log(
-                    'Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(
-                        sweep_voltages[-1]))
-            elif p2[2] < sweep_voltages[0]:
-                fpga_instr.piezo = float(sweep_voltages[0])
-                self.log(
-                    'Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(
-                        sweep_voltages[0]))
-            else:
-                fpga_instr.piezo = float(p2[2])
-        except(ValueError):
-            p2 = [0, 0, 0, 0]
-            average_voltage = np.mean(self.data['sweep_voltages'])
-            self.log(
-                'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
-                    average_voltage))
-            fpga_instr.piezo = float(average_voltage)
-
-        return p2
+#
+# class AutoFocusNIFPGA(AutoFocusGeneric):
+#     """
+# Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
+#             is focused.
+#     """
+#
+#     _SCRIPTS = {
+#         # 'take_image': FPGA_GalvoScan
+#     }
+#
+#     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+#         """
+#         Example of a script that emits a QT signal for the gui
+#         Args:
+#             name (optional): name of script, if empty same as class name
+#             settings (optional): settings for this script, if empty same as default settings
+#         """
+#         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
+#
+#     def _step_piezo(self, voltage, wait_time):
+#         """
+#         steps the piezo.  Has to be overwritten specifically for each different hardware realization
+#         voltage: target piezo voltage
+#         wait_time: settle time after voltage step
+#         """
+#         fpga_instr = self.scripts['take_image'].instruments['FPGA_GalvoScan']['instance']
+#         # set the voltage on the piezo
+#         fpga_instr.piezo = float(voltage)
+#         time.sleep(wait_time)
+#
+#     def fit_focus(self):
+#         '''
+#         fit the data and set piezo to focus spot
+#         '''
+#         gaussian = lambda x, noise, amp, center, width: noise + amp * np.exp(
+#             -1.0 * (np.square((x - center)) / (2 * (width ** 2))))
+#
+#         noise_guess = np.min(self.data['focus_function_result'])
+#         amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
+#         center_guess = np.mean(self.data['sweep_voltages'])
+#         width_guess = 0.8
+#
+#         reasonable_params = [noise_guess, amplitude_guess, center_guess, width_guess]
+#
+#         try:
+#             p2, success = sp.optimize.curve_fit(gaussian, self.data['sweep_voltages'],
+#                                                 self.data['focus_function_result'], p0=reasonable_params,
+#                                                 bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
+#
+#             self.log('Found fit parameters: ' + str(p2))
+#
+#             if p2[2] > sweep_voltages[-1]:
+#                 fpga_instr.piezo = float(sweep_voltages[-1])
+#                 self.log(
+#                     'Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(
+#                         sweep_voltages[-1]))
+#             elif p2[2] < sweep_voltages[0]:
+#                 fpga_instr.piezo = float(sweep_voltages[0])
+#                 self.log(
+#                     'Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(
+#                         sweep_voltages[0]))
+#             else:
+#                 fpga_instr.piezo = float(p2[2])
+#         except(ValueError):
+#             p2 = [0, 0, 0, 0]
+#             average_voltage = np.mean(self.data['sweep_voltages'])
+#             self.log(
+#                 'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
+#                     average_voltage))
+#             fpga_instr.piezo = float(average_voltage)
+#
+#         return p2
 
 class AutoFocusDAQ(AutoFocusGeneric):
     """
@@ -1060,7 +1060,7 @@ if __name__ == '__main__':
     # af = AutoFocusNIFPGA(scripts=scripts)
     # print(af)
 
-    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusTwoPointsFR})
+    scripts, loaded_failed, instruments = Script.load_and_append({'test': AutoFocusDAQ})
     print('===++++++===========++++++===========++++++========')
     print(scripts)
     print('===++++++===========++++++===========++++++========')

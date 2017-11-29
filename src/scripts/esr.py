@@ -46,7 +46,7 @@ class ESR(Script):
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true normalize each frequency sweep by the average counts. This should be renamed at some point because now we dont take additional data for the reference.'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
         Parameter('fit_constants',
                   [
                       Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
@@ -189,7 +189,10 @@ class ESR(Script):
         freq_array = np.repeat(freq_values, clock_adjust)
         self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
         self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
-        self.instruments['microwave_generator']['instance'].update({'dev_width': 3.2E7})
+      #  self.instruments['microwave_generator']['instance'].update({'dev_width': 3.2E7})
+
+        # ER 20171128
+        self.instruments['microwave_generator']['instance'].update({'dev_width': self.instruments['microwave_generator']['instance'].settings['dev_width']})
         self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
 
         sample_rate = float(1) / self.settings['settle_time']
@@ -233,7 +236,7 @@ class ESR(Script):
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)] , axis=0)
 
-            fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['min_counts'],
+            fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['minimum_counts'],
                                  contrast_factor=self.settings['fit_constants']['contrast_factor'])
             self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
 

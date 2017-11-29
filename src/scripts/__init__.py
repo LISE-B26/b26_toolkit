@@ -21,7 +21,7 @@ try:
 except Exception:
     pass
 
-from galvo_scan_v2 import GalvoScan
+from galvo_scan_v2_legacy import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter
 from esr import ESR
@@ -56,9 +56,16 @@ from ni_fpga_galvo_scan import FPGA_GalvoScan
 
 from record_pressures import RecordPressures
 
-from set_magnetic_coils import SetMagneticCoils
+try:
+    from set_magnetic_coils import SetMagneticCoils
+except:
+    print('error set_magnetic_coils')
 
-from align_magnetic_field_to_NV import AlignFieldToNV
+try:
+    from align_magnetic_field_to_NV import AlignFieldToNV
+except:
+    print('error align_magnetic_field_to_NV')
+
 
 from Ni_9263_polarization_controller import Ni9263_BalancePolarization
 

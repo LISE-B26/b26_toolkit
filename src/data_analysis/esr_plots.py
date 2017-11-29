@@ -38,7 +38,8 @@ from PyLabControl.src.core.scripts import Script
 
 freq_to_mag = 1. / (2 * 2.8e6)
 
-
+# THIS IS A TEST JG
+print('THIS IS A TEST JG sadsada')
 def get_select_points(folder):
     """
     Finds the filepath to the data from the select_points script taken immediately previous to the data in folder.
