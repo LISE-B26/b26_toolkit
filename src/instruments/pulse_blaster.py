@@ -581,7 +581,7 @@ class B26PulseBlaster(PulseBlaster):
 if __name__ == '__main__':
 
     #pb = Script.load_and_append() #B26PulseBlaster()
-    inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
+    # inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
 
     # for i in range(5):
     #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
@@ -595,3 +595,9 @@ if __name__ == '__main__':
     #     print 'finished #{0}!'.format(i)
 
     #   pb.update({'laser': {'status': True}})
+
+
+    Pulse('channel_0', 0, 10)
+    print(Pulse.channel_id)
+    print(Pulse.duration)
+    print(Pulse.start_time)
