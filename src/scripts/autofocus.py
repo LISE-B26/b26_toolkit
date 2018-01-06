@@ -33,7 +33,7 @@ except:
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Parameter, Script
-from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser
+from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser, TakeImage
 # from src.scripts import FPGA_GalvoScan
 
 
@@ -1014,6 +1014,44 @@ class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
+
+
+class AutoFocusCameraSMC(AutoFocusGeneric):
+    """
+    Perform an autofocus, moving the objective with the SMC motor and taking a camera picture at every height
+    """
+    _INSTRUMENTS = {
+        'z_driver': SMC100
+    }
+
+    _SCRIPTS = {
+        'take_image': TakeImage
+    }
+
+    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+        """
+        Initializes the script
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        self.scan_label = 'Motor Position [um]'
+        Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
+
+    def _step_piezo(self, position, wait_time):
+        """
+        steps the piezo.  Has to be overwritten specifically for each different hardware realization
+        voltage: target piezo voltage
+        wait_time: settle time after voltage step
+        """
+        z_driver = self.instruments['z_driver']['instance']
+        # set the voltage on the piezo
+        try:
+            z_driver.position = float(position)
+        except ValueError:
+            raise
+            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+        time.sleep(wait_time)
 
 if __name__ == '__main__':
 
