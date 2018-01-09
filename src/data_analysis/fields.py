@@ -94,7 +94,6 @@ def calcBfield_single_pt(r, DipolePositions, m, mu0 = 4 * np.pi * 1e-7):
     assert len(np.shape(r)) == 1
     assert len(r) == 3
 
-    mu0 = 4 * np.pi * 1e-7  # T m /A
     a = np.ones((np.shape(DipolePositions)[0], 1)) * np.array([r]) - DipolePositions #
 
     rho = np.sqrt(np.sum(a ** 2, 1))
@@ -134,7 +133,7 @@ def calcBfield(rs, DipolePositions, m, use_parallel = True, verbose = False):
     assert np.shape(rs)[1] == 3
 
     if verbose:
-        print('number of magnetic moments', len(data))
+        print('number of magnetic moments', len(m))
         print('number of positions', len(rs))
     if use_parallel:
         # try importing the multiprocessing library
@@ -152,6 +151,10 @@ def calcBfield(rs, DipolePositions, m, use_parallel = True, verbose = False):
 
     else:
         B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+
+    if verbose:
+        print('rs shape', np.shape(rs))
+        # print('rs', rs)
 
     # put data into a dictionary
     data_out = {

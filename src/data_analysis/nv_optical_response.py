@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.optimize as opt
 import itertools
-
+from itertools import permutations
 # spin 1 matrices
 Sx = np.matrix([
     [0, -1j, -1j],
@@ -528,10 +528,18 @@ def calc_bfields_esr_ensemble_mag(frequencies, verbose=False):
     frequencies: the esr frequencies, e.g. the frequencies obtained from a fit to ESR data. (in GHz)
     This is a N x 2 matrix, where N is the number of families and 2 are the two frequencies
 
+    of
+
+    This is a vector of length 2*N, where the ordering is NVa_low, NVa_high, NVb_low, NVb_high, etc
+
     returns:
         Babs:   the absolute value of the magnetic field
         Bs:     field along the NV axis and perpedicular
     """
+
+    if len(np.shape(frequencies)) == 1:
+        # reshape to expected N x 2 format
+        frequencies = np.reshape(frequencies, (len(frequencies)/2, 2))
 
     assert np.shape(frequencies)[1] == 2
 
@@ -840,6 +848,155 @@ def fit_err_fun(x, *argv):
     err = np.mean(np.abs((freq_est - freq) / freq))
 
     return err
+
+
+def get_r_dr(nv_locations, magnet_diam, magnet_center):
+    """
+
+    use for line data, nv_locations are along a line
+
+    calculates the distance to the magnet and the distance between points
+    nv_locations: matrix of shape N x 2, where N is the number of NV positions
+    magnet_center: distance from first point in nv_locations to magnet center (must be same units as nv_location!!)
+    magnet_diam: magnet diameter (must be same units as nv_location!!)
+    """
+    r = np.array([np.sqrt(np.sum((pt - nv_locations[0]) ** 2)) for pt in nv_locations])
+    r = r + magnet_center
+    # take into account that we are at least a radius above the magnet
+    r = np.sqrt(r**2+magnet_diam/2)
+    dr = np.mean(np.diff(r))
+
+    return r, dr
+
+
+
+
+def get_theta_dr(nv_locations, method='radius'):
+    """
+
+    use for ring data, i.e. nv_locations are on a ring
+
+    calculates the angles theta and the distance between points
+    nv_locations: matrix of shape N x 2, where N is the number of NV positions
+    method: calculate dr based on differences (diff) or based on the radius (radius)
+        string 'diff' or 'radius'
+
+
+    :returns
+        theta = angles on ring
+        radius = radius of ring
+        dr = distance between points on ring
+    """
+    mag_pos = np.mean(nv_locations, 0)
+    # radius of circle (in um)
+    radius = np.mean(np.sqrt(np.sum((nv_locations - mag_pos) ** 2, 1)))
+
+    # we measured on a ring, so we calculate the angle for each measurement
+    theta = np.linspace(0, 360, len(nv_locations))
+
+    if method == 'diff':
+        # calculate differential distance between points
+        x = np.sum(np.diff(nv_locations - mag_pos, 0) ** 2, 1)
+        np.mean(x), np.std(x)
+        dr = np.mean(x)
+    #         print('differential from differences:', dr)
+    elif method == 'radius':
+        # differential theta (spacing betweent thetas)
+        dtheta = np.mean(np.diff(theta)) * np.pi / 180
+        # calculate the distance between measurements, needed for calculation f gradients
+        dr = radius * dtheta
+    #         print('differential from radius:', dr)
+    else:
+        print("unknown method try 'diff' or 'radius'")
+
+    return theta, dr
+
+
+def sort_esr_frequencies(freq_data):
+    """
+    sorts the frequencies from the measurement by trying all different permutations and minimizing the error in the total field,
+    while also maximizing the frequency overlap from one measurement to the next.
+    freq_data: frequency data, array with dimensions Ndata (number of datasets), Nfreq (number of frequencies)
+    todo: implement also maximum overlap of the slope to keep track of upper and lower NV frequency
+
+    :returns
+        freqs_sorted: sorted frequencies
+        perm_index: index of permutation that has to be applied to freq_data to get freqs_sorted
+
+    """
+    freq_data = np.array(freq_data)
+
+    if len(np.shape(freq_data)) == 2:
+        Ndata, Nfreq = np.shape(freq_data)
+    perm_index = []
+    freqs_sorted = []
+
+    def calc_err(freq):
+        """
+        calculates the error in B field for a give collection of frequencies
+        """
+        # calculate the fields for each family
+        Bs = calc_bfields_esr_ensemble_mag(freq_perm)[1]
+        # calculate the total field
+        Babs = np.sqrt(np.sum(Bs ** 2, axis=1))
+        # calculate the error
+        err = np.std(Babs) / np.mean(Babs)
+
+        return err
+
+    def get_perm_freq(freq, index):
+        """
+        returns the permutation of frequencies, that corresponds to permutation index "index"
+        note that we only permutate the last half of the array, since we are looking for NV pairs
+
+        freq = vector of frequencies (typically length = 8 for all four NV families)
+        index = single integer or a list of integers
+        """
+        Nfreq = len(freq)
+
+        # for a single index return the list
+        if len(np.shape(index)) == 0:
+            return list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[index])
+        # for a list of indecies loop over all indecies and return a list for each
+        else:
+            return [list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[i]) for i in index]
+
+    def calc_err_freq(freq0, freqs_perm):
+        """
+        calculates the error in the frequencies freq_perm (e.g. N x 8) matrix
+        and the frequencies freq_0 (e.g. vector of length 8)
+        """
+        Nperm = len(freqs_perm)
+        err = np.sum((np.array(freqs_perm) - np.ones([Nperm, 1]) * np.array([freq0])) ** 2, 1)
+        # normalize err
+        err = err / np.sum(np.array(freqs_perm), 1) ** 2
+
+        return err
+
+    for j, freq in enumerate(freq_data):
+
+        # permutate over all four families to find the match that gives the lowest error
+        # concat the first 4 freq and the 4 permutated freqs
+        errs = [calc_err(np.array(list(freq[0:Nfreq / 2]) + list(freq_perm)))
+                for freq_perm in list(permutations(freq[Nfreq / 2:]))]
+
+        perm_indecies_min = np.where(errs == min(errs))[0]  # permutation indecies that minimize the error
+        #         print(perm_indecies_min)
+        if len(perm_index) == 0:
+            # there mightbe several permutations with the same error, we take the first for the first set of freqs
+            freq_index_min = 0
+        else:
+            # if one of the indeces is the same as in the previous dataset,
+            # we take the one that minimizes the change in frequency
+            # frequencies corresponding to the permutations with the lowest error
+            freqs_perm_min = get_perm_freq(freq, perm_indecies_min)
+            # out of those permutations find the one that maximizes the freq. overlap
+            freq_index_min = np.argmin(calc_err_freq(freqs_sorted[-1], freqs_perm_min))
+
+        perm_index.append(perm_indecies_min[freq_index_min])
+        freqs_sorted.append(get_perm_freq(freq, perm_index[-1]))
+
+    return freqs_sorted, perm_index
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import time
 
-import fields as f
+from b26_toolkit.src.data_analysis import fields as f
 
 class fields(TestCase):
     def setUp(self):
@@ -362,7 +362,6 @@ class fields(TestCase):
             print('dp_pos', dp_pos)
 
 
-
         G_simple = np.array([f.calcGradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
 
         G = f.calcGradient(r, dp_pos, m, s, n)
@@ -376,3 +375,43 @@ class fields(TestCase):
 
         if err > 1e-6:
             raise ValueError
+
+    # def test05_Bfield_on_ring(self):
+    #
+    #     M=  4
+    #
+    #     radius = np.random.rand()
+    #     phi = 2*np.linspace(0, np.pi, M)
+    #     # create random vectors
+    #
+    #     r= np.array(np.cos(phi)*np.sin(theta)
+    #     r = np.random.rand(M, 3)
+    #     m = np.random.rand(1, 3)
+    #     dp_pos = np.random.rand(1, 3)
+    #
+    #
+    #     if self.verbose:
+    #         print('r', r)
+    #         print('m', m)
+    #         print('dp_pos', dp_pos)
+    #
+    #
+    #
+    #     B_simple = np.array([f.calcBfield_single_pt(ri, dp_pos, m) for ri in r])
+    #     # B_simple = np.sum(B_simple, 1)
+    #
+    #     B = f.calcBfield(r, dp_pos, m)
+    #     print(B[['x','y','z']])
+    #
+    #
+    #     if self.verbose:
+    #         print('B', B)
+    #         print('B_simple', B_simple)
+    #
+    #     # err = np.sum(np.abs(B_simple - np.array(B[['x','y','z']])))
+    #     err = np.mean(np.abs(B_simple - np.array(B[['Bx','By','Bz']])))
+    #
+    #     print('---', err)
+    #
+    #     if err > 1e-6:
+    #         raise ValueError
