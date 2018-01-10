@@ -912,12 +912,16 @@ def get_theta_dr(nv_locations, method='radius'):
     return theta, dr
 
 
-def sort_esr_frequencies(freq_data):
+def sort_esr_frequencies(freq_data, permutate_all = False):
     """
     sorts the frequencies from the measurement by trying all different permutations and minimizing the error in the total field,
     while also maximizing the frequency overlap from one measurement to the next.
     freq_data: frequency data, array with dimensions Ndata (number of datasets), Nfreq (number of frequencies)
     todo: implement also maximum overlap of the slope to keep track of upper and lower NV frequency
+
+    permutate_all:
+        TRUE: permutate all combinations of frequencies (7! = 5040 for 8 frequencies )
+        FALSE: permutate only half of combinations of frequencies (4! = 24 for 4 frequencies)
 
     :returns
         freqs_sorted: sorted frequencies
@@ -936,7 +940,7 @@ def sort_esr_frequencies(freq_data):
         calculates the error in B field for a give collection of frequencies
         """
         # calculate the fields for each family
-        Bs = calc_bfields_esr_ensemble_mag(freq_perm)[1]
+        Bs = calc_bfields_esr_ensemble_mag(freq)[1]
         # calculate the total field
         Babs = np.sqrt(np.sum(Bs ** 2, axis=1))
         # calculate the error
@@ -954,12 +958,26 @@ def sort_esr_frequencies(freq_data):
         """
         Nfreq = len(freq)
 
-        # for a single index return the list
-        if len(np.shape(index)) == 0:
-            return list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[index])
-        # for a list of indecies loop over all indecies and return a list for each
+        if permutate_all:
+            # # for a single index return the list
+            # if len(np.shape(index)) == 0:
+            #     return list(permutations(freq))[index]
+            # # for a list of indecies loop over all indecies and return a list for each
+            # else:
+            #     return [list(permutations(freq))[i] for i in index]
+            # for a single index return the list
+            if len(np.shape(index)) == 0:
+                return list([freq[0]]) + list(list(permutations(freq[1:]))[index])
+            # for a list of indecies loop over all indecies and return a list for each
+            else:
+                return [list([freq[0]]) + list(list(permutations(freq[1:]))[i]) for i in index]
         else:
-            return [list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[i]) for i in index]
+            # for a single index return the list
+            if len(np.shape(index)) == 0:
+                return list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[index])
+            # for a list of indecies loop over all indecies and return a list for each
+            else:
+                return [list(freq[0:Nfreq / 2]) + list(list(permutations(freq[Nfreq / 2:]))[i]) for i in index]
 
     def calc_err_freq(freq0, freqs_perm):
         """
@@ -976,9 +994,16 @@ def sort_esr_frequencies(freq_data):
     for j, freq in enumerate(freq_data):
 
         # permutate over all four families to find the match that gives the lowest error
-        # concat the first 4 freq and the 4 permutated freqs
-        errs = [calc_err(np.array(list(freq[0:Nfreq / 2]) + list(freq_perm)))
-                for freq_perm in list(permutations(freq[Nfreq / 2:]))]
+        if permutate_all:
+            # errs = [calc_err(np.array(freq_perm))
+            #         for freq_perm in list(permutations(freq))]
+            # concat the first 1 freq and the 7 permutated freqs
+            errs = [calc_err(np.array([freq[0]] + list(freq_perm)))
+                    for freq_perm in list(permutations(freq[1:]))]
+        else:
+            # concat the first 4 freq and the 4 permutated freqs
+            errs = [calc_err(np.array(list(freq[0:Nfreq / 2]) + list(freq_perm)))
+                    for freq_perm in list(permutations(freq[Nfreq / 2:]))]
 
         perm_indecies_min = np.where(errs == min(errs))[0]  # permutation indecies that minimize the error
         #         print(perm_indecies_min)
