@@ -999,6 +999,57 @@ def sort_esr_frequencies(freq_data):
     return freqs_sorted, perm_index
 
 
+def fit_err_fun_ring(p, *argv):
+    """
+
+    fit function sqrt(e_b\cdot eb), where eb is the direction of the dipole
+
+    this is used to fit magentic fields measured on a ring
+
+    p  angles on the ring
+
+    dp = argv[0]  # dipole strength
+    t = argv[1]  # azimuthal angle of ring
+    tm = argv[2]  # azimuthal angle of magnet
+    pm = argv[3]  # polar angle of magnet
+
+    """
+
+    def f_ring(t, p, tm, pm=0):
+        """
+        angle dependency for magnetic field magnitude Squared!! on a ring
+        the radial unit vector is defined as [cos(p)sin(t), sin(p)sin(t), cos(t)]
+        t = azimuthal angle between 0 and pi
+        p = polar angle between 0 and 2*pi
+        tm = azimuthal angle between 0 and pi of magnet
+        pm = polar angle between 0 and 2*pi of magnet
+        """
+
+        f = (34 + 6 * np.cos(2 * t) + 6 * np.cos(2 * tm)
+             + 9 * np.cos(2 * (t - tm)) + 9 * np.cos(2 * (t + tm))
+             + 24 * np.cos(2 * (p - pm)) * np.sin(t) ** 2 * np.sin(tm) ** 2
+             + 24 * np.cos(p - pm) * np.sin(2 * t) * np.sin(2 * tm)) / 16
+
+        return f
+
+    dp = argv[0]  # dipole strength
+    t = argv[1]  # azimuthal angle of ring
+    tm = argv[2]  # azimuthal angle of magnet
+    pm = argv[3]  # polar angle of magnet
+    return dp * np.sqrt(f_ring(t, p, tm, pm))
+
+
+def magnetic_moment_and_Br_from_fit(dp, a, r, mu0=4 * np.pi * 1e-7):
+    """
+    calculate the magentic moment and magnetic surface field from the fit parameter dp
+    a: radius of magnet
+    r: distance between NV circle and center of magnet
+    """
+    V = 4 * np.pi / 3 * a ** 3
+    m = 4 * np.pi / mu0 * r ** 3 * dp
+    Br = m / V * mu0
+    return m, Br
+
 if __name__ == '__main__':
 
     # solution calculated previously
