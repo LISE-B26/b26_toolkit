@@ -442,16 +442,20 @@ def B_field_from_esr_ensemble(frequencies, angular_freq=False):
     """
     calculates the magnetitc field components from the NV ESR frequencies
 
-    frequencies (2 x n matrix or 2xn vector): upper and lower esr frequency for n peaks
+    frequencies (n x 2 matrix or vector of length 2xn ): upper and lower esr frequency for n peaks
     angular_freq: frequencies are the angular frequencies (default = False)
     returns:
         the three vector components Bx, By, Bz in the frame of the Diamond
     """
+
+    print('WARNING THIS FUNCTION MIGHT BE OBSOLETE TRY calc_bfields_esr_ensemble_mag')
     if angular_freq:
         print('WARNING CHECK CODE TO MAKE SURE THAT ALL FREQ. ARE ANGULAR FREQs')
 
     if len(np.shape(frequencies)) == 1:
-        frequencies = np.reshape(frequencies, [2, len(frequencies) / 2])
+        frequencies = np.reshape(frequencies, [len(frequencies) / 2, 2])
+
+    assert len(frequencies.T) == 2
 
     B = []
     for f in frequencies:
@@ -541,7 +545,7 @@ def calc_bfields_esr_ensemble_mag(frequencies, verbose=False):
         # reshape to expected N x 2 format
         frequencies = np.reshape(frequencies, (len(frequencies)/2, 2))
 
-    assert np.shape(frequencies)[1] == 2
+    assert len(frequencies.T) == 2
 
     if verbose:
         print(' ===== calc_bfields_esr_ensemble mag ==== ')
@@ -912,11 +916,13 @@ def get_theta_dr(nv_locations, method='radius'):
     return theta, dr
 
 
-def sort_esr_frequencies(freq_data, permutate_all = False):
+def sort_esr_frequencies(freq_data, permutate_all = True, verbose = False):
     """
     sorts the frequencies from the measurement by trying all different permutations and minimizing the error in the total field,
     while also maximizing the frequency overlap from one measurement to the next.
     freq_data: frequency data, array with dimensions Ndata (number of datasets), Nfreq (number of frequencies)
+    verbose: print information along the way
+
     todo: implement also maximum overlap of the slope to keep track of upper and lower NV frequency
 
     permutate_all:
@@ -944,7 +950,8 @@ def sort_esr_frequencies(freq_data, permutate_all = False):
         # calculate the total field
         Babs = np.sqrt(np.sum(Bs ** 2, axis=1))
         # calculate the error
-        err = np.std(Babs) / np.mean(Babs)
+        # err = np.std(Babs) / np.mean(Babs)
+        err = np.std(Babs)
 
         return err
 
@@ -987,12 +994,22 @@ def sort_esr_frequencies(freq_data, permutate_all = False):
         Nperm = len(freqs_perm)
         err = np.sum((np.array(freqs_perm) - np.ones([Nperm, 1]) * np.array([freq0])) ** 2, 1)
         # normalize err
-        err = err / np.sum(np.array(freqs_perm), 1) ** 2
+        err = err / np.sum(np.array(freq0)) ** 2
+
+        if verbose:
+            print(' ====== calc_err_freq: err =====')
+            print(np.shape(err))
+
+            # print(np.shape(freqs_perm), np.shape(np.ones([Nperm, 1]) * np.array([freq0])))
+
+            print(['{:0.3e}'.format(err[k] / 1e9) for k in range(len(err))])
 
         return err
 
-    for j, freq in enumerate(freq_data):
 
+    for j, freq in enumerate(freq_data):
+        if verbose:
+            print('>>>>>>>>>>>>> RUN <<<<<<<<<<<<<<<<', j)
         # permutate over all four families to find the match that gives the lowest error
         if permutate_all:
             # errs = [calc_err(np.array(freq_perm))
@@ -1006,6 +1023,11 @@ def sort_esr_frequencies(freq_data, permutate_all = False):
                     for freq_perm in list(permutations(freq[Nfreq / 2:]))]
 
         perm_indecies_min = np.where(errs == min(errs))[0]  # permutation indecies that minimize the error
+
+        if verbose:
+            print(' ====== perm_indecies_min =====')
+            print(perm_indecies_min)
+
         #         print(perm_indecies_min)
         if len(perm_index) == 0:
             # there mightbe several permutations with the same error, we take the first for the first set of freqs
@@ -1018,12 +1040,83 @@ def sort_esr_frequencies(freq_data, permutate_all = False):
             # out of those permutations find the one that maximizes the freq. overlap
             freq_index_min = np.argmin(calc_err_freq(freqs_sorted[-1], freqs_perm_min))
 
+
         perm_index.append(perm_indecies_min[freq_index_min])
         freqs_sorted.append(get_perm_freq(freq, perm_index[-1]))
+        if verbose:
+            print(' ====== original frequencies =====')
+            print(['{:0.3f}'.format(freq[k] / 1e9) for k in range(len(freq))])
+            # print(freq)
+            print(' ====== permutated frequencies =====')
+            # print(freqs_sorted[-1])
+            print(['{:0.3f}'.format(freqs_sorted[-1][k] / 1e9) for k in range(len(freqs_sorted[-1]))])
 
     return freqs_sorted, perm_index
 
+def connect_esr_frequencies(esr_data, verbose=False):
+    """
+    order the esr_data such that the frequency overlap from one measurement to the next is maximized
+    (assuming that the data is continuous and assuming that the esr data is already in the right pairs, i.e.
+    the rows are of the form NV1_low, NV1_high, NV2_low, NV2_high etc.
 
+    run this after sorting with sort_esr_frequencies to ensure continuity of data
+
+    returns: the ordered frequency freq
+    :param esr_data: esr data of the form M x 2*N, where M is the number of measurements and N is the number of NV families
+
+    :param verbose: if true output more text
+    :return: continuous esr data
+    """
+    def order_frequencies(freq, freq_last):
+        """
+        order the freq such that the overlap with the previous set is maximized
+        Here we assume that the NVs are of the form
+            N x 2, where N is the number of NV families
+        or
+            vector of length 2*N, where frequencies from the same family are next to each other
+
+
+        freq: frequencies to be ordered
+        freq_last: last frequencies that are used as reference
+
+        returns: the ordered frequency freq
+
+        """
+
+        assert np.shape(freq) == np.shape(freq_last)
+        if verbose:
+            print(['{:0.3f}'.format(freq[k] / 1e9) for k in range(len(freq))])
+            print(['{:0.3f}'.format(freq_last[k] / 1e9) for k in range(len(freq_last))])
+
+        # if vector get into the desired form
+        if len(np.shape(freq)) == 1:
+            freq = np.reshape(freq, [len(freq) / 2, 2])
+            freq_last = np.reshape(freq_last, [len(freq_last) / 2, 2])
+
+        freq = np.sort(freq)
+        freq_last = np.sort(freq_last)
+        # find permutation family that minimizes frequency jumps
+        index_min = np.argmin([np.sum((freq_last - np.array(x)) ** 2) for x in list(permutations(freq))])
+
+        return np.reshape(list(permutations(freq))[index_min], len(freq) * 2)
+
+    # sort the first dataset such that
+    freq_last = esr_data[0]
+    freq_last = np.reshape(freq_last, [len(freq_last) / 2, 2])
+    freq_last = np.sort(freq_last)
+    freq_last = list(np.reshape(freq_last, len(freq_last) * 2))
+
+    esr_data_sorted = []
+    #     freq_last = esr_data[0]
+    for i in range(len(esr_data) - 1):
+        freq = esr_data[i + 1]
+        if verbose:
+            print('==================', i)
+        esr_data_sorted.append(order_frequencies(freq, freq_last))
+
+        freq_last = esr_data_sorted[-1]
+
+    return np.array(esr_data_sorted)
 def fit_err_fun_ring(p, *argv):
     """
 
