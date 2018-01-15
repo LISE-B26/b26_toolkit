@@ -158,7 +158,7 @@ class fields(TestCase):
 
     def test01_Bfield_single_pt(self):
         """
-        test the function calcBfield_single_pt
+        test the function b_field_single_pt
 
         :return:
         """
@@ -183,7 +183,7 @@ class fields(TestCase):
         B_simple = np.array([self.my_field_simple(r, p, mi) for mi, p in zip(m, dp_pos)])
         # now sum up to get total field
         B_simple = np.sum(B_simple, 0)
-        B = f.calcBfield_single_pt(r, dp_pos, m)
+        B = f.b_field_single_pt(r, dp_pos, m)
 
         err = np.mean(np.abs(B_simple - B))
         if self.verbose:
@@ -213,10 +213,10 @@ class fields(TestCase):
 
 
 
-        B_simple = np.array([f.calcBfield_single_pt(ri, dp_pos, m) for ri in r])
+        B_simple = np.array([f.b_field_single_pt(ri, dp_pos, m) for ri in r])
         # B_simple = np.sum(B_simple, 1)
 
-        B = f.calcBfield(r, dp_pos, m)
+        B = f.b_field(r, dp_pos, m)
         print(B[['x','y','z']])
 
 
@@ -234,7 +234,7 @@ class fields(TestCase):
 
     def test03a_Grad_single_pt(self):
         """
-        test the function calcBfield_single_pt repeating the same calculatation
+        test the function b_field_single_pt repeating the same calculatation
 
         :return:
         """
@@ -260,7 +260,7 @@ class fields(TestCase):
         G_simple = self.my_grad_simple(r, dp_pos, m, s, n)
         # now sum up to get total field gradient
         # calculate the gradient at the same position twice but using the vector code
-        G = f.calcGradient_single_pt(r, np.array([dp_pos, dp_pos]), np.array([m,m]), s, n, verbose=True)
+        G = f.gradient_single_pt(r, np.array([dp_pos, dp_pos]), np.array([m, m]), s, n, verbose=True)
 
         err = np.mean(np.abs(G_simple - G/2))
         if self.verbose:
@@ -271,7 +271,7 @@ class fields(TestCase):
 
     def test03b_Grad_single_pt(self):
         """
-        test the function calcBfield_single_pt with random values
+        test the function b_field_single_pt with random values
 
         :return:
         """
@@ -301,7 +301,7 @@ class fields(TestCase):
         G_simple = np.array([self.my_grad_simple(r, p, mi, s, n) for mi, p in zip(m, dp_pos)])
         # now sum up to get total field gradient
         G_simple = np.sum(G_simple, 0)
-        G = f.calcGradient_single_pt(r, dp_pos, m, s, n, verbose=True)
+        G = f.gradient_single_pt(r, dp_pos, m, s, n, verbose=True)
 
         err = np.mean(np.abs(G_simple - G))
         if self.verbose:
@@ -330,9 +330,9 @@ class fields(TestCase):
 
 
 
-        G_simple = np.array([f.calcGradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
+        G_simple = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
 
-        G = f.calcGradient(r, dp_pos, m, s, n)
+        G = f.gradient(r, dp_pos, m, s, n)
 
         if self.verbose:
             print('G', np.array(G['G']))
@@ -362,9 +362,9 @@ class fields(TestCase):
             print('dp_pos', dp_pos)
 
 
-        G_simple = np.array([f.calcGradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
+        G_simple = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
 
-        G = f.calcGradient(r, dp_pos, m, s, n)
+        G = f.gradient(r, dp_pos, m, s, n)
 
         if self.verbose:
             print('G', np.array(G['G']))
@@ -376,40 +376,71 @@ class fields(TestCase):
         if err > 1e-6:
             raise ValueError
 
-    def test05_singlept_1_vs_2(self):
-
-        N, M= 2, 4
+    def test04c_Grad_many_pt(self):
+        print('========== TEST 4c ==========')
+        N, M = 1, 4
 
         # create random vectors
         r = np.random.rand(M, 3)
         m = np.random.rand(N, 3)
         dp_pos = np.random.rand(N, 3)
-
+        s = np.random.rand(3)
+        n = np.random.rand(3)
 
         if self.verbose:
             print('r', r)
             print('m', m)
             print('dp_pos', dp_pos)
 
+        # use the code for several dipoles but single point
+        G1 = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
+        # use the code for several points but single dipole
+        G2 = np.array([f.gradient_single_dipole(r, dp_posi, mi, s, n) for mi, dp_posi in zip(m, dp_pos)])
 
-
-        B1 = np.array([f.calcBfield_single_pt1(ri, dp_pos, m) for ri in r])
-
-        B2 = np.array([f.calcBfield_single_pt2(r, dp_pos, mi) for mi in m])
-
-
-
+        err = np.mean(np.abs(G1 - np.sum(G2, 0)))
         if self.verbose:
-            print('B', B1)
-            print('B', B2)
+            print('shapes', np.shape(G1), np.shape(G2))
 
-        err = np.mean(np.abs(np.array(B1[['Bx','By','Bz']]) - np.array(B2[['Bx','By','Bz']])))
+            print('err')
+            print(err)
 
-        print('---', err)
+            print('G1')
+            print(G1)
+            print('G2')
+            print(np.sum(G2, 0))
+
 
         if err > 1e-6:
             raise ValueError
 
+    def test05a_B_many_pt(self):
+        print('========== TEST 5a ==========')
+        N, M = 2, 4
+
+        # create random vectors
+        r = np.random.rand(M, 3)
+        m = np.random.rand(N, 3)
+        dp_pos = np.random.rand(N, 3)
+        s = np.random.rand(3)
+        n = np.random.rand(3)
+        if self.verbose:
+            print('r', r)
+            print('m', m)
+            print('dp_pos', dp_pos)
+
+        # use the code for several dipoles but single point
+        B1 = np.array([f.b_field_single_pt(ri, dp_pos, m) for ri in r])
+        # use the code for several points but single dipole
+        B2 = np.array([f.b_field_single_dipole(r, dp_posi, mi) for mi, dp_posi in zip(m, dp_pos)])
+
+        if self.verbose:
+            print('err')
+            print(B1 - np.sum(B2, 0))
+
+            err = np.mean(np.abs(B1 - np.sum(B2, 0)))
+
+        if err > 1e-6:
+            raise ValueError
 
     # def test05_Bfield_on_ring(self):
     #
@@ -432,10 +463,10 @@ class fields(TestCase):
     #
     #
     #
-    #     B_simple = np.array([f.calcBfield_single_pt(ri, dp_pos, m) for ri in r])
+    #     B_simple = np.array([f.b_field_single_pt(ri, dp_pos, m) for ri in r])
     #     # B_simple = np.sum(B_simple, 1)
     #
-    #     B = f.calcBfield(r, dp_pos, m)
+    #     B = f.b_field(r, dp_pos, m)
     #     print(B[['x','y','z']])
     #
     #

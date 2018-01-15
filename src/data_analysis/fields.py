@@ -28,7 +28,7 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
 
     rs *=1e6# convert from m to um
 
-    B = calcBfield(rs, DipolePositions, m, use_parallel=use_parallel, verbose=verbose)
+    B = b_field(rs, DipolePositions, m, use_parallel=use_parallel, verbose=verbose)
 
     return B
 
@@ -44,7 +44,7 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     #     print('using ', num_cores, ' cores')
     #
     # def process(r):
-    #     return calcBfield_single_pt(r, DipolePositions, m)
+    #     return b_field_single_pt(r, DipolePositions, m)
     #
     #
     #
@@ -60,13 +60,13 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     # if use_parallel:
     #
     #     # Parallel(n_jobs=1)(delayed(sqrt)(i ** 2) for i in range(10))
-    #     # B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
-    #     B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+    #     # B = Parallel(n_jobs=num_cores)(delayed(b_field_single_pt)(r, DipolePositions, m) for r in rs)
+    #     B = Parallel(n_jobs=num_cores)(delayed(b_field_single_pt)(r, DipolePositions, m) for r in rs)
     #     # B = Parallel(n_jobs=num_cores)(delayed(process)(r) for r in rs)
     #     B = np.array(B)
     #
     # else:
-    #     B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+    #     B = np.array([b_field_single_pt(r, DipolePositions, m) for r in rs])
     #
     # # put data into a dictionary
     # data_out['Bx'] = deepcopy(B[:, 0])
@@ -77,7 +77,7 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     # return data as a pandas dataframe
     # return pd.DataFrame.from_dict(data_out)
 
-def calcBfield_single_pt(r, DipolePositions, m, mu0 = 4 * np.pi * 1e-7):
+def b_field_single_pt(r, DipolePositions, m, mu0 =4 * np.pi * 1e-7):
     """
     calculates the magnetic field at position r
     :param r: vector of length 3 position at which field is evaluates (in um)
@@ -113,8 +113,7 @@ def calcBfield_single_pt(r, DipolePositions, m, mu0 = 4 * np.pi * 1e-7):
 
     return np.sum(B, 0)
 
-
-def calcBfield(rs, DipolePositions, m, use_parallel = True, verbose = False):
+def b_field(rs, DipolePositions, m, use_parallel = True, verbose = False):
     '''
     calculates the magnetic field at multiple positions r
     :param rs:  matrix Mx3, position at which field is evaluated (in um)
@@ -147,11 +146,11 @@ def calcBfield(rs, DipolePositions, m, use_parallel = True, verbose = False):
 
     if use_parallel:
 
-        B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+        B = Parallel(n_jobs=num_cores)(delayed(b_field_single_pt)(r, DipolePositions, m) for r in rs)
         B = np.array(B)
 
     else:
-        B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+        B = np.array([b_field_single_pt(r, DipolePositions, m) for r in rs])
 
     if verbose:
         print('rs shape', np.shape(rs))
@@ -204,11 +203,11 @@ def calcBfield2xx(rs, DipolePositions, m, use_parallel = True, verbose = False):
 
     if use_parallel:
 
-        B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+        B = Parallel(n_jobs=num_cores)(delayed(b_field_single_pt)(r, DipolePositions, m) for r in rs)
         B = np.array(B)
 
     else:
-        B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+        B = np.array([b_field_single_pt(r, DipolePositions, m) for r in rs])
 
     if verbose:
         print('rs shape', np.shape(rs))
@@ -228,8 +227,7 @@ def calcBfield2xx(rs, DipolePositions, m, use_parallel = True, verbose = False):
     # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data_out)
 
-
-def calcGradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 = 4 * np.pi *1e-7):
+def gradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 =4 * np.pi * 1e-7):
     '''
     calculates the magnetic field at position r
     :param r: vector of length 3 position at which field is evaluates (in um)
@@ -287,7 +285,7 @@ def calcGradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 = 4
 
     return np.sum(gradB,0)
 
-def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False):
+def gradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False):
     '''
     Calculate the magnetic field gradient for a collection of dipoles at multiple positions r
     :param rs:  matrix Mx3, position at which field is evaluated (in um)
@@ -320,10 +318,10 @@ def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False)
 
 
     if use_parallel:
-        G = Parallel(n_jobs=num_cores)(delayed(calcGradient_single_pt)(r, DipolePositions, m, s, n) for r in rs)
+        G = Parallel(n_jobs=num_cores)(delayed(gradient_single_pt)(r, DipolePositions, m, s, n) for r in rs)
         G = np.array(G)
     else:
-        G = np.array([calcGradient_single_pt(r, DipolePositions, m) for r in rs])
+        G = np.array([gradient_single_pt(r, DipolePositions, m) for r in rs])
 
     # put data into a dictionary
     data_out = {
@@ -339,7 +337,7 @@ def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False)
     # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data_out)
 
-def B_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
+def b_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
     """
     calculates the magnetic field at position r
     :param r: matrix Nx3, positions at which field is evaluates (in um)
@@ -360,9 +358,6 @@ def B_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
 
     rho = np.sqrt(np.sum(a ** 2, 1))
 
-    # if we request thefield at the location of the dipole the field diverges, thus we exclude this value because we only want to get the fields from all the other dipoles
-    zero_value_index = np.argwhere(rho == 0)
-
     rho = np.array([rho]).T * np.ones((1, 3))
 
     # calculate the vector product of m and a: m*(r-ri)
@@ -371,7 +366,69 @@ def B_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
 
 
     return B
+def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 * np.pi * 1e-7):
+    '''
+    calculates the magnetic gradient field at position r
+    :param r: vector of length 3 position at which field is evaluates (in um)
+    DipolePosition: (vector of length 3) dipole location in space in nm
+    m:  (vector of length 3)  magnetic moment of a dipole in 1e-18J/T
+    s: (vector of length 3) spin vector no units
+    n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
+    mu0 = 4 * np.pi * 1e-7  # T m /A
+    Output in T/um
+    '''
+    # check that DipolePositions and m have the same shape
+    assert np.shape(DipolePosition) == np.shape(m)
+    #
+    # # check that m is a vector of length 3
+    assert len(np.shape(m)) == 1
+    assert len(m) == 3
 
+    # # check that m, s and n are vectors of length 3
+    assert len(np.shape(m)) == 1
+    assert len(m) == 3
+    assert len(np.shape(s)) == 1
+    assert len(s) == 3
+    assert len(np.shape(n)) == 1
+    assert len(n) == 3
+
+    a = np.ones((len(r), 1)) * np.array([DipolePosition]) - r  #
+
+    rho = np.sqrt(np.sum(a ** 2, 1))
+
+    rho = np.array([rho]).T * np.ones((1, 3))
+
+    # calculate the vector product of m and a: m*(r-ri)
+    ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
+    # calculate the vector product of s and a: s*(r-ri)
+    sa = np.array([np.sum(s * a, 1)]).T * np.ones((1, 3))
+    # calculate the vector product of n and a: n*(r-ri)
+    na = np.array([np.sum(n * a, 1)]).T * np.ones((1, 3))
+
+    # a = np.ones((N,1)) * np.array([r])-DipolePosition
+    # rho = np.sqrt(np.sum(a**2,1))
+
+    # # calculate the vector product of m and a: m*(r-ri)
+    # ma = np.sum(m * a, 1)
+    # # calculate the vector product of s and a: s*(r-ri)
+    # sa = np.sum(np.ones((N,1)) * np.array([s])*a,1)
+    # # calculate the vector product of n and a: n*(r-ri)
+    # na = np.sum(np.ones((N,1)) * np.array([n])*a,1)
+    # calculate the vector product of s and n
+    sn = np.dot(s, n)
+    # calculate the vector product of m and n
+    mn = np.dot(m, n)
+    # mn = np.sum(np.ones((N, 1)) * np.array([n]) * m, 1)
+    # calculate the vector product of m and s
+    ms = np.dot(m, s)
+    # ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
+
+    gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
+            ma * sn + sa * mn + ms * na
+            - 5 * (sa * ma / rho ** 2) * na
+    )
+
+    return np.sum(gradB,1)
 
 def calc_B_field_single_dipole(p):
     """
@@ -392,11 +449,11 @@ def calc_B_field_single_dipole(p):
     """
 
     r, M = p_to_positions(p)
-    DipolePositions = np.zeros(3)  # we assume that the magnet is at 0,0,0
+    DipolePosition = np.zeros(3)  # we assume that the magnet is at 0,0,0
 
     start = time.time()
-    data_out = calcBfield(r, DipolePositions, M)
-    #     G = f.calcGradient(r, DipolePositions, M, s, n)
+    data_out = b_field_single_dipole(r, DipolePosition, M, mu0=4 * np.pi * 1e-7)
+    #     G = f.gradient(r, DipolePosition, M, s, n)
     #     data_out['G'] = G['G']
     end = time.time()
     print('duration: {:0.2f} min'.format((end - start) / 60))
@@ -429,7 +486,7 @@ def calc_Gradient_single_dipole(p, s, n):
     DipolePositions = np.zeros(3)  # we assume that the magnet is at 0,0,0
 
     start = time.time()
-    data_out = calcGradient(r, DipolePositions, M, s, n)
+    data_out = gradient(r, DipolePositions, M, s, n)
     end = time.time()
     print('duration: {:0.2f} min'.format((end - start) / 60))
 
@@ -596,9 +653,9 @@ if __name__ == '__main__':
     #
     #
     # t1 =datetime.datetime.now()
-    # dataB = calcBfield(r, subdata_mag, info_mag, True)
+    # dataB = b_field(r, subdata_mag, info_mag, True)
     # t2 = datetime.datetime.now()
-    # # dataB = calcBfield(r, subdata_mag, info_mag, False)
+    # # dataB = b_field(r, subdata_mag, info_mag, False)
     # # t3 = datetime.datetime.now()
     #
     # print('excution time parallel', str(t2-t1))
