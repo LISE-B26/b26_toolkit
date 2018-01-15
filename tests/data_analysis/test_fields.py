@@ -376,6 +376,41 @@ class fields(TestCase):
         if err > 1e-6:
             raise ValueError
 
+    def test05_singlept_1_vs_2(self):
+
+        N, M= 2, 4
+
+        # create random vectors
+        r = np.random.rand(M, 3)
+        m = np.random.rand(N, 3)
+        dp_pos = np.random.rand(N, 3)
+
+
+        if self.verbose:
+            print('r', r)
+            print('m', m)
+            print('dp_pos', dp_pos)
+
+
+
+        B1 = np.array([f.calcBfield_single_pt1(ri, dp_pos, m) for ri in r])
+
+        B2 = np.array([f.calcBfield_single_pt2(r, dp_pos, mi) for mi in m])
+
+
+
+        if self.verbose:
+            print('B', B1)
+            print('B', B2)
+
+        err = np.mean(np.abs(np.array(B1[['Bx','By','Bz']]) - np.array(B2[['Bx','By','Bz']])))
+
+        print('---', err)
+
+        if err > 1e-6:
+            raise ValueError
+
+
     # def test05_Bfield_on_ring(self):
     #
     #     M=  4
