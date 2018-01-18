@@ -274,11 +274,21 @@ def gradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 =4 * np
     # calculate the vector product of m and s
     ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
 
+    if verbose:
+        print('rho', rho)
+        print('a', a)
+        print('ma', ma)
+        print('sa', sa)
+        print('na', na)
+
     gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
             ma * sn + sa * mn + ms * na
             - 5 * (sa * ma / rho ** 2) * na
     )
-
+    if verbose:
+        print('sn', sn)
+        print('mn', mn)
+        print('ms', ms)
 
     if verbose:
         print('grad due to every dipole', gradB)
@@ -337,7 +347,7 @@ def gradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False):
     # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data_out)
 
-def b_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
+def b_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7, verbose = False):
     """
     calculates the magnetic field at position r
     :param r: matrix Nx3, positions at which field is evaluates (in um)
@@ -362,10 +372,17 @@ def b_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7):
 
     # calculate the vector product of m and a: m*(r-ri)
     ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
+
+    if verbose:
+        print('rho', rho)
+        print('a', a)
+        print('ma', ma)
+
     B = mu0 / (4 * np.pi) * (3. * a * ma / rho ** 5 - m / rho ** 3)  # magnetic field in Tesla
 
 
     return B
+
 def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 * np.pi * 1e-7):
     '''
     calculates the magnetic gradient field at position r
@@ -392,18 +409,29 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     assert len(np.shape(n)) == 1
     assert len(n) == 3
 
-    a = np.ones((len(r), 1)) * np.array([DipolePosition]) - r  #
+    a = r- np.ones((len(r), 1)) * np.array(DipolePosition)  #
 
     rho = np.sqrt(np.sum(a ** 2, 1))
 
-    rho = np.array([rho]).T * np.ones((1, 3))
-
     # calculate the vector product of m and a: m*(r-ri)
-    ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
+    # ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
+    # ma = np.array([np.sum(m * a, 1)]).T
+    ma = np.sum(m * a, 1).T
     # calculate the vector product of s and a: s*(r-ri)
-    sa = np.array([np.sum(s * a, 1)]).T * np.ones((1, 3))
+    # sa = np.array([np.sum(s * a, 1)]).T * np.ones((1, 3))
+    # sa = np.array([np.sum(s * a, 1)]).T
+    sa = np.sum(s * a, 1).T
     # calculate the vector product of n and a: n*(r-ri)
-    na = np.array([np.sum(n * a, 1)]).T * np.ones((1, 3))
+    # na = np.array([np.sum(n * a, 1)]).T * np.ones((1, 3))
+    # na = np.array([np.sum(n * a, 1)]).T
+    na = np.sum(n * a, 1).T
+
+    if verbose:
+        print('rho', rho)
+        print('a', a)
+        print('ma', ma)
+        print('sa', sa)
+        print('na', na)
 
     # a = np.ones((N,1)) * np.array([r])-DipolePosition
     # rho = np.sqrt(np.sum(a**2,1))
@@ -423,12 +451,22 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     ms = np.dot(m, s)
     # ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
 
+    if verbose:
+        print('sn', sn)
+        print('mn', mn)
+        print('ms', ms)
+
     gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
             ma * sn + sa * mn + ms * na
             - 5 * (sa * ma / rho ** 2) * na
     )
 
-    return np.sum(gradB,1)
+    gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
+            ma * sn + sa * mn + ms * na
+            - 5 * (sa * ma / rho ** 2) * na
+    )
+
+    return gradB
 
 def calc_B_field_single_dipole(p):
     """

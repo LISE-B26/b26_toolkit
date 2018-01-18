@@ -378,7 +378,7 @@ class fields(TestCase):
 
     def test04c_Grad_many_pt(self):
         print('========== TEST 4c ==========')
-        N, M = 1, 4
+        N, M = 2, 2
 
         # create random vectors
         r = np.random.rand(M, 3)
@@ -387,17 +387,14 @@ class fields(TestCase):
         s = np.random.rand(3)
         n = np.random.rand(3)
 
-        if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
-
         # use the code for several dipoles but single point
-        G1 = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
+        G1 = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n, verbose=True) for ri in r])
         # use the code for several points but single dipole
-        G2 = np.array([f.gradient_single_dipole(r, dp_posi, mi, s, n) for mi, dp_posi in zip(m, dp_pos)])
+        G2 = np.array([f.gradient_single_dipole(r, dp_posi, mi, s, n, verbose=True) for mi, dp_posi in zip(m, dp_pos)])
 
         err = np.mean(np.abs(G1 - np.sum(G2, 0)))
+
+
         if self.verbose:
             print('shapes', np.shape(G1), np.shape(G2))
 
