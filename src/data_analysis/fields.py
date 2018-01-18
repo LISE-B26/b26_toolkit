@@ -484,6 +484,9 @@ def calc_B_field_single_dipole(p):
      d_bead_z: distance between bead and z plane
      dx: distance between points (in um)
      x_min, x_max, y_min, y_max: plot dimensions (in um)
+
+     :returns
+      pandas dataframe with columns 'x', 'y', 'z' and 'Bx', 'By' and 'Bz'
     """
 
     r, M = p_to_positions(p)
@@ -491,10 +494,17 @@ def calc_B_field_single_dipole(p):
 
     start = time.time()
     data_out = b_field_single_dipole(r, DipolePosition, M, mu0=4 * np.pi * 1e-7)
-    #     G = f.gradient(r, DipolePosition, M, s, n)
-    #     data_out['G'] = G['G']
+
     end = time.time()
     print('duration: {:0.2f} min'.format((end - start) / 60))
+
+
+    # create a pandas dataset
+    data_out = pd.DataFrame.from_dict(
+        {'x': r[:,0],'y':r[:,1], 'z':r[:,2],
+         'Bx': data_out[:,0], 'By': data_out[:,1], 'Bz': data_out[:,2]
+        }
+    )
 
     # if filename not None:
     #     # save data to csv
@@ -524,9 +534,17 @@ def calc_Gradient_single_dipole(p, s, n):
     DipolePositions = np.zeros(3)  # we assume that the magnet is at 0,0,0
 
     start = time.time()
-    data_out = gradient(r, DipolePositions, M, s, n)
+    data_out = gradient_single_dipole(r, DipolePositions, M, s, n)
     end = time.time()
     print('duration: {:0.2f} min'.format((end - start) / 60))
+
+    # create a pandas dataset
+    data_out = pd.DataFrame.from_dict(
+        {'x': r[:,0],'y':r[:,1], 'z':r[:,2],
+         'G': data_out
+        }
+    )
+
 
     return data_out
 
