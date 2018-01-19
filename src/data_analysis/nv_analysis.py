@@ -8,46 +8,38 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def get_best_NV_position(p, max_broadening=100, max_off_axis_field=0.01, nv_id=1, n=[0, 0, 1],
-                         wo=500e-9, gammaNV=28e9,
-                         arrow_length=1, arrow_angle=200, verbose=False, plot=False, plot_prop='shift'):
+
+
+def z_rotation(phi):
     """
+    rotation matrix for a rotation about the z axis
+    phi: rotation angle in degree
+    """
+    phi/=180/np.pi
+    print(phi)
+    return np.array([
+            [np.cos(phi), -np.sin(phi), 0],
+            [np.sin(phi), np.cos(phi), 0],
+            [0,0,1]
+        ]).T
 
-    calculates the fields and gradients for parameters p
-    and finds the position in space with the best conditions for the spin-mechanics experiment
+def get_full_nv_dataset(p, nv_id=1, n=[0, 0, 1], nv_rotation_matrix = None, wo=500e-9, gammaNV=28e9, verbose=False):
+    """
+    returns a full dataset for Nv number nv_id, based on parameters p
 
-    p: parameters - dictionary with following entries:
-        tag: name identifier (string)
-         a: radius in um
-         Br: surface magnetization in Teslas
-         phi_m: polar angle in deg
-         theta_m: azimuthal angle in deg
-         d_bead_z: distance top of bead to NV plane
-         mu_0: vacuum permeability ( T m /A)
-         d_bead_z: distance between bead and z plane
-         dx: distance between points (in um)
-         x_min, x_max, y_min, y_max: plot dimensions (in um)
-
-    max_broadening = 100 # max broadening in MHz
-    max_off_axis_field = 0.01 # max off axis field in Teslas
-
-    nv_id =1 # select a NV [1,2,3,4]
-    n = [0,0,1] # direction of gradient
-
-
-    wo = 500e-9 # focal spot size
-    gammaNV = 28e9 # (ESR shift is 28 GHz/T)
-
-
-    arrow_length = 1
-    arrow_angle = 200
-
-    verbose = True
-    plot: if true plot the NV shift
-
+    :param p:
+    :param nv_id:
+    :param n:
+    :param nv_rotation_matrix: matrix that rotates the coordinate system of the nv center, e.g. to account for rotations of the diamond wrt the resonator
+    :param wo:
+    :param gammaNV:
+    :param verbose:
+    :return:
     """
     s = nv.nNV[nv_id - 1]  # NV orientation
-
+    if nv_rotation_matrix is not None:
+        assert np.shape(nv_rotation_matrix) == (3,3)
+        s = np.dot(s, nv_rotation_matrix)
     # =============== calculate the gradients ==============
 
     df = f.calc_Gradient_single_dipole(p, s, n, verbose=verbose)
@@ -75,6 +67,36 @@ def get_best_NV_position(p, max_broadening=100, max_off_axis_field=0.01, nv_id=1
     df['fm'] = esr_freq[:, 0]
     df['fp'] = esr_freq[:, 1]
 
+    return df
+
+
+def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, verbose=False):
+    """
+
+    calculates the fields and gradients for parameters p
+    and finds the position in space with the best conditions for the spin-mechanics experiment
+
+    df: dataframe with all the fields and gradients calculated for Nv with nv_id
+
+    max_broadening = 100 # max broadening in MHz
+    max_off_axis_field = 0.01 # max off axis field in Teslas
+
+    nv_id =1 # select a NV [1,2,3,4]
+    n = [0,0,1] # direction of gradient
+
+
+    wo = 500e-9 # focal spot size
+    gammaNV = 28e9 # (ESR shift is 28 GHz/T)
+
+
+    arrow_length = 1
+    arrow_angle = 200
+
+    verbose = True
+    plot: if true plot the NV shift
+
+    """
+
     if verbose:
         print('Calculated fields and gradients at {:d} points'.format(len(df)))
 
@@ -91,17 +113,6 @@ def get_best_NV_position(p, max_broadening=100, max_off_axis_field=0.01, nv_id=1
     # out of the subset get the point with the highest gradient
     x = x.loc[np.abs(x['G']) == np.max(np.abs(x['G']))]
 
-    # calculate some values for the arrow plot
-    xo, yo = np.float(x['x']), np.float(x['y'])
-    dx = arrow_length * np.cos(arrow_angle * np.pi / 180)
-    dy = arrow_length * np.sin(arrow_angle * np.pi / 180)
 
-    if plot:
-        fig = fp.plot_NV_property_map(df, plot_prop)
-        plt.arrow(xo + dx, yo + dy, -dx, -dy,
-                  head_width=0.3, head_length=0.2, fc='w', ec='w', head_starts_at_zero=False,
-                  length_includes_head=True)
-        return x, fig
-    else:
 
-        return x
+    return x

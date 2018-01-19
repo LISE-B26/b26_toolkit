@@ -352,6 +352,10 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     assert len(np.shape(n)) == 1
     assert len(n) == 3
 
+    # normalize unit vectors
+    s/=np.linalg.norm(s)
+    n /= np.linalg.norm(n)
+
     a = r- np.ones((len(r), 1)) * np.array(DipolePosition)  #
 
     rho = np.sqrt(np.sum(a ** 2, 1))
@@ -459,19 +463,21 @@ def calc_B_field_single_dipole(p, verbose = False):
 
 def calc_Gradient_single_dipole(p, s, n, verbose = False):
     """
-    calculate the gradients along a direction s for field component n for a dipole that is located at the origin
+    calculate the gradients along a direction n for field component s for a dipole that is located at the origin
 
     p: parameters - dictionary with following entries:
         tag: name identifier (string)
-     a: radius in um
-     Br: surface magnetization in Teslas
-     phi_m: polar angle in deg
-     theta_m: azimuthal angle in deg
-     d_bead_z: distance top of bead to NV plane
-     mu_0: vacuum permeability ( T m /A)
-     d_bead_z: distance between bead and z plane
-     dx: distance between points (in um)
-     x_min, x_max, y_min, y_max: plot dimensions (in um)
+         a: radius in um
+         Br: surface magnetization in Teslas
+         phi_m: polar angle in deg
+         theta_m: azimuthal angle in deg
+         d_bead_z: distance top of bead to NV plane
+         mu_0: vacuum permeability ( T m /A)
+         d_bead_z: distance between bead and z plane
+         dx: distance between points (in um)
+         x_min, x_max, y_min, y_max: plot dimensions (in um)
+    s: (vector of length 3) spin vector no units
+    n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
     """
 
     r, M = p_to_positions(p)

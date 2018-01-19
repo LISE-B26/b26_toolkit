@@ -3,7 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def plot_Bfield_mag(data, title='', offset_field=np.zeros(3), ax=None):
@@ -138,6 +138,9 @@ def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, 
     elif prop == 'fm':
         C = data['fm'] * 1e-9
         title = 'ESR transition freq wm/2pi (GHz)' if title is '' else ''
+    elif prop == 'G':
+        C = data['G']
+        title = 'gradient (T/um)' if title is '' else ''
     else:
         print('plot type not recognized try prop = shift, contrast, Bperp, Bpar, Gxy')
         raise NotImplementedError
@@ -150,22 +153,47 @@ def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, 
     ymin, ymax = np.min(Y), np.max(Y)
 
     if ax is None:
-        fig = plt.figure(figsize=(15, 4))
+        fig, ax = plt.subplots()
 
-        plt.pcolormesh(X, Y, C)
-        plt.colorbar(label=title)
-        plt.title(title)
-        plt.xlabel('x ($\mu m$)')
-        plt.ylabel('y ($\mu m$)')
+    fig = ax.get_figure()
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    im = ax.pcolormesh(X, Y, C)
 
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
-        #     plt.clim([0, 500])
+    fig.colorbar(im, cax=cax, orientation='vertical')
 
-        plt.axes().set_aspect('equal')
-    else:
-        raise NotImplementedError
-        # todo: implemet plotting on given axis object, this is a bit tricky if we want a colorbar
-        fig = plt.figure(figsize=(15, 4))
 
-    return fig
+    ax.set_title(title)
+    ax.set_xlabel('x ($\mu m$)')
+    ax.set_ylabel('y ($\mu m$)')
+
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([ymin, ymax])
+
+    ax.set_aspect('equal')
+
+    return ax
+
+
+def plot_arrow(x, ax, arrow_length=1, arrow_angle=200):
+    """
+    plots arrows of length arrow_length with angle arrow_angle at positions defined in x
+
+
+    :param x: pandas dataframe with entries x and y that determine the end point of the arrow
+    :param ax: axis object on which to plot the arrow
+    :param arrow_length:
+    :param arrow_angle:
+    :return:
+    """
+    dx = arrow_length * np.cos(arrow_angle * np.pi / 180)
+    dy = arrow_length * np.sin(arrow_angle * np.pi / 180)
+    # calculate some values for the arrow plot
+    for index, row in x.iterrows():
+        xo, yo = np.float(row['x']), np.float(row['y'])
+        ax.arrow(xo + dx, yo + dy, -dx, -dy,
+                 head_width=0.3, head_length=0.2, fc='w', ec='w', head_starts_at_zero=False,
+                 length_includes_head=True)
+    return ax
+
+

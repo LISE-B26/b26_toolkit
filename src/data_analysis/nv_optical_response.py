@@ -1154,7 +1154,6 @@ def fit_err_fun_ring(p, *argv):
     pm = argv[3]  # polar angle of magnet
     return dp * np.sqrt(f_ring(t, p, tm, pm))
 
-
 def magnetic_moment_and_Br_from_fit(dp, a, r, mu0=4 * np.pi * 1e-7):
     """
     calculate the magentic moment and magnetic surface field from the fit parameter dp
