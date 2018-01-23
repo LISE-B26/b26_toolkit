@@ -18,10 +18,44 @@ def rotation_matrix_z(phi):
     """
     phi/=180/np.pi
     return np.array([
-            [np.cos(phi), -np.sin(phi), 0],
-            [np.sin(phi), np.cos(phi), 0],
-            [0,0,1]
-        ]).T
+        [np.cos(phi), -np.sin(phi), 0],
+        [np.sin(phi), np.cos(phi), 0],
+        [0,0,1]
+        ])
+
+def rotation_matrix_x(phi):
+    """
+    rotation matrix for a rotation about the x axis
+    phi: rotation angle in degree
+    """
+    phi/=180/np.pi
+    return np.array([
+        [1, 0, 0],
+        [0, np.cos(phi), -np.sin(phi)],
+        [0, np.sin(phi), np.cos(phi)]
+        ])
+
+def rotation_matrix_100_to_111(nv_id):
+    """
+    transforms the nv from the standard 100 type to the 111 type
+    :param nv_id: id of NV that will be pointing up, i.e. along the z axis
+    :return:
+    """
+    if nv_id ==0:
+        theta_x, theta_z  = np.arctan(np.sqrt(2)), -np.pi/4
+    elif nv_id ==1:
+        theta_x, theta_z = -np.arctan(np.sqrt(2)), -np.pi / 4
+    elif nv_id ==2:
+        theta_x, theta_z = np.pi+np.arctan(np.sqrt(2)), -3*np.pi / 4
+    elif nv_id ==3:
+        theta_x, theta_z = np.pi-np.arctan(np.sqrt(2)), -3*np.pi / 4
+    else:
+        raise ValueError("wrong NV id, try values, 0,1,2,3")
+
+    theta_x *= 180/np.pi
+    theta_z *= 180 / np.pi
+
+    return np.dot(rotation_matrix_x(theta_x), rotation_matrix_z(theta_z))
 
 def get_full_nv_dataset(p, nv_id=1, n=[0, 0, 1], nv_rotation_matrix = None, wo=500e-9, gammaNV=28e9, verbose=False):
     """
@@ -39,7 +73,7 @@ def get_full_nv_dataset(p, nv_id=1, n=[0, 0, 1], nv_rotation_matrix = None, wo=5
     s = nv.nNV[nv_id - 1]  # NV orientation
     if nv_rotation_matrix is not None:
         assert np.shape(nv_rotation_matrix) == (3,3)
-        s = np.dot(s, nv_rotation_matrix)
+        s = np.dot(nv_rotation_matrix, s)
     # =============== calculate the gradients ==============
 
     df = f.calc_Gradient_single_dipole(p, s, n, verbose=verbose)
@@ -280,7 +314,7 @@ def fit_err_fun_ring2(p, *argv):
     return np.linalg.norm(B, axis=1)
 
 
-def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond, theta_magnet):
+def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond, theta_magnet, diamond111_nv_id = None):
     """
     calculates the maximum gradiend within the area defined by the parameter and angles
 
@@ -302,6 +336,7 @@ def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamo
     max_off_axis_field: determines the maximum tolerated off axis field in Teslas
     phi_diamond: polar (in plane) orientation of diamond wrt magnet
     theta_magnet: azimuthal (out of plane) orientation of magnet
+    diamond111_nv_id: if not None, the id 0,1,2,3 specifies the NV that will be pointing along the z direction
 
     """
     # if len(parameter) == 5 and len(argv) == 2:
@@ -313,7 +348,12 @@ def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamo
     #     [theta_magnet] = argv
 
     p['theta_m'] = theta_magnet
+
     nv_rot = rotation_matrix_z(phi_diamond)
+
+    if diamond111_nv_id is not None:
+        assert diamond111_nv_id in range(4)
+        nv_rot = np.dot(nv_rot, rotation_matrix_100_to_111(diamond111_nv_id))
 
     df = get_full_nv_dataset(p, nv_id=nv_id, nv_rotation_matrix=nv_rot, n=n)
 
@@ -322,3 +362,29 @@ def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamo
     Gradient = float(x['G'].iloc[0])
 
     return Gradient
+
+
+if __name__ == '__main__':
+
+    phi_diamond = 25
+    for nv_id in range(4):
+        nv_rot = rotation_matrix_z(phi_diamond)
+        assert nv_id in range(4)
+        nv_rot = np.dot(rotation_matrix_100_to_111(nv_id), nv_rot)
+
+        print(np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[nv_id]))
+        print('---', np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[0]))
+
+
+    print('---xxxx---------')
+    phi_diamond = 0
+    nv_id = 0
+    nv_rot = rotation_matrix_z(phi_diamond)
+    assert nv_id in range(4)
+    nv_rot = np.dot(nv_rot, rotation_matrix_100_to_111(nv_id))
+
+    for nv_id in range(4):
+
+        print(np.dot(nv_rot, nv.nNV[nv_id]))
+
+
