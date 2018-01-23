@@ -557,6 +557,17 @@ def p_to_positions(p):
 
     return r, M
 
+def magnetic_moment(a, Br, muo = 4 * np.pi * 1e-7):
+    """
+    calculates the magentic moment for a sphere with radius a and surface field Br
+
+    :param a: sphere  radius in um
+    :param Br: surface field in Teslas
+    :param muo: 4 * np.pi * 1e-7
+    :return: magentic moment
+    """
+    M = 4 * np.pi / 3 * a ** 3 * Br /muo
+    return M
 
 def p_to_filename(p):
     """

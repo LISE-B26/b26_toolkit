@@ -7,16 +7,16 @@ import fields_plot as fp
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy.optimize as opt
 
 
 
-def z_rotation(phi):
+def rotation_matrix_z(phi):
     """
     rotation matrix for a rotation about the z axis
     phi: rotation angle in degree
     """
     phi/=180/np.pi
-    print(phi)
     return np.array([
             [np.cos(phi), -np.sin(phi), 0],
             [np.sin(phi), np.cos(phi), 0],
@@ -116,3 +116,209 @@ def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, verbos
 
 
     return x
+
+
+
+def fit_ring(B, phi, sB, magnet_diam, radius, fix_theta_mag=False):
+    """
+
+    fit function sqrt(e_b\cdot eb), where eb is the direction of the dipole
+
+    this is used to fit magentic fields measured on a ring
+
+    p  angles on the ring
+
+    dp = argv[0]  # dipole strength
+    tm = argv[1]  # azimuthal angle of magnet
+    pm = argv[2]  # polar angle of magnet
+
+    """
+
+    if fix_theta_mag:
+        to = np.arctan2(radius, magnet_diam / 2.)
+        init_guess = [np.max(B) / 2, np.pi / 2, 0]  # initial guess
+        #         par, pcov = opt.curve_fit(fit_err_fun_ring_3, [phi, to], B, init_guess, sigma = sB,  bounds=(0, [3., np.pi, np.pi]))
+
+        par, pcov = opt.curve_fit(fit_err_fun_ring, [phi, to], B, init_guess, sigma=sB, bounds=(0, [3., np.pi, np.pi]))
+
+        perr = np.sqrt(np.diag(pcov))  # fit error
+        mag_moment, Br = nv.magnetic_moment_and_Br_from_fit(par[0], magnet_diam / 2., radius, mu0=4 * np.pi * 1e-7)
+
+        # add the fixed value to to inital and final fit result, so that we always return 4 values
+        init_guess = [init_guess[0], to, init_guess[1], init_guess[2]]
+        par = [par[0], to, par[1], par[2]]
+
+    else:
+        to = np.arctan2(radius, magnet_diam / 2)
+        init_guess = [np.max(B) / 2, to, np.pi / 2, 0]  # initial guess
+        #         par, pcov = opt.curve_fit(fit_err_fun_ring_4, phi, B, init_guess, sigma = sB,  bounds=(0, [3., 2*np.pi, 2*np.pi, 2*np.pi]))
+        par, pcov = opt.curve_fit(fit_err_fun_ring, phi, B, init_guess, sigma=sB,
+                                  bounds=(0, [3., 2 * np.pi, 2 * np.pi, 2 * np.pi]))
+        perr = np.sqrt(np.diag(pcov))  # fit error
+        mag_moment, Br = nv.magnetic_moment_and_Br_from_fit(par[0], magnet_diam / 2., radius, mu0=4 * np.pi * 1e-7)
+
+    return mag_moment, Br, par, perr, init_guess
+def fit_err_fun_ring(p, *argv):
+    """
+
+    fit function sqrt(e_b\cdot eb), where eb is the direction of the dipole
+
+    this is used to fit magentic fields measured on a ring
+
+    p  angles on the ring
+
+    dp = argv[0]  # dipole strength
+    tm = argv[1]  # azimuthal angle of magnet
+    pm = argv[2]  # polar angle of magnet
+
+    """
+
+    def f_ring(t, p, tm, pm=0):
+        """
+        angle dependency for magnetic field magnitude Squared!! on a ring
+        the radial unit vector is defined as [cos(p)sin(t), sin(p)sin(t), cos(t)]
+        t = azimuthal angle between 0 and pi
+        p = polar angle between 0 and 2*pi
+        tm = azimuthal angle between 0 and pi of magnet
+        pm = polar angle between 0 and 2*pi of magnet
+        """
+
+        f = (34 + 6 * np.cos(2 * t) + 6 * np.cos(2 * tm)
+             + 9 * np.cos(2 * (t - tm)) + 9 * np.cos(2 * (t + tm))
+             + 24 * np.cos(2 * (p - pm)) * np.sin(t) ** 2 * np.sin(tm) ** 2
+             + 24 * np.cos(p - pm) * np.sin(2 * t) * np.sin(2 * tm)) / 16
+
+        return f
+
+    if len(p) == 2:
+        to = p[1]
+        phi = p[0]
+
+        dp = argv[0]  # dipole strength
+        tm = argv[1]  # azimuthal angle of magnet
+        pm = argv[2]  # polar angle of magnet
+    else:
+        phi = p
+        dp = argv[0]  # dipole strength
+        to = argv[1]  # azimuthal angle of ring
+        tm = argv[2]  # azimuthal angle of magnet
+        pm = argv[3]  # polar angle of magnet
+
+    return dp * np.sqrt(f_ring(to, phi, tm, pm))
+
+
+def fit_ring2(B, phi, sB, magnet_diam, radius):
+    """
+
+    fit function sqrt(e_b\cdot eb), where eb is the direction of the dipole
+
+    this is used to fit magentic fields measured on a ring
+
+    phi  angles on the ring in deg
+
+    dp = argv[0]  # dipole strength
+    tm = argv[1]  # azimuthal angle of magnet
+    pm = argv[2]  # polar angle of magnet
+
+    """
+    init_guess = [0, 90, 0.5]
+
+    par, pcov = opt.curve_fit(fit_err_fun_ring2, [phi, magnet_diam, radius, 0], B, init_guess, sigma=sB,
+                              bounds=(0, [180, 180, 3]))
+    perr = np.sqrt(np.diag(pcov))  # fit error
+    mag_moment = f.magnetic_moment(radius, par[2])
+
+    return mag_moment, par[2], par, perr, init_guess
+def fit_err_fun_ring2(p, *argv):
+
+    """
+
+    fit function to fit ring data using the field code
+
+    this is used to fit magentic fields measured on a ring
+
+    phi  angles on the ring in deg
+    magn_diam magnet diameter in um
+    radius_nvs radius at which data is taken
+    dz distance between magnet and diamond
+
+    Br = argv[2]  # surface field
+    theta_m = argv[1]  # azimuthal angle of magnet  in deg
+    phi_m = argv[0]  # polar angle of magnet in deg
+
+    """
+    phi = p[0]
+    magn_diam = p[1]
+    radius_nvs = p[2]
+    dz = p[3]
+
+    phi_m = argv[0]
+    theta_m = argv[1]
+    Br = argv[2]
+
+    #     dz = 0 # distane between diamond and magnet in um
+    #     radius_nvs = 3.2 # radius of NV measurements in um
+    DipolePosition = np.array([0, 0, 0])
+    #     phi_m = 15 # angle of magnetic dipole
+    #     theta_m = 89 # angle of magnetic dipole
+
+    muo = 4 * np.pi * 1e-7
+
+    m = f.magnetic_moment(magn_diam / 2, Br, muo) * np.array(
+        [np.cos(phi_m * np.pi / 180) * np.sin(theta_m * np.pi / 180),
+         np.sin(phi_m * np.pi / 180) * np.sin(theta_m * np.pi / 180),
+         np.cos(theta_m * np.pi / 180)])
+
+    zo = magn_diam / 2. + dz
+    # calculate the positions
+    x = radius_nvs * np.cos(phi* np.pi / 180)
+    y = radius_nvs * np.sin(phi* np.pi / 180)
+    r = np.array([x, y, zo * np.ones(len(x))]).T
+
+    B = f.b_field_single_dipole(r, DipolePosition, m)
+
+    return np.linalg.norm(B, axis=1)
+
+
+def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond, theta_magnet):
+    """
+    calculates the maximum gradiend within the area defined by the parameter and angles
+
+    p = {
+    'tag':'bead_1',
+    'a' : 1.4,
+    'Br' : 0.31666357,
+    'phi_m' : 0,
+    'theta_m' : -np.arctan(np.sqrt(2))*180/np.pi,
+    'mu_0' : 4 * np.pi * 1e-7,
+    'd_bead_z': 0,
+    'dx':0.05,
+    'xmax':2
+    }
+
+    nv_id: number 0, 1, 2, or 3
+
+    max_broadening: determines the maximum tolerated broadnening in MHz
+    max_off_axis_field: determines the maximum tolerated off axis field in Teslas
+    phi_diamond: polar (in plane) orientation of diamond wrt magnet
+    theta_magnet: azimuthal (out of plane) orientation of magnet
+
+    """
+    # if len(parameter) == 5 and len(argv) == 2:
+    #     [p, nv_id, n, max_broadening, max_off_axis_field] = parameter
+    #
+    #     [phi_diamond, theta_magnet] = argv
+    # elif len(parameter) == 6:
+    #     [p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond] = parameter
+    #     [theta_magnet] = argv
+
+    p['theta_m'] = theta_magnet
+    nv_rot = rotation_matrix_z(phi_diamond)
+
+    df = get_full_nv_dataset(p, nv_id=nv_id, nv_rotation_matrix=nv_rot, n=n)
+
+    x = get_best_NV_position(df, max_broadening=max_broadening, max_off_axis_field=max_off_axis_field)
+
+    Gradient = float(x['G'].iloc[0])
+
+    return Gradient
