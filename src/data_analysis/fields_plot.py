@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plot_Bfield_mag(data, title='', offset_field=np.zeros(3), ax=None):
+def plot_Bfield_mag(data, title='', offset_field=np.zeros(3), ax=None, cmap_name=None):
     """
 
     :param data: data that has the magnetic fields as a pandas dataframe with elements 'Bx', 'By', 'Bz' and 'x', 'y', 'z' 'B' is in Teslas
@@ -16,39 +16,14 @@ def plot_Bfield_mag(data, title='', offset_field=np.zeros(3), ax=None):
     :return: figure object with magnetic field plot
     """
 
-    Nx, Ny = len(np.unique(data['x'])), len(np.unique(data['y']))
-
-    C = np.sqrt((data['Bx'] + offset_field[0]) ** 2 +
+    data['Bmag'] = np.sqrt((data['Bx'] + offset_field[0]) ** 2 +
                 (data['By'] + offset_field[1]) ** 2 +
                 (data['Bz'] + offset_field[2]) ** 2)
-    C = C.reshape(Ny, Nx)
 
-    X = data['x'].reshape(Ny, Nx)
-    Y = data['y'].reshape(Ny, Nx)
+    ax = plot_NV_property_map(data, prop='Bmag', title=title,ax=ax, cmap_name=None)
 
-    xmin, xmax = np.min(X), np.max(X)
-    ymin, ymax = np.min(Y), np.max(Y)
 
-    if ax is None:
-        fig = plt.figure(figsize=(15, 4))
-
-        plt.pcolormesh(X, Y, C * 1e4)
-        plt.colorbar(label='B (G)')
-        plt.title(title)
-        plt.xlabel('x ($\mu m$)')
-        plt.ylabel('y ($\mu m$)')
-
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
-        #     plt.clim([0, 500])
-
-        plt.axes().set_aspect('equal')
-    else:
-        raise NotImplementedError
-        #todo: implemet plotting on given axis object, this is a bit tricky if we want a colorbar
-        fig = plt.figure(figsize=(15, 4))
-
-    return fig
+    return ax
 
 def plot_G(data, grad_dir = None, title='', ax=None):
     """
