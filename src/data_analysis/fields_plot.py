@@ -97,7 +97,7 @@ def plot_G(data, grad_dir = None, title='', ax=None):
     return fig
 
 
-def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, ax=None):
+def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, ax=None, cmap_name = None):
     """
 
     :param data: data that has the magnetic fields as a pandas dataframe with elements 'Gxy' and 'x', 'y', 'z' 'Gxy' is in T/um
@@ -107,6 +107,7 @@ def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, 
     :param ax: optional axis object on which data is plotted
     :param gammaNV = 28e9 # (ESR shift is 28 GHz/T)
     :param wo = 500e-9 # focal spot size
+    :param cmap_name name of colormap
 
     :return: figure object with magnetic field plot
     """
@@ -158,7 +159,10 @@ def plot_NV_property_map(data, prop='shift', title='', gammaNV=28e9, wo=500e-9, 
     fig = ax.get_figure()
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
-    im = ax.pcolormesh(X, Y, C)
+    if cmap_name is not None:
+        im = ax.pcolormesh(X, Y, C, cmap=plt.get_cmap(cmap_name))
+    else:
+        im = ax.pcolormesh(X, Y, C)
 
     fig.colorbar(im, cax=cax, orientation='vertical')
 
