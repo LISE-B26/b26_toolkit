@@ -130,3 +130,19 @@ def plot_arrow(x, ax, arrow_length=1, arrow_angle=200):
     return ax
 
 
+def plot_ring(radius, ax):
+    """
+    plots ring onto axes object ax
+
+
+    :param radius: radius of ring
+
+    :return: axes object
+    """
+
+    x = radius * np.cos(np.linspace(0, 2 * np.pi))
+    y = radius * np.sin(np.linspace(0, 2 * np.pi))
+    # calculate some values for the arrow plot
+    ax.plot(x, y, 'w', lw='2')
+
+    return ax

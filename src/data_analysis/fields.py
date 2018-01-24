@@ -420,7 +420,7 @@ def calc_B_field_single_dipole(p, verbose = False):
 
     calculate the magnetic fields along a direction s for field component n for a dipole that is located at the origin
 
-    p: parameters - dictionary with following entries:
+     p: parameters - dictionary with following entries:
         tag: name identifier (string)
      a: radius in um
      Br: surface magnetization in Teslas
@@ -513,6 +513,8 @@ def p_to_positions(p):
     dx: distance between points (in um)
     x_min, x_max, y_min, y_max: plot dimensions (in um)
 
+    exclude_ring: (optional if existent describes the radius of the ring to be excluded from the positions)
+
 
     :returns positions r (in um) and magnetic moment M in (in 1e-18 J/T)
     """
@@ -554,6 +556,10 @@ def p_to_positions(p):
     X, Y = np.meshgrid(x, y)
 
     r = np.array([X.flatten(), Y.flatten(), zo * np.ones(len(X.flatten()))]).T
+
+    # if exclude ring is true the we throw away the positions within a radius of exclude_ring
+    if 'exclude_ring' in p:
+        r = np.array(r[r[:, 0] ** 2 + r[:, 1] ** 2 >= p['exclude_ring']** 2])
 
     return r, M
 

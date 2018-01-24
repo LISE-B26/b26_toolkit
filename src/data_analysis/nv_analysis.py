@@ -104,7 +104,7 @@ def get_full_nv_dataset(p, nv_id=1, n=[0, 0, 1], nv_rotation_matrix = None, wo=5
     return df
 
 
-def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, verbose=False):
+def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, exclude_ring = 0, verbose=False):
     """
 
     calculates the fields and gradients for parameters p
@@ -115,16 +115,7 @@ def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, verbos
     max_broadening = 100 # max broadening in MHz
     max_off_axis_field = 0.01 # max off axis field in Teslas
 
-    nv_id =1 # select a NV [1,2,3,4]
-    n = [0,0,1] # direction of gradient
-
-
-    wo = 500e-9 # focal spot size
-    gammaNV = 28e9 # (ESR shift is 28 GHz/T)
-
-
-    arrow_length = 1
-    arrow_angle = 200
+    exclude_ring: requires that the position is outside a ring with radius exclude_ring
 
     verbose = True
     plot: if true plot the NV shift
@@ -135,19 +126,29 @@ def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, verbos
         print('Calculated fields and gradients at {:d} points'.format(len(df)))
 
     # =============== find the best position ==============
+    # exclude the values within a ring of radius exclude_ring
+
+    if exclude_ring>0:
+        x = df.loc[(df['x']**2 + df['y']**2) >= exclude_ring**2]
+    else:
+        x = df
+    if verbose:
+        print('Limited to xy within ring of radius {:0.2f}, {:d} points left'.format(exclude_ring, len(x)))
+
     # get the points where the xy gradient is less than the specified limit
-    x = df.loc[(np.abs(df['Broadening']) < max_broadening)]
+    x = x.loc[(np.abs(x['Broadening']) < max_broadening)]
     if verbose:
         print('Limited to xy inhomogeneous broadening < {:0.0f} MHz, {:d} points left'.format(max_broadening, len(x)))
+
     # get the points where the xy gradient is less than the specified limit
     x = x.loc[(np.abs(x['Bperp']) < max_off_axis_field)]
     if verbose:
         print('Limited to off axis field < {:0.0f} mT, {:d} points left'.format(max_off_axis_field * 1e3, len(x)))
 
+
+
     # out of the subset get the point with the highest gradient
     x = x.loc[np.abs(x['G']) == np.max(np.abs(x['G']))]
-
-
 
     return x
 
@@ -314,7 +315,7 @@ def fit_err_fun_ring2(p, *argv):
     return np.linalg.norm(B, axis=1)
 
 
-def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond, theta_magnet, diamond111_nv_id = None):
+def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond, theta_magnet, diamond111_nv_id = None, exclude_ring = 0, verbose = False):
     """
     calculates the maximum gradiend within the area defined by the parameter and angles
 
@@ -338,14 +339,9 @@ def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamo
     theta_magnet: azimuthal (out of plane) orientation of magnet
     diamond111_nv_id: if not None, the id 0,1,2,3 specifies the NV that will be pointing along the z direction
 
+    exclude_ring: requires that the position is outside a ring with radius exclude_ring
+
     """
-    # if len(parameter) == 5 and len(argv) == 2:
-    #     [p, nv_id, n, max_broadening, max_off_axis_field] = parameter
-    #
-    #     [phi_diamond, theta_magnet] = argv
-    # elif len(parameter) == 6:
-    #     [p, nv_id, n, max_broadening, max_off_axis_field, phi_diamond] = parameter
-    #     [theta_magnet] = argv
 
     p['theta_m'] = theta_magnet
 
@@ -357,12 +353,47 @@ def calc_max_gradient(p, nv_id, n, max_broadening, max_off_axis_field, phi_diamo
 
     df = get_full_nv_dataset(p, nv_id=nv_id, nv_rotation_matrix=nv_rot, n=n)
 
-    x = get_best_NV_position(df, max_broadening=max_broadening, max_off_axis_field=max_off_axis_field)
+    x = get_best_NV_position(df, max_broadening=max_broadening, max_off_axis_field=max_off_axis_field, exclude_ring =exclude_ring)
 
-    Gradient = float(x['G'].iloc[0])
+    if len(x) == 0 and verbose:
+        print('WARNING Gradient not found with current constraints. Run get_best_NV_position again...')
+        x = get_best_NV_position(df, max_broadening=max_broadening, max_off_axis_field=max_off_axis_field,
+                                 exclude_ring=exclude_ring, verbose=True)
+    gradient = float(x['G'].iloc[0])
 
-    return Gradient
+    return gradient
 
+
+def fill_in_missing_xy(data):
+    """
+    data is a pandas data set with colums 'x' and 'y'.
+    Assuming that the x and y values are on a grid will fill in the missing rows
+
+    :returns complete data set
+    """
+
+    Nx, Ny = len(np.unique(X)), len(np.unique(Y))
+
+    if len(data) < Nx * Ny:
+        # fill in missing elements
+
+        dx = int(np.min(
+            np.diff(np.unique(X))) * 1e5) * 1e-5  # we do this weird multiplication to chop of small rounding errors
+        dy = int(np.min(
+            np.diff(np.unique(Y))) * 1e5) * 1e-5  # we do this weird multiplication to chop of small rounding errors
+
+        xmin, xmax = np.min(X), np.max(Y)
+        ymin, ymax = np.min(Y), np.max(Y)
+
+        # these are all the x and y positons that we expect
+        Xo, Yo = np.meshgrid(np.arange(xmin, xmax, dx), np.arange(ymin, ymax, dy))
+
+        # fill in the rows where the data is missing (values are basically all NaN except for the position xy)
+        for xo, yo in zip(Xo.flatten(), Yo.flatten()):
+            if len(data[(data['x'] == xo) & (data['y'] == yo)]) == 0:
+                data = data.append(pd.DataFrame.from_records({'x': [xo], 'y': [yo]}, index=[len(data)]))
+
+    return data
 
 if __name__ == '__main__':
 
