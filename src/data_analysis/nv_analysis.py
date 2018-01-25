@@ -104,7 +104,7 @@ def get_full_nv_dataset(p, nv_id=1, n=[0, 0, 1], nv_rotation_matrix = None, wo=5
     return df
 
 
-def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, exclude_ring = 0, verbose=False):
+def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, exclude_ring=0, verbose=False):
     """
 
     calculates the fields and gradients for parameters p
