@@ -166,10 +166,10 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             if result == -1:
                 print('ERROR: ' + errString)
                 raise
-            if StatusCode == DONE_MOVING or '34':
+            if StatusCode in [DONE_MOVING, '34']:
                 break
             time.sleep(.1)
-            print('motor is moving - gui blocked StatusCode: {:s}'.format(str(StatusCode)))
+            # print('motor is moving - gui blocked StatusCode: {:s}'.format(str(StatusCode)))
         print(' - done -')
     def _get_velocity(self):
         i_ref = -1
