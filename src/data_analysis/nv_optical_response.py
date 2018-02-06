@@ -63,10 +63,9 @@ def projetion_matrix(theta, phi):
     P = np.array([ntheta, nphi, nr])
     return P
 
-
 def esr_frequencies(Bfield, gs=27.969, muB=1, hbar=1, Dgs=2.87):
     """
-    :param Bfield (in Tesla): magnetic field with components Bx, By, Bz in the NV frame: 1D-array of length 3 or 2D-array of dim Nx3
+    :param Bfield (in Tesla): magnetic field with components Bx, By, Bz in the NV frame!: 1D-array of length 3 or 2D-array of dim Nx3
     :return:  matrix that gives the esr transition frequencies from diagonalizing the Hamiltonian with external magnetic field
         2 element array matrix if input B-field is 1D-array
         Nx2 array if input B-field is 2D-array of length Nx3
@@ -97,7 +96,6 @@ def esr_frequencies(Bfield, gs=27.969, muB=1, hbar=1, Dgs=2.87):
 
 
     return esr*1e9
-
 
 def esr_frequencies_ensemble(B_lab, gs=27.969, muB=1, hbar=1, Dgs=2.87):
     """
@@ -157,7 +155,6 @@ def hamiltonian_nv_spin1(Bfield, gs=27.969, muB=1, hbar=1, D=2.87):
         H = H[0]
 
     return H
-
 
 def transition_rate_matrix(Bfield, k12, k13, beta, kr = 63.2, k47= 10.8, k57 = 60.7, k71 = 0.8, k72 = 0.4):
     """
@@ -1117,44 +1114,6 @@ def connect_esr_frequencies(esr_data, verbose=False):
         freq_last = esr_data_sorted[-1]
 
     return np.array(esr_data_sorted)
-def fit_err_fun_ring(p, *argv):
-    """
-
-    fit function sqrt(e_b\cdot eb), where eb is the direction of the dipole
-
-    this is used to fit magentic fields measured on a ring
-
-    p  angles on the ring
-
-    dp = argv[0]  # dipole strength
-    t = argv[1]  # azimuthal angle of ring
-    tm = argv[2]  # azimuthal angle of magnet
-    pm = argv[3]  # polar angle of magnet
-
-    """
-
-    def f_ring(t, p, tm, pm=0):
-        """
-        angle dependency for magnetic field magnitude Squared!! on a ring
-        the radial unit vector is defined as [cos(p)sin(t), sin(p)sin(t), cos(t)]
-        t = azimuthal angle between 0 and pi
-        p = polar angle between 0 and 2*pi
-        tm = azimuthal angle between 0 and pi of magnet
-        pm = polar angle between 0 and 2*pi of magnet
-        """
-
-        f = (34 + 6 * np.cos(2 * t) + 6 * np.cos(2 * tm)
-             + 9 * np.cos(2 * (t - tm)) + 9 * np.cos(2 * (t + tm))
-             + 24 * np.cos(2 * (p - pm)) * np.sin(t) ** 2 * np.sin(tm) ** 2
-             + 24 * np.cos(p - pm) * np.sin(2 * t) * np.sin(2 * tm)) / 16
-
-        return f
-
-    dp = argv[0]  # dipole strength
-    t = argv[1]  # azimuthal angle of ring
-    tm = argv[2]  # azimuthal angle of magnet
-    pm = argv[3]  # polar angle of magnet
-    return dp * np.sqrt(f_ring(t, p, tm, pm))
 
 
 def magnetic_moment_and_Br_from_fit(dp, a, r, mu0=4 * np.pi * 1e-7):
@@ -1167,6 +1126,8 @@ def magnetic_moment_and_Br_from_fit(dp, a, r, mu0=4 * np.pi * 1e-7):
     m = 4 * np.pi / mu0 * r ** 3 * dp
     Br = m / V * mu0
     return m, Br
+
+
 
 if __name__ == '__main__':
 

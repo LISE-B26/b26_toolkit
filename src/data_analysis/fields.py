@@ -170,63 +170,6 @@ def b_field(rs, DipolePositions, m, use_parallel = True, verbose = False):
     # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data_out)
 
-def calcBfield2xx(rs, DipolePositions, m, use_parallel = True, verbose = False):
-    '''
-    calculates the magnetic field at multiple positions r
-    :param rs:  matrix Mx3, position at which field is evaluated (in um)
-    :param DipolePosition: vector length 3, of position of dipoles (in um)
-    :param m:  vector length 3, components dipole moment at position DipolePosition mx, my, mz (in 1e-18 J/T)
-    use_parallel:  (boolean) if True use parallel execution of code
-    :param verbose: if True print information as script is executed
-    :returns pandas dataframe columns 'Bx', 'By', 'Bz', 'x', 'y', 'z' that gives the fieldvector and its location (=rs)
-    '''
-
-
-
-    # check that DipolePositions and m have the same shape
-    assert np.shape(DipolePositions) == np.shape(m)
-    #
-    # # check that r is a vector of length 3
-    assert np.shape(rs)[1] == 3
-
-    if verbose:
-        print('number of magnetic moments', len(m))
-        print('number of positions', len(rs))
-    if use_parallel:
-        # try importing the multiprocessing library
-        from joblib import Parallel, delayed
-        import multiprocessing
-        num_cores = multiprocessing.cpu_count()
-        if verbose:
-            print('using ', num_cores, ' cores')
-
-
-    if use_parallel:
-
-        B = Parallel(n_jobs=num_cores)(delayed(b_field_single_pt)(r, DipolePositions, m) for r in rs)
-        B = np.array(B)
-
-    else:
-        B = np.array([b_field_single_pt(r, DipolePositions, m) for r in rs])
-
-    if verbose:
-        print('rs shape', np.shape(rs))
-        # print('rs', rs)
-
-    # put data into a dictionary
-    data_out = {
-        'x':deepcopy(rs[:,0]),
-        'y':deepcopy(rs[:,1]),
-        'z':deepcopy(rs[:,2]),
-        'Bx':deepcopy(B[:, 0]),
-        'By': deepcopy(B[:, 1]),
-        'Bz': deepcopy(B[:, 2]),
-    }
-
-
-    # return data as a pandas dataframe
-    return pd.DataFrame.from_dict(data_out)
-
 def gradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 =4 * np.pi * 1e-7):
     '''
     calculates the magnetic field at position r
@@ -409,6 +352,10 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     assert len(np.shape(n)) == 1
     assert len(n) == 3
 
+    # normalize unit vectors
+    s/=np.linalg.norm(s)
+    n /= np.linalg.norm(n)
+
     a = r- np.ones((len(r), 1)) * np.array(DipolePosition)  #
 
     rho = np.sqrt(np.sum(a ** 2, 1))
@@ -468,12 +415,12 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
 
     return gradB
 
-def calc_B_field_single_dipole(p):
+def calc_B_field_single_dipole(p, verbose = False):
     """
 
     calculate the magnetic fields along a direction s for field component n for a dipole that is located at the origin
 
-    p: parameters - dictionary with following entries:
+     p: parameters - dictionary with following entries:
         tag: name identifier (string)
      a: radius in um
      Br: surface magnetization in Teslas
@@ -496,7 +443,8 @@ def calc_B_field_single_dipole(p):
     data_out = b_field_single_dipole(r, DipolePosition, M, mu0=4 * np.pi * 1e-7)
 
     end = time.time()
-    print('duration: {:0.2f} min'.format((end - start) / 60))
+    if verbose:
+        print('duration: {:0.2f} min'.format((end - start) / 60))
 
 
     # create a pandas dataset
@@ -513,21 +461,23 @@ def calc_B_field_single_dipole(p):
 
     return data_out
 
-def calc_Gradient_single_dipole(p, s, n):
+def calc_Gradient_single_dipole(p, s, n, verbose = False):
     """
-    calculate the gradients along a direction s for field component n for a dipole that is located at the origin
+    calculate the gradients along a direction n for field component s for a dipole that is located at the origin
 
     p: parameters - dictionary with following entries:
         tag: name identifier (string)
-     a: radius in um
-     Br: surface magnetization in Teslas
-     phi_m: polar angle in deg
-     theta_m: azimuthal angle in deg
-     d_bead_z: distance top of bead to NV plane
-     mu_0: vacuum permeability ( T m /A)
-     d_bead_z: distance between bead and z plane
-     dx: distance between points (in um)
-     x_min, x_max, y_min, y_max: plot dimensions (in um)
+         a: radius in um
+         Br: surface magnetization in Teslas
+         phi_m: polar angle in deg
+         theta_m: azimuthal angle in deg
+         d_bead_z: distance top of bead to NV plane
+         mu_0: vacuum permeability ( T m /A)
+         d_bead_z: distance between bead and z plane
+         dx: distance between points (in um)
+         x_min, x_max, y_min, y_max: plot dimensions (in um)
+    s: (vector of length 3) spin vector no units
+    n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
     """
 
     r, M = p_to_positions(p)
@@ -536,7 +486,8 @@ def calc_Gradient_single_dipole(p, s, n):
     start = time.time()
     data_out = gradient_single_dipole(r, DipolePositions, M, s, n)
     end = time.time()
-    print('duration: {:0.2f} min'.format((end - start) / 60))
+    if verbose:
+        print('duration: {:0.2f} min'.format((end - start) / 60))
 
     # create a pandas dataset
     data_out = pd.DataFrame.from_dict(
@@ -561,6 +512,8 @@ def p_to_positions(p):
     d_bead_z: distance between bead and z plane
     dx: distance between points (in um)
     x_min, x_max, y_min, y_max: plot dimensions (in um)
+
+    exclude_ring: (optional if existent describes the radius of the ring to be excluded from the positions)
 
 
     :returns positions r (in um) and magnetic moment M in (in 1e-18 J/T)
@@ -604,8 +557,23 @@ def p_to_positions(p):
 
     r = np.array([X.flatten(), Y.flatten(), zo * np.ones(len(X.flatten()))]).T
 
+    # if exclude ring is true the we throw away the positions within a radius of exclude_ring
+    if 'exclude_ring' in p:
+        r = np.array(r[r[:, 0] ** 2 + r[:, 1] ** 2 >= p['exclude_ring']** 2])
+
     return r, M
 
+def magnetic_moment(a, Br, muo = 4 * np.pi * 1e-7):
+    """
+    calculates the magentic moment for a sphere with radius a and surface field Br
+
+    :param a: sphere  radius in um
+    :param Br: surface field in Teslas
+    :param muo: 4 * np.pi * 1e-7
+    :return: magentic moment
+    """
+    M = 4 * np.pi / 3 * a ** 3 * Br /muo
+    return M
 
 def p_to_filename(p):
     """
