@@ -1,6 +1,6 @@
 from PyLabControl.src.core.script_iterator import ScriptIterator
 from PyLabControl.src.core import Script, Parameter
-
+import numpy as np
 
 
 class ScriptIteratorB26(ScriptIterator):
@@ -70,7 +70,7 @@ class ScriptIteratorB26(ScriptIterator):
         # for point iteration we add some default scripts
         if iterator_type == 'iter nvs':
 
-            module = Script.get_script_module('SelectPoints', package)
+            module = Script.get_script_module('SelectPoints')# Select points is actually in PyLabControl
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
@@ -240,32 +240,17 @@ class ScriptIteratorB26(ScriptIterator):
         '''
         Runs either a loop or a parameter sweep over the subscripts in the order defined by the parameter_list 'script_order'
         '''
-        def get_sweep_parameters():
-            """
-            Returns: the paramter values over which to sweep
-            """
-            #in both cases, param values have tolist to make sure that they are python types (ex float) rather than numpy
-            #types (ex np.float64), the latter of which can cause typing issues
-            sweep_range = self.settings['sweep_range']
-            if self.settings['stepping_mode'] == 'N':
-                param_values = np.linspace(sweep_range['min_value'], sweep_range['max_value'],
-                                           int(sweep_range['N/value_step']), endpoint=True).tolist()
-            elif self.settings['stepping_mode'] == 'value_step':
-                param_values = np.linspace(sweep_range['min_value'], sweep_range['max_value'],
-                                           (sweep_range['max_value'] - sweep_range['min_value']) / sweep_range[
-                                               'N/value_step'] + 1, endpoint=True).tolist()
-            return param_values
 
         script_names = self.settings['script_order'].keys()
         script_indices = [self.settings['script_order'][name] for name in script_names]
         _, sorted_script_names = zip(*sorted(zip(script_indices, script_names)))
 
 
-        if self.iterator_type in (self.TYPE_ITER_NVS, self.TYPE_ITER_POINTS):
+        if self.iterator_type in ('iter nvs', 'iter points'):
 
-            if self.iterator_type == self.TYPE_ITER_NVS:
+            if self.iterator_type == 'iter nvs':
                 set_point = self.scripts['find_nv'].settings['initial_point']
-            elif self.iterator_type == self.TYPE_ITER_POINTS:
+            elif self.iterator_type == 'iter points':
                 set_point = self.scripts['set_laser'].settings['point']
 
             #shift found by correlation
