@@ -23,7 +23,8 @@ import sys
 
 from PyQt4 import QtGui
 
-from PyLabControl.src.gui.gui_future_b26_toolkit import b26_gui
+# from .src.gui.gui_future_b26_toolkit import b26_gui
+from b26_toolkit.src.gui import b26_gui
 
 #work around to change taskbar icon
 #myappid = 'lukinlab.b26.pythonlab' # arbitrary string
@@ -35,7 +36,7 @@ def run_gui(fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_con
     # fname = 'c:\\b26_tmp\\pythonlab_config3a.b26'
     fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config_lev.b26'
 
-    fname = '/Users/rettentulla/pythonlab_config_lev.b26'
+    fname = '/Users/rettentulla/pythonlab_config_lev7.b26'
 
     # fname = 'c:\\b26_tmp\\pythonlab_config_safsafaf1.b26'
 
@@ -53,7 +54,6 @@ GNU General Public License for more details. \n\n \
 You should have received a copy of the GNU General Public License \n \
 along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.")
 
-        print('JGJGJG')
         ex = b26_gui.ControlMainWindowB26(fname)
 
         app.setWindowIcon(QtGui.QIcon('magnet_and_nv.ico'))
@@ -68,6 +68,5 @@ along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.")
             raise e
 
 if __name__ == '__main__':
-    print('JG sssss')
+
     run_gui()
-    print('sssss')

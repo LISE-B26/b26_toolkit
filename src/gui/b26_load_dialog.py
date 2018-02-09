@@ -25,7 +25,7 @@ This class builds on the Loaddialog and adds more options for script iterators
     """
     def __init__(self, elements_type, elements_old={}, filename=''):
         super(LoadDialogB26, self).__init__(elements_type, elements_old=elements_old, filename=filename)
-        self.cmb_looping_variable.addItems(['Iter NVs', 'Iter Pts'])
+        self.cmb_looping_variable.addItems(['Iter NVs', 'Iter Points', 'Iter test'])
 
 
 
@@ -48,6 +48,7 @@ if __name__ == '__main__':
         print(values)
 
     sys.exit(app.exec_())
+
 
 
 

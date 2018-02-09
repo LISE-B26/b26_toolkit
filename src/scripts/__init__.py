@@ -17,10 +17,10 @@
 """
 
 # from test_script import ScriptTest
-from galvo_scan import GalvoScan
-from set_laser import SetLaser
-from daq_read_counter import Daq_Read_Counter
-from take_image_camera import TakeImage
+# from galvo_scan import GalvoScan
+# from set_laser import SetLaser
+# from daq_read_counter import Daq_Read_Counter
+# from take_image_camera import TakeImage
 # from esr import ESR
 # from esr_two_freq_continuous import ESRTwoFreqContinuous
 # from keysight_get_spectrum import KeysightGetSpectrum
@@ -30,7 +30,7 @@ from take_image_camera import TakeImage
 # from zi_sweeper import ZISweeper
 # from zi_high_res_sweep import ZISweeperHighResolution
 
-from find_nv import FindNV
+# from find_nv import FindNV
 
 # from atto_scan import AttoStep
 
@@ -44,7 +44,7 @@ from find_nv import FindNV
 #
 # from correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 
-from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC
+# from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC
 
 # from record_pressures import RecordPressures
 #
@@ -59,11 +59,11 @@ from autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, Au
 # from ni_fpga_polarization_controller import FPGA_PolarizationSignalMap,\
 #     FPGA_PolarizationSignalScan, FPGA_BalancePolarization
 
-from read_temperature_lakeshore import ReadTemperatureLakeshore
+# from read_temperature_lakeshore import ReadTemperatureLakeshore
 # old imports with try/except
 # verbose = False
 
-from daq_simple_piezosweep import SimplePiezoSweep
+# from daq_simple_piezosweep import SimplePiezoSweep
 
 # ==== import NI DAQ scripts ==================================================================================
 # =============================================================================================================
