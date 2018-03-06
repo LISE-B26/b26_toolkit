@@ -83,9 +83,8 @@ class ScriptIteratorB26(ScriptIterator):
             sub_scripts.update(
                 {'correlate_iter': getattr(module, 'Take_And_Correlate_Images', package)}
             )
-            script_settings['script_order'].update(
-                {'select_points': -3, 'correlate_iter': -2, 'find_nv': -1}
-            )
+            script_settings['script_order'] = {'select_points': -3, 'correlate_iter': -2, 'find_nv': -1}
+
         elif iterator_type == 'iter points':
             module = Script.get_script_module('SelectPoints', 'PyLabControl')
             sub_scripts.update(
@@ -99,9 +98,8 @@ class ScriptIteratorB26(ScriptIterator):
             sub_scripts.update(
                 {'correlate_iter': getattr(module, 'Take_And_Correlate_Images')}
             )
-            script_settings['script_order'].update(
-                {'select_points': -3, 'correlate_iter': -2, 'set_laser': -1}
-            )
+            script_settings['script_order']={'select_points': -3, 'correlate_iter': -2, 'set_laser': -1}
+
         elif iterator_type == 'test':
             module = Script.get_script_module('Wait', 'PyLabControl')
             sub_scripts.update(
@@ -183,6 +181,8 @@ class ScriptIteratorB26(ScriptIterator):
 
             return parameter_list
 
+        print('iterator_type AA', iterator_type)
+
 
         if iterator_type in ('iter nvs', 'iter points'):
             script_default_settings = [
@@ -237,9 +237,9 @@ class ScriptIteratorB26(ScriptIterator):
         return script_order_parameter, script_execution_freq
 
     def _function(self):
-        '''
+        """
         Runs either a loop or a parameter sweep over the subscripts in the order defined by the parameter_list 'script_order'
-        '''
+        """
 
         script_names = self.settings['script_order'].keys()
         script_indices = [self.settings['script_order'][name] for name in script_names]
@@ -300,7 +300,7 @@ class ScriptIteratorB26(ScriptIterator):
 
 
         else:
-            super(ScriptIteratorB26, self).function()
+            super(ScriptIteratorB26, self)._function()
 
 
     def to_dict(self):

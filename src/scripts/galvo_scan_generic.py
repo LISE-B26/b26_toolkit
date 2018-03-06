@@ -23,7 +23,7 @@ from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluo
 from PyLabControl.src.core import Script, Parameter
 
 #todo: JG - move generic galvo to Pylabcontrol
-#todo: JG - clean up legacy galvo scan
+
 class GalvoScanGeneric(Script):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,

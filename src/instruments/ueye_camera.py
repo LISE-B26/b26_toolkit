@@ -26,8 +26,10 @@ class UEyeCamera(Instrument):
 
         super(UEyeCamera, self).__init__(name, settings)
         self.cam = cv2.VideoCapture(0)
-        hr = self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
-        wr = self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, self.settings['width'])
+
+        # JG commented out the following two lines because hr and wr are not use anywhere!!
+        # hr = self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
+        # wr = self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, self.settings['width'])
         atexit.register(self.disconnect) #makes sure that camera is released when class exits
 
     def update(self, settings):

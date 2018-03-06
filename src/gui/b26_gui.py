@@ -58,7 +58,7 @@ class ControlMainWindowB26(ControlMainWindow):
                 log_function=self.log,
                 data_path=data_folder_name)
 
-            assert not 'self.scripts'=={}
+            assert not 'self.scripts' == {}
 
             if verbose:
                 print('self.scripts', self.scripts)
