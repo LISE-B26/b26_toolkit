@@ -124,66 +124,6 @@ class ScriptIteratorB26(ScriptIterator):
 
         """
 
-        def populate_sweep_param(scripts, parameter_list, trace=''):
-            '''
-
-            Args:
-                scripts: a dict of {'class name': <class object>} pairs
-
-            Returns: A list of all parameters of the input scripts
-
-            '''
-
-            def get_parameter_from_dict(trace, dic, parameter_list, valid_values=None):
-                """
-                appends keys in the dict to a list in the form trace.key.subkey.subsubkey...
-                Args:
-                    trace: initial prefix (path through scripts and parameters to current location)
-                    dic: dictionary
-                    parameter_list: list to which append the parameters
-
-                    valid_values: valid values of dictionary values if None dic should be a dictionary
-
-                Returns:
-
-                """
-                if valid_values is None and isinstance(dic, Parameter):
-                    valid_values = dic.valid_values
-
-                for key, value in dic.iteritems():
-                    if isinstance(value, dict):  # for nested parameters ex {point: {'x': int, 'y': int}}
-                        parameter_list = get_parameter_from_dict(trace + '.' + key, value, parameter_list,
-                                                                 dic.valid_values[key])
-                    elif (valid_values[key] in (float, int)) or \
-                            (isinstance(valid_values[key], list) and valid_values[key][0] in (float, int)):
-                        parameter_list.append(trace + '.' + key)
-                    else:  # once down to the form {key: value}
-                        # in all other cases ignore parameter
-                        print('ignoring sweep parameter', key)
-
-                return parameter_list
-
-            for script_name in scripts.keys():
-                from PyLabControl.src.core import ScriptIterator
-                script_trace = trace
-                if script_trace == '':
-                    script_trace = script_name
-                else:
-                    script_trace = script_trace + '->' + script_name
-                if issubclass(scripts[script_name], ScriptIterator):  # gets subscripts of ScriptIterator objects
-                    populate_sweep_param(vars(scripts[script_name])['_SCRIPTS'], parameter_list=parameter_list,
-                                         trace=script_trace)
-                else:
-                    # use inspect instead of vars to get _DEFAULT_SETTINGS also for classes that inherit _DEFAULT_SETTINGS from a superclass
-                    for setting in \
-                    [elem[1] for elem in inspect.getmembers(scripts[script_name]) if elem[0] == '_DEFAULT_SETTINGS'][0]:
-                        parameter_list = get_parameter_from_dict(script_trace, setting, parameter_list)
-
-            return parameter_list
-
-        print('iterator_type AA', iterator_type)
-
-
         if iterator_type in ('iter nvs', 'iter points'):
             script_default_settings = [
                 Parameter('script_order', script_order),
