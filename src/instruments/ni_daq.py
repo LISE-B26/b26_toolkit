@@ -245,7 +245,6 @@ class DAQ(Instrument):
             settings: a settings dictionary in the standard form
         """
         super(DAQ, self).update(settings)
-        print('settings', settings)
         for key, value in settings.iteritems():
             if key == 'device':
                 if not (self.is_connected):
@@ -754,8 +753,7 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-        print('self.settings in get_analog_voltages:')
-        print(self.settings)
+
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:
@@ -829,8 +827,6 @@ class DAQ(Instrument):
             channels.append('do' + k.replace('do', ''))  # make sure the key has the right format, e.g. ao0
             values.append(v)
 
-        print('channels', channels)
-        print('voltages', values)
 
         task_name = self.setup_DO(channels)
 

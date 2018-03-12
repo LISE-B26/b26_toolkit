@@ -72,6 +72,25 @@ class GalvoScan(GalvoScanGeneric):
         '''
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
                         data_path=data_path)
+        # # defines which daqs contain the input and output based on user selection of daq interface
+        # if self.settings['daq_type'] == 'PCI':
+        #     self.daq_in = self.instruments['NI6259']['instance']
+        #     self.daq_out = self.instruments['NI6259']['instance']
+        # elif self.settings['daq_type'] == 'cDAQ':
+        #     self.daq_in = self.instruments['NI9402']['instance']
+        #     self.daq_out = self.instruments['NI9263']['instance']
+
+
+    def setup_scan(self):
+        """
+        setup the scan, i.e. identify the instruments and set up sample rate and such
+
+
+        :return:
+        """
+
+
+
         # defines which daqs contain the input and output based on user selection of daq interface
         if self.settings['daq_type'] == 'PCI':
             self.daq_in = self.instruments['NI6259']['instance']
@@ -80,7 +99,7 @@ class GalvoScan(GalvoScanGeneric):
             self.daq_in = self.instruments['NI9402']['instance']
             self.daq_out = self.instruments['NI9263']['instance']
 
-    def setup_scan(self):
+
         self.clockAdjust = int(
             (self.settings['time_per_pt'] + self.settings['settle_time']) / self.settings['settle_time'])
 

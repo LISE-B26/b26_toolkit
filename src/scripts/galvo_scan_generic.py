@@ -22,8 +22,6 @@ from b26_toolkit.src.instruments import NI6259
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from PyLabControl.src.core import Script, Parameter
 
-#todo: JG - move generic galvo to Pylabcontrol
-
 class GalvoScanGeneric(Script):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
@@ -57,7 +55,6 @@ class GalvoScanGeneric(Script):
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
     ]
 
-    # _INSTRUMENTS = {'daq':  DAQ}
     _INSTRUMENTS = {}
     _SCRIPTS = {}
 
@@ -79,7 +76,6 @@ class GalvoScanGeneric(Script):
                         data_path = data_path)
 
 
-
     def setup_scan(self):
         """
         prepares the scan
@@ -94,24 +90,26 @@ class GalvoScanGeneric(Script):
         Executes threaded galvo scan
         """
 
-        # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
-        initial_position = self.get_galvo_location()
-        if initial_position == []:
-            print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
-            self.settings['ending_behavior'] = 'leave_at_corner'
+
+
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
-
-        if self._ACQ_TYPE == 'point':
-            self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
-
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
         self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
 
+        if self._ACQ_TYPE == 'point':
+            self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
+
         self.setup_scan()
+
+        # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
+        initial_position = self.get_galvo_location()
+        if initial_position == []:
+            print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
+            self.settings['ending_behavior'] = 'leave_at_corner'
 
         Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
@@ -252,6 +250,8 @@ class GalvoScanGeneric(Script):
         # only pick the first figure from the figure list, this avoids that get_axes_layout clears all the figures
         return super(GalvoScanGeneric, self).get_axes_layout([figure_list[0]])
 
+
+# uncommented by Jan March 12th 2018. I think this is not used anymore
 class GalvoScanDAQ(GalvoScanGeneric):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,

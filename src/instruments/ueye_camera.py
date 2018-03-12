@@ -5,7 +5,10 @@ from PyLabControl.src.core import Parameter, Instrument
 import sys
 sys.path.append('C:\ProgramData\Anaconda2\Lib\site-packages')
 
-import cv2
+try:
+    import cv2
+except:
+    pass
 
 import atexit
 

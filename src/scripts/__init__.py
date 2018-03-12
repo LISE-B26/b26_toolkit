@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 #import __all__
-from test_script import ScriptTest
+# from test_script import ScriptTest
 from galvo_scan import GalvoScan
 from set_laser import SetLaser
 from daq_read_counter import Daq_Read_Counter

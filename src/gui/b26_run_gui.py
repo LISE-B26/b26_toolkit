@@ -20,6 +20,7 @@
 
 import ctypes
 import sys
+# sys.path.append('C:\Anaconda2\Lib\site-packages')
 
 from PyQt4 import QtGui
 
