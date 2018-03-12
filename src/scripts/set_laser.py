@@ -53,10 +53,7 @@ This script points the laser to a point
             settings (optional): settings for this script, if empty same as default settings
         """
         Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
-        if self.settings['daq_type'] == 'PCI':
-            self.daq_out = self.instruments['NI6259']['instance']
-        elif self.settings['daq_type'] == 'cDAQ':
-            self.daq_out = self.instruments['NI9263']['instance']
+
 
     def _function(self):
         """
@@ -69,12 +66,26 @@ This script points the laser to a point
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
         pt = (np.repeat(pt, 2, axis=1))
 
+        self._setup_daq()
+
         task = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         self.daq_out.run(task)
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
+
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_out = self.instruments['NI9263']['instance']
+
+    def _setup_daq(self):
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_out = self.instruments['NI9263']['instance']
 
     def get_galvo_position(self):
         """
@@ -83,7 +94,7 @@ This script points the laser to a point
 
         """
         if self.settings['daq_type'] == 'PCI':
-            galvo_position = self.instruments['NI6259']['instance'].get_analog_voltages([
+            galvo_position = self.daq_out.get_analog_voltages([
                 self.settings['DAQ_channels']['x_ao_channel'],
                 self.settings['DAQ_channels']['y_ao_channel']]
             )
