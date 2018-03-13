@@ -111,7 +111,7 @@ class DAQ(Instrument):
     # currently includes four analog outputs, five analog inputs, and one digital counter input. Add
     # more as needed and your device allows
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
+        Parameter('device', 'Dev1', ['Dev1'], 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
@@ -200,8 +200,19 @@ class DAQ(Instrument):
                                 [
                                     Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
                                     Parameter('counter_PFI_channel', 8, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
                                     Parameter('clock_PFI_channel', 13, range(0, 32), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 1, [0, 1], 'channel for clock output'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                ]
+                                ),
+                      Parameter('ctr1',
+                                [
+                                    Parameter('input_channel', 1, range(0, 32), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 12, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 0, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 )
@@ -245,6 +256,7 @@ class DAQ(Instrument):
             settings: a settings dictionary in the standard form
         """
         super(DAQ, self).update(settings)
+        print('settings', settings)
         for key, value in settings.iteritems():
             if key == 'device':
                 if not (self.is_connected):
@@ -404,6 +416,8 @@ class DAQ(Instrument):
         input_channel_str_gated = self.settings['device'] + '/' + channel
         counter_out_PFI_str_gated = '/' + self.settings['device'] + '/PFI' + str(
             channel_settings['counter_PFI_channel'])  # initial / required only here, see NIDAQ documentation
+        gate_PFI_str = '/' + self.settings['device'] + '/PFI' + str(
+            channel_settings['gate_PFI_channel'])  # initial / required only here, see NIDAQ documentation
 
         #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
         task['sample_num'] = num_samples
@@ -430,6 +444,12 @@ class DAQ(Instrument):
         # in B26, this is the ctr0 source PFI8, but this will vary from daq to daq
         self._check_error(self.nidaq.DAQmxSetCICtrTimebaseSrc(task['task_handle'], input_channel_str_gated,
                                                               counter_out_PFI_str_gated))
+
+        # set the terminal for the gate to the pulseblaster source
+        # in B26, due to crosstalk issues when we use the default PFI9 which is adjacent to the ctr0 source, we set this
+        # to the non-default value PFI14
+        self._check_error(self.nidaq.DAQmxSetCIPulseWidthTerm(task['task_handle'], input_channel_str_gated,
+                                                                  gate_PFI_str))
 
         # turn on duplicate count prevention (allows 0 counts to be a valid count for clock ticks during a gate, even
         # though the timebase never went high and thus nothing would normally progress, by also referencing to the internal
@@ -753,7 +773,8 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-
+        print('self.settings in get_analog_voltages:')
+        print(self.settings)
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:
@@ -827,6 +848,8 @@ class DAQ(Instrument):
             channels.append('do' + k.replace('do', ''))  # make sure the key has the right format, e.g. ao0
             values.append(v)
 
+        print('channels', channels)
+        print('voltages', values)
 
         task_name = self.setup_DO(channels)
 
@@ -867,7 +890,7 @@ class NI6259(DAQ):
     these limits.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'Dev1', (str), 'Name of DAQ device'),
+        Parameter('device', 'Dev1', ['Dev1'], 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
@@ -956,8 +979,19 @@ class NI6259(DAQ):
                                 [
                                     Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
                                     Parameter('counter_PFI_channel', 8, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
                                     Parameter('clock_PFI_channel', 13, range(0, 32), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 1, [0, 1], 'channel for clock output'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                ]
+                                ),
+                      Parameter('ctr1',
+                                [
+                                    Parameter('input_channel', 1, range(0, 32), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 12, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 0, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 )
@@ -1041,7 +1075,7 @@ class NI9402(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ1', ['cDAQ1', 'cDAQ9184-1BA7633'], 'Name of DAQ device - check in NiMax'),
+        Parameter('device', 'cDAQ1', ['cDAQ1', 'cDAQ9184-1BA7633', 'cDAQ9188-1BFB6F2'], 'Name of DAQ device - check in NiMax'),
         Parameter('module', 'Mod2', ['Mod1', 'Mod2', 'Mod3', 'Mod4', 'Mod5', 'Mod6', 'Mod7', 'Mod8']),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
@@ -1051,6 +1085,7 @@ class NI9402(DAQ):
                                 [
                                     Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
                                     Parameter('counter_PFI_channel', 0, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
                                     Parameter('clock_PFI_channel', 1, range(0, 32), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 2, range(0, 32), 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
@@ -1060,6 +1095,7 @@ class NI9402(DAQ):
                                 [
                                     Parameter('input_channel', 2, range(0, 32), 'channel for counter signal input'),
                                     Parameter('counter_PFI_channel', 1, range(0, 32), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 0, range(0, 32), 'PFI for counter channel input'),
                                     Parameter('clock_PFI_channel', 2, range(0, 32), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 3, range(0, 32), 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
