@@ -203,38 +203,21 @@ class PulseBlaster(Instrument):
 
         assert min_pulse_time >= 0, 'pulse with negative start time detected, that is not a valid pulse'
 
+        # changed by ER 20180219 to compensate for pulse durations or rise times that aren't at integer multiples of clock period
+        clock_T = 1.0e3 / self.settings['clock_speed']  # clock period in ns
+
         # add delays to each pulse
         delayed_pulse_collection = [Pulse(pulse.channel_id,
-                                          pulse.start_time - self.get_delay(pulse.channel_id), pulse.duration)
+                                          np.round((pulse.start_time - self.get_delay(pulse.channel_id))/clock_T)*clock_T, np.round(pulse.duration/clock_T)*clock_T)
                                     for pulse in pulse_collection]
 
         # make sure the pulses start at same time as min_pulse_time
         delayed_min_pulse_time = np.min([pulse.start_time for pulse in delayed_pulse_collection])
         if delayed_min_pulse_time < min_pulse_time:
             delayed_pulse_collection = [Pulse(pulse.channel_id,
-                                                   pulse.start_time - delayed_min_pulse_time + min_pulse_time,
-                                                   pulse.duration)
+                                                   np.round((pulse.start_time - delayed_min_pulse_time + min_pulse_time)/clock_T)*clock_T,
+                                                   np.round(pulse.duration/clock_T)*clock_T)
                                         for pulse in delayed_pulse_collection]
-
-
-        # AS 180313: the following was not committed before Alice was reformatted.
-        # TODO(ER): look over below code and commit if ok
-
-        # changed by ER 20180219 to compensate for pulse durations or rise times that aren't at integer multiples of clock period
-        # clock_T = 1.0e3 / self.settings['clock_speed']  # clock period in ns
-        #
-        # # add delays to each pulse
-        # delayed_pulse_collection = [Pulse(pulse.channel_id,
-        #                                   np.round((pulse.start_time - self.get_delay(pulse.channel_id))/clock_T)*clock_T, np.round(pulse.duration/clock_T)*clock_T)
-        #                             for pulse in pulse_collection]
-        #
-        # # make sure the pulses start at same time as min_pulse_time
-        # delayed_min_pulse_time = np.min([pulse.start_time for pulse in delayed_pulse_collection])
-        # if delayed_min_pulse_time < min_pulse_time:
-        #     delayed_pulse_collection = [Pulse(pulse.channel_id,
-        #                                            np.round((pulse.start_time - delayed_min_pulse_time + min_pulse_time)/clock_T)*clock_T,
-        #                                            np.round(pulse.duration/clock_T)*clock_T)
-        #                                 for pulse in delayed_pulse_collection]
 
         # return the sorted list of pulses, sorted by when they start
         return delayed_pulse_collection
