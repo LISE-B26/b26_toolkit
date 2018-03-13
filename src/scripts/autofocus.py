@@ -197,7 +197,13 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
 
+        # set piezo value to the fit value if this is within the bounds of the piezo
+        if piezo_voltage>0 and piezo_voltage<100:
+            # set the voltage on the piezo
+            self._step_piezo(piezo_voltage, self.settings['wait_time'])
+
         self.log('autofocus fit result: {:s} V'.format(str(piezo_voltage)))
+
 
         # self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
