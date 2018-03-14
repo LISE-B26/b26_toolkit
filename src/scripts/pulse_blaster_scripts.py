@@ -1170,7 +1170,8 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
             Parameter('laser_off_time', 1000, int,
                       'minimum laser off time before taking measurements (ns)'),
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('readout_window', 300, int, 'length of readout window')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
@@ -1227,7 +1228,7 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
         laser_off_time = self.settings['read_out']['laser_off_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
         pi_time = self.settings['mw_pulse']['pi_time']
-        meas_time = 300
+        meas_time = self.settings['read_out']['readout_window']
 
 
         for tau in tau_list:
