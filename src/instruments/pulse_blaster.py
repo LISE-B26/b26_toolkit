@@ -527,7 +527,7 @@ class B26PulseBlaster(PulseBlaster):
         Parameter('laser', [
             Parameter('channel', 0, int, 'channel to which laser is connected'),
             Parameter('status', True, bool, 'True if voltage is high to the laser, false otherwise'),
-            Parameter('delay_time', 850.2, float, 'delay time between pulse sending time and laser switch on [ns]')
+            Parameter('delay_time', 350.2, float, 'delay time between pulse sending time and laser switch on [ns]')
         ]),
         Parameter('apd_readout', [
             Parameter('channel', 1, int, 'channel to which the daq is connected to'),
