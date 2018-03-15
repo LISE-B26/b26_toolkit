@@ -101,7 +101,7 @@ for a given experiment
 
         self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._process_sequences()
 
-        # print('number of sequences after validation ', len(self.pulse_sequences))
+        print('number of sequences after validation ', len(self.pulse_sequences))
 
         #calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
         #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
@@ -120,7 +120,6 @@ for a given experiment
         #This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
         #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
-
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
             self.scripts['find_nv'].run()
@@ -129,7 +128,6 @@ for a given experiment
             #self._plot_refresh = True
 
         self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
-
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
@@ -137,7 +135,6 @@ for a given experiment
             # print('loop ' + str(average_loop))
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
-
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
             self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
@@ -211,7 +208,6 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         '''
-
         # randomize the indexes of the pulse sequences to run, to reduce heating. ER 5/25/2017
         rand_indexes = []
         for i in range(0, len(pulse_sequences)):
@@ -219,6 +215,7 @@ for a given experiment
         if self.settings['randomize']:
             random.shuffle(rand_indexes)
         for index, sequence in enumerate(pulse_sequences):
+
             rand_index = rand_indexes[index]
             if self._abort:
                 break
@@ -234,6 +231,7 @@ for a given experiment
                                                                     self.current_averages)
             self.sequence_index = rand_index
             counts_temp = counts_to_check[0]
+
             # throw error if tracking is on and you haven't ran find nv ER 6/2/17
             if self.settings['Tracking']['on/off']:
                 if self.scripts['find_nv'].data['fluorescence']:
@@ -265,10 +263,13 @@ for a given experiment
 
         '''
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
+        # TODO(AK): figure out if timeout is actually needed
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
+
         if num_daq_reads != 0:
             task = self.instruments['daq']['instance'].setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
             self.instruments['daq']['instance'].run(task)
+
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
@@ -344,6 +345,7 @@ for a given experiment
 
             Returns: Pulse sequence with mw switch added in appropriate places
             """
+
             if not 'mw_switch_extra_time' in self.settings.keys():
                 #default to a 50 ns buffer
                 mw_switch_time = 50
@@ -359,8 +361,7 @@ for a given experiment
                     for index, pulse in enumerate(sequence):
                         if pulse.channel_id in ['microwave_i', 'microwave_q']:
                             mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time, pulse.duration))
-                            new_pulse = Pulse(pulse.channel_id, pulse.start_time - mw_switch_time, pulse.duration,
-                                              pulse.duration + 2 * mw_switch_time)
+                            new_pulse = Pulse(pulse.channel_id, pulse.start_time - mw_switch_time, pulse.duration + 2 * mw_switch_time)
                             sequence.remove(pulse)
                             sequence.insert(index, new_pulse)
                 # combine overlapping pulses and those that are within 2*mw_switch_extra_time
@@ -464,6 +465,11 @@ if __name__ == '__main__':
     instr = {}
     script, failed, instr = Script.load_and_append({'ExecutePulseBlasterSequence': 'ExecutePulseBlasterSequence'},
                                                    script, instr)
+
+    script, failed, instr = Script.load_and_append({'ExecutePulseBlasterSequence': {'class':'ExecutePulseBlasterSequence',
+                                                                                    'package':'b26toolkit'}},
+                                                   script, instr)
+
 
     print(script)
     print(failed)
