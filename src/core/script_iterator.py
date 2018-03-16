@@ -2,7 +2,6 @@ from PyLabControl.src.core.script_iterator import ScriptIterator
 from PyLabControl.src.core import Script, Parameter
 import numpy as np
 
-
 class ScriptIteratorB26(ScriptIterator):
 
     ITER_TYPES = ScriptIterator.ITER_TYPES + ['iter nvs', 'iter points', 'test']
@@ -254,4 +253,28 @@ class ScriptIteratorB26(ScriptIterator):
 
         return dictator
 
+    def _estimate_progress(self):
+        """
+        estimates the current progress that is then used in _receive_signal
 
+        :return: current progress in percent
+        """
+
+        # ==== get number of iterations and loop index ======================
+        if self.iterator_type == 'iter nvs':
+            progress = 50 #todo implement estimate progress for iter nvs
+        elif self.iterator_type == 'iter points':
+
+
+            N = self.scripts['select_points'].settings['Nx']* self.scripts['select_points'].settings['Ny']
+            loop_index = self.loop_index
+
+            progress = 50 #todo implement estimate progress for iter points
+        elif self.iterator_type == 'test':
+            progress = 50
+
+        else:
+            # if can't estimate the remaining time fall back to parent class method
+            progress = super(ScriptIteratorB26, self)._estimate_progress()
+
+        return progress
