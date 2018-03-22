@@ -47,8 +47,9 @@ for a given experiment
         ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
-            Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 28 extra-time'),
+            Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 2*extra-time'),
             Parameter('extra_time', 50, int, 'extra time that is added before and after the time of the i/q pulses in ns'),
+            Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source ')
         ])
     ]
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
@@ -242,10 +243,6 @@ for a given experiment
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
 
-            # emma 10/22/17: just for readout loop
-            #self.measurement_gate_width = sequence[2][3]
-            #print self.measurement_gate_width
-
             counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)
@@ -352,7 +349,6 @@ for a given experiment
 
         Args:
             create_pulse: is true creates the pulses first before validation
-            verbose: print more stuff if true
             verbose: print more stuff if true
 
         Returns:
@@ -480,62 +476,118 @@ for a given experiment
                     print('removing sequence', pulse_sequences[index])
                 pulse_sequences.pop(index)
 
+        if len(delete_list)>0:
+            self.log('removed pulse sequences for following tau times: {:s}'.format([tau_list[index] for index in delete_list]))
         tau_list = np.delete(np.array(tau_list), delete_list).tolist()
 
+
         if verbose:
+
             print('len pulse_sequences after', len(pulse_sequences))
 
         return pulse_sequences, tau_list
 
-    def _add_mw_switch_to_sequences(self, pulse_sequences, gating = 'mw_switch'):
+    def _combine_pulses(self, pulse_sequence, channel_id, overlap_window):
+        """
+
+        combines overlapping pulses in pulse_sequence with channeld id "channeld_id"
+
+        Args:
+            pulse_sequence: pulse sequence, list of Pulse object
+            channel_id: id of channel where we combine the pulses if they overlap
+            overlap_window: if pulses are closer than the "overlap_window" time window, they are considered overlapping and will be combined
+
+        Returns: new pulse sequence, where the overlapping pulses have been combined
+
+        """
+
+        # split the sequence in the channels that we want to combine and the ones that we keep
+        sequence_id = [pulse for pulse in pulse_sequence if
+                       pulse.channel_id == channel_id]  # the sequences belonging to channel_id
+        sequence_remainder = [pulse for pulse in pulse_sequence if
+                              pulse.channel_id != channel_id]  # the sequences not belonging to channel_id
+
+        # sort
+        sequence_id = sorted(sequence_id, key=lambda pulse: pulse.start_time)
+
+        # since the length of sequence_id shrinks over time we check on every iteration if we reached the end of the list
+        # instead of doing a for index in range(len(sequence_id)) loop
+        index = 0
+        while True:
+            if index >= len(sequence_id) - 1:
+                break
+            first_pulse = sequence_id[index]
+            second_pulse = sequence_id[index + 1]
+            if ((second_pulse.start_time) - (first_pulse.start_time + first_pulse.duration)) < overlap_window:
+
+                # the combined pulse duration is the max of either the first pulse duration or
+                # the differnence between the end of the second pulse and the start of the first pulse
+                # the first case seems a bit unusual but can happen, for mw switch pulses where both
+                # the I and Q channel are mapped onto the same channel (mw_switch)
+                combined_pulse_duration = max(
+                    first_pulse.duration,
+                    (second_pulse.start_time - first_pulse.start_time) + second_pulse.duration
+                )
+
+                combined_pulse = Pulse(channel_id, first_pulse.start_time, combined_pulse_duration)
+                sequence_id.remove(first_pulse)
+                sequence_id.remove(second_pulse)
+                sequence_id.insert(index, combined_pulse)
+            else:
+                index += 1
+
+        # "adding" list in python concatenates them!
+        return sequence_id + sequence_remainder
+
+    def _add_mw_switch_to_sequences(self, pulse_sequences):
         """
         Adds the microwave switch to a sequence by toggling it on/off for every microwave_i or microwave_q pulse,
         with a buffer given by mw_switch_extra_time
         Args:
             pulse_sequences: Pulse sequence without mw switch
-            gating: determines if mw pulses are gated on mw switch or on mw i and q
-
         Returns: Pulse sequence with mw switch added in appropriate places
         """
-
+        gating = self.settings['mw_switch']['gating']
         mw_switch_time = self.settings['mw_switch']['extra_time']
 
-
-        for sequence in pulse_sequences:
+        pulse_sequences_with_mw_switch = []
+        for pulse_sequence in pulse_sequences:
             mw_switch_pulses = []
-            # add a switch pulse for each microwave pulse
+            # add a switch pulse for each microwave pulse, pulses are carved with i and q channels and wide mw switch pulses are added to surpress leakage
             if gating == 'mw_iq':
-                for pulse in sequence:
+                for pulse in pulse_sequence:
                     if pulse.channel_id in ['microwave_i', 'microwave_q']:
-                        mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time,
-                                                      pulse.duration + 2 * mw_switch_time))
+                        mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time, pulse.duration + 2 * mw_switch_time))
+
+                # add the mw switch pulses to the pulse sequences
+                pulse_sequence.extend(mw_switch_pulses)
+
+                # combine overlapping pulses and those that are within 2*mw_switch_extra_time
+                pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_switch', overlap_window= 2 * mw_switch_time)
+
+
             elif gating == 'mw_switch':
-                for index, pulse in enumerate(sequence):
+                # in the case gating == 'mw_switch', the pulse is carved with the mw switch
+                # thus, we extend the duration of the i and q pulses by mw_switch_time before and after
+
+                for index, pulse in enumerate(pulse_sequence):
                     if pulse.channel_id in ['microwave_i', 'microwave_q']:
                         mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time, pulse.duration))
-                        new_pulse = Pulse(pulse.channel_id, pulse.start_time - mw_switch_time, pulse.duration + 2 * mw_switch_time)
-                        sequence.remove(pulse)
-                        sequence.insert(index, new_pulse)
-            # combine overlapping pulses and those that are within 2*mw_switch_extra_time
-            mw_switch_pulses = sorted(mw_switch_pulses, key=lambda pulse: pulse.start_time)
-            index = 0
-            while True:
-                if index >= len(mw_switch_pulses) - 1:
-                    break
-                first_pulse = mw_switch_pulses[index]
-                second_pulse = mw_switch_pulses[index + 1]
-                if ((second_pulse.start_time) - (
-                    first_pulse.start_time + first_pulse.duration)) < 2 * mw_switch_time:
-                    new_pulse = Pulse('microwave_switch', first_pulse.start_time, max(first_pulse.duration, (
-                        second_pulse.start_time - first_pulse.start_time) + second_pulse.duration))
-                    mw_switch_pulses.remove(first_pulse)
-                    mw_switch_pulses.remove(second_pulse)
-                    mw_switch_pulses.insert(index, new_pulse)
-                else:
-                    index += 1
-            sequence.extend(mw_switch_pulses)
 
-        return pulse_sequences
+                        # replace the i and q pulses with wider pulses
+                        new_pulse = Pulse(pulse.channel_id, pulse.start_time - mw_switch_time, pulse.duration + 2 * mw_switch_time)
+                        pulse_sequence.remove(pulse)
+                        pulse_sequence.insert(index, new_pulse)
+
+                # add the mw switch pulses to the pulse sequences
+                pulse_sequence.extend(mw_switch_pulses)
+
+                # combine overlapping pulses and those that are within 2*mw_switch_extra_time
+                pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_i', overlap_window= 2 * mw_switch_time)
+                pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_q', overlap_window=2 * mw_switch_time)
+            pulse_sequences_with_mw_switch.append(pulse_sequence)
+
+        return pulse_sequences_with_mw_switch
 
     def _plot_validate(self, axes_list):
         """
@@ -564,30 +616,24 @@ for a given experiment
 
         pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
-        if verbose:
-            print('\n\n=============================================')
-
-            for p in pulse_sequences:
-                print(p)
-
-            print('\n\n=============================================')
-
 
         self.log('create_pulse_sequences: number of pulse_sequences: {:d}'.format(len(pulse_sequences)))
 
         if self.settings['mw_switch']['add']:
             self.log('create_pulse_sequences: adding switch')
-            pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences) #UNCOMMENT TO ADD SWITCH
+            pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)
 
         failure_list = self._find_bad_pulse_sequences(pulse_sequences)
 
 
-        self.log('create_pulse_sequences: found {:d} failed pulse sequences'.format(sum([(f != []) * 1 for f in failure_list])))
+
 
         pulse_sequences, tau_list = self._remove_bad_pulse_sequences(pulse_sequences, tau_list, failure_list)
 
-
-        self.log('create_pulse_sequences: number of pulse_sequences after removing bad ones: {:d}'.format(len(pulse_sequences)))
+        # comment to log only of pulses have been removed
+        if any([f != [] for f in failure_list]):
+            self.log('create_pulse_sequences: found {:d} failed pulse sequences'.format(sum([(f != []) * 1 for f in failure_list])))
+            self.log('create_pulse_sequences: number of pulse_sequences after removing bad ones: {:d}'.format(len(pulse_sequences)))
 
         # not set all the variables that we need to excecute _function
         self.pulse_sequences = pulse_sequences
@@ -595,7 +641,10 @@ for a given experiment
         self.tau_list = tau_list
         self.measurement_gate_width = measurement_gate_width
 
-        self.log('create_pulse_sequences: taus ranging from {:d} - {:d} ns'.format(min(tau_list), max(tau_list)))
+        if len(tau_list) ==0:
+            self.log('all sequences are bad!')
+        else:
+            self.log('create_pulse_sequences: taus ranging from {:d} - {:d} ns'.format(min(tau_list), max(tau_list)))
 
 
     def stop(self):

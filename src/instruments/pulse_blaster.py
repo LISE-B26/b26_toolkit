@@ -159,13 +159,11 @@ class PulseBlaster(Instrument):
             position
 
         """
+
         # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
         pulse_dict = {}
         for pulse in pulses:
-            try:
-                pulse.channel_id
-            except:
-                print('pulse.channel_idXXXXX', len(pulse), pulse)
+
             pulse_dict.setdefault(pulse.channel_id, []).append((pulse.start_time,
                                                                 pulse.start_time + pulse.duration))
 
