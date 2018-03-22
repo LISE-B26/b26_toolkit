@@ -98,13 +98,11 @@ for a given experiment
 
         '''
         self.sequence_index = 0
-        # self.pulse_sequences, self.num_averages, tau_list, self.measurement_gate_width = self._create_pulse_sequences()
-        #wrapper
 
-        self.create_pulse_sequences()
-
-        if self.validate() is False:
+        # self.validate and create pulses
+        if self.validate(create_pulse=True) is False:
             self._abort = True
+            return # exit function in case validation fails
 
 
         #calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
@@ -339,13 +337,25 @@ for a given experiment
         """
         return (1. * signal * (1E6 / (gate_width * num_averages)))  # 1E6 is to convert from ns to ms
 
-    def validate(self, verbose = True):
+    def validate(self, create_pulse = True, verbose = True):
         """
+
         Checks if a pulse blaster script is valid
+
+        Args:
+            create_pulse: is true creates the pulses first before validation
+            verbose: print more stuff if true
+            verbose: print more stuff if true
+
+        Returns:
+
         """
 
         valid = True
-        self.create_pulse_sequences() # make sure that we have the pulse sequences that correspond to the current settings
+
+        # make sure that we have the pulse sequences that correspond to the current settings
+        if create_pulse:
+            self.create_pulse_sequences()
 
         if verbose:
             print('validate: number of pulse sequences {:d}'.format(len(self.pulse_sequences)))
