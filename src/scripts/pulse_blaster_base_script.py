@@ -135,6 +135,7 @@ for a given experiment
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
+                self.log('aborted pulseblaster script during loop')
                 break
             # print('loop ' + str(average_loop))
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
@@ -200,7 +201,7 @@ for a given experiment
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads):
+    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=True):
         '''
         Each pulse sequence specified in pulse_sequences is run num_loops_sweep consecutive times.
 
@@ -224,9 +225,12 @@ for a given experiment
         # short version of the above JG 20180221
         rand_indexes = range(len(pulse_sequences))
         random.shuffle(rand_indexes)
-
+        if verbose:
+            print('_run_sweep number of pulse sequences', len(pulse_sequences))
 
         for index, sequence in enumerate(pulse_sequences):
+            if verbose:
+                print('_run_sweep index', index)
 
             rand_index = rand_indexes[index]
             if self._abort:
@@ -335,7 +339,7 @@ for a given experiment
         """
         return (1. * signal * (1E6 / (gate_width * num_averages)))  # 1E6 is to convert from ns to ms
 
-    def validate(self):
+    def validate(self, verbose = False):
         """
         Checks if a pulse blaster script is valid
         """
@@ -345,9 +349,17 @@ for a given experiment
 
         failure_list = self._find_bad_pulse_sequences(self.pulse_sequences)
 
-        #todo (JG): I think failure list if no bad pulses is alist of empty lists, need to check this!!
-        if len(failure_list)>0:
+        # the failure list if no bad pulses is alist of empty lists
+        # thus sum([1*(x != []) for x in failure_list]) count the number of nonempty lists
+        # if the nonempty lists is larger than 0, we know that a pulse sequence has failed
+        if sum([1*(x != []) for x in failure_list])>0:
+            self.log('WARNING: pulse_blaster_validation failed!!!')
+            self.log('Reason: at least one bad pulse sequence!')
             valid = False
+
+            if verbose:
+                # todo (JG): implement find the bad pulse sequence and print
+                pass
 
 
         # give warning to user if tracking is on and you haven't ran find nv
@@ -356,7 +368,12 @@ for a given experiment
             if 'fluorescence' in self.scripts['find_nv'].data:
                 self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
             else:
+                self.log('WARNING: pulse_blaster_validation failed!!!')
+                self.log('Reason: no data in find_nv, check tracking!')
                 valid = False
+
+        if valid:
+            self.log('pulse_blaster_validation passed!!!')
 
         return valid
 
