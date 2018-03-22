@@ -46,10 +46,11 @@ for a given experiment
             Parameter('threshold', 0.85, float, 'threshold for tracking'),
         ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
-        Parameter('add_mw_switch', True, bool, 'check to add mw switch to every i and q pulse. recommended since this helps with surpressing leakage.')
-
+        Parameter('mw_switch', [
+            Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 28 extra-time'),
+            Parameter('extra_time', 50, int, 'extra time that is added before and after the time of the i/q pulses in ns'),
+        ])
     ]
-
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
 
     _SCRIPTS = {'find_nv': FindNV}
@@ -70,16 +71,20 @@ for a given experiment
     def _calc_progress(self, index):
         # progress of inner loop (in _run_sweep)
         progress_inner = float(index) / len(self.pulse_sequences)
-        print('JG improving time esimtate: progress_inner, index', progress_inner, index)
+        print('JG improving time esimtate: progress_inner, index', progress_inner, index, len(self.pulse_sequences))
 
+        print('self.current_averages | MAX_AVERAGES_PER_SCAN | self.num_averages', self.current_averages, MAX_AVERAGES_PER_SCAN, self.num_averages)
         # progress of outer loop (in _function)
         if self.current_averages >= MAX_AVERAGES_PER_SCAN:
             progress = float(self.current_averages + (progress_inner - 1.0) * MAX_AVERAGES_PER_SCAN) / self.num_averages
         else:
+            # if self.current_averages < MAX_AVERAGES_PER_SCAN, there is only a single run and
+            # therefore the progress of the inner loop equals the outer loop
             progress = progress_inner
 
         self.progress = 100.0 * progress
-        return int(progress)
+        print('>>>> progress', int(round(self.progress)))
+        return int(round(self.progress))
 
     def _function(self, in_data={}):
         '''
@@ -128,6 +133,7 @@ for a given experiment
             self.scripts['find_nv'].run()
             if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
                 self._abort = True
+                return  # exit function in case no NV is found
 
         self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
         for average_loop in range(int(num_1E5_avg_pb_programs)):
@@ -135,7 +141,7 @@ for a given experiment
             if self._abort:
                 self.log('aborted pulseblaster script during loop')
                 break
-            # print('loop ' + str(average_loop))
+
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
         if remainder != 0 and not self._abort:
@@ -199,7 +205,7 @@ for a given experiment
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=True):
+    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=False):
         '''
         Each pulse sequence specified in pulse_sequences is run num_loops_sweep consecutive times.
 
@@ -228,7 +234,7 @@ for a given experiment
 
         for index, sequence in enumerate(pulse_sequences):
             if verbose:
-                print('_run_sweep index', index)
+                print('_run_sweep index', index, len(pulse_sequences))
 
             rand_index = rand_indexes[index]
             if self._abort:
@@ -253,6 +259,8 @@ for a given experiment
                 if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
                             (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
                     print('TRACKING TO NV...')
+                    print('____ counts_temp', counts_temp)
+                    print('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor'])
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
@@ -396,7 +404,7 @@ for a given experiment
 
 
 
-    def _find_bad_pulse_sequences(self, pulse_sequences, verbose=False):
+    def _find_bad_pulse_sequences(self, pulse_sequences, verbose=True):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains from the pulse-blaster,
@@ -446,7 +454,7 @@ for a given experiment
 
         return failure_list
 
-    def _remove_bad_pulse_sequences(self, pulse_sequences, tau_list, failure_list, verbose = False):
+    def _remove_bad_pulse_sequences(self, pulse_sequences, tau_list, failure_list, verbose = True):
         """
         removes the bad pulse sequences (failure_list) from pulse_sequences and returns the cleaned pulse_sequences
 
@@ -468,6 +476,8 @@ for a given experiment
         if not delete_list == []:
             delete_list.reverse()
             for index in delete_list:
+                if verbose:
+                    print('removing sequence', pulse_sequences[index])
                 pulse_sequences.pop(index)
 
         tau_list = np.delete(np.array(tau_list), delete_list).tolist()
@@ -488,9 +498,9 @@ for a given experiment
         Returns: Pulse sequence with mw switch added in appropriate places
         """
 
-        if not 'mw_switch_extra_time' in self.settings.keys():
-            #default to a 50 ns buffer
-            mw_switch_time = 50
+        mw_switch_time = self.settings['mw_switch']['extra_time']
+
+
         for sequence in pulse_sequences:
             mw_switch_pulses = []
             # add a switch pulse for each microwave pulse
@@ -527,48 +537,6 @@ for a given experiment
 
         return pulse_sequences
 
-    # def _cleanup_pulse_sequences_and_add_mw_switch(self):
-    #
-    #
-    #     pulse_blaster = self.instruments['PB']['instance']
-    #     self.pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
-    #     self.pulse_sequences = self._add_mw_switch_to_sequences(self.pulse_sequences) #UNCOMMENT TO ADD SWITCH
-    #     failure_list = []
-    #
-    #     print('>>> jG 20180321 len(self.pulse_sequences)', self.pulse_sequences)
-    #
-    #     print(':::: failure list 1', failure_list)
-    #     for pulse_sequence in self.pulse_sequences:
-    #         overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
-    #         if not overlapping_pulses == []:
-    #             failure_list.append(B26PulseBlaster.find_overlapping_pulses(pulse_sequence))
-    #             break
-    #         for pulse in pulse_sequence:
-    #             assert pulse.start_time == 0 or pulse.start_time > 1, \
-    #                 'found a start time that was between 0 and 1. Remember pulse times are in nanoseconds!'
-    #             assert pulse.duration > 1, \
-    #                 'found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
-    #
-    #         # process the pulse collection into a format that is designed to deal with the low-level spincore API
-    #         delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
-    #         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
-    #         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
-    #
-    #         assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
-    #
-    #         short_pulses = [command for command in pb_commands if command.duration < 15]
-    #         if short_pulses:
-    #             print(':::: failure list if', failure_list)
-    #             failure_list.append(short_pulses[0])
-    #         else:
-    #             print(':::: failure list else', failure_list)
-    #             failure_list.append([])  # good sequence
-    #
-    #     if any([isinstance(a, pulse_blaster.PBCommand) for a in failure_list]):
-    #         self.log('Validation failed. At least one pulse in the sequence is invalid.')
-    #
-    #     return self.pulse_sequences, num_averages, tau_list, measurement_gate_width, failure_list
-
     def _plot_validate(self, axes_list):
         """
         Preview pulse sequence by plotting first and last sequence to plots 1 and 2
@@ -596,11 +564,18 @@ for a given experiment
 
         pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
+        if verbose:
+            print('\n\n=============================================')
+
+            for p in pulse_sequences:
+                print(p)
+
+            print('\n\n=============================================')
+
 
         self.log('create_pulse_sequences: number of pulse_sequences: {:d}'.format(len(pulse_sequences)))
 
-        if self.settings['add_mw_switch']:
-
+        if self.settings['mw_switch']['add']:
             self.log('create_pulse_sequences: adding switch')
             pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences) #UNCOMMENT TO ADD SWITCH
 

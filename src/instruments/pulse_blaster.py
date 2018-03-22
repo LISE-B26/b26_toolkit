@@ -164,7 +164,6 @@ class PulseBlaster(Instrument):
         for pulse in pulses:
             try:
                 pulse.channel_id
-                # print('XXXX', len(pulse))
             except:
                 print('pulse.channel_idXXXXX', len(pulse), pulse)
             pulse_dict.setdefault(pulse.channel_id, []).append((pulse.start_time,
@@ -474,9 +473,6 @@ class PulseBlaster(Instrument):
         # print(pb_commands)
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
-
-
-        print('JG 20180321 pb_commands', pb_commands)
 
         for command in pb_commands:
             if command.duration < 15:
