@@ -1789,7 +1789,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         if data is None:
             data = self.data
 
-        if data['fits'] is not None:
+        if 'fits'in data and data['fits'] is not None:
             counts = (-data['counts'][:,1] + data['counts'][:,0])/ (data['counts'][:,0] + data['counts'][:,1])
             tau = data['tau']
             fits = data['fits']
