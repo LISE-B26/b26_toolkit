@@ -162,6 +162,11 @@ class PulseBlaster(Instrument):
         # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
         pulse_dict = {}
         for pulse in pulses:
+            try:
+                pulse.channel_id
+                # print('XXXX', len(pulse))
+            except:
+                print('pulse.channel_idXXXXX', len(pulse), pulse)
             pulse_dict.setdefault(pulse.channel_id, []).append((pulse.start_time,
                                                                 pulse.start_time + pulse.duration))
 
@@ -405,6 +410,16 @@ class PulseBlaster(Instrument):
 
         pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
         pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
+
+        # print('>>>>>> JG 20180321 create_commands')
+        # # JG 20180321 tmp ==== begin
+        # for command in pb_commands:
+        #     if command.duration < 15:
+        #         print('JG 20180321 command', command)
+        #         raise RuntimeError("Detected command with duration <15ns.")
+        # # JG 20180321 tmp ==== end
+
+
         return pb_commands
 
     @staticmethod
@@ -439,7 +454,12 @@ class PulseBlaster(Instrument):
         assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
         assert num_loops < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
         if self.find_overlapping_pulses(pulse_collection):
+            print(pulse_collection)
             raise AttributeError('found overlapping pulses in given pulse collection')
+
+
+
+
         for pulse in pulse_collection:
             assert pulse.start_time == 0 or pulse.start_time > 1, \
                 'found a start time that was between 0 and 1. Remember pulse times are in nanoseconds!'
@@ -455,8 +475,12 @@ class PulseBlaster(Instrument):
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
 
+
+        print('JG 20180321 pb_commands', pb_commands)
+
         for command in pb_commands:
             if command.duration < 15:
+                print('JG 20180321 command', command)
                 raise RuntimeError("Detected command with duration <15ns.")
 
         # begin programming the pulseblaster

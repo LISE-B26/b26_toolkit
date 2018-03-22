@@ -660,7 +660,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
 
@@ -703,7 +703,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         #         end_time_max = max(end_time_max, pulse.start_time + pulse.duration)
         # for pulse_sequence in pulse_sequences:
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
-        print('number of sequences before validation ', len(pulse_sequences))
+
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -809,7 +809,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -835,7 +835,6 @@ This script applies a microwave pulse at fixed power for varying durations to me
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -947,7 +946,7 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
@@ -975,7 +974,6 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
     def _plot(self, axislist, data=None):
@@ -1086,7 +1084,7 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
@@ -1114,7 +1112,6 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
     def _plot(self, axislist, data=None):
@@ -1220,7 +1217,6 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
@@ -1248,7 +1244,6 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
     def _plot(self, axislist, data=None):
@@ -1359,7 +1354,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -1405,7 +1400,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -1514,7 +1508,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -1582,7 +1576,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -1691,7 +1684,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -1776,7 +1769,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
+
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -1886,7 +1879,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -1971,7 +1964,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -3070,7 +3062,7 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
-        print('tau_list', tau_list)
+
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
         laser_off_time = self.settings['read_out']['laser_off_time']
@@ -3086,7 +3078,6 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        print('number of sequences before validation ', len(pulse_sequences))
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
 
@@ -3251,9 +3242,54 @@ class HE_double_init_many_NVs(Script):
 
 
 if __name__ == '__main__':
-    script = {}
-    instr = {}
-    script, failed, instr = Script.load_and_append({'T1_double_init_many_NVs': 'T1_double_init_many_NVs'}, script, instr)
-    print(script)
-    print('failed', failed)
-    print(instr)
+    # ===================================== 1  ================================================================
+
+    updated_scripts, load_failed, updated_instruments = Script.load_and_append({'XY8':'XY8_double_init'}, package='b26_toolkit')
+    xy8 = updated_scripts['XY8']
+
+
+    xy8.update({'Tracking':{'on/off':False}}) # turn off tracking because this will cause an error if we don't run findnv
+    print(xy8)
+
+    xy8.validate()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # # ===================================== 1  ================================================================
+    # import os
+    # from PyLabControl.src.core.read_write_functions import load_b26_file
+    # filename = os.path.normpath('Z:/Lab/Cantilever/Measurements/20180319_Sample_37_diamond_Y_NA0.9/180321-19_41_00_xy8_6_double_init_7Vpp_2MHz/180321-19_41_00_xy8_6_double_init_7Vpp_2MHz.b26')
+    # print(filename)
+    # script = load_b26_file(filename)['scripts']
+    # print(script.keys())
+    #
+    #
+    #
+    #
+    # updated_scripts, load_failed, updated_instruments = Script.load_and_append(script)
+    # xy8 = updated_scripts['XY8_double_init']
+    # print(xy8)
+    #
+    # pulse_sequences, num_averages, tau_list, measurement_gate_width, failure_list = xy8.validate()
+    #
+    # print('ddddd', len(failure_list))
+    #
+    # print('ddddd', failure_list)
+    # script = {}
+    # instr = {}
+    # script, failed, instr = Script.load_and_append({'T1_double_init_many_NVs': 'T1_double_init_many_NVs'}, script, instr)
+    # print(script)
+    # print('failed', failed)
+    # print(instr)
