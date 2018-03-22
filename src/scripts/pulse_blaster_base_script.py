@@ -46,7 +46,7 @@ for a given experiment
             Parameter('threshold', 0.85, float, 'threshold for tracking'),
         ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
-
+        Parameter('add_mw_switch', True, bool, 'check to add mw switch to every i and q pulse. recommended since this helps with surpressing leakage.')
 
     ]
 
@@ -359,7 +359,9 @@ for a given experiment
 
             if verbose:
                 # todo (JG): implement find the bad pulse sequence and print
-                pass
+                for fail in failure_list:
+                    if fail != []:
+                        print('>>> failed pb:\t', fail)
 
 
         # give warning to user if tracking is on and you haven't ran find nv
@@ -578,12 +580,8 @@ for a given experiment
 
         pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
-        pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)  # UNCOMMENT TO ADD SWITCH
-        #
-        # print('pulse_sequences AAA 2', len(pulse_sequences))
-        #todo (JG): make optional
-        # if self.settings['add_mw_switch']:
-        #     pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences) #UNCOMMENT TO ADD SWITCH
+        if self.settings['add_mw_switch']:
+            pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences) #UNCOMMENT TO ADD SWITCH
 
 
         failure_list = self._find_bad_pulse_sequences(pulse_sequences)
