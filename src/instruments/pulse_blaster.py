@@ -23,7 +23,96 @@ import itertools, ctypes, datetime, time, warnings
 from PyLabControl.src.core.read_write_functions import get_config_value
 import os
 
-Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
+# Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
+
+
+class Pulse(object):
+    """
+    pulse object that defines a pulse that is sent to the microwave source
+
+    """
+    def __init__(self, channel_id, start_time, duration=None, end_time=None):
+
+        self.channel_id = channel_id
+        self.start_time = start_time
+
+        if duration is None:
+            assert end_time is not None
+            self.end_time = end_time
+        if end_time is None:
+            assert duration is not None
+            self.duration = duration
+
+    def __str__(self):
+        """
+
+
+        Returns: a representation of the Pulse object as a string, e.g.  when calling print()
+
+        """
+
+        return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns)'.format(self.channel_id,
+                                                                                          self.start_time,
+                                                                                          self.end_time,
+                                                                                          self.duration)
+
+    def __repr__(self):
+        """
+
+
+        Returns: a representation of the Pulse object as a string, e.g.  when the default output
+
+        """
+
+
+        return self.__str__()
+
+    @property
+    def duration(self):
+        return self._duration
+
+    @duration.setter
+    def duration(self, duration):
+        assert duration > 0, 'pulse duration has to be of finite duration but is {:d}'.format(duration)
+
+        self._duration = duration
+        self._end_time = self.start_time + duration
+
+    @property
+    def end_time(self):
+        return self._end_time
+
+    @end_time.setter
+    def end_time(self, end_time):
+        assert end_time > self.start_time, 'pulse end time has to be later than pulse start time'
+
+        self._end_time = end_time
+        self._duration = end_time - self.start_time
+
+
+    @staticmethod
+    def is_overlapping(pulse1, pulse2, dead_time = 0):
+        """
+        Returns True if pulse overlap, barely touching pulses are **not** overlapping
+
+        Args:
+            pulse1: pulse 1 (Pulse object)
+            pulse1: pulse 2 (Pulse object)
+            dead_time: additional time inbetween pulses, if pulses are closer than dead time, they are considered overlapping
+
+        Returns:
+            boolean
+
+        """
+
+        # this is the overlap condition for two pulses
+#         is_overlapping = True if pulse1.start_time < pulse2.end_time and pulse2.start_time < pulse1.end_time else False
+        if pulse1.start_time < pulse2.end_time+dead_time and pulse2.start_time < pulse1.end_time+dead_time:
+            is_overlapping = True
+        else:
+            is_overlapping = False
+        return is_overlapping
+
 
 
 class PulseBlaster(Instrument):
@@ -160,50 +249,40 @@ class PulseBlaster(Instrument):
             position
 
         """
-        Time = namedtuple('Time', ('start', 'end'))
 
-        def get_overlapping_pulses(time_interval1, time_interval2):
+        def get_overlapping_pulses(pulse1, pulse2):
             """
-            Returns overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
+            Returns overlapping pulses as a tuple if time pulse 1 and 2 overlap in time
 
             Args:
-                time_interval1: time interval 1
-                time_interval2: time interval 2
+                pulse1: pulse 1 (Pulse object)
+                pulse2: pulse 2 (Pulse object)
 
             Returns:
                 overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
 
             """
 
-            # this is the overlap condition for two pulses
-            if time_interval1.start < time_interval2.end and time_interval2.start < time_interval1.end:
-                overlapping_pulse_1 = Pulse(pulse_id, time_interval1.start, time_interval1.end - time_interval1.start)
-                overlapping_pulse_2 = Pulse(pulse_id, time_interval2.start, time_interval2.end - time_interval2.start)
-
-                # if we find an overlap, add them to our list in ascending order of start_time
-                if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
-                    overlapping_pulses = [(overlapping_pulse_1, overlapping_pulse_2)]
-                else:
-                    overlapping_pulses = [(overlapping_pulse_2, overlapping_pulse_1)]
+            if Pulse.is_overlapping(pulse1, pulse2):
+                overlapping_pulses = [tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time))]
             else:
                 overlapping_pulses = []
 
             return overlapping_pulses
 
-        # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
-        pulse_dict = {}
-        for pulse in pulses:
-            pulse_dict.setdefault(pulse.channel_id, []).append(Time(pulse.start_time,
-                                                                    pulse.start_time + pulse.duration))
-
-        if combine_channels != []:
-            assert len(combine_channels) == 2, 'if not an empty list combine_channels should be a list with two strings'
-
-            # for every channel_id, check every pair of pulses to see if they overlap
         overlapping_pulses = []
-        for pulse_id, time_interval_list in pulse_dict.iteritems():
-            for time_interval_pair in itertools.combinations(time_interval_list, 2):
-                overlapping_pulses.extend(get_overlapping_pulses(time_interval_pair[0], time_interval_pair[1]))
+        channel_ids = list(set([p.channel_id for p in pulses]))  # get all channel ids as a list
+
+        # check for overlapping pulses in the combined channels
+        pulse_list = [p for p in pulses if p.channel_id in combine_channels]  # get all the pulses with any of the channel id
+        for pulse_pair in itertools.combinations(pulse_list, 2):
+            overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
+
+        # check for overlapping pulses in the each of the channels that are not combined
+        for channel_id in list(set(channel_ids) - set(combine_channels)):
+            pulse_list = [p for p in pulses if p.channel_id == channel_id]  # get all the pulses with channel id
+            for pulse_pair in itertools.combinations(pulse_list, 2):
+                overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
 
         return overlapping_pulses
 
