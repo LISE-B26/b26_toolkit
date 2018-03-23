@@ -58,15 +58,22 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
+        print('settings in instrument', self.instruments['daq']['settings'])
+
         sample_rate = float(1) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
         self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
+        print('setting sample rate')
 
         self.data = {'counts': deque()}
 
         self.last_value = 0
 
         sample_num = 2
+
+        print('settings in instrument 2', self.instruments['daq']['settings'])
+
+        print('here', self.instruments['daq'])
 
         task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
@@ -99,7 +106,6 @@ This script reads the Counter input from the DAQ and plots it.
         self.data['counts'] = list(self.data['counts'])
 
     def plot(self, figure_list):
-        # COMMENT_ME
         super(Daq_Read_Counter, self).plot([figure_list[1]])
 
     def _plot(self, axes_list, data = None):

@@ -254,7 +254,7 @@ class MagnetCoils(NI9263):
         new_voltages = np.array([relative_voltages[0, 0] * max_voltages[0], relative_voltages[0, 1] * max_voltages[1],
                                  relative_voltages[0, 2] * max_voltages[2]])
 
-        self.log('Calculated voltages to reach desired field: ' + str(new_voltages))
+        # self.log('Calculated voltages to reach desired field: ' + str(new_voltages))
 
         if self.settings['use_approximate_fields']:
             if (np.abs(new_voltages) > max_voltages).any():

@@ -58,6 +58,7 @@ This script sets the magnetic field coils to the given magnetic field values
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
         self.data = {}
 
         input_vector = [self.settings['magnetic_fields']['x/r_field'], self.settings['magnetic_fields']['y/theta_field'], self.settings['magnetic_fields']['z/phi_field']]
