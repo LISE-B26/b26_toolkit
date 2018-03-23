@@ -401,7 +401,7 @@ for a given experiment
 
 
 
-    def _find_bad_pulse_sequences(self, pulse_sequences, verbose=True):
+    def _find_bad_pulse_sequences(self, pulse_sequences, combine_iq = True, verbose=True):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains from the pulse-blaster,
@@ -420,7 +420,11 @@ for a given experiment
         if verbose:
             print('checking {:d} pulse sequences'.format(len(pulse_sequences)))
         for pulse_sequence in pulse_sequences:
-            overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
+
+            if combine_iq:
+                overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence, combine_channels = ['microwave_i', 'microwave_q'])
+            else:
+                overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
 
             if not overlapping_pulses == []:
                 failure_list.append(overlapping_pulses)
@@ -604,15 +608,6 @@ for a given experiment
         plot_pulses(axis2, self.pulse_sequences[0])
         plot_pulses(axis1, self.pulse_sequences[-1])
 
-
-    def _check_iq_overlap(self, pulse_sequences):
-
-        failure_list =[]
-
-        self.log('WARNING: _check_iq_overlap NOT IMPLEMENTED YET!')
-
-        return failure_list
-
     def create_pulse_sequences(self, verbose=True):
         """
         A function to create the pulse sequence.
@@ -633,7 +628,14 @@ for a given experiment
             self.log('create_pulse_sequences: adding switch')
             pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)
 
-        failure_list = self._find_bad_pulse_sequences(pulse_sequences)
+        # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or
+        # requiring that pulses don't overlap
+        if self.settings['mw_switch']['no_iq_overlap']:
+            self.log('create_pulse_sequences: checking for i-q overlap')
+            # combine i and q when looking for overlapping pulses
+            failure_list = self._find_bad_pulse_sequences(pulse_sequences, combine_iq=True)
+        else:
+            failure_list = self._find_bad_pulse_sequences(pulse_sequences, combine_iq=False)
 
         pulse_sequences, tau_list = self._remove_bad_pulse_sequences(pulse_sequences, tau_list, failure_list)
 
@@ -642,9 +644,7 @@ for a given experiment
             self.log('create_pulse_sequences: found {:d} failed pulse sequences'.format(sum([(f != []) * 1 for f in failure_list])))
             self.log('create_pulse_sequences: number of pulse_sequences after removing bad ones: {:d}'.format(len(pulse_sequences)))
 
-        if self.settings['mw_switch']['no_iq_overlap']:
-            self.log('create_pulse_sequences: checking for i-q overlap')
-            failure_list = self._check_iq_overlap(pulse_sequences)
+
 
 
 
