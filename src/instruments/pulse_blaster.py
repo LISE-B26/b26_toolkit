@@ -148,11 +148,12 @@ class PulseBlaster(Instrument):
     @staticmethod
     def find_overlapping_pulses(pulses, combine_channels=[]):
         """
-        Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses. Note that only pulses
-        with the same channel_id can be overlapping.
+        Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses.
 
         Args:
             pulses: An iterable collection of Pulse objects
+            combine_channels: list of *two* channels that should not be overlapping, if empty list only pulses
+                with the same channel_id can be overlapping.
 
         Returns:
             A list of length-2 tuples of overlapping pulses. Each pair of pulses has the earlier pulse in the first
@@ -161,29 +162,48 @@ class PulseBlaster(Instrument):
         """
         Time = namedtuple('Time', ('start', 'end'))
 
+        def get_overlapping_pulses(time_interval1, time_interval2):
+            """
+            Returns overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
+
+            Args:
+                time_interval1: time interval 1
+                time_interval2: time interval 2
+
+            Returns:
+                overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
+
+            """
+
+            # this is the overlap condition for two pulses
+            if time_interval1.start < time_interval2.end and time_interval2.start < time_interval1.end:
+                overlapping_pulse_1 = Pulse(pulse_id, time_interval1.start, time_interval1.end - time_interval1.start)
+                overlapping_pulse_2 = Pulse(pulse_id, time_interval2.start, time_interval2.end - time_interval2.start)
+
+                # if we find an overlap, add them to our list in ascending order of start_time
+                if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
+                    overlapping_pulses = [(overlapping_pulse_1, overlapping_pulse_2)]
+                else:
+                    overlapping_pulses = [(overlapping_pulse_2, overlapping_pulse_1)]
+            else:
+                overlapping_pulses = []
+
+            return overlapping_pulses
+
         # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
         pulse_dict = {}
         for pulse in pulses:
             pulse_dict.setdefault(pulse.channel_id, []).append(Time(pulse.start_time,
                                                                     pulse.start_time + pulse.duration))
 
-        # for every channel_id, check every pair of pulses to see if they overlap
+        if combine_channels != []:
+            assert len(combine_channels) == 2, 'if not an empty list combine_channels should be a list with two strings'
+
+            # for every channel_id, check every pair of pulses to see if they overlap
         overlapping_pulses = []
         for pulse_id, time_interval_list in pulse_dict.iteritems():
             for time_interval_pair in itertools.combinations(time_interval_list, 2):
-                # this is the overlap condition for two pulses
-                if time_interval_pair[0].start < time_interval_pair[1].end and \
-                        time_interval_pair[1].start < time_interval_pair[0].end:
-                    overlapping_pulse_1 = Pulse(pulse_id, time_interval_pair[0].start,
-                                                time_interval_pair[0].end - time_interval_pair[0].start)
-                    overlapping_pulse_2 = Pulse(pulse_id, time_interval_pair[1].start,
-                                                time_interval_pair[1].end - time_interval_pair[1].start)
-
-                    # if we find an overlap, add them to our list in ascending order of start_time
-                    if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
-                        overlapping_pulses.append((overlapping_pulse_1, overlapping_pulse_2))
-                    else:
-                        overlapping_pulses.append((overlapping_pulse_2, overlapping_pulse_1))
+                overlapping_pulses.extend(get_overlapping_pulses(time_interval_pair[0], time_interval_pair[1]))
 
         return overlapping_pulses
 
