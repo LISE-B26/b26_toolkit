@@ -146,42 +146,64 @@ class PulseBlaster(Instrument):
         raise AttributeError('Could not find delay of channel name or number: {0}'.format(str(channel_id)))
 
     @staticmethod
-    def find_overlapping_pulses(pulses):
+    def find_overlapping_pulses(pulses, combine_channels=[]):
         """
-        Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses. Note that only pulses
-        with the same channel_id can be overlapping.
+        Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses.
 
         Args:
             pulses: An iterable collection of Pulse objects
+            combine_channels: list of *two* channels that should not be overlapping, if empty list only pulses
+                with the same channel_id can be overlapping.
 
         Returns:
             A list of length-2 tuples of overlapping pulses. Each pair of pulses has the earlier pulse in the first
             position
 
         """
+        Time = namedtuple('Time', ('start', 'end'))
+
+        def get_overlapping_pulses(time_interval1, time_interval2):
+            """
+            Returns overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
+
+            Args:
+                time_interval1: time interval 1
+                time_interval2: time interval 2
+
+            Returns:
+                overlapping pulses as a tuple if time intervals 1 and 2 overlap in time
+
+            """
+
+            # this is the overlap condition for two pulses
+            if time_interval1.start < time_interval2.end and time_interval2.start < time_interval1.end:
+                overlapping_pulse_1 = Pulse(pulse_id, time_interval1.start, time_interval1.end - time_interval1.start)
+                overlapping_pulse_2 = Pulse(pulse_id, time_interval2.start, time_interval2.end - time_interval2.start)
+
+                # if we find an overlap, add them to our list in ascending order of start_time
+                if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
+                    overlapping_pulses = [(overlapping_pulse_1, overlapping_pulse_2)]
+                else:
+                    overlapping_pulses = [(overlapping_pulse_2, overlapping_pulse_1)]
+            else:
+                overlapping_pulses = []
+
+            return overlapping_pulses
+
         # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
         pulse_dict = {}
         for pulse in pulses:
-            pulse_dict.setdefault(pulse.channel_id, []).append((pulse.start_time,
-                                                                pulse.start_time + pulse.duration))
+            pulse_dict.setdefault(pulse.channel_id, []).append(Time(pulse.start_time,
+                                                                    pulse.start_time + pulse.duration))
 
-        # for every channel_id, check every pair of pulses to see if they overlap
+        if combine_channels != []:
+            assert len(combine_channels) == 2, 'if not an empty list combine_channels should be a list with two strings'
+
+            # for every channel_id, check every pair of pulses to see if they overlap
         overlapping_pulses = []
         for pulse_id, time_interval_list in pulse_dict.iteritems():
             for time_interval_pair in itertools.combinations(time_interval_list, 2):
-                # this is the overlap condition for two pulses
-                if time_interval_pair[0][0] < time_interval_pair[1][1] and time_interval_pair[1][0] < \
-                        time_interval_pair[0][1]:
-                    overlapping_pulse_1 = Pulse(pulse_id, time_interval_pair[0][0],
-                                                time_interval_pair[0][1] - time_interval_pair[0][0])
-                    overlapping_pulse_2 = Pulse(pulse_id, time_interval_pair[1][0],
-                                                time_interval_pair[1][1] - time_interval_pair[1][0])
-
-                    # if we find an overlap, add them to our list in ascending order of start_time
-                    if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
-                        overlapping_pulses.append((overlapping_pulse_1, overlapping_pulse_2))
-                    else:
-                        overlapping_pulses.append((overlapping_pulse_2, overlapping_pulse_1))
+                overlapping_pulses.extend(get_overlapping_pulses(time_interval_pair[0], time_interval_pair[1]))
 
         return overlapping_pulses
 
@@ -405,6 +427,16 @@ class PulseBlaster(Instrument):
 
         pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
         pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
+
+        # print('>>>>>> JG 20180321 create_commands')
+        # # JG 20180321 tmp ==== begin
+        # for command in pb_commands:
+        #     if command.duration < 15:
+        #         print('JG 20180321 command', command)
+        #         raise RuntimeError("Detected command with duration <15ns.")
+        # # JG 20180321 tmp ==== end
+
+
         return pb_commands
 
     @staticmethod
@@ -439,7 +471,12 @@ class PulseBlaster(Instrument):
         assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
         assert num_loops < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
         if self.find_overlapping_pulses(pulse_collection):
+            print(pulse_collection)
             raise AttributeError('found overlapping pulses in given pulse collection')
+
+
+
+
         for pulse in pulse_collection:
             assert pulse.start_time == 0 or pulse.start_time > 1, \
                 'found a start time that was between 0 and 1. Remember pulse times are in nanoseconds!'
@@ -457,6 +494,7 @@ class PulseBlaster(Instrument):
 
         for command in pb_commands:
             if command.duration < 15:
+                print('JG 20180321 command', command)
                 raise RuntimeError("Detected command with duration <15ns.")
 
         # begin programming the pulseblaster
