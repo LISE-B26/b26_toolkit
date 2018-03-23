@@ -49,7 +49,8 @@ for a given experiment
         Parameter('mw_switch', [
             Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 2*extra-time'),
             Parameter('extra_time', 50, int, 'extra time that is added before and after the time of the i/q pulses in ns'),
-            Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source ')
+            Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source '),
+            Parameter('no_iq_overlap', True, bool,'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
         ])
     ]
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
@@ -603,6 +604,15 @@ for a given experiment
         plot_pulses(axis2, self.pulse_sequences[0])
         plot_pulses(axis1, self.pulse_sequences[-1])
 
+
+    def _check_iq_overlap(self, pulse_sequences):
+
+        failure_list =[]
+
+        self.log('WARNING: _check_iq_overlap NOT IMPLEMENTED YET!')
+
+        return failure_list
+
     def create_pulse_sequences(self, verbose=True):
         """
         A function to create the pulse sequence.
@@ -625,15 +635,18 @@ for a given experiment
 
         failure_list = self._find_bad_pulse_sequences(pulse_sequences)
 
-
-
-
         pulse_sequences, tau_list = self._remove_bad_pulse_sequences(pulse_sequences, tau_list, failure_list)
 
         # comment to log only of pulses have been removed
         if any([f != [] for f in failure_list]):
             self.log('create_pulse_sequences: found {:d} failed pulse sequences'.format(sum([(f != []) * 1 for f in failure_list])))
             self.log('create_pulse_sequences: number of pulse_sequences after removing bad ones: {:d}'.format(len(pulse_sequences)))
+
+        if self.settings['mw_switch']['no_iq_overlap']:
+            self.log('create_pulse_sequences: checking for i-q overlap')
+            failure_list = self._check_iq_overlap(pulse_sequences)
+
+
 
         # not set all the variables that we need to excecute _function
         self.pulse_sequences = pulse_sequences

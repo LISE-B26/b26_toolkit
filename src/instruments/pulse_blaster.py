@@ -146,7 +146,7 @@ class PulseBlaster(Instrument):
         raise AttributeError('Could not find delay of channel name or number: {0}'.format(str(channel_id)))
 
     @staticmethod
-    def find_overlapping_pulses(pulses):
+    def find_overlapping_pulses(pulses, combine_channels=[]):
         """
         Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses. Note that only pulses
         with the same channel_id can be overlapping.
@@ -159,25 +159,25 @@ class PulseBlaster(Instrument):
             position
 
         """
+        Time = namedtuple('Time', ('start', 'end'))
 
         # put pulses into a dictionary, where key=channel_id and value = list of (start_time, end_time) for each pulse
         pulse_dict = {}
         for pulse in pulses:
-
-            pulse_dict.setdefault(pulse.channel_id, []).append((pulse.start_time,
-                                                                pulse.start_time + pulse.duration))
+            pulse_dict.setdefault(pulse.channel_id, []).append(Time(pulse.start_time,
+                                                                    pulse.start_time + pulse.duration))
 
         # for every channel_id, check every pair of pulses to see if they overlap
         overlapping_pulses = []
         for pulse_id, time_interval_list in pulse_dict.iteritems():
             for time_interval_pair in itertools.combinations(time_interval_list, 2):
                 # this is the overlap condition for two pulses
-                if time_interval_pair[0][0] < time_interval_pair[1][1] and time_interval_pair[1][0] < \
-                        time_interval_pair[0][1]:
-                    overlapping_pulse_1 = Pulse(pulse_id, time_interval_pair[0][0],
-                                                time_interval_pair[0][1] - time_interval_pair[0][0])
-                    overlapping_pulse_2 = Pulse(pulse_id, time_interval_pair[1][0],
-                                                time_interval_pair[1][1] - time_interval_pair[1][0])
+                if time_interval_pair[0].start < time_interval_pair[1].end and \
+                        time_interval_pair[1].start < time_interval_pair[0].end:
+                    overlapping_pulse_1 = Pulse(pulse_id, time_interval_pair[0].start,
+                                                time_interval_pair[0].end - time_interval_pair[0].start)
+                    overlapping_pulse_2 = Pulse(pulse_id, time_interval_pair[1].start,
+                                                time_interval_pair[1].end - time_interval_pair[1].start)
 
                     # if we find an overlap, add them to our list in ascending order of start_time
                     if overlapping_pulse_1.start_time < overlapping_pulse_2.start_time:
