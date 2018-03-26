@@ -80,10 +80,10 @@ V450A
     def get_voltage(self, attenuation):
         # this function returns the voltage needed for a given attenuation
         # fit to a quartic polynomial
-        a1 =
-        a2 =
-        a3 =
-        a4 =
+        # a1 =
+        # a2 =
+        # a3 =
+        # a4 =
 
         voltage = a4*attenuation^4 + a3*attenuation^3 + a2*attenuation^2 + a1*attenuation + a0
         return voltage

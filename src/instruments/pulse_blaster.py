@@ -700,24 +700,25 @@ class B26PulseBlaster(PulseBlaster):
 
 if __name__ == '__main__':
 
-    #pb = Script.load_and_append() #B26PulseBlaster()
-    # inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
+    # pb = Script.load_and_append() #B26PulseBlaster()
+    inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
+    pb = inst['B26PulseBlaster']
+    print(inst)
+    for i in range(5):
+        pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
+                            Pulse(channel_id=1, start_time=2000, duration=2000),
+                            Pulse(channel_id=1, start_time=4000, duration=2000),
+                            Pulse(channel_id=0, start_time=6000, duration=2000)]
+        # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
+        pb.program_pb(pulse_collection, num_loops=5E5)
+        pb.start_pulse_seq()
+        pb.wait()
+        print 'finished #{0}!'.format(i)
 
-    # for i in range(5):
-    #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
-    #                         Pulse(channel_id=1, start_time=2000, duration=2000),
-    #                         Pulse(channel_id=1, start_time=4000, duration=2000),
-    #                         Pulse(channel_id=0, start_time=6000, duration=2000)]
-    #     # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
-    #     pb.program_pb(pulse_collection, num_loops=5E5)
-    #     pb.start_pulse_seq()
-    #     pb.wait()
-    #     print 'finished #{0}!'.format(i)
-
-    #   pb.update({'laser': {'status': True}})
-
-
-    Pulse('channel_0', 0, 10)
-    print(Pulse.channel_id)
-    print(Pulse.duration)
-    print(Pulse.start_time)
+    pb.update({'laser': {'status': True}})
+    #
+    #
+    # Pulse('channel_0', 0, 10)
+    # print(Pulse.channel_id)
+    # print(Pulse.duration)
+    # print(Pulse.start_time)
