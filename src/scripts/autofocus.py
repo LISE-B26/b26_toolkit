@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 import scipy as sp
-from PyQt4.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot
 
 from b26_toolkit.src.instruments import PiezoController, MaestroLightControl
 

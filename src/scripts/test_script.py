@@ -24,7 +24,8 @@ Minimal Example Script that has only a single parameter (execution time)
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('execution_time', 0.1, float, 'execution time of script (s)')
+        Parameter('execution_time', 0.1, float, 'execution time of script (s)'),
+        Parameter('p1', 0.1, float, 'asihdad')
     ]
 
     _INSTRUMENTS = {}

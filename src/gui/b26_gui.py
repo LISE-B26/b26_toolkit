@@ -30,7 +30,7 @@ class ControlMainWindowB26(ControlMainWindow):
                             filename=self.gui_settings['scripts_folder'])
         if dialog.exec_():
             self.gui_settings['scripts_folder'] = str(dialog.txt_probe_log_path.text())
-            scripts = dialog.getValues()
+            scripts = dialog.get_values()
             added_scripts = set(scripts.keys()) - set(self.scripts.keys())
             removed_scripts = set(self.scripts.keys()) - set(scripts.keys())
 

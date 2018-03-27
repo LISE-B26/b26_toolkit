@@ -26,7 +26,10 @@ from PyLabControl.src.core.read_write_functions import get_config_value
 # ======= LOAD DLL ========================================================
 # =========================================================================
 
-_libfpga = WinDLL('C:/Users/Experiment/PycharmProjects/b26_toolkit/src/labview_fpga_lib/main/main.dll')
+try:
+    _libfpga = WinDLL('C:/Users/Experiment/PycharmProjects/b26_toolkit/src/labview_fpga_lib/main/main.dll')
+except:
+    raise ImportError
 
 # =========================================================================
 # ======= DEFINE constants =========================================

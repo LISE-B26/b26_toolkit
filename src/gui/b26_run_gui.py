@@ -22,17 +22,17 @@ import ctypes
 import sys
 # sys.path.append('C:\Anaconda2\Lib\site-packages')
 
-from PyQt4 import QtGui
+from PyQt5 import QtGui, QtWidgets
 
 # from .src.gui.gui_future_b26_toolkit import b26_gui
 from b26_toolkit.src.gui import b26_gui
 
 #work around to change taskbar icon
 #myappid = 'lukinlab.b26.pythonlab' # arbitrary string
-#ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+#ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModeFlID(myappid)
 
 def run_gui(fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config.b26'):
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     # fname = 'c:\\b26_tmp\\pythonlab_config_dummy.b26'
     # fname = 'c:\\b26_tmp\\pythonlab_config3a.b26'
     fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config_lev_test2.b26'
@@ -68,4 +68,12 @@ along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.")
 
 if __name__ == '__main__':
 
+    from PyQt5 import QtCore
+    import traceback, sys
+
+    if QtCore.QT_VERSION >= 0x50501:
+        def excepthook(type_, value, traceback_):
+            traceback.print_exception(type_, value, traceback_)
+            QtCore.qFatal('')
+    sys.excepthook = excepthook
     run_gui()
