@@ -43,7 +43,7 @@ for a given experiment
     _DEFAULT_SETTINGS = [
         Parameter('Tracking', [
             Parameter('on/off', True, bool, 'used to turn on tracking'),
-            Parameter('threshold', 0.85, float, 'threshold for tracking'),
+            Parameter('threshold', 0.50, float, 'threshold for tracking in fraction of the initial fluorescence. This should be below 0.8'),
         ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
@@ -130,6 +130,7 @@ for a given experiment
         #This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
         #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
+        self.log('tacking on, running find nv')
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
             self.scripts['find_nv'].run()
@@ -146,19 +147,20 @@ for a given experiment
 
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
+
+            # save data on the fly so that we can start to analyze it while the experiment is running!
+            if self.settings['save']:
+                #     self.save_b26()
+                self.save_data()
+            #     self.save_log()
+            #     self.save_image_to_disk()
+
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
             self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
 
         if (len(self.data['counts'][0]) == 1) and not self._abort:
             self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
-
-        # save data on the fly so that we can start to analyze it while the experiment is running!
-        if self.settings['save']:
-        #     self.save_b26()
-            self.save_data()
-        #     self.save_log()
-        #     self.save_image_to_disk()
 
     def _plot(self, axes_list, data = None):
         """
@@ -234,6 +236,8 @@ for a given experiment
         if verbose:
             print('_run_sweep number of pulse sequences', len(pulse_sequences))
 
+        counts_to_check = [] # data for this run, we keep so that at the end we average of one sweep to estimate the current count rate so that we can trigger a tracking operation
+
         for index, sequence in enumerate(pulse_sequences):
             if verbose:
                 print('_run_sweep index', index, len(pulse_sequences))
@@ -242,26 +246,43 @@ for a given experiment
             if self._abort:
                 break
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
+
+
             self.count_data[rand_index] = self.count_data[rand_index] + result
 
-            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
+            counts_to_check.append(self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep))
+
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)
-            # self.sequence_index = rand_index
-            # JG 20180321: think this messed up the time predictions
-            self.sequence_index = index
-            counts_temp = counts_to_check[0]
 
-            # track to the NV if necessary ER 5/31/17
-            if (self.settings['Tracking']['on/off']):
-                if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
-                            (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
-                    print('TRACKING TO NV...')
-                    print('____ counts_temp', counts_temp)
-                    print('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor'])
-                    self.scripts['find_nv'].run()
-                    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+            self.sequence_index = index
+
             self.updateProgress.emit(self._calc_progress(index))
+
+        # we measure the projection onto the 0 and the 1 state, the minimum is closest to the 1 state value
+        # the minimum we expect is if we are in the 1 state, which should be ~ 80% of the 0 state
+        # we are also averaging over the whole sweep
+        counts_temp = min(np.mean(counts_to_check, 0))
+
+        print('>>>> JG counts_temp', counts_temp)
+
+        # track to the NV if necessary ER 5/31/17
+        if (self.settings['Tracking']['on/off']):
+            self.log('checking for drifts: current fluor. is {:0.1f}/{:0.1f} ({:0.0f}%)'.format(counts_temp,self.data['init_fluor'], 100*counts_temp/self.data['init_fluor']))
+            # the minimum we expect is if we are in the 1 state, which should be ~ 80% of the 0 state
+            # lets say if the threshold is at 0.7, we trigger a tracking operation if the fluorescence is below 70% of the initial fluorescence
+            # Note that even without drift the fluorescence can go down to approx 80% simpliy if the NV is in the 1 state.
+            # if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
+            #             (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
+            if self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp:
+                print('TRACKING TO NV...')
+                print('____ counts_temp', counts_temp)
+                print('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor'])
+                self.log('run find nv')
+                self.scripts['find_nv'].run()
+                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+
+
 
     def _run_single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
         '''
@@ -393,6 +414,8 @@ for a given experiment
                 self.log('WARNING: pulse_blaster_validation failed!!!')
                 self.log('Reason: no data in find_nv, check tracking!')
                 valid = False
+
+            print('asdasda', self.data['init_fluor'])
 
         if valid:
             self.log('pulse_blaster_validation passed!!!')

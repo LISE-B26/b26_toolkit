@@ -1700,17 +1700,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         pi_half_time_x = self.settings['mw_pulses']['channel_x']['pi_half'] # pi/2 pulses are always with channel x
         three_pi_half_time_x = self.settings['mw_pulses']['channel_x']['3pi_half'] # 3pi/2 pulses are always with channel x
 
-
-
-        # nv_reset_time = self.settings['read_out']['nv_reset_time']
-        # delay_readout = self.settings['read_out']['delay_readout']
-        # microwave_channel_y = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
-        # microwave_channel_x = 'microwave_' + self.settings['mw_pulses']['microwave_channel_pi2']
-        # pi_time_x = self.settings['mw_pulses']['pi_x'] # pi pulses with channel x
-        # pi_time_y = self.settings['mw_pulses']['pi_y'] # pi pulses with channel y
-        # pi_half_time_x = self.settings['mw_pulses']['pi_half_x'] # pi/2 pulses are always with channel x
-        # three_pi_half_time_x = self.settings['mw_pulses']['3pi_half_x'] # 3pi/2 pulses are always with channel x
-
         laser_off_time = self.settings['read_out']['laser_off_time']
         meas_time = self.settings['read_out']['meas_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
@@ -1742,10 +1731,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             pulse_sequence += [
                 Pulse(microwave_channel_x, next_pi_t - tau + pi_time_x/2. + tau/2 - pi_half_time_x/2., pi_half_time_x)
                 ]
-            print('=======')
-            print('JG 20180326 test new Pulse', pulse_sequence[-1].end_time)
-            end_of_first_CPMG = next_pi_t - tau + pi_time_x/2. + tau/2 - pi_half_time_x/2. + pi_half_time_x
-            print('JG 20180326 end_of_first_CPMG', end_of_first_CPMG)
+
+            end_of_first_CPMG = pulse_sequence[-1].end_time
 
             pulse_sequence += \
                 [
