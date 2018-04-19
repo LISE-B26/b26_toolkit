@@ -42,11 +42,11 @@ class UEyeCamera(Instrument):
             settings: A dictionary in the form of settings as seen in default settings
         '''
         super(UEyeCamera, self).update(settings)
-        for key, value in settings.iteritems():
-            if key == 'width':
-                self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, self.settings['width'])
-            elif key == 'height':
-                self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
+        # for key, value in settings.iteritems():
+        #     if key == 'width':
+        #         self.cam.set(cv2.CV_CAP_PROP_FRAME_WIDTH, self.settings['width'])
+        #     elif key == 'height':
+        #         self.cam.set(cv2.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
 
     # is often somehow getting called without init, or failing to get called at the proper time. Use atexit.register
     # instead

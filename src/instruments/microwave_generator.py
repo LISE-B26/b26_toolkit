@@ -71,7 +71,6 @@ class MicrowaveGenerator(Instrument):
             self.srs = rm.open_resource(
                 u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
         elif self.settings['connection_type'] == 'RS232':
-            print('COM' + str(self.settings['port']))
             self.srs = rm.open_resource('COM' + str(self.settings['port']))
             self.srs.baud_rate = 115200
         self.srs.query('*IDN?')

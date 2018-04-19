@@ -36,6 +36,7 @@ def run_gui(fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_con
     # fname = 'c:\\b26_tmp\\pythonlab_config_dummy.b26'
     # fname = 'c:\\b26_tmp\\pythonlab_config3a.b26'
     fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config_lev_test2.b26'
+    fname = 'C:\Users\NV Experiment\PycharmProjects\user_data\\new_config.b26'
 
     # fname = 'c:\\b26_tmp\\pythonlab_config_safsafaf1.b26'
 
@@ -66,14 +67,6 @@ along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.")
         if not e.message in['No config file was provided. abort loading gui...', '']:
             raise e
 
+
 if __name__ == '__main__':
-
-    from PyQt5 import QtCore
-    import traceback, sys
-
-    if QtCore.QT_VERSION >= 0x50501:
-        def excepthook(type_, value, traceback_):
-            traceback.print_exception(type_, value, traceback_)
-            QtCore.qFatal('')
-    sys.excepthook = excepthook
     run_gui()
