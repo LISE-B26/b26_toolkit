@@ -143,7 +143,7 @@ class ESR(Script):
             # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
             # counter counts continiously so we take the difference to get the counts per time interval
             diff_data = np.diff(raw_data)
-            summed_data = np.zeros(len(freq_voltage_array) / clock_adjust)
+            summed_data = np.zeros(int(len(freq_voltage_array) / clock_adjust))
             for i in range(0, int((len(freq_voltage_array) / clock_adjust))):
                 summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
 
@@ -152,6 +152,12 @@ class ESR(Script):
 
             return summed_data
 
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            self.daq_out = self.instruments['NI9263']['instance']
 
         self.lines = []
 
@@ -206,12 +212,12 @@ class ESR(Script):
         self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts' : avrg_counts}
 
         # run sweeps
-        for scan_num in xrange(0, self.settings['esr_avg']):
+        for scan_num in range(0, self.settings['esr_avg']):
             if self._abort:
                 break
             esr_data_pos = 0
 
-            for sec_num in xrange(0, num_freq_sections):
+            for sec_num in range(0, int(num_freq_sections)):
 
                 freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
                                                                          sec_num,

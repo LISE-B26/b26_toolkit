@@ -1,5 +1,5 @@
 from PyLabControl.src.core import Script, Parameter
-from galvo_scan_ZI import GalvoScanZI
+from .galvo_scan_ZI import GalvoScanZI
 from b26_toolkit.src.instruments.newport_smc100 import SMC100
 import numpy as np
 
@@ -26,7 +26,7 @@ class GalvoScanZI3D(Script):
         z_pos_list = np.linspace(min_pos, max_pos, self.settings['num_sweep_points'])
         self.data['sweep_voltages'] = z_pos_list
         for z_pos in z_pos_list:
-            print('zpos', z_pos)
+            print(('zpos', z_pos))
             self._step_piezo(z_pos)
             self.scripts['galvoscanZI'].run()
 

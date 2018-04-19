@@ -81,7 +81,7 @@ If parameter on is set to true applies the settings from the script. If false it
 
             self.log('reset lightcontrol settings')
 
-        print('SETTINGS: ', dictator)
+        print(('SETTINGS: ', dictator))
         self.instruments['light_control']['instance'].update(dictator)
 
 class CameraOn(Script):

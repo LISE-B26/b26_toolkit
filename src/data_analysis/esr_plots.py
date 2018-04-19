@@ -230,7 +230,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
 
     # f.set_tight_layout(True)
 
-    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))))
+    print(('path', os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder)))))
 
     f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))),
               bbox_inches='tight',
@@ -329,12 +329,12 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
         else:
             if folder_num >= 0:
                 nv_coors = list()
-                coordinates = zip(subset['xo'], subset['yo'])
+                coordinates = list(zip(subset['xo'], subset['yo']))
                 for c in coordinates:
                     c3 = [c[0], c[1], 1]
                     c3_trans = np.dot(transformation_matrix,c3)
                     nv_coors.append([c3_trans[0], c3_trans[1]])
-                    nv_xs, nv_ys = zip(*nv_coors)
+                    nv_xs, nv_ys = list(zip(*nv_coors))
 
         # plot the fields on a 1D plot
         if scatter_plot_axis == 'x':
@@ -417,7 +417,7 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
 
     # f.set_tight_layout(True)
 
-    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))))
+    print(('path', os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder)))))
 
     f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))),
               bbox_inches='tight',

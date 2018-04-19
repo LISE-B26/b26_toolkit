@@ -95,7 +95,7 @@ class CryoStation(Instrument):
         '''
 
         key = key.lower()
-        assert key in self._PROBES.keys(), "key assertion failed {:s}".format(str(key))
+        assert key in list(self._PROBES.keys()), "key assertion failed {:s}".format(str(key))
 
 
 
@@ -112,7 +112,7 @@ class CryoStation(Instrument):
         data = dict(data.iloc[-1])
 
 
-        print('xxxx', self._dynamic_probes)
+        print(('xxxx', self._dynamic_probes))
 
         # since we striped some characters when defining the probes we have to find the right key,
         # which is give by the valeu in self._dynamic_probes

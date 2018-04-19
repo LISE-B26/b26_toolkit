@@ -154,7 +154,7 @@ class DAQ(Instrument):
                   [
                       Parameter('ai0',
                                 [
-                                    Parameter('channel', 0, range(0, 32), 'input channel'),
+                                    Parameter('channel', 0, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -162,7 +162,7 @@ class DAQ(Instrument):
                                 ),
                       Parameter('ai1',
                                 [
-                                    Parameter('channel', 1, range(0, 32), 'input channel'),
+                                    Parameter('channel', 1, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -170,7 +170,7 @@ class DAQ(Instrument):
                                 ),
                       Parameter('ai2',
                                 [
-                                    Parameter('channel', 2, range(0, 32), 'input channel'),
+                                    Parameter('channel', 2, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -178,7 +178,7 @@ class DAQ(Instrument):
                                 ),
                       Parameter('ai3',
                                 [
-                                    Parameter('channel', 3, range(0, 32), 'input channel'),
+                                    Parameter('channel', 3, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -186,7 +186,7 @@ class DAQ(Instrument):
                                 ),
                       Parameter('ai4',
                                 [
-                                    Parameter('channel', 4, range(0, 32), 'input channel'),
+                                    Parameter('channel', 4, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
@@ -198,20 +198,20 @@ class DAQ(Instrument):
                   [
                       Parameter('ctr0',
                                 [
-                                    Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 8, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 13, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('input_channel', 0, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 8, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 13, list(range(0, 32)), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 1, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 ),
                       Parameter('ctr1',
                                 [
-                                    Parameter('input_channel', 1, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 12, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('input_channel', 1, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 3, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 12, list(range(0, 32)), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 0, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
@@ -222,12 +222,12 @@ class DAQ(Instrument):
                   [
                       Parameter('do0',
                                 [
-                                    Parameter('channel', 0, range(0, 16), 'channel')
+                                    Parameter('channel', 0, list(range(0, 16)), 'channel')
                                 ]
                                 ),
                       Parameter('do8',
                                 [
-                                    Parameter('channel', 8, range(0, 16), 'channel')
+                                    Parameter('channel', 8, list(range(0, 16)), 'channel')
                                 ]
                                 )
                   ]
@@ -256,8 +256,8 @@ class DAQ(Instrument):
             settings: a settings dictionary in the standard form
         """
         super(DAQ, self).update(settings)
-        print('settings', settings)
-        for key, value in settings.iteritems():
+        print(('settings', settings))
+        for key, value in settings.items():
             if key == 'device':
                 if not (self.is_connected):
                     raise EnvironmentError('Device invalid, cannot connect to DAQ')
@@ -286,10 +286,10 @@ class DAQ(Instrument):
         Returns: True if daq is connected, false if it is not
         """
         buf_size = 10
-        data = ctypes.create_string_buffer('\000' * buf_size)
+        data = ctypes.create_string_buffer(('\000' * buf_size).encode('ascii'))
         try:
             # Calls arbitrary function to check connection
-            self._check_error(self.nidaq.DAQmxGetDevProductType(self.settings['device'], ctypes.byref(data), buf_size))
+            self._check_error(self.nidaq.DAQmxGetDevProductType(self.settings['device'].encode('ascii'), ctypes.byref(data), buf_size))
             return True
         except RuntimeError:
             return False
@@ -325,9 +325,9 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('ctr', task)
 
-        if 'digital_input' not in self.settings.keys():
+        if 'digital_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support digital input')
-        if not channel in self.settings['digital_input'].keys():
+        if not channel in list(self.settings['digital_input'].keys()):
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
         self.running = True
@@ -338,14 +338,15 @@ class DAQ(Instrument):
         else:
             task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
-        input_channel_str = self.settings['device'] + '/' + channel
-        task['counter_out_PFI_str'] = '/' + self.settings['device'] + '/PFI' + str(
-            channel_settings['clock_PFI_channel'])  # initial / required only here, see NIDAQ documentation
-        counter_out_str = self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])
+        input_channel_str = (self.settings['device'] + '/' + channel).encode('ascii')
+        task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/PFI' + str(
+            channel_settings['clock_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
+        counter_out_str = (self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('utf-8')
         task['task_handle_ctr'] = TaskHandle(0)
         task['task_handle'] = TaskHandle(1)
 
         # set up clock
+        print(counter_out_str)
         self._dig_pulse_train_cont(task, .5, counter_out_str)
         # set up counter using clock as reference
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
@@ -397,9 +398,9 @@ class DAQ(Instrument):
             channel: channel to use for counter input
             num_samples: number of samples to read on counter
         """
-        if 'digital_input' not in self.settings.keys():
+        if 'digital_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support digital input')
-        if not channel in self.settings['digital_input'].keys():
+        if not channel in list(self.settings['digital_input'].keys()):
             raise KeyError('This is not a valid digital input channel')
         channel_settings = self.settings['digital_input'][channel]
 
@@ -413,11 +414,11 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('gatedctr', task)
 
-        input_channel_str_gated = self.settings['device'] + '/' + channel
-        counter_out_PFI_str_gated = '/' + self.settings['device'] + '/PFI' + str(
-            channel_settings['counter_PFI_channel'])  # initial / required only here, see NIDAQ documentation
-        gate_PFI_str = '/' + self.settings['device'] + '/PFI' + str(
-            channel_settings['gate_PFI_channel'])  # initial / required only here, see NIDAQ documentation
+        input_channel_str_gated = (self.settings['device'] + '/' + channel).encode('ascii')
+        counter_out_PFI_str_gated = ('/' + self.settings['device'] + '/PFI' + str(
+            channel_settings['counter_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
+        gate_PFI_str = ('/' + self.settings['device'] + '/PFI' + str(
+            channel_settings['gate_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
 
         #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
         task['sample_num'] = num_samples
@@ -505,10 +506,10 @@ class DAQ(Instrument):
             clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
                 internal clock
         """
-        if 'analog_output' not in self.settings.keys():
+        if 'analog_output' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog output')
         for c in channels:
-            if not c in self.settings['analog_output'].keys():
+            if not c in list(self.settings['analog_output'].keys()):
                 raise KeyError('This is not a valid analog output channel')
 
         task = {
@@ -526,9 +527,9 @@ class DAQ(Instrument):
         for c in channels:
             if not self.settings['analog_output'][c]['sample_rate'] == task['sample_rate']:
                 raise ValueError('All sample rates must be the same')
-        channel_list = ''
+        channel_list = ''.encode('ascii')
         for c in channels:
-            channel_list += self.settings['device'] + '/' + c + ','
+            channel_list += (self.settings['device'] + '/' + c + ',').encode('ascii')
         channel_list = channel_list[:-1]
         self.running = True
         # special case 1D waveform since length(waveform[0]) is undefined
@@ -541,7 +542,7 @@ class DAQ(Instrument):
         task['task_handle'] = TaskHandle(0)
         # special case 1D waveform since length(waveform[0]) is undefined
         # converts python array to ctypes array
-        if (len(numpy.shape(waveform)) == 2):
+        if len(numpy.shape(waveform)) == 2:
             data = numpy.zeros((numChannels, task['sample_num']),dtype=numpy.float64)
             for i in range(numChannels):
                 for j in range(task['sample_num']):
@@ -602,7 +603,7 @@ class DAQ(Instrument):
         channel_list = ''
         channel_list += self.settings['device'] + '/' + channel + ','
 
-        if 'analog_input' not in self.settings.keys():
+        if 'analog_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
         task['sample_num'] = num_samples_to_acquire
@@ -650,10 +651,10 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('do', task)
 
-        if 'digital_output' not in self.settings.keys():
+        if 'digital_output' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support digital output')
         for c in channels:
-            if not c in self.settings['digital_output'].keys():
+            if not c in list(self.settings['digital_output'].keys()):
                 raise KeyError('This is not a valid digital output channel')
         task['sample_rate'] = float(
             self.settings['digital_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
@@ -757,7 +758,7 @@ class DAQ(Instrument):
         task = self.tasklist.pop(task_name)
 
         #special case counters, which create two tasks that need to be cleared
-        if 'task_handle_ctr' in task.keys():
+        if 'task_handle_ctr' in list(task.keys()):
             self.nidaq.DAQmxStopTask(task['task_handle_ctr'])
             self.nidaq.DAQmxClearTask(task['task_handle_ctr'])
 
@@ -774,7 +775,7 @@ class DAQ(Instrument):
 
         """
         print('self.settings in get_analog_voltages:')
-        print(self.settings)
+        print((self.settings))
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:
@@ -818,7 +819,7 @@ class DAQ(Instrument):
 
         channels = []
         voltages = []
-        for k, v in output_dict.iteritems():
+        for k, v in output_dict.items():
             channels.append('ao' + k.replace('ao', ''))  # make sure the key has the right format, e.g. ao0
             voltages.append(v)
 
@@ -844,12 +845,12 @@ class DAQ(Instrument):
 
         channels = []
         values = []
-        for k, v in output_dict.iteritems():
+        for k, v in output_dict.items():
             channels.append('do' + k.replace('do', ''))  # make sure the key has the right format, e.g. ao0
             values.append(v)
 
-        print('channels', channels)
-        print('voltages', values)
+        print(('channels', channels))
+        print(('voltages', values))
 
         task_name = self.setup_DO(channels)
 
@@ -871,14 +872,13 @@ class DAQ(Instrument):
         """
         if err < 0:
             buffer_size = 1000
-            buffer = ctypes.create_string_buffer('\000' * buffer_size)
-            # self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
+            buffer = ctypes.create_string_buffer(('\000' * buffer_size).encode('ascii'))
             self.nidaq.DAQmxGetExtendedErrorInfo(ctypes.byref(buffer), buffer_size)
             # raise RuntimeError('nidaq call failed with error %d: %s' % (err, repr(buffer.value)))
             raise RuntimeError('nidaq call failed with error %d: %s' % (err, buffer.value))
         if err > 0:
             buffer_size = 1000
-            buffer = ctypes.create_string_buffer('\000' * buffer_size)
+            buffer = ctypes.create_string_buffer(('\000' * buffer_size).encode('ascii'))
             self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
             raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
 
@@ -933,7 +933,7 @@ class NI6259(DAQ):
                   [
                       Parameter('ai0',
                                 [
-                                    Parameter('channel', 0, range(0, 32), 'input channel'),
+                                    Parameter('channel', 0, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -941,7 +941,7 @@ class NI6259(DAQ):
                                 ),
                       Parameter('ai1',
                                 [
-                                    Parameter('channel', 1, range(0, 32), 'input channel'),
+                                    Parameter('channel', 1, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -949,7 +949,7 @@ class NI6259(DAQ):
                                 ),
                       Parameter('ai2',
                                 [
-                                    Parameter('channel', 2, range(0, 32), 'input channel'),
+                                    Parameter('channel', 2, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -957,7 +957,7 @@ class NI6259(DAQ):
                                 ),
                       Parameter('ai3',
                                 [
-                                    Parameter('channel', 3, range(0, 32), 'input channel'),
+                                    Parameter('channel', 3, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage')
@@ -965,7 +965,7 @@ class NI6259(DAQ):
                                 ),
                       Parameter('ai4',
                                 [
-                                    Parameter('channel', 4, range(0, 32), 'input channel'),
+                                    Parameter('channel', 4, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate'),
                                     Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
                                     Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
@@ -977,20 +977,20 @@ class NI6259(DAQ):
                   [
                       Parameter('ctr0',
                                 [
-                                    Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 8, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 13, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('input_channel', 0, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 8, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 13, list(range(0, 32)), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 1, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 ),
                       Parameter('ctr1',
                                 [
-                                    Parameter('input_channel', 1, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 14, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 12, range(0, 32), 'PFI for clock channel output'),
+                                    Parameter('input_channel', 1, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 3, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 14, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 12, list(range(0, 32)), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 0, [0, 1], 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
@@ -1001,7 +1001,7 @@ class NI6259(DAQ):
                   [
                       Parameter('do0',
                                 [
-                                    Parameter('channel', 0, range(0, 16), 'channel'),
+                                    Parameter('channel', 0, list(range(0, 16)), 'channel'),
                                     # Parameter('value', False, bool, 'value')
                                     Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)')
                                     # Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
@@ -1010,7 +1010,7 @@ class NI6259(DAQ):
                                 ),
                       Parameter('do8',
                                 [
-                                    Parameter('channel', 8, range(0, 16), 'channel'),
+                                    Parameter('channel', 8, list(range(0, 16)), 'channel'),
                                     # Parameter('value', False, bool, 'value')
                                     Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)')
                                     # Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
@@ -1083,21 +1083,21 @@ class NI9402(DAQ):
                   [
                       Parameter('ctr0',
                                 [
-                                    Parameter('input_channel', 0, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 0, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 3, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 1, range(0, 32), 'PFI for clock channel output'),
-                                    Parameter('clock_counter_channel', 2, range(0, 32), 'channel for clock output'),
+                                    Parameter('input_channel', 0, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 0, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 3, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 1, list(range(0, 32)), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 2, list(range(0, 32)), 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 ),
                       Parameter('ctr2',
                                 [
-                                    Parameter('input_channel', 2, range(0, 32), 'channel for counter signal input'),
-                                    Parameter('counter_PFI_channel', 1, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('gate_PFI_channel', 0, range(0, 32), 'PFI for counter channel input'),
-                                    Parameter('clock_PFI_channel', 2, range(0, 32), 'PFI for clock channel output'),
-                                    Parameter('clock_counter_channel', 3, range(0, 32), 'channel for clock output'),
+                                    Parameter('input_channel', 2, list(range(0, 32)), 'channel for counter signal input'),
+                                    Parameter('counter_PFI_channel', 1, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('gate_PFI_channel', 0, list(range(0, 32)), 'PFI for counter channel input'),
+                                    Parameter('clock_PFI_channel', 2, list(range(0, 32)), 'PFI for clock channel output'),
+                                    Parameter('clock_counter_channel', 3, list(range(0, 32)), 'channel for clock output'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
                                 ]
                                 )
@@ -1136,9 +1136,9 @@ class NI9402(DAQ):
 
         task_name = self._add_to_tasklist('ctr', task)
 
-        if 'digital_input' not in self.settings.keys():
+        if 'digital_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support digital input')
-        if not channel in self.settings['digital_input'].keys():
+        if not channel in list(self.settings['digital_input'].keys()):
             raise KeyError('This is not a valid digital input channel')
 
         channel_settings = self.settings['digital_input'][channel]
@@ -1150,9 +1150,9 @@ class NI9402(DAQ):
         else:
             task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
-        input_channel_str = self.settings['device'] + self.settings['module'] + '/' + channel
-        task['counter_out_PFI_str'] = '/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput'
-        counter_out_str = self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])
+        input_channel_str = (self.settings['device'] + self.settings['module'] + '/' + channel).encode('ascii')
+        task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')
+        counter_out_str = (self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('ascii')
         task['task_handle_ctr'] = TaskHandle(0)
         task['task_handle'] = TaskHandle(1)
 

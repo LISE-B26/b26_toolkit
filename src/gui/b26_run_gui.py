@@ -31,16 +31,11 @@ from b26_toolkit.src.gui import b26_gui
 #myappid = 'lukinlab.b26.pythonlab' # arbitrary string
 #ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModeFlID(myappid)
 
-def run_gui(fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config.b26'):
+def run_gui(fname = 'C:\\Users\Experiment\PycharmProjects\\user_data\pythonlab_config.b26'):
     app = QtWidgets.QApplication(sys.argv)
-    # fname = 'c:\\b26_tmp\\pythonlab_config_dummy.b26'
-    # fname = 'c:\\b26_tmp\\pythonlab_config3a.b26'
-    fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config_lev_test2.b26'
-    fname = 'C:\Users\NV Experiment\PycharmProjects\user_data\\new_config.b26'
+    # fname = 'C:\\Users\\NV Experiment\\PycharmProjects\\user_data\\new_config.b26'
+    fname = ' '
 
-    # fname = 'c:\\b26_tmp\\pythonlab_config_safsafaf1.b26'
-
-    # fname = "C:\\Users\\Experiment\\PycharmProjects\\PythonLab\\b26_files\\pythonlab_config.b26"
     try:
         print("PyLabControl  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \
 PyLabControl is free software: you can redistribute it and/or modify \n \

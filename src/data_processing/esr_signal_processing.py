@@ -254,10 +254,10 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
 
 
     if verbose:
-        print('found peaks at ', freq_peaks)
+        print(('found peaks at ', freq_peaks))
 
     if verbose:
-        print('minimum peak width:',  MIN_WIDTH)
+        print(('minimum peak width:',  MIN_WIDTH))
 
     # check if scanning full range for two peaks or half range for one peak
     if max(freq) < F0:
@@ -266,7 +266,7 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
         try:
 
             if verbose:
-                print('fit single peak with initial values', start_vals)
+                print(('fit single peak with initial values', start_vals))
 
             fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                  bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])
@@ -313,14 +313,14 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
         try:
             if len(freq_peaks) == 2:
                 if verbose:
-                    print('fit double peak with initial values', start_vals)
+                    print(('fit double peak with initial values', start_vals))
 
                 fit = fit_double_lorentzian(freq, ampl, starting_params=start_vals, bounds=
                 [(0, 0, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
 
             elif len(freq_peaks) == 1:
                 if verbose:
-                    print('fit single peak with initial values', start_vals)
+                    print(('fit single peak with initial values', start_vals))
 
                 fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                      bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])

@@ -58,7 +58,7 @@ def find_image_shift(reference_image, reference_image_extent, shifted_image, shi
         scaled_shifted_image_PIL = im.fromarray(shifted_image).resize(scaled_shifted_img_size)
         scaled_shifted_image_pixels = list(scaled_shifted_image_PIL.getdata())
         scaled_width, scaled_height = scaled_shifted_image_PIL.size
-        shifted_image = np.array([scaled_shifted_image_pixels[i * scaled_width:(i + 1) * scaled_width] for i in xrange(scaled_height)])
+        shifted_image = np.array([scaled_shifted_image_pixels[i * scaled_width:(i + 1) * scaled_width] for i in range(scaled_height)])
 
     # get correlation function, find max, return it
 

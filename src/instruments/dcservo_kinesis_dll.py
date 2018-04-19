@@ -45,7 +45,7 @@ if dll_path:
 
     except Exception as exception_details:
         print("Could not load Thorlabs dll's to control Thorlabs servos.")
-        print("exception details " + str(exception_details))
+        print(("exception details " + str(exception_details)))
         DeviceManagerCLI = None
         TCubeDCServo = None
         KCubeDCServo = None
@@ -95,7 +95,7 @@ class ThorlabsServo(Instrument):
         #point, the servo won't be connected, so don't make changes in hardware at this point. After the end of the
         #__init__ when initialization is complete and the servo is connected, we can then have changes update hardware
         if self._settings_initialized:
-            for key, value in settings.iteritems():
+            for key, value in settings.items():
                 if key == 'position':
                     self._move_servo(value)
                 elif key == 'velocity':
@@ -117,7 +117,7 @@ class ThorlabsServo(Instrument):
         }
 
     def read_probes(self, key):
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         #query always returns string, need to cast to proper return type
@@ -226,18 +226,18 @@ class TDC001(ThorlabsServo):
         except (Exception):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
-            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            print((str(self.settings['serial_number']) + " is not a valid serial number"))
             raise
 
         self.device = self.Servo.CreateTCubeDCServo(str(self.settings['serial_number']))
         if(self.device == None):
-            print(self.settings['serial_number'] + " is not a TCubeDCServo")
+            print((self.settings['serial_number'] + " is not a TCubeDCServo"))
             raise
 
         try:
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
-            print('Failed to open device ' + str(self.settings['serial_number']))
+            print(('Failed to open device ' + str(self.settings['serial_number'])))
             # raise
 
         if not self.device.IsSettingsInitialized():
@@ -276,18 +276,18 @@ class KDC001(ThorlabsServo):
         except (Exception):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
-            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            print((str(self.settings['serial_number']) + " is not a valid serial number"))
             # raise
 
         self.device = self.Servo.CreateKCubeDCServo(str(self.settings['serial_number']))
         if (self.device == None):
-            print(self.settings['serial_number'] + " is not a KCubeDCServo")
+            print((self.settings['serial_number'] + " is not a KCubeDCServo"))
             # raise
 
         try:
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
-            print('Failed to open device ' + str(self.settings['serial_number']))
+            print(('Failed to open device ' + str(self.settings['serial_number'])))
             return
 
         if not self.device.IsSettingsInitialized():
@@ -308,5 +308,5 @@ class KDC001(ThorlabsServo):
 if __name__ == '__main__':
     #A test function for the device. Tries to connect to the
     a = KDC001()
-    print(a.is_connected)
+    print((a.is_connected))
     a._move_servo(5)

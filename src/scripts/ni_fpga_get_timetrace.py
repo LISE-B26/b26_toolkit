@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
     fpga = NI7845RReadFifo()
 
-    print(fpga.settings)
+    print((fpga.settings))
 
     # reset FIFO
     block_size = 2 ** 8
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     fpga.start_fifo()
     time.sleep(0.1)
     number_of_reads = int(np.ceil(1.0 * N / block_size))
-    print('number_of_reads', number_of_reads)
+    print(('number_of_reads', number_of_reads))
     N_actual = number_of_reads * block_size
 
     # apply settings to instrument
@@ -182,14 +182,14 @@ if __name__ == '__main__':
     time.sleep(0.1)
 
     print('----------')
-    print(fpga.settings)
+    print((fpga.settings))
     print('----------')
 
-    print('ElementsWritten: ', fpga.ElementsWritten)
+    print(('ElementsWritten: ', fpga.ElementsWritten))
     fpga.update({'Acquire': True})
 
     # time.sleep(1)
-    print(fpga.settings)
+    print((fpga.settings))
 
     ai1 = np.zeros(N_actual)
     ai2 = np.zeros(N_actual)
@@ -199,12 +199,12 @@ if __name__ == '__main__':
         if elem_written >= block_size:
             data = fpga.read_fifo(block_size)
             # print(i, 'AI1', data['AI1'])
-            print(i, 'elements_remaining', data['elements_remaining'])
+            print((i, 'elements_remaining', data['elements_remaining']))
             ai1[i * block_size:(i + 1) * block_size] = deepcopy(data['AI1'])
             ai2[i * block_size:(i + 1) * block_size] = deepcopy(data['AI2'])
             i += 1
 
-        print('-----', i, '------', 'elem_written', elem_written)
+        print(('-----', i, '------', 'elem_written', elem_written))
 
     print(ai1)
     print('------------------------------------------------')

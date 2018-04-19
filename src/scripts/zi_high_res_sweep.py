@@ -49,7 +49,7 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
 
         self.data = deque()
 
-        self._sweep_values =  {'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys()
+        self._sweep_values =  list({'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys())
 
 
     # def _receive_signal(self, progess_sub_script):
@@ -108,11 +108,11 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
             weights['high res scan'] = t
 
 
-            total_time = sum([v for k, v in weights.iteritems()])
+            total_time = sum([v for k, v in weights.items()])
 
-            weights = {k: v/total_time for k, v in weights.iteritems()}
+            weights = {k: v/total_time for k, v in weights.items()}
 
-            print('weights',weights)
+            print(('weights',weights))
 
             return weights
 
@@ -139,7 +139,7 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
         df = self.settings['high_res_df']
         N = int(self.settings['high_res_N'])
         f_start, f_end = float(fo - N / 2 * df), float(fo + N / 2 * df)
-        print('f_start, f_end', f_start, f_end)
+        print(('f_start, f_end', f_start, f_end))
 
 
         self.log('found peak at {:1.2e}'.format(fo))

@@ -260,7 +260,7 @@ class NI7845R(object):
             if int(self.status.value) ==  -63101:
                 print("ERROR 63101: Bitfile not found")
             else:
-                print('ERROR IN STARTING FPGA  (ERROR CODE: ', self.status.value, ')')
+                print(('ERROR IN STARTING FPGA  (ERROR CODE: ', self.status.value, ')'))
         return self.status
 
     def stop(self):

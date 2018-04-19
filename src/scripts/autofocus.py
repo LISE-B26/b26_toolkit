@@ -198,7 +198,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
 
         # set piezo value to the fit value if this is within the bounds of the piezo
-        if piezo_voltage>0 and piezo_voltage<100:
+        if piezo_voltage and piezo_voltage>0 and piezo_voltage<100:
             # set the voltage on the piezo
             self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
@@ -218,11 +218,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         pass
 
     def fit_focus(self):
-        '''
+        """
         fit the data and set piezo to focus spot
 
         if fails return None otherwise it returns the voltage for the piezo
-        '''
+        """
 
         noise_guess = np.min(self.data['focus_function_result'])
         amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
@@ -241,21 +241,19 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
             self.log('Found fit parameters: ' + str(p2))
         except(ValueError, RuntimeError):
-            average_voltage = np.mean(self.data['sweep_voltages'])
             self.log(
-                'Could not converge to fit parameters, setting piezo to middle of sweep range, {:0.3f} V'.format(
-                    average_voltage))
-            # z_piezo.update({'voltage': float(average_voltage)})
+                'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
+                    self.data['sweep_voltages'][-1]))
         finally:
             # even if there is an exception we want to script to continue
             sweep_voltages = self.data['sweep_voltages']
-            if not return_voltage is None:
+            if return_voltage is not None:
                 if return_voltage > sweep_voltages[-1]:
                     return_voltage = float(sweep_voltages[-1])
                     self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
-            elif return_voltage < sweep_voltages[0]:
-                return_voltage = float(sweep_voltages[0])
-                self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
+                elif return_voltage < sweep_voltages[0]:
+                    return_voltage = float(sweep_voltages[0])
+                    self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
 
             return return_voltage, p2
 
@@ -460,7 +458,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             import sys
             import traceback
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print "*** print_exception:"
+            print("*** print_exception:")
             traceback.print_exception(exc_type, exc_value, exc_traceback,
                                       limit=2, file=sys.stdout)
         print('LOADED')

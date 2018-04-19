@@ -40,4 +40,4 @@ def buffersize_to_time(size, ticks=56):
     return size * (ticks*0.000000025)
 
 if __name__ == '__main__':
-    print(voltage_to_int(2.4))
+    print((voltage_to_int(2.4)))

@@ -497,7 +497,7 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
             esr_counts  = esr_counts[:,0,0]/esr_counts[:,0,1]
 
 
-        print(len(esr_counts))
+        print((len(esr_counts)))
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
@@ -656,7 +656,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(0, int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(0, int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -805,7 +805,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -941,8 +941,8 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
+                         self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -1079,8 +1079,8 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
+                         self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -1212,8 +1212,8 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
+                         self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -1350,7 +1350,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -1504,7 +1504,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -1618,18 +1618,11 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('mw_pulses', [
             Parameter('mw_power', -45.0, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('channel_x',
-                      [Parameter('channel', 'i', ['i', 'q'],
-                                'microwave channel x to use for mw pi pulses. This is the channel along which we apply the first pulse.'),
-                      Parameter('pi', 50.0, float, 'time duration of a pi pulse (in ns)'),
-                      Parameter('pi_half', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
-                      Parameter('3pi_half', 75.0, float, 'time duration of a 3pi/2 pulse (in ns)')
-                      ]),
-            Parameter('channel_y',
-                      [Parameter('channel', 'q', ['i', 'q'],
-                                'microwave channel y we use for the mw pulses that are typically orthogonal to Channel x'),
-                      Parameter('pi', 50.0, float, 'time duration of a pi pulse (in ns)')
-                      ]),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
+            Parameter('microwave_channel_pi2', 'q', ['i', 'q'], 'Channel to use for the mw pi/2 pulses'),
+            Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
+            Parameter('pi_half_pulse_time', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
+            Parameter('3pi_half_pulse_time', 75.0, float, 'time duration of a 3pi/2 pulse (in ns)'),
             Parameter('pi_pulse_blocks_k', 1, int, 'number of pi pulse blocks of 8 in the XY8-k sequence')
         ]),
         Parameter('tau_times', [
@@ -1684,21 +1677,21 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         '''
         pulse_sequences = []
-
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
 
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel_x = 'microwave_' + self.settings['mw_pulses']['channel_x']['channel']
-        microwave_channel_y = 'microwave_' + self.settings['mw_pulses']['channel_y']['channel']
-        pi_time_x = self.settings['mw_pulses']['channel_x']['pi'] # pi pulses with channel x
-        pi_time_y = self.settings['mw_pulses']['channel_y']['pi'] # pi pulses with channel y
-        pi_half_time_x = self.settings['mw_pulses']['channel_x']['pi_half'] # pi/2 pulses are always with channel x
-        three_pi_half_time_x = self.settings['mw_pulses']['channel_x']['3pi_half'] # 3pi/2 pulses are always with channel x
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+        microwave_channel_pi2 = 'microwave_' + self.settings['mw_pulses']['microwave_channel_pi2']
+        pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        pi_half_time = self.settings['mw_pulses']['pi_half_pulse_time']
+        three_pi_half_time = self.settings['mw_pulses']['3pi_half_pulse_time']
 
         laser_off_time = self.settings['read_out']['laser_off_time']
         meas_time = self.settings['read_out']['meas_time']
@@ -1708,20 +1701,20 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         for tau in tau_list:
             pulse_sequence = \
             [
-                Pulse(microwave_channel_x, laser_off_time, pi_half_time_x), # pi/2 pulse
+                Pulse(microwave_channel_pi2, laser_off_time, pi_half_time), # pi/2 pulse
             ]
 
-            next_pi_t =  laser_off_time + pi_half_time_x/2. + tau/2 - pi_time_x/2.
+            next_pi_t =  laser_off_time + pi_half_time/2. + tau/2 - pi_time/2.
             N = self.settings['mw_pulses']['pi_pulse_blocks_k']*8
             counter = 0
             for ind in range(0, N):
-                if counter in [0,2,5,7]:
+                if counter == 0 or counter == 2 or counter == 5 or counter == 7:
                     pulse_sequence += [
-                        Pulse(microwave_channel_x, next_pi_t, pi_time_x) # pulses along x
+                        Pulse(microwave_channel_pi2, next_pi_t, pi_time) # pulses along x
                     ]
                 else:
                     pulse_sequence += [
-                        Pulse(microwave_channel_y, next_pi_t, pi_time_y) # pulses along y
+                        Pulse(microwave_channel, next_pi_t, pi_time) # pulses along y
                     ]
                 if counter == 7:
                     counter = -1
@@ -1729,10 +1722,9 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 counter += 1
 
             pulse_sequence += [
-                Pulse(microwave_channel_x, next_pi_t - tau + pi_time_x/2. + tau/2 - pi_half_time_x/2., pi_half_time_x)
+                Pulse(microwave_channel_pi2, next_pi_t - tau + pi_time/2. + tau/2 - pi_half_time/2., pi_half_time)
                 ]
-
-            end_of_first_CPMG = pulse_sequence[-1].end_time
+            end_of_first_CPMG = next_pi_t - tau + pi_time/2. + tau/2 - pi_half_time/2. + pi_half_time
 
             pulse_sequence += \
                 [
@@ -1744,19 +1736,19 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
             pulse_sequence += \
             [
-                Pulse(microwave_channel_x, start_of_second_CPMG, pi_half_time_x),
+                Pulse(microwave_channel_pi2, start_of_second_CPMG, pi_half_time),
             ]
 
-            next_pi_t =  start_of_second_CPMG + pi_half_time_x/2. + tau/2 - pi_time_x/2.
+            next_pi_t =  start_of_second_CPMG + pi_half_time/2. + tau/2 - pi_time/2.
             counter = 0
             for ind in range(0, N):
-                if counter in [0,2,5,7]:
+                if counter == 0 or counter == 2 or counter == 5 or counter == 7:
                     pulse_sequence += [
-                        Pulse(microwave_channel_x, next_pi_t, pi_time_x) # pulses along x
+                        Pulse(microwave_channel_pi2, next_pi_t, pi_time) # pulses along x
                     ]
                 else:
                     pulse_sequence += [
-                        Pulse(microwave_channel_y, next_pi_t, pi_time_y) # pulses along y
+                        Pulse(microwave_channel, next_pi_t, pi_time) # pulses along y
                     ]
                 if counter == 7:
                     counter = -1
@@ -1764,16 +1756,17 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 counter += 1
 
             pulse_sequence += [
-                Pulse(microwave_channel_x, next_pi_t - tau + pi_time_x/2. + tau/2 - three_pi_half_time_x/2., three_pi_half_time_x)
+                Pulse(microwave_channel_pi2, next_pi_t - tau + pi_time/2. + tau/2 - three_pi_half_time/2., three_pi_half_time)
                 ]
 
-            end_of_second_CPMG = next_pi_t - tau + pi_time_x/2. + tau/2 - three_pi_half_time_x/2. + three_pi_half_time_x
+            end_of_second_CPMG = next_pi_t - tau + pi_time/2. + tau/2 - three_pi_half_time/2. + three_pi_half_time
 
             pulse_sequence += [
                 Pulse('laser', end_of_second_CPMG + delay_mw_readout, nv_reset_time),
                 Pulse('apd_readout', end_of_second_CPMG + delay_mw_readout + delay_readout, meas_time)
             ]
-
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
 
@@ -1882,7 +1875,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -2144,8 +2137,8 @@ This script applies a microwave pulse at fixed power for varying durations to me
         """
 
         pulse_sequences = []
-        tau_list = range(int(max(15, self.settings['time_step'])), int(self.settings['time'] + 15),
-                         int(self.settings['time_step']))
+        tau_list = list(range(int(max(15, self.settings['time_step'])), int(self.settings['time'] + 15),
+                         int(self.settings['time_step'])))
         reset_time = self.settings['reset_time']
         for tau in tau_list:
             if tau < self.settings['delay_until_mw']:
@@ -2188,7 +2181,7 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
         Parameter('delay_init_mw', 200, int, 'time delay before pi pulse after NV reset'),
         Parameter('delay_mw_readout', 200, int, 'time delay before readout after pi pulse'),
         Parameter('measurement_window_width', 20, int, 'the width of the sliding readout window'),
-        Parameter('laser_on_time', 500, range(100, 1201, 100), 'time laser is on for readout'),
+        Parameter('laser_on_time', 500, list(range(100, 1201, 100)), 'time laser is on for readout'),
         Parameter('ref_meas_off_time', 1000, int, 'time reset laser is turned off before reference measurement is made'),
         Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
         Parameter('num_averages', 1000000, int, 'number of averages')
@@ -2215,9 +2208,9 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
 
         """
         pulse_sequences = []
-        tau_list = range(self.settings['initial_readout_displacement'],
+        tau_list = list(range(self.settings['initial_readout_displacement'],
                          self.settings['final_readout_displacement'],
-                         self.settings['readout_window_incremement'])
+                         self.settings['readout_window_incremement']))
         reset_time = self.settings['reset_time']
 
         for tau in tau_list:
@@ -2259,7 +2252,7 @@ This script runs an XY pulse sequence.
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             # Parameter('mw_switch_extra_time', 15, int, 'Time to add before and after microwave switch is turned on'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pulse_blocks', 1, range(1, 17), 'number of alternating x-y-x-y-y-x-y-x pulses'),
+            Parameter('number_of_pulse_blocks', 1, list(range(1, 17)), 'number of alternating x-y-x-y-y-x-y-x pulses'),
             Parameter('end_in_0', False, bool, 'end with 3pi/2 pulse so end state is |0> rather than |1>')
         ]),
         Parameter('tau_times',[
@@ -2305,10 +2298,9 @@ This script runs an XY pulse sequence.
         #                  self.settings['delay_time_step'])
 
         # JG: changed the previous because the 15ns is taken care of later
-        tau_list = range(int(self.settings['tau_times']['min_time']),
+        tau_list = list(range(int(self.settings['tau_times']['min_time']),
                          int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step']
-                         )
+                         self.settings['tau_times']['time_step']))
 
         reset_time = self.settings['read_out']['nv_reset_time']
         pi_time = self.settings['mw_pulses']['pi_pulse_time']
@@ -2425,7 +2417,7 @@ This script runs a CPMG pulse sequence.
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             # Parameter('mw_switch_extra_time', 15, int, 'Time to add before and after microwave switch is turned on'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pulse_blocks', 1, range(1, 17), 'number of alternating x-y-x-y-y-x-y-x pulses'),
+            Parameter('number_of_pulse_blocks', 1, list(range(1, 17)), 'number of alternating x-y-x-y-y-x-y-x pulses'),
         ]),
         Parameter('tau_times',[
             Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000],
@@ -2470,10 +2462,9 @@ This script runs a CPMG pulse sequence.
         #                  self.settings['delay_time_step'])
 
         # JG: changed the previous because the 15ns is taken care of later
-        tau_list = range(int(self.settings['tau_times']['min_time']),
+        tau_list = list(range(int(self.settings['tau_times']['min_time']),
                          int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step']
-                         )
+                         self.settings['tau_times']['time_step']))
 
         reset_time = self.settings['read_out']['nv_reset_time']
         pi_time = self.settings['mw_pulses']['pi_pulse_time']
@@ -2570,7 +2561,7 @@ Tau/2 is the time between the center of the pulses!
             Parameter('mw_power', -2, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-            Parameter('number_of_pi_pulses', 1, range(0, 17), 'number of pi pulses')
+            Parameter('number_of_pi_pulses', 1, list(range(0, 17)), 'number of pi pulses')
         ]),
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'min value for tau, the free evolution time in between pulses (in ns)'),
@@ -2620,10 +2611,9 @@ Tau/2 is the time between the center of the pulses!
         pulse_sequences = []
 
 
-        tau_list = range(int(self.settings['tau_times']['min_time']),
+        tau_list = list(range(int(self.settings['tau_times']['min_time']),
                          int(self.settings['tau_times']['max_time'] + self.settings['tau_times']['time_step']),
-                         self.settings['tau_times']['time_step']
-                         )
+                         self.settings['tau_times']['time_step']))
 
 
 
@@ -2715,7 +2705,7 @@ This script runs a XY sequence for different number of pi pulses. Without pi-pul
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
         Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
         Parameter('pi_half_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
-        Parameter('number_of__pi_pulses', 0, range(0,17), 'number of pi pulses'),
+        Parameter('number_of__pi_pulses', 0, list(range(0,17)), 'number of pi pulses'),
         Parameter('tau', [
             Parameter('min', 15, float, 'min value for tau, the free evolution time in between pulses (in ns)'),
             Parameter('max', 30, float, 'max value for tau, the free evolution time in between pulses (in ns)'),
@@ -2761,7 +2751,7 @@ This script runs a XY sequence for different number of pi pulses. Without pi-pul
         '''
         pulse_sequences = []
 
-        tau_list = range(int(max(15,self.settings['tau']['min'])), int(self.settings['tau']['max']),int(self.settings['tau']['step']))
+        tau_list = list(range(int(max(15,self.settings['tau']['min'])), int(self.settings['tau']['max']),int(self.settings['tau']['step'])))
         reset_time = self.settings['reset_time']
         mw_delay_time = self.settings['delay_init_mw']
         delay_after_mw = self.settings['delay_mw_readout']
@@ -2846,7 +2836,7 @@ This script measures the relaxation time of an NV center
         if self.settings['time_step'] % 5 != 0:
             raise AttributeError('given time_step is not a multiple of 5')
 
-        tau_list = range(0, int(self.settings['max_time'] + self.settings['time_step']), self.settings['time_step'])
+        tau_list = list(range(0, int(self.settings['max_time'] + self.settings['time_step']), self.settings['time_step']))
         reset_time = self.settings['nv_reset_time']
 
         # reduce the initialization time by 15 ns to avoid touching DAQ pulses
@@ -2939,10 +2929,9 @@ Optionally a microwave pulse is applied as part of the initialization to prepare
         if self.settings['tau_times']['time_step'] % 5 != 0:
             raise AttributeError('given time_step is not a multiple of 5')
 
-        tau_list = range(int(self.settings['tau_times']['min_time']),
+        tau_list = list(range(int(self.settings['tau_times']['min_time']),
                          int(self.settings['tau_times']['max_time'] + self.settings['tau_times']['time_step']),
-                         self.settings['tau_times']['time_step']
-                         )
+                         self.settings['tau_times']['time_step']))
 
 
         # if self.settings['apply mw-pulse']:
@@ -3065,7 +3054,7 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step'])
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -3177,7 +3166,7 @@ class T1_double_init_many_NVs(Script):
 
 
     def skip_next(self):
-        for script in self.scripts.itervalues():
+        for script in self.scripts.values():
             script.stop()
 
 class HE_double_init_many_NVs(Script):
@@ -3243,7 +3232,7 @@ class HE_double_init_many_NVs(Script):
 
 
     def skip_next(self):
-        for script in self.scripts.itervalues():
+        for script in self.scripts.values():
             script.stop()
 
 

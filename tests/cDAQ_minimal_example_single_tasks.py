@@ -114,9 +114,9 @@ class DAQ():
 
         task_name = self._add_to_tasklist('ctr', task)
 
-        if 'digital_input' not in self.settings.keys():
+        if 'digital_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support digital input')
-        if not channel in self.settings['digital_input'].keys():
+        if not channel in list(self.settings['digital_input'].keys()):
             raise KeyError('This is not a valid digital input channel')
 
         channel_settings = self.settings['digital_input'][channel]
@@ -216,10 +216,10 @@ class DAQ():
             clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
                 internal clock
         """
-        if 'analog_output' not in self.settings.keys():
+        if 'analog_output' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog output')
         for c in channels:
-            if not c in self.settings['analog_output'].keys():
+            if not c in list(self.settings['analog_output'].keys()):
                 raise KeyError('This is not a valid analog output channel')
 
         task = {
@@ -337,7 +337,7 @@ class DAQ():
         task = self.tasklist[task_name]
 
         #special case counters, which create two tasks that need to be cleared
-        if 'task_handle_ctr' in task.keys():
+        if 'task_handle_ctr' in list(task.keys()):
             self.nidaq.DAQmxStopTask(task['task_handle_ctr'])
             self.nidaq.DAQmxClearTask(task['task_handle_ctr'])
 
@@ -362,7 +362,7 @@ class DAQ():
 
         channels = []
         voltages = []
-        for k, v in output_dict.iteritems():
+        for k, v in output_dict.items():
             channels.append('ao' + k.replace('ao', ''))  # make sure the key has the right format, e.g. ao0
             voltages.append(v)
 
@@ -455,7 +455,7 @@ def pts_to_extent(pta, ptb, roi_mode):
 
 def RUN_ME():
     # start time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
     instruments = {'daq_out': NI9263(), 'daq_in': NI9402()}
 
@@ -493,7 +493,7 @@ def RUN_ME():
 
 
     #begin scan
-    for yNum in xrange(0, len(y_array)):
+    for yNum in range(0, len(y_array)):
 
         # set galvo to initial point of next line
         initPt = [x_array[0], y_array[yNum]]
@@ -528,11 +528,11 @@ def RUN_ME():
         return
 
     # end time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
 def RUN_ME_output_only():
     # start time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
     instruments = {'daq_out': NI9263()}
 
@@ -567,7 +567,7 @@ def RUN_ME_output_only():
                                              x_array)
 
     #begin scan
-    for yNum in xrange(0, len(y_array)):
+    for yNum in range(0, len(y_array)):
 
         # set galvo to initial point of next line
         initPt = [x_array[0], y_array[yNum]]
@@ -589,6 +589,6 @@ def RUN_ME_output_only():
         # return
 
     # end time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
 RUN_ME_output_only()

@@ -131,13 +131,13 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     axis.set_xlim(0, max_time)
 
     # label y axis with pulse names
-    axis.set_yticks(range(len(instrument_names)))
+    axis.set_yticks(list(range(len(instrument_names))))
     axis.set_yticklabels(instrument_names)
 
     # create horizontal lines for each pulse
     for pulse_plot_y_position in range(0, len(instrument_names)):
         axis.axhline(pulse_plot_y_position - .25, 0.0, max_time, color='k')
-    axis.tick_params(axis='y', which=u'both', length=0)  # remove tick marks on y axis
+    axis.tick_params(axis='y', which='both', length=0)  # remove tick marks on y axis
 
     # create a vertical line denoting the end of the pulse sequence loop
     # axis.axvline(max_time, -0.5, len(instrument_names), color='r')

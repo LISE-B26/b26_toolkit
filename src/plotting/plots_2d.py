@@ -16,6 +16,7 @@
 # along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+from matplotlib.ticker import FormatStrFormatter
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
 def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None):
@@ -122,12 +123,15 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     axes_image.set_ylabel(r'V$_y$ [V]')
     axes_image.set_title('Confocal Image')
 
-    axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
+    # explicitly round x_ticks because otherwise they have too much precision (~17 decimal points) when displayed
+    # on plot
+    axes_image.set_xticklabels([round(xticklabel, 4) for xticklabel in axes_image.get_xticks()], rotation=90)
 
     if np.min(image_data)<200:
         colorbar_min = 0
     else:
         colorbar_min = np.min(image_data)
+
     if max_counts < 0:
         colorbar_max = np.max(image_data)
     else:

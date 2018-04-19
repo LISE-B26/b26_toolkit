@@ -172,7 +172,7 @@ class PulseBlaster(Instrument):
         except IOError:
             warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
             dll_path = None
-            print('dll_path: ', dll_path)
+            print(('dll_path: ', dll_path))
             self.is_conneted = False
         try:
             self.pb = ctypes.windll.LoadLibrary(dll_path)
@@ -188,7 +188,7 @@ class PulseBlaster(Instrument):
         # call the update_parameter_list to update the parameter list
         super(PulseBlaster, self).update(settings)
 
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             self.pb.pb_reset()
             assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'
             self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
@@ -205,7 +205,7 @@ class PulseBlaster(Instrument):
     def settings2bits(self):
         #COMMENT_ME
         bits = 0
-        for output, output_params in self.settings.iteritems():
+        for output, output_params in self.settings.items():
             if isinstance(output_params, dict) and 'channel' in output_params and 'status' in output_params:
                 if output_params['status']:
                     bits |= 1 << output_params['channel']
@@ -228,8 +228,8 @@ class PulseBlaster(Instrument):
 
         elif isinstance(channel_id, int):
             channel_num = channel_id
-            for key, value in self.settings.iteritems():
-                if isinstance(value, dict) and 'channel' in value.keys() and value['channel'] == channel_num:
+            for key, value in self.settings.items():
+                if isinstance(value, dict) and 'channel' in list(value.keys()) and value['channel'] == channel_num:
                     return self.settings[key]['delay_time']
 
         raise AttributeError('Could not find delay of channel name or number: {0}'.format(str(channel_id)))
@@ -348,13 +348,13 @@ class PulseBlaster(Instrument):
             pb_command_dict.setdefault(pulse_end_time, []).append(1 << pulse_channel)
 
         # Make sure we have a command at time=0, the command to have nothing on.
-        if 0 not in pb_command_dict.keys():
+        if 0 not in list(pb_command_dict.keys()):
             pb_command_dict[0] = 0
 
         # For each time, combine all of the channels we need to toggle into a single bit string, and add it to a
         # command list of PBStateChange objects
         pb_command_list = []
-        for instruction_time, bit_strings in pb_command_dict.iteritems():
+        for instruction_time, bit_strings in pb_command_dict.items():
             channel_bits = np.bitwise_xor.reduce(bit_strings)
             if channel_bits != 0 or instruction_time == 0:
                 pb_command_list.append(self.PBStateChange(channel_bits, instruction_time))
@@ -573,7 +573,7 @@ class PulseBlaster(Instrument):
 
         for command in pb_commands:
             if command.duration < 15:
-                print('JG 20180321 command', command)
+                print(('JG 20180321 command', command))
                 raise RuntimeError("Detected command with duration <15ns.")
 
         # begin programming the pulseblaster
@@ -620,8 +620,8 @@ class PulseBlaster(Instrument):
         if isinstance(channel_id, (int, float)):
             return channel_id
         elif isinstance(channel_id, str):
-            if channel_id in self.settings.keys() and isinstance(self.settings[channel_id], dict) and 'channel' in \
-                    self.settings[channel_id].keys():
+            if channel_id in list(self.settings.keys()) and isinstance(self.settings[channel_id], dict) and 'channel' in \
+                    list(self.settings[channel_id].keys()):
                 return self.settings[channel_id]['channel']
             else:
                 raise AttributeError('Could not find channel with the following id: {0}'.format(channel_id))
@@ -692,7 +692,7 @@ class B26PulseBlaster(PulseBlaster):
     def get_name(self, channel):
         #COMMENT_ME
         for key, value in self.settings:
-            if 'channel' in value.keys() and value['channel'] == channel:
+            if 'channel' in list(value.keys()) and value['channel'] == channel:
                 return key
 
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
@@ -700,25 +700,24 @@ class B26PulseBlaster(PulseBlaster):
 
 if __name__ == '__main__':
 
-    # pb = Script.load_and_append() #B26PulseBlaster()
-    inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
-    pb = inst['B26PulseBlaster']
-    print(inst)
-    for i in range(5):
-        pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
-                            Pulse(channel_id=1, start_time=2000, duration=2000),
-                            Pulse(channel_id=1, start_time=4000, duration=2000),
-                            Pulse(channel_id=0, start_time=6000, duration=2000)]
-        # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
-        pb.program_pb(pulse_collection, num_loops=5E5)
-        pb.start_pulse_seq()
-        pb.wait()
-        print 'finished #{0}!'.format(i)
+    #pb = Script.load_and_append() #B26PulseBlaster()
+    # inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
 
-    pb.update({'laser': {'status': True}})
-    #
-    #
-    # Pulse('channel_0', 0, 10)
-    # print(Pulse.channel_id)
-    # print(Pulse.duration)
-    # print(Pulse.start_time)
+    # for i in range(5):
+    #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
+    #                         Pulse(channel_id=1, start_time=2000, duration=2000),
+    #                         Pulse(channel_id=1, start_time=4000, duration=2000),
+    #                         Pulse(channel_id=0, start_time=6000, duration=2000)]
+    #     # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
+    #     pb.program_pb(pulse_collection, num_loops=5E5)
+    #     pb.start_pulse_seq()
+    #     pb.wait()
+    #     print 'finished #{0}!'.format(i)
+
+    #   pb.update({'laser': {'status': True}})
+
+
+    Pulse('channel_0', 0, 10)
+    print((Pulse.channel_id))
+    print((Pulse.duration))
+    print((Pulse.start_time))

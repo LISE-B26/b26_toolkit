@@ -63,7 +63,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         self.data = deque()
 
         # todo: clean this up! and plot data in gui!
-        self._sweep_values =  {'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys()
+        self._sweep_values =  list({'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys())
 
 
     def settings_to_commands(self, settings):
@@ -75,7 +75,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         # create list that is passed to the ZI controler
 
         commands = []
-        for key, val in settings.iteritems():
+        for key, val in settings.items():
             if isinstance(val, dict) and 'value' in val:
                 commands.append(['sweep/%s' % (key), val['value']])
             elif key in ('start', 'stop', 'samplecount', 'gridnode', 'loopcount', 'averaging/sample'):
@@ -162,7 +162,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
                 self.sweeper.finish()
                 self._recording = False
 
-            print("Individual sweep %.2f%% complete. \n" % (self.progress))
+            print(("Individual sweep %.2f%% complete. \n" % (self.progress)))
 
             self.updateProgress.emit(int(self.progress))
 

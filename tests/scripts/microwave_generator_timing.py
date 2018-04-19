@@ -17,7 +17,7 @@ plt.plot(times, '.')
 
 print(times)
 
-print(np.std(np.array(times)))
+print((np.std(np.array(times))))
 
 plt.title('Average: {0:.2f}, Stddev: {1:.2f}'.format(np.mean(np.array(times)), np.std(np.array(times))))
 plt.xlabel('Trial Number')

@@ -127,7 +127,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         slope = 1 if self.settings['optimization']['slope'] == 'positive' else -1
 
         # get the channels
-        print(self.settings['channels']['channel_OnOff'])
+        print((self.settings['channels']['channel_OnOff']))
         control_channel = self.settings['channels']['channel_OnOff'].split('NI9263_')[1]
         channel_out = self.settings['channels']['channel_WP_{:d}'.format(wp_control)].split('NI9263_')[1]
         channel_in = self.settings['channels']['channel_detector'].split('NI6259_')[1]
@@ -191,8 +191,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
             self.updateProgress.emit(self.progress)
 
             direction = get_direction(detector_value, slope)
-            print('----> out', v_out, voltage_to_int((v_out)))
-            print('----> det', detector_value, slope, direction)
+            print(('----> out', v_out, voltage_to_int((v_out))))
+            print(('----> det', detector_value, slope, direction))
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
                 v_step = self.settings['optimization']['dV'] # start with initial step size

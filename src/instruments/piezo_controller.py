@@ -29,7 +29,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM4', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM5', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -76,7 +76,7 @@ class PiezoController(Instrument):
 
         '''
         super(PiezoController, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if self._settings_initialized:
                 if key == 'voltage':
                     self.set_voltage(value)
@@ -105,7 +105,7 @@ class PiezoController(Instrument):
         Returns: reads values from instrument
 
         '''
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key in ['voltage']:
@@ -213,7 +213,7 @@ class MDT693A(Instrument):
 
         '''
         super(PiezoController, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'voltage':
                 self.set_voltage(value)
             elif key == 'voltage_limit':
@@ -241,7 +241,7 @@ class MDT693A(Instrument):
         Returns: reads values from instrument
 
         '''
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key in ['voltage']:
@@ -288,8 +288,6 @@ class MDT693A(Instrument):
             raise ValueError(message)
 
 if __name__ == '__main__':
-    a = PiezoController('hi', settings={'port': 'COM4'})
+    a = PiezoController('hi', settings={'port':'COM3'})
  #   a.axis = 'y'
     a.voltage = 45.5
-
-

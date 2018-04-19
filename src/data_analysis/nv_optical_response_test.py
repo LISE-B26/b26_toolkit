@@ -2,7 +2,7 @@
 # December 12 2017
 # here we test the functionc from nv_optical_response.py
 
-import nv_optical_response as nv
+from . import nv_optical_response as nv
 import numpy as np
 
 
@@ -23,8 +23,8 @@ def test_magnetic_field_single_mag(Bmax=0.1, verbose=True):
     error = calc_error_single(B, theta, phi, verbose)
 
     if verbose:
-        print('error', error)
-        print('B, theta, phi', B, theta , phi)
+        print(('error', error))
+        print(('B, theta, phi', B, theta , phi))
 
     return error, B, theta, phi
 
@@ -52,17 +52,17 @@ def calc_error_single(B, theta, phi, verbose=False):
     if verbose:
 
         if error > 9e-1:
-            print('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi)
-            print('Bxyz', Bx, By, Bz)
-            print('Bon, Boff', Bz, np.sqrt(Bx ** 2 + By ** 2))
-            print('Bon_r, Boff_r', Bon_r, Boff_r)
+            print(('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi))
+            print(('Bxyz', Bx, By, Bz))
+            print(('Bon, Boff', Bz, np.sqrt(Bx ** 2 + By ** 2)))
+            print(('Bon_r, Boff_r', Bon_r, Boff_r))
             #         print('NV frequencies (GHz)', fn, fp)
 
             #         print('Bfield (T) x/z', Bx, Bz)
             #         print('reconstructed Bfield (T) x/z', Bx_r, Bz_r)
-            print('error_on (%)', error_on * 100)
-            print('error_off (%)', error_off * 100)
-            print('error (%)', error * 100)
+            print(('error_on (%)', error_on * 100))
+            print(('error_off (%)', error_off * 100))
+            print(('error (%)', error * 100))
     return error
 
 
@@ -83,8 +83,8 @@ def test_magnetic_field_mag_ensemble(Bmax=0.1, verbose=True):
     error = calc_error_ensemble_mag(B, theta, phi, verbose)
 
     if verbose:
-        print('error', error)
-        print('B, theta, phi', B, theta , phi)
+        print(('error', error))
+        print(('B, theta, phi', B, theta , phi))
 
     return error, B, theta, phi
 def calc_error_ensemble_mag(B, theta, phi, verbose=False):
@@ -96,7 +96,7 @@ def calc_error_ensemble_mag(B, theta, phi, verbose=False):
     """
 
     if verbose:
-        print('B, theta, phi', B, theta, phi)
+        print(('B, theta, phi', B, theta, phi))
 
     # calculate field in lab frame
     B_lab = nv.B_cart(B, theta, phi)
@@ -110,7 +110,7 @@ def calc_error_ensemble_mag(B, theta, phi, verbose=False):
     freq_ensemble = nv.esr_frequencies_ensemble(B_lab)
 
     if verbose:
-        print('freq_ensemble', freq_ensemble)
+        print(('freq_ensemble', freq_ensemble))
 
     for i, f in enumerate(freq_ensemble):
         aa = nv.calc_bfields_esr_ensemble_mag(f, verbose)[0]
@@ -128,9 +128,9 @@ def calc_error_ensemble_mag(B, theta, phi, verbose=False):
     if verbose:
 
         # if err > 1e-1:
-        print('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi)
-        print('B_r', Babs)
-        print('error (%)', err * 100)
+        print(('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi))
+        print(('B_r', Babs))
+        print(('error (%)', err * 100))
 
 
     return err
@@ -149,7 +149,7 @@ def calc_error_ensemble_fit(B, theta, phi, verbose=False, try_permutations_fit =
     """
 
     if verbose:
-        print('B, theta, phi', B, theta, phi)
+        print(('B, theta, phi', B, theta, phi))
 
     # calculate field in lab frame
     B_lab = nv.B_cart(B, theta, phi)
@@ -189,18 +189,18 @@ def calc_error_ensemble_fit(B, theta, phi, verbose=False, try_permutations_fit =
     if verbose:
 
         # if err > 1e-1:
-        print('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi)
-        print('B recovered', B_r, theta_r, phi_r)
-        print('B xyz', B_lab)
-        print('B xyz (recovered)', B_lab_r)
+        print(('Bfield (T) / theta (deg) / phi (deg)', B, theta, phi))
+        print(('B recovered', B_r, theta_r, phi_r))
+        print(('B xyz', B_lab))
+        print(('B xyz (recovered)', B_lab_r))
 
 
-        print('error esr (%)', err_esr * 100)
-        print('error fields (%)', err_field * 100)
-        print('error fields- abs (%)', err_field_abs * 100)
-        print('error fields- x (%)', err_field_x * 100)
-        print('error fields- y (%)', err_field_y * 100)
-        print('error fields- z (%)', err_field_z * 100)
+        print(('error esr (%)', err_esr * 100))
+        print(('error fields (%)', err_field * 100))
+        print(('error fields- abs (%)', err_field_abs * 100))
+        print(('error fields- x (%)', err_field_x * 100))
+        print(('error fields- y (%)', err_field_y * 100))
+        print(('error fields- z (%)', err_field_z * 100))
 
 
     return err_esr, err_field, err_field_abs, err_field_x, err_field_y, err_field_z
@@ -229,8 +229,8 @@ def test_magnetic_field_fit(Bmax=0.1, verbose=True, try_permutations_fit = True,
                                     try_permutations_sign = try_permutations_sign)
 
     if verbose:
-        print('error', error)
-        print('B, theta, phi', B, theta , phi)
+        print(('error', error))
+        print(('B, theta, phi', B, theta , phi))
 
     return error, B, theta, phi
 
@@ -251,8 +251,8 @@ def test_magnetic_field_xyz(Bmax=0.1, verbose=True):
     error = calc_error_ensemble_xyz(B, theta, phi, verbose)
 
     if verbose:
-        print('error', error)
-        print('B, theta, phi', B, theta, phi)
+        print(('error', error))
+        print(('B, theta, phi', B, theta, phi))
 
     return error, B, theta, phi
 def calc_error_ensemble_xyz(B, theta, phi, verbose=False):
@@ -264,7 +264,7 @@ def calc_error_ensemble_xyz(B, theta, phi, verbose=False):
     """
 
     if verbose:
-        print('B, theta, phi', B, theta * 180 / np.pi, phi * 180 / np.pi)
+        print(('B, theta, phi', B, theta * 180 / np.pi, phi * 180 / np.pi))
 
     # calculate field in lab frame
     B_lab = B_vec(B, theta, phi)
@@ -288,10 +288,10 @@ def calc_error_ensemble_xyz(B, theta, phi, verbose=False):
     if len(err) == 1 and verbose:
 
         # if err > 1e-1:
-        print('Bfield (T) / theta (deg) / phi (deg)', B, theta * 180 / np.pi, phi * 180 / np.pi)
-        print('Bxyz', B_lab)
-        print('B_r', B_r)
-        print('error (%)', err * 100)
+        print(('Bfield (T) / theta (deg) / phi (deg)', B, theta * 180 / np.pi, phi * 180 / np.pi))
+        print(('Bxyz', B_lab))
+        print(('B_r', B_r))
+        print(('error (%)', err * 100))
     if len(err) == 1:
         err = err[0]
 

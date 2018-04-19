@@ -423,14 +423,14 @@ def B_field_from_esr(fp, fn, D=2.8707e9, gamma=27.969e9, angular_freq=False, ver
     if np.isnan(Bp):
         Bp = 0
         if verbose:
-            print('is nan Bp', Bp)
-            print('fp/fn', fp, fn)
+            print(('is nan Bp', Bp))
+            print(('fp/fn', fp, fn))
 
     if np.isnan(Bz):
         Bz = 0
         if verbose:
-            print('is nan Bz', Bz)
-            print('fp/fn', fp, fn)
+            print(('is nan Bz', Bz))
+            print(('fp/fn', fp, fn))
 
     return Bz, Bp
 
@@ -555,7 +555,7 @@ def calc_bfields_esr_ensemble_mag(frequencies, verbose=False):
     # calculate the abolute field
     Babs = np.sqrt(np.sum(Bs ** 2, axis=1))
     if verbose:
-        print('consistnecy check: total field should be the same for all families - std_dev', np.std(Babs)/np.mean(Babs))
+        print(('consistnecy check: total field should be the same for all families - std_dev', np.std(Babs)/np.mean(Babs)))
         if np.std(Babs)/np.mean(Babs)<1e-4:
             print('PASSED!!!')
         else:
@@ -611,7 +611,7 @@ def calc_bfields_esr_ensemble_xyz(frequencies, verbose=False):
         if verbose:
             print('     truth_table:')
             for i, t in enumerate(truth_table.T):
-                print(i, t)
+                print((i, t))
 
             # consistency check: we expect that there is one combination, that work for all and thus
             check = max(np.sum(truth_table, axis=0)) == M - 1
@@ -624,8 +624,8 @@ def calc_bfields_esr_ensemble_xyz(frequencies, verbose=False):
         votes = np.sum(truth_table, axis=0)
         index = np.arange(len(votes))[votes == np.max(votes)]
         if verbose:
-            print('index majority vote: ', index, np.sum(truth_table, axis=0))
-        print('asdad', len(index))
+            print(('index majority vote: ', index, np.sum(truth_table, axis=0)))
+        print(('asdad', len(index)))
 
         # compare the total magnetic field to the expected magnetic field, pick the one that agrees better
 
@@ -687,14 +687,14 @@ def calc_bfields_esr_ensemble_xyz(frequencies, verbose=False):
         Bxyz = np.array(Bxyz).T
         if verbose:
             print(' Bxyz not selected ==== ')
-            print(Bxyz.T)
+            print((Bxyz.T))
 
         # at this point Bxyz is a 4x3 array (4 combinations, 3 cartesian components)
         # from all the combinations, we take the one that occurs twice
         Bxyz = find_similar(Bxyz, Babs)
         if verbose:
             print(' Bxyz selected ==== ')
-            print(Bxyz.T)
+            print((Bxyz.T))
 
             # rearrange so that we return a M x N x 2 array
             # M is the number of magnetic fields
@@ -734,11 +734,11 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
         # all families should be give similar total fields
         if np.std(Br_mag) / np.mean(Br_mag) > 1e-2:
             print('Warning the total magnetic field estimated from all families differs by more than 1%!')
-            print('relative error', np.std(Br_mag) / np.mean(Br_mag))
-            print('absolute error (Teslas)', np.std(Br_mag))
+            print(('relative error', np.std(Br_mag) / np.mean(Br_mag)))
+            print(('absolute error (Teslas)', np.std(Br_mag)))
 
         if verbose:
-            print('estimated field amplitude', np.mean(Br_mag), np.std(Br_mag))
+            print(('estimated field amplitude', np.mean(Br_mag), np.std(Br_mag)))
 
         NV_max_index = np.argmax(Br[:, 0])
         if verbose:
@@ -750,8 +750,8 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
         B_mag_init = np.mean(Br_mag)
 
         if verbose:
-            print('initial guess:', B_mag_init, theta_init, phi_init)
-            print('err', fit_err_fun([theta_init, phi_init], B_mag_init, freq))
+            print(('initial guess:', B_mag_init, theta_init, phi_init))
+            print(('err', fit_err_fun([theta_init, phi_init], B_mag_init, freq)))
 
         return B_mag_init, theta_init, phi_init
 
@@ -766,7 +766,7 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
 
     if verbose:
         print('fit result')
-        print(' theta_r, phi_r', theta_r, phi_r)
+        print((' theta_r, phi_r', theta_r, phi_r))
 
 
     if try_permutations_fit:
@@ -778,10 +778,10 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
             fit = opt.minimize(fit_err_fun, np.array([B_it_s[1], B_it_s[2]]), args=(B_it_s[0], freq),
                            bounds=((0, 180), (-180, 180)))
             if verbose:
-                print('B_it_s', B_it_s)
-                print('fit.x', fit.x)
-                print('fit.fun', fit.fun)
-                print(' theta_r, phi_r', theta_r, phi_r)
+                print(('B_it_s', B_it_s))
+                print(('fit.x', fit.x))
+                print(('fit.fun', fit.fun))
+                print((' theta_r, phi_r', theta_r, phi_r))
                 print('---------------------------------------')
             # if error reduced keep new value
             if fit.fun < err:
@@ -791,7 +791,7 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
                 err = fit.fun
         if verbose:
             print('======== fit result after permutation_fit')
-            print('======== theta_r, phi_r', theta_r, phi_r)
+            print(('======== theta_r, phi_r', theta_r, phi_r))
     if try_permutations_xyz:
         if verbose:
             print('======== trying permutating xyz')
@@ -805,7 +805,7 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
                 err = err_xyz
         if verbose:
             print('======== fit result after permutation_xyz')
-            print('======== theta_r, phi_r', theta_r, phi_r)
+            print(('======== theta_r, phi_r', theta_r, phi_r))
     if try_permutations_sign:
         if verbose:
             print('======== trying permutating sign')
@@ -819,7 +819,7 @@ def fit_Hamiltonian(freq, verbose=False, try_permutations_fit = True, try_permut
                 err = err_sign
         if verbose:
             print('======== fit result after permutation sign')
-            print('======== theta_r, phi_r', theta_r, phi_r)
+            print(('======== theta_r, phi_r', theta_r, phi_r))
     return B_mag_init, theta_r, phi_r
 
 
@@ -995,7 +995,7 @@ def sort_esr_frequencies(freq_data, permutate_all = True, verbose = False):
 
         if verbose:
             print(' ====== calc_err_freq: err =====')
-            print(np.shape(err))
+            print((np.shape(err)))
 
             # print(np.shape(freqs_perm), np.shape(np.ones([Nperm, 1]) * np.array([freq0])))
 
@@ -1006,7 +1006,7 @@ def sort_esr_frequencies(freq_data, permutate_all = True, verbose = False):
 
     for j, freq in enumerate(freq_data):
         if verbose:
-            print('>>>>>>>>>>>>> RUN <<<<<<<<<<<<<<<<', j)
+            print(('>>>>>>>>>>>>> RUN <<<<<<<<<<<<<<<<', j))
         # permutate over all four families to find the match that gives the lowest error
         if permutate_all:
             # errs = [calc_err(np.array(freq_perm))
@@ -1108,7 +1108,7 @@ def connect_esr_frequencies(esr_data, verbose=False):
     for i in range(len(esr_data) - 1):
         freq = esr_data[i + 1]
         if verbose:
-            print('==================', i)
+            print(('==================', i))
         esr_data_sorted.append(order_frequencies(freq, freq_last))
 
         freq_last = esr_data_sorted[-1]
@@ -1171,7 +1171,7 @@ if __name__ == '__main__':
     #
     # pl = photoluminescence_rate(k, p)
 
-    print(np.shape(c))
+    print((np.shape(c)))
     print(c)
 
-    print(np.allclose(c, ref_contrast))
+    print((np.allclose(c, ref_contrast)))

@@ -80,7 +80,7 @@ class Take_And_Correlate_Images(Script):
                                                    self.data['image_extent'], use_trackpy=self.settings['use_trackpy'])
 
             self.data['shift'] = [dx_voltage, dy_voltage]
-            print(self.data['shift'])
+            print((self.data['shift']))
 
         else:
             self.scripts['GalvoScan'].run()

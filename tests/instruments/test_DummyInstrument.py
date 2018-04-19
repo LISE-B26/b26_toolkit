@@ -18,7 +18,7 @@ class TestInstrument(TestCase):
         self.assertEqual(test.settings, {'test1': 2020, 'test2': {'test2_1': 'string', 'test2_2': 0.0}, 'output probe2': 0})
         test = DummyInstrument('test inst', { 'test2': {'test2_1': 'new string', 'test2_2': 0.2}})
 
-        print(test.settings)
+        print((test.settings))
         self.assertEqual(test.settings, {'test1': 0, 'test2': {'test2_1': 'new string', 'test2_2': 0.2}, 'output probe2': 0})
         test = DummyInstrument('test inst', { 'test2': {'test2_1': 'new string'}})
         self.assertEqual(test.settings, {'test1': 0, 'test2': {'test2_1': 'new string', 'test2_2': 0.0}, 'output probe2': 0})
@@ -43,12 +43,12 @@ class TestInstrument(TestCase):
         self.assertEqual(test.settings, {'test1': 200, 'test2': {'test2_1': 'hello', 'test2_2': 0.2}, 'output probe2': 0})
 
 
-        print(test.settings['test2'])
+        print((test.settings['test2']))
 
-        print(test.settings)
+        print((test.settings))
 
-        print(type(test.settings))
-        print(type(test.settings['test2']))
+        print((type(test.settings)))
+        print((type(test.settings['test2'])))
 
     def test_tes(self):
         test = DummyInstrument('my inst')
@@ -71,5 +71,5 @@ class TestInstrument(TestCase):
         test.update({'test1':8})
         self.assertEqual(test.settings, {'test1': 8, 'test2': {'test2_1': 'string', 'test2_2': 0.0}, 'output probe2': 0})
         self.assertEqual(8, test._internal_state)
-        print(test._internal_state)
+        print((test._internal_state))
 

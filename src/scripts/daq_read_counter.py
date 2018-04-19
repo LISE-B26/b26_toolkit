@@ -58,7 +58,7 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
-        print('settings in instrument', self.instruments['daq']['settings'])
+        print(('settings in instrument', self.instruments['daq']['settings']))
 
         sample_rate = float(1) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
@@ -71,9 +71,9 @@ This script reads the Counter input from the DAQ and plots it.
 
         sample_num = 2
 
-        print('settings in instrument 2', self.instruments['daq']['settings'])
+        print(('settings in instrument 2', self.instruments['daq']['settings']))
 
-        print('here', self.instruments['daq'])
+        print(('here', self.instruments['daq']))
 
         task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
@@ -92,7 +92,7 @@ This script reads the Counter input from the DAQ and plots it.
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
                 time.sleep(2.0 / sample_rate)
                 continue
-            print('raw data length: ', len(raw_data))
+            print(('raw data length: ', len(raw_data)))
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
                 self.last_value = value

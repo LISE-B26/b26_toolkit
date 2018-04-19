@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # create PI (proportional integral) controler object to have access to piezo output channel (i.e. AO0)
     PI = NI.NI_FPGA_PI(fpga, **parameters_PI)
 
-    print('sample rate', 40e6 / parameters_Acq['sample_period_acq'])
+    print(('sample rate', 40e6 / parameters_Acq['sample_period_acq']))
 
     PI.piezo = 200
 
@@ -73,11 +73,11 @@ if __name__ == '__main__':
     status = AI.status
     print("status after running acquisition:")
     for elem in status:
-        print(elem, ': ', AI.status[elem])
+        print((elem, ': ', AI.status[elem]))
 
 
     number_of_reads = int(np.ceil(1.0 * parameters_Acq['data_length'] / parameters_Acq['block_size']))
-    print('number_of_reads', number_of_reads)
+    print(('number_of_reads', number_of_reads))
 
     data_AI1 = np.zeros((number_of_reads, parameters_Acq['block_size']))
 

@@ -64,7 +64,7 @@ Known issues:
         """
 
         attempt_num = 1
-        print(self.scripts['take_image'].instruments)
+        print((self.scripts['take_image'].instruments))
         if self.settings['center_on_current_location']:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
@@ -127,30 +127,19 @@ Known issues:
                 # all the points that have been identified as valid NV centers
                 pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
                        locate_info[['x', 'y']].as_matrix()]
-
+                #print(pts)
                 if len(pts) > 1:
                     self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
                 # pick the one that is closest to the original one
                 pm = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
-
-
-                # JG 20180328
-                # pixel values of pm
-                pm_px = locate_info[['x', 'y']].as_matrix()[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
                 self.data['maximum_point'] = {'x': float(pm[0]), 'y': float(pm[1])}
-                # esimtate the fluorescence from a 4x4 pixels around the max pixel
-                self.data['fluorescence'] = np.mean(self.data['image_data'][round(pm_px[0]) - 2:round(pm_px[0]) + 2,round(pm_px[1]) - 2:round(pm_px[1]) + 2])
-
-                print('aaaaa', self.data['fluorescence'])
-
-                # counter = 0
-                # print('locate_info locate_info', locate_info)
-                # for p in pts: # record maximum counts = fluorescence
-                #     if p[1] == self.data['maximum_point']['y']:
-                #         self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
-                #         print('fluorescence of the NV, kCps:')
-                #         print(self.data['fluorescence'])
-                #         counter += 1
+                counter = 0
+                for p in pts: # record maximum counts = fluorescence
+                    if p[1] == self.data['maximum_point']['y']:
+                        self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
+                        print('fluorescence of the NV, kCps:')
+                        print((self.data['fluorescence']))
+                        counter += 1
                 break
 
             if attempt_num <= self.settings['number_of_attempts']:

@@ -159,7 +159,7 @@ _libfpga.read_FIFO.restype = None
 def read_FIFO(size, session, status):
     Signal = (c_int32*size)()
     elements_remaining = c_uint32()
-    print('ffffff reading fifo size', size)
+    print(('ffffff reading fifo size', size))
     _libfpga.read_FIFO(Signal, size, byref(session), byref(status), byref(elements_remaining))
 
     print('ffffff reading fifo')
@@ -194,17 +194,17 @@ class NI7845R(object):
 
     def start(self):
         start_fpga(self.session, self.status)
-        print('fpga started, status = {:s}'.format(str(self.status.value)))
+        print(('fpga started, status = {:s}'.format(str(self.status.value))))
         # reset_fpga(self.session, self.status)
         # print('fpga reset, status = ', self.status.value)
         #
         # start_fpga(self.session, self.status)
-        print('fpga started, status = {:s}'.format(str(self.status.value)))
+        print(('fpga started, status = {:s}'.format(str(self.status.value))))
         if self.status.value != 0:
             if int(self.status.value) ==  -63101:
                 print("ERROR 63101: Bitfile not found")
             else:
-                print('ERROR IN STARTING FPGA  (ERROR CODE: ', self.status.value, ')')
+                print(('ERROR IN STARTING FPGA  (ERROR CODE: ', self.status.value, ')'))
         return self.status
 
     def stop(self):

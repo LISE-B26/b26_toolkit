@@ -161,16 +161,16 @@ class NI7845RMain(Instrument):
         if key is None:
             super(NI7845RMain, self).read_probes()
         else:
-            assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
+            assert key in list(self._PROBES.keys()), "key assertion failed %s" % str(key)
             value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
         return value
 
     def update(self, settings):
         super(NI7845RMain, self).update(settings)
 
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'read_io':
-                for subkey, subvalue in value.iteritems():
+                for subkey, subvalue in value.items():
                     if subkey in ['AO0', 'AO1', 'AO2', 'AO3', 'AO4', 'AO5', 'AO6', 'AO7']:
                         getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(volt_2_bit(subvalue), self.fpga.session, self.fpga.status)
                     elif subkey in ['DIO4', 'DIO5', 'DIO6', 'DIO7']:
@@ -178,7 +178,7 @@ class NI7845RMain(Instrument):
                     else:
                         raise KeyError
             elif key == 'galvo_scan':
-                for subkey, subvalue in value.iteritems():
+                for subkey, subvalue in value.items():
                     if subkey in ('scanmode_x', 'scanmode_y', 'detector_mode'):
                         subvalue = self._DEFAULT_SETTINGS.valid_values['galvo_scan'][subkey].index(subvalue)
                         getattr(self.FPGAlib, 'set_{:s}'.format(subkey))(subvalue, self.fpga.session, self.fpga.status)
@@ -189,7 +189,7 @@ class NI7845RMain(Instrument):
                     else:
                         raise KeyError
             elif key == 'general':
-                for subkey, subvalue in value.iteritems():
+                for subkey, subvalue in value.items():
                     if subkey in ('run_mode'):
                         self.set_run_mode(subvalue)
                     elif subkey in ('count_ms'):
@@ -222,15 +222,15 @@ class NI7845RMain(Instrument):
 
             # run_mode = self.FPGAlib.read_run_mode(self.fpga.session,self.fpga.status)
             run_mode = self.run_mode
-            print('run_mode (', mode, ')', run_mode)
-            print('XXXX', run_mode, mode, run_mode == mode)
+            print(('run_mode (', mode, ')', run_mode))
+            print(('XXXX', run_mode, mode, run_mode == mode))
             started = run_mode == mode
             if started:
                 # successfully started acquisition
                 break
         if started == False:
-            print('starting FPGA (set mode to {:d}) failed after {:d} attempts!!!'.format(mode, max_attempts))
-            print('current mode: {:d}'.format(self.read_probes('run_mode')))
+            print(('starting FPGA (set mode to {:d}) failed after {:d} attempts!!!'.format(mode, max_attempts)))
+            print(('current mode: {:d}'.format(self.read_probes('run_mode'))))
 
 
         return started
@@ -258,7 +258,7 @@ class NI7845RMain(Instrument):
         :return: data from channels AI1 and AI2 and the elements remaining in the FIFO
         '''
 
-        print('ssssssss sadsad block_size', block_size)
+        print(('ssssssss sadsad block_size', block_size))
         fifo_data = self.FPGAlib.read_FIFO(block_size, self.fpga.session, self.fpga.status)
         if str(self.fpga.status.value) != '0':
             raise LabviewFPGAException(self.fpga.status)
@@ -329,7 +329,7 @@ class NI7845RReadWrite(Instrument):
         self.fpga.stop()
 
     def read_probes(self, key):
-        assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
+        assert key in list(self._PROBES.keys()), "key assertion failed %s" % str(key)
         value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
         return value
 
@@ -337,7 +337,7 @@ class NI7845RReadWrite(Instrument):
     def update(self, settings):
         super(NI7845RReadWrite, self).update(settings)
 
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key in ['AO0', 'AO1', 'AO2', 'AO3', 'AO4', 'AO5', 'AO6', 'AO7']:
                 getattr(self.FPGAlib, 'set_{:s}'.format(key))(volt_2_bit(value), self.fpga.session, self.fpga.status)
             elif key in ['DIO4', 'DIO5', 'DIO6', 'DIO7']:
@@ -364,14 +364,14 @@ class NI7845RReadWrite(Instrument):
             time.sleep(0.1)
 
             run_mode = self.run_mode
-            print('run_mode (', self.FPGAlib.READ_IO, ')', run_mode)
+            print(('run_mode (', self.FPGAlib.READ_IO, ')', run_mode))
             started = run_mode == self.FPGAlib.READ_IO
             if started:
                 # successfully started acquisition
                 break
         if started == False:
-            print('starting FPGA failed after {:d} attempts!!!'.format(max_attempts))
-            print(self.read_probes())
+            print(('starting FPGA failed after {:d} attempts!!!'.format(max_attempts)))
+            print((self.read_probes()))
 
         return True
 
@@ -450,7 +450,7 @@ class FPGA_GalvoScan(Instrument):
         print('FPGA_GalvoScan initialized')
 
     def __del__(self):
-        print('stopping fpga {:s}'.format(self.name))
+        print(('stopping fpga {:s}'.format(self.name)))
         #define NiFpga_GalvoScan_Bitfile "C:\\Users\\Experiment\\PycharmProjects\\PythonLab\\src\\labview_fpga_lib\\galvo_scan\\NiFpga_GalvoScan.lvbitx" stop()
 
     def read_probes(self, key = None):
@@ -458,7 +458,7 @@ class FPGA_GalvoScan(Instrument):
         if key is None:
             super(FPGA_GalvoScan, self).read_probes()
         else:
-            assert key in self._PROBES.keys(), "key assertion failed %s" % str(key)
+            assert key in list(self._PROBES.keys()), "key assertion failed %s" % str(key)
             # if key == 'ElementsWritten':
             #     key = 'elements_written_to_dma'
             value = getattr(self.FPGAlib, 'read_{:s}'.format(key))(self.fpga.session, self.fpga.status)
@@ -509,7 +509,7 @@ class FPGA_GalvoScan(Instrument):
     def update(self, settings):
         super(FPGA_GalvoScan, self).update(settings)
 
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key in ['point_a', 'point_b', 'RoI_mode', 'num_points']:
                 [xVmin, xVmax, yVmax, yVmin] = self.pts_to_extent(self.settings['point_a'],
                                                                   self.settings['point_b'],
@@ -580,8 +580,8 @@ class FPGA_GalvoScan(Instrument):
                 # successfully started acquisition
                 break
         if started == False:
-            print('starting FPGA failed after {:d} attempts!!!'.format(max_attempts))
-            print(self.read_probes())
+            print(('starting FPGA failed after {:d} attempts!!!'.format(max_attempts)))
+            print((self.read_probes()))
 
         return started
 
@@ -618,8 +618,8 @@ if __name__ == '__main__':
 
     fpga.fpga.start()
 
-    print(fpga.FPGAlib.setter_functions)
-    print(fpga.settings)
+    print((fpga.FPGAlib.setter_functions))
+    print((fpga.settings))
     fpga.fpga.stop()
 
 

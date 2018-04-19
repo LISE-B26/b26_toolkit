@@ -124,23 +124,23 @@ class FPGA_GalvoScan(GalvoScanGeneric):
 
         Nx = self.settings['num_points']['x']
 
-        print('asdadsaada reading line ', Nx)
+        print(('asdadsaada reading line ', Nx))
         line_data = instr.read_fifo(Nx)
 
 
-        print('====== gggggg>>>>>>', line_data)
+        print(('====== gggggg>>>>>>', line_data))
         return line_data['signal']
 
 if __name__ == '__main__':
     script, failed, instruments = Script.load_and_append(script_dict={'FPGA_GalvoScan': 'FPGA_GalvoScan'})
 
-    print('script',script)
-    print('failed', failed)
+    print(('script',script))
+    print(('failed', failed))
     gs = script['FPGA_GalvoScan']
     print(gs)
 
-    print(gs.instruments['FPGA_GalvoScan']['instance'].settings)
+    print((gs.instruments['FPGA_GalvoScan']['instance'].settings))
 
     gs.run()
-    print(gs.data)
+    print((gs.data))
 

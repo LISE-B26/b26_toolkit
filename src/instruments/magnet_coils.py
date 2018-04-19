@@ -188,9 +188,9 @@ class MagnetCoils(NI9263):
         super(MagnetCoils, self).update(settings)
         # now we actually apply these newsettings to the hardware
         # if any of the settings updated are the fields...
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'magnetic_fields':
-                if any(x in value.keys() for x in ['x_field', 'y_field', 'z_field']):
+                if any(x in list(value.keys()) for x in ['x_field', 'y_field', 'z_field']):
                     new_field_x = self.settings['magnetic_fields']['x_field']
                     new_field_y = self.settings['magnetic_fields']['y_field']
                     new_field_z = self.settings['magnetic_fields']['z_field']

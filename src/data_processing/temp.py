@@ -53,7 +53,7 @@ if __name__ == '__main__':
         filtered = processed_v
 
         parallel(delayed(get_maxcoors_array)(image_array, image_size) for image_array in np.array_split(filtered, 1000))
-        print(time.time() - start)
+        print((time.time() - start))
 
     # start = time.time()
     # max_coors = []

@@ -33,10 +33,10 @@ from src import old_lib as NI
 if __name__ == '__main__':
     fpga = NI.NI7845R()
 
-    print(fpga.session, fpga.status)
+    print((fpga.session, fpga.status))
     fpga.start()
 
-    print(fpga.session, fpga.status)
+    print((fpga.session, fpga.status))
 
 
 
@@ -47,8 +47,8 @@ if __name__ == '__main__':
         AO.write(i)
         time.sleep(0.1)
         x = AI.read()
-        print('set {:05d}\t actual {:05d}\t error {:0.2f}%'.format(i, x, 100.* (x-i) / (x+i)))
+        print(('set {:05d}\t actual {:05d}\t error {:0.2f}%'.format(i, x, 100.* (x-i) / (x+i))))
     fpga.stop()
 
-    print(fpga.session, fpga.status)
+    print((fpga.session, fpga.status))
 

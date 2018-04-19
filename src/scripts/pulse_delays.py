@@ -53,7 +53,7 @@ class PulseDelays(PulseBlasterBaseScript):
 
         '''
         pulse_sequences = []
-        gate_delays = range(self.settings['min_delay'], self.settings['max_delay'], self.settings['delay_interval_step_size'])
+        gate_delays = list(range(self.settings['min_delay'], self.settings['max_delay'], self.settings['delay_interval_step_size']))
         reset_time = self.settings['reset_time']
         for delay in gate_delays:
             pulse_sequences.append([Pulse('laser', reset_time, self.settings['count_source_pulse_width']),
@@ -94,6 +94,6 @@ if __name__ == '__main__':
     script, failed, instr = Script.load_and_append({'PulseDelays': 'PulseDelays'}, script, instr)
 
     print(script)
-    print('failed', failed)
+    print(('failed', failed))
     print(instr)
 

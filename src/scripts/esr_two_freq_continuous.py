@@ -81,7 +81,7 @@ class ESRTwoFreqContinuous(Script):
             freq_1 = self.settings['freq_1']
             freq_2 = self.settings['freq_1'] - self.settings['freq_2']
         else:
-            raise NotImplementedError,'unknown setting for range_type'
+            raise NotImplementedError('unknown setting for range_type')
 
 
         sample_rate = float(10) / measurement_time
@@ -154,15 +154,15 @@ class ESRTwoFreqContinuous(Script):
 
         contrast = 100.*(data[1] - data[0])/(data[0] + data[1])
 
-        axes_list[0].lines[0].set_xdata(range(0, len(data[0])))
+        axes_list[0].lines[0].set_xdata(list(range(0, len(data[0]))))
         axes_list[0].lines[0].set_ydata(contrast)
 
         axes_list[0].relim()
         axes_list[0].autoscale_view()
 
-        axes_list[1].lines[0].set_xdata(range(0,len(data[0])))
+        axes_list[1].lines[0].set_xdata(list(range(0,len(data[0]))))
         axes_list[1].lines[0].set_ydata(data[0])
-        axes_list[1].lines[1].set_xdata(range(0, len(data[1])))
+        axes_list[1].lines[1].set_xdata(list(range(0, len(data[1]))))
         axes_list[1].lines[1].set_ydata(data[1])
 
         axes_list[0].set_xlabel('time (arb units)')

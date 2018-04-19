@@ -133,13 +133,13 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
 
 
 
-            for key, element in sorted(settings.iteritems()):
+            for key, element in sorted(settings.items()):
                 if isinstance(element, dict) and key in ['sigins', 'sigouts', 'demods']:
                     if 'channel' in element:
                         channel = element['channel']
                     else:
                         channel = self.settings[key]['channel']
-                    for sub_key, val in sorted(element.iteritems()):
+                    for sub_key, val in sorted(element.items()):
                         if not sub_key == 'channel':
                             commands.append(['/%s/%s/%d/%s'%(self.device, key, channel, sub_key), val])
                         # is the range has been changed we have to reset the amplitude
@@ -158,7 +158,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
                         offset = element['offset']
                     else:
                         offset = self.settings['aux']['offset']
-                        print('offset', offset)
+                        print(('offset', offset))
                     commands.append(['/%s/AUXOUTS/%d/OFFSET'% (self.device, channel),offset ])
                 elif key in ['freq']:
                     channel = self.settings['sigouts']['channel']
@@ -189,7 +189,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
             try:
                 self.daq.set(commands)
             except RuntimeError:
-                print('runtime error. commands\n{:s}'.format(commands))
+                print(('runtime error. commands\n{:s}'.format(commands)))
         else:
             print('hardware is not connected, the command to be send is:')
             print(commands)
@@ -204,7 +204,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
         Returns: reads values from instrument
 
         '''
-        assert key in self._PROBES.keys(), "key assertion failed {:s}".format(str(key))
+        assert key in list(self._PROBES.keys()), "key assertion failed {:s}".format(str(key))
 
         if key.upper() in ['X', 'Y', 'R']:
             # these values we actually request from the instrument

@@ -135,7 +135,7 @@ class GalvoScan(GalvoScanGeneric):
         self.daq_in.stop(ctrtask)
         diffData = np.diff(xLineData)
 
-        summedData = np.zeros(len(self.x_array) / self.clockAdjust)
+        summedData = np.zeros(int(len(self.x_array) / self.clockAdjust))
         for i in range(0, int((len(self.x_array) / self.clockAdjust))):
             summedData[i] = np.sum(
                 diffData[(i * self.clockAdjust + 1):(i * self.clockAdjust + self.clockAdjust - 1)])

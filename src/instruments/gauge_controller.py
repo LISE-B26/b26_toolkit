@@ -150,7 +150,7 @@ class PressureGauge(Instrument):
         pressure = float(err_msg_and_pressure[3:])
 
         if err_msg != '0':
-            print('xx', err_msg, pressure)
+            print(('xx', err_msg, pressure))
             message = 'Pressure query resulted in an error: ' + self.MEASUREMENT_STATUS[err_msg]
             # raise IOError(message) # JG: don't raise the error because this crashes the programm, rather we want to return an invalid value
 
@@ -242,8 +242,8 @@ if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
 
 
-        print(instruments['GaugeController'])
-        print('PumpLinePressureGauge', instruments['GaugeController'].pressure)
+        print((instruments['GaugeController']))
+        print(('PumpLinePressureGauge', instruments['GaugeController'].pressure))
 
         instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': ChamberPressureGauge})
-        print('ChamberPressureGauge', instruments['GaugeController'].pressure)
+        print(('ChamberPressureGauge', instruments['GaugeController'].pressure))

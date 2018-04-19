@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # ===========================================
     def makeFig():
         # plt.scatter(xList,yList) # I think you meant this
-        time = range(len(piezo_list))
+        time = list(range(len(piezo_list)))
         axarr[0].scatter(time, piezo_list)
         axarr[1].scatter(time, detector_list)
 
@@ -86,8 +86,8 @@ if __name__ == '__main__':
         signal = PI.detector
         piezo = PI.piezo
         time.sleep(0.5)
-        print('detector value {:d}'.format(signal))
-        print('piezo value {:d}'.format(piezo))
+        print(('detector value {:d}'.format(signal)))
+        print(('piezo value {:d}'.format(piezo)))
 
         piezo_list.append(piezo)
         detector_list.append(signal)
@@ -104,5 +104,5 @@ if __name__ == '__main__':
     PI.status_PI = False
     fpga.stop()
 
-    print(fpga.session, fpga.status)
-    input("Please type enter to exit and close plot...")
+    print((fpga.session, fpga.status))
+    eval(input("Please type enter to exit and close plot..."))

@@ -57,7 +57,7 @@ class TemperatureController(Instrument):
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
                                                timeout=self.settings['timeout'], parity = serial.PARITY_ODD, bytesize=serial.SEVENBITS)
 
-        print('JG10170616: serial',self.serial_connection)
+        print(('JG10170616: serial',self.serial_connection))
 
     @property
     def _PROBES(self):
@@ -145,5 +145,5 @@ class TemperatureController(Instrument):
 
 if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})
-        print(instruments['TemperatureController']._get_temperature())
+        print((instruments['TemperatureController']._get_temperature()))
 

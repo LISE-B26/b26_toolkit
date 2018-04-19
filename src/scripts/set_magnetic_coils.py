@@ -91,8 +91,8 @@ This script sets the magnetic field coils to the given magnetic field values
                                                                                 self.instruments['MagnetCoils']['instance'].settings['magnetic_fields']['z_field'])
                  )
 
-        print('requested fields', self.instruments['MagnetCoils']['instance'].requested_fields)
-        print('applied fields', self.instruments['MagnetCoils']['instance'].applied_fields)
+        print(('requested fields', self.instruments['MagnetCoils']['instance'].requested_fields))
+        print(('applied fields', self.instruments['MagnetCoils']['instance'].applied_fields))
 
         self.data['new_voltages'] = self.instruments['MagnetCoils']['instance'].new_voltages
         self.data['requested_fields'] = self.instruments['MagnetCoils']['instance'].requested_fields

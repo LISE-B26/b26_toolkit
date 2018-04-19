@@ -28,7 +28,7 @@ class SpectrumAnalyzer(Instrument):
     with trigger generator.
     """
 
-    _INSTRUMENT_IDENTIFIER = u'Keysight Technologies,N9320B,CN0323B356,0B.03.58'
+    _INSTRUMENT_IDENTIFIER = 'Keysight Technologies,N9320B,CN0323B356,0B.03.58'
     # String returned by spectrum analyzer upon querying it with '*IDN?'
 
     _DEFAULT_SETTINGS = Parameter([
@@ -94,7 +94,7 @@ class SpectrumAnalyzer(Instrument):
         if 'mode' in settings:
             self._wait_for_spec_anal()
             self._set_mode(settings['mode'])
-            print('mode',settings['mode'])
+            print(('mode',settings['mode']))
             # since changes in the output_power are not applied to the instruments when in SpectrumAnalyzer mode, we make sure that is is updated once switched back to TrackingAnalyzer
             if settings['mode'] == 'TrackingGenerator':
                 self.update({'output_power':self.settings['output_power']})
@@ -284,11 +284,11 @@ if __name__ == '__main__':
         #
         print('creat spectrum analyzer instance:')
         spec_anal = SpectrumAnalyzer()
-        print spec_anal.is_connected()
-        print spec_anal.mode
+        print(spec_anal.is_connected())
+        print(spec_anal.mode)
         spec_anal.mode = 'TrackingGenerator'
-        print spec_anal.mode
+        print(spec_anal.mode)
 
         print('=============')
 
-        print(spec_anal.settings, type(spec_anal.settings))
+        print((spec_anal.settings, type(spec_anal.settings)))

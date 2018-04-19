@@ -113,7 +113,7 @@ class GalvoScanGeneric(Script):
 
         Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
-        for yNum in xrange(0, Ny):
+        for yNum in range(0, Ny):
 
             if self._ACQ_TYPE == 'line':
                 if self._abort:
@@ -124,7 +124,7 @@ class GalvoScanGeneric(Script):
                 self.updateProgress.emit(int(self.progress))
 
             elif self._ACQ_TYPE == 'point':
-                for xNum in xrange(0, Nx):
+                for xNum in range(0, Nx):
                     if self._abort:
                         break
 
@@ -135,7 +135,7 @@ class GalvoScanGeneric(Script):
                     self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
 
                     # JG: tmp print info about progress
-                    print('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress))
+                    print(('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress)))
 
                     self.updateProgress.emit(int(self.progress))
 

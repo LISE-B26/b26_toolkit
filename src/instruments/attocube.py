@@ -107,7 +107,7 @@ class Attocube(Instrument):
                 self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
                 self._check_error(self.attocube.PositionerClose(device_handle))
             except Exception:
-                print('Attocube not detected. Check connection.', UserWarning)
+                print(('Attocube not detected. Check connection.', UserWarning))
 
         super(Attocube, self).__init__(name, settings)
 
@@ -120,9 +120,9 @@ class Attocube(Instrument):
             settings: a dictionary in the same form as settings with the new values
         '''
         super(Attocube, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if isinstance(value, dict) and key in ['x', 'y', 'z']:
-                for sub_key, sub_value in sorted(value.iteritems()):
+                for sub_key, sub_value in sorted(value.items()):
                     if sub_key == 'on':
                         self._toggle_axis(self._convert_axis(key), sub_value)
                     elif sub_key == 'pos':
@@ -155,7 +155,7 @@ class Attocube(Instrument):
         }
 
     def read_probes(self, key):
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key in ['x_pos', 'y_pos', 'z_pos']:
@@ -345,8 +345,8 @@ class Attocube(Instrument):
             raise Exception
 
 if __name__ == '__main__':
-    print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+    print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     a = Attocube()
     # a.update({'x': {'voltage': 20}})
-    print(a, a.is_connected)
+    print((a, a.is_connected))

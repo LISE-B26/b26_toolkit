@@ -11,12 +11,12 @@ class TestNI7845RReadAnalogIO(TestCase):
     def test_init(self):
         fpga = NI7845RReadWrite()
 
-        print(fpga.settings)
+        print((fpga.settings))
 
-        print(fpga.AI0)
-        print(fpga.AI1)
-        print(fpga.AI2)
-        print(fpga.AI3)
+        print((fpga.AI0))
+        print((fpga.AI1))
+        print((fpga.AI2))
+        print((fpga.AI3))
 
     def test_input_output(self):
 
@@ -42,7 +42,7 @@ class TestNI7845RReadAnalogIO(TestCase):
             if err<0.03:
                 passed =True
 
-            print(val1, val2, err)
+            print((val1, val2, err))
 
             return passed
 

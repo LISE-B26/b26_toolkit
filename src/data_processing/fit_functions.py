@@ -288,7 +288,7 @@ def fit_cose_parameter(t, y, verbose = False):
     """
     [ax, wx, phi, offset] = guess_cose_parameter(t, y)
     if verbose:
-        print('initial estimates [ax, wx, phi, offset]:', [ax, wx, phi, offset])
+        print(('initial estimates [ax, wx, phi, offset]:', [ax, wx, phi, offset]))
     def cost_function_fit(x):
         """
         cost function for fit to sin
@@ -301,7 +301,7 @@ def fit_cose_parameter(t, y, verbose = False):
     opt = optimize.minimize(cost_function_fit, [ax, wx, phi, offset])
 
     if verbose:
-        print('optimization result:', opt)
+        print(('optimization result:', opt))
     [ax, wx, phi, offset] = opt.x
 
     return [ax, wx, phi, offset]
@@ -327,8 +327,8 @@ def get_decay_data(t, y, wo, verbose=False):
     number_of_oscillations = int(np.floor(len(y) / index_per_interval))
 
     if verbose:
-        print(
-        'initial estimates [index_per_interval, number_of_oscillations]:', [index_per_interval, number_of_oscillations])
+        print((
+        'initial estimates [index_per_interval, number_of_oscillations]:', [index_per_interval, number_of_oscillations]))
 
     decay_y = np.array(
         [np.std(y[index_per_interval * i:index_per_interval * (i + 1)]) for i in range(number_of_oscillations)])
@@ -362,11 +362,11 @@ def fit_exp_decay(t, y, offset = False, verbose=False):
 
     if offset:
         if verbose:
-            print('optimization result:', [ao, tau, offset])
+            print(('optimization result:', [ao, tau, offset]))
         return [ao, tau, offset]
     else:
         if verbose:
-            print('optimization result:', [ao, tau])
+            print(('optimization result:', [ao, tau]))
         return [ao, tau]
 
 def estimate_exp_decay_parameters(t,y,offset):
@@ -433,9 +433,9 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     verbose = 1
     if verbose:
         if varibale_phase:
-            print('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter)
+            print(('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter))
         else:
-            print('initial estimates [ax, wx, offset, tau]:', initial_parameter)
+            print(('initial estimates [ax, wx, offset, tau]:', initial_parameter))
 
     def cost_function_fit(x):
         """
@@ -463,7 +463,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     # [ax, wx, phi, offset, tau] = opt.x
 
     if verbose:
-        print('optimization result:', opt)
+        print(('optimization result:', opt))
     if return_guess:
         return opt.x, initial_parameter
     else:

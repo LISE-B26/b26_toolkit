@@ -5,6 +5,7 @@ except:
     UEyeCamera = None
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 
+
 class TakeImage(Script):
     """
     This wraps the ueye_camera get_frame method in a Script. This can be used to take images from the gui, or used like

@@ -39,11 +39,11 @@ this gives a one dimensional dataset
 
     _DEFAULT_SETTINGS = [
         Parameter('channels', [
-            Parameter('channel_WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
-            Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
-            Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
+            Parameter('channel_WP_1', 5, list(range(8)), 'analog channel that controls waveplate 1'),
+            Parameter('channel_WP_2', 6, list(range(8)), 'analog channel that controls waveplate 2'),
+            Parameter('channel_WP_3', 7, list(range(8)), 'analog channel that controls waveplate 3'),
             Parameter('channel_OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_detector', 0, range(4), 'analog input channel of the detector signal')
+            Parameter('channel_detector', 0, list(range(4)), 'analog input channel of the detector signal')
             ]),
         Parameter('setpoints',[
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
@@ -103,7 +103,7 @@ this gives a one dimensional dataset
         channel_in = 'AI{:d}'.format(self.settings['channels']['channel_detector'])
 
         wp_value = getattr(fpga_io, channel_out)
-        print('== current wp value', wp_value)
+        print(('== current wp value', wp_value))
 
 
         dictator = {}
@@ -228,11 +228,11 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
     _DEFAULT_SETTINGS = [
         Parameter('channels', [
-            Parameter('channel_WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
-            Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
-            Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
+            Parameter('channel_WP_1', 5, list(range(8)), 'analog channel that controls waveplate 1'),
+            Parameter('channel_WP_2', 6, list(range(8)), 'analog channel that controls waveplate 2'),
+            Parameter('channel_WP_3', 7, list(range(8)), 'analog channel that controls waveplate 3'),
             Parameter('channel_OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
-            Parameter('channel_detector', 4, range(8), 'analog input channel of the detector signal')
+            Parameter('channel_detector', 4, list(range(8)), 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
@@ -364,8 +364,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
             self.updateProgress.emit(self.progress)
 
             direction = get_direction(detector_value, slope)
-            print('----> out', v_out, voltage_to_int((v_out)))
-            print('----> det', detector_value, slope, direction)
+            print(('----> out', v_out, voltage_to_int((v_out))))
+            print(('----> det', detector_value, slope, direction))
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
                 v_step = self.settings['optimization']['dV'] # start with initial step size
@@ -478,12 +478,12 @@ The script
 
     _DEFAULT_SETTINGS = [
         Parameter('channels', [
-            Parameter('WP_1', 5, range(8), 'analog channel that controls waveplate 1'),
-            Parameter('WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
-            Parameter('WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
+            Parameter('WP_1', 5, list(range(8)), 'analog channel that controls waveplate 1'),
+            Parameter('WP_2', 6, list(range(8)), 'analog channel that controls waveplate 2'),
+            Parameter('WP_3', 7, list(range(8)), 'analog channel that controls waveplate 3'),
             Parameter('OnOff', 4, [4, 5, 6, 7], 'digital channel that turns polarization controller on/off'),
-            Parameter('FB', 5, range(4, 8), 'digital channel that controls FB off/on (True/False)'),
-            Parameter('detector', 4, range(8), 'analog input channel of the detector signal')
+            Parameter('FB', 5, list(range(4, 8)), 'digital channel that controls FB off/on (True/False)'),
+            Parameter('detector', 4, list(range(8)), 'analog input channel of the detector signal')
         ]),
         Parameter('setpoints', [
             Parameter('V_1', 2.4, float, 'voltage applied to waveplate 1'),
@@ -883,19 +883,19 @@ this gives a three dimensional dataset
 
     _DEFAULT_SETTINGS = [
         Parameter('WP_1', [
-            Parameter('channel', 5, range(8), 'analog channel that controls waveplate 1'),
+            Parameter('channel', 5, list(range(8)), 'analog channel that controls waveplate 1'),
             Parameter('V_min', 0.0, float, 'minimum voltage of scan'),
             Parameter('V_max', 5.0, float, 'maximum voltage of scan'),
             Parameter('dV', 0.2, float, 'voltage step of scan')
         ]),
         Parameter('WP_2', [
-            Parameter('channel', 6, range(8), 'analog channel that controls waveplate 1'),
+            Parameter('channel', 6, list(range(8)), 'analog channel that controls waveplate 1'),
             Parameter('V_min', 0.0, float, 'minimum voltage of scan'),
             Parameter('V_max', 5.0, float, 'maximum voltage of scan'),
             Parameter('dV', 0.2, float, 'voltage step of scan')
         ]),
         Parameter('WP_3', [
-            Parameter('channel', 7, range(8), 'analog channel that controls waveplate 1'),
+            Parameter('channel', 7, list(range(8)), 'analog channel that controls waveplate 1'),
             Parameter('V_min', 0.0, float, 'minimum voltage of scan'),
             Parameter('V_max', 5.0, float, 'maximum voltage of scan'),
             Parameter('dV', 0.2, float, 'voltage step of scan')
@@ -904,7 +904,7 @@ this gives a three dimensional dataset
         # Parameter('channel_WP_2', 6, range(8), 'analog channel that controls waveplate 2'),
         # Parameter('channel_WP_3', 7, range(8), 'analog channel that controls waveplate 3'),
         Parameter('channel_OnOff', 4, [4,5,6,7], 'digital channel that turns polarization controller on/off'),
-        Parameter('channel_detector', 0, range(4), 'analog input channel of the detector signal')
+        Parameter('channel_detector', 0, list(range(4)), 'analog input channel of the detector signal')
     ]
 
     _INSTRUMENTS = {
@@ -995,9 +995,9 @@ this gives a three dimensional dataset
             v3 = float(s.split(',')[1].split(' WP3 = ')[1].split('V')[0])
             return v1, v3
 
-        v1_array = sorted(list(set([get_voltages_from_tag(k)[0] for k, value in data.iteritems()])))
-        v3_array = sorted(list(set([get_voltages_from_tag(k)[1] for k, value in data.iteritems()])))
-        v2_array = sorted(list(set([get_voltages_from_tag(k)[1] for k, value in data.iteritems()])))
+        v1_array = sorted(list(set([get_voltages_from_tag(k)[0] for k, value in data.items()])))
+        v3_array = sorted(list(set([get_voltages_from_tag(k)[1] for k, value in data.items()])))
+        v2_array = sorted(list(set([get_voltages_from_tag(k)[1] for k, value in data.items()])))
 
         def get_img_df(v3):
             df = pd.DataFrame(
@@ -1104,7 +1104,7 @@ this gives a three dimensional dataset
         if isinstance(value2, float):
             value2 = '{:0.2f}V'.format(value2)
 
-        print('p', perm, value1, value2)
+        print(('p', perm, value1, value2))
 
         scan_data = data_panel.transpose(perm[0], perm[1], perm[2])[value1][value2]
 
@@ -1124,7 +1124,7 @@ this gives a three dimensional dataset
     def plot(self, axes1):
 
         last_key = sorted(self.data.keys())[-1]
-        print('last_key', last_key)
+        print(('last_key', last_key))
         volt_range = np.arange(0, 5, 0.2)
         axes1.plot(volt_range, self.data[last_key], '-o')
 

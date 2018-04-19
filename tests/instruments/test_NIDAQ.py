@@ -13,5 +13,5 @@ class TestDAQ(TestCase):
         self.someDAQ.gated_DI_run()
         result, _ = self.someDAQ.gated_DI_read(timeout=30)
         for i in range(0, 5):
-            print(result[i])
+            print((result[i]))
         self.someDAQ.gated_DI_stop()

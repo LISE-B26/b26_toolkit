@@ -43,7 +43,7 @@ from win32com.client import Dispatch
 import pythoncom
 
 # stuff for manual correction
-import Queue
+import queue
 import ipywidgets as widgets
 from IPython.display import display, clear_output
 import threading
@@ -66,8 +66,8 @@ def process_esrs(source_folder, target_folder):
 
 
     # define queue for inter-thread communication
-    next_queue = Queue.Queue()
-    current_id_queue = Queue.Queue()
+    next_queue = queue.Queue()
+    current_id_queue = queue.Queue()
 
     #set up manual correction gui
     widget_list = process_manual_esrs(nv_type_manual, b_field_manual, next_queue, current_id_queue)
@@ -189,7 +189,7 @@ def autofit_esrs(folder):
         fit_data_set_single.update({'B-field (gauss)': get_B_field(nv_type, fit_params)})
 
         # convert to dataframe
-        fit_data_set_single = pd.DataFrame.from_dict({k: [v] for k, v in fit_data_set_single.iteritems()})
+        fit_data_set_single = pd.DataFrame.from_dict({k: [v] for k, v in fit_data_set_single.items()})
 
         if fit_data_set is None:
             fit_data_set = pd.DataFrame(fit_data_set_single)
@@ -223,7 +223,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
     data_filepath = os.path.join(filepath, 'data-manual.csv')
     if os.path.exists(data_filepath):
         prev_data = pd.read_csv(data_filepath)
-        if 'manual_peak_1' in prev_data.keys():
+        if 'manual_peak_1' in list(prev_data.keys()):
             for i in range(0, len(prev_data['manual_B_field'])):
                 b_field_manual[i] = prev_data['manual_B_field'][i]
                 nv_type_manual[i] = prev_data['manual_nv_type'][i]
@@ -543,7 +543,7 @@ def process_manual_esrs(nv_type_manual, b_field_manual, next_queue, current_id_q
         current_id = current_id_queue.get()
         if upper_peak.value == 0:
             if np.abs(lower_peak.value - 2.87e9) > 0.05e9:
-                print('current_id', current_id)
+                print(('current_id', current_id))
                 nv_type_manual[current_id] = 'split'
                 # b_field_manual[current_id] = (np.abs(lower_peak.value - 2.87e9) * 2.) / (5.6e6)
                 lower_peak.value = 0

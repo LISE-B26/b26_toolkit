@@ -11,7 +11,7 @@ from PyLabControl.src.core.scripts import Script
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
 
-import Queue
+import queue
 import threading
 
 import scipy.spatial
@@ -28,7 +28,7 @@ def pair_nv_images(img_path_old, img_path_new, return_queue):
 
 def setup_button():
     # define queues for inter-thread communication
-    done_queue = Queue.Queue()
+    done_queue = queue.Queue()
 
     # define buttons to be added to display
     button_done = widgets.Button(description="Done")
@@ -121,12 +121,12 @@ def perform_affine_transform(img_path_old, img_path_new, done_queue, return_queu
     while done_queue.empty():
         time.sleep(.5)
 
-    pt11 = map(float, pt11_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
-    pt12 = map(float, pt12_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
-    pt13 = map(float, pt13_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
-    pt21 = map(float, pt21_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
-    pt22 = map(float, pt22_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
-    pt23 = map(float, pt23_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3])
+    pt11 = list(map(float, pt11_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
+    pt12 = list(map(float, pt12_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
+    pt13 = list(map(float, pt13_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
+    pt21 = list(map(float, pt21_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
+    pt22 = list(map(float, pt22_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
+    pt23 = list(map(float, pt23_widget.value.replace(" ", "").replace(':', ',').split(',')[1:3]))
 
     Avec = calc_transform_matrix((pt11, pt12, pt13), (pt21, pt22, pt23))
     Amat = [[Avec[0], Avec[1], Avec[2]], [Avec[3], Avec[4], Avec[5]], [0, 0, 1]]

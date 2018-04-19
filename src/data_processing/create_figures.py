@@ -43,7 +43,7 @@ def galvo_images(data_path, target_path = None):
         target_path = DATA_PATH
 
     data  = Script.load_data(DATA_PATH)
-    number_of_images = len([k for k in data.keys() if len(k.split('image'))>1])
+    number_of_images = len([k for k in list(data.keys()) if len(k.split('image'))>1])
 
     for c in range(number_of_images):
         k  = 'image_{:d}'.format(c)

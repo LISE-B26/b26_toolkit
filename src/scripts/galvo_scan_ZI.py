@@ -69,7 +69,7 @@ class GalvoScanZI(GalvoScanGeneric):
         elif isinstance(galvo_position, dict):
             pass
         else:
-            print('asdasdad galvo_position', galvo_position)
+            print(('asdasdad galvo_position', galvo_position))
             raise TypeError
 
         self.scripts['setlaser'].update({'point':galvo_position}) #update position for laser pointer
@@ -105,7 +105,7 @@ class GalvoScanZI(GalvoScanGeneric):
             data: data (dictionary that contains keys image_data, extent) if not provided use self.data
         """
 
-        print('axes list lenght plot', len(axes_list))
+        print(('axes list lenght plot', len(axes_list)))
         if data is None:
             data = self.data
 
@@ -120,7 +120,7 @@ class GalvoScanZI(GalvoScanGeneric):
         Args:
             axes_list: list of axes objects on which to plot plots the esr on the first axes object
         """
-        print('axes list lenght update', len(axes_list))
+        print(('axes list lenght update', len(axes_list)))
 
         update_fluorescence(self.data['image_data'], axes_list[0])
 

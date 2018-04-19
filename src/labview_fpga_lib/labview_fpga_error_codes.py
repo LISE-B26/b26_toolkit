@@ -95,9 +95,9 @@ if __name__ =='__main__':
     try:
         raise LabviewFPGAException(61211)
     except LabviewFPGAException as e:
-        print "Received error with code:", e.message, e.code
+        print("Received error with code:", e.message, e.code)
 
     try:
         raise LabviewFPGAException(-61015)
     except LabviewFPGAException as e:
-        print "Received error with code:", e.message, e.code
+        print("Received error with code:", e.message, e.code)

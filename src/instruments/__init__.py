@@ -16,28 +16,28 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from gauge_controller import PressureGauge, PumpLinePressureGauge, ChamberPressureGauge
-from spectrum_analyzer import SpectrumAnalyzer
-from ni_daq import NI6259, NI9263, NI9402
-from piezo_controller import PiezoController
-from zurich_instruments import ZIHF2
-from pulse_blaster import B26PulseBlaster, Pulse
-from maestro import MaestroLightControl
-from attocube import Attocube
-from microwave_generator import MicrowaveGenerator
-from magnet_coils import MagnetCoils #JG 170909: commented out because Assertino erro upon loading
-from temperature_controller import TemperatureController
-from montana import CryoStation
+from .gauge_controller import PressureGauge, PumpLinePressureGauge, ChamberPressureGauge
+from .spectrum_analyzer import SpectrumAnalyzer
+from .ni_daq import NI6259, NI9263, NI9402
+from .piezo_controller import PiezoController
+from .zurich_instruments import ZIHF2
+from .pulse_blaster import B26PulseBlaster, Pulse
+from .maestro import MaestroLightControl
+from .attocube import Attocube
+from .microwave_generator import MicrowaveGenerator
+from .magnet_coils import MagnetCoils #JG 170909: commented out because Assertino erro upon loading
+from .temperature_controller import TemperatureController
+from .montana import CryoStation
 
 # Will not be using labview_fpga code because we aren't using it now and it's a pain
 # from labview_fpga import NI7845RMain
 # from labview_fpga import FPGA_GalvoScan
-from newport_smc100 import SMC100
-from awg import AWG
-from keysight_oscilloscope import Oscilloscope
-from dcservo_kinesis_dll import KDC001
-from magnet_coils import MagnetCoils
-from ueye_camera import UEyeCamera
+from .newport_smc100 import SMC100
+from .awg import AWG
+from .keysight_oscilloscope import Oscilloscope
+from .dcservo_kinesis_dll import KDC001
+from .magnet_coils import MagnetCoils
+from .ueye_camera import UEyeCamera
 
 # from labview_fpga import NI7845RReadWrite, NI7845RPidSimpleLoop, FPGA_GalvoScan, NI7845RReadFifo
 

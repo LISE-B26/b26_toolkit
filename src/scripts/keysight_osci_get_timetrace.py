@@ -89,7 +89,7 @@ class KeysightOsciGetTimeTrace(Script):
 
         F, P = power_spectral_density(data, dt)
 
-        print('JG adasd', data, dt)
+        print(('JG adasd', data, dt))
 
         axes_list[1].plot(F, P, '-')
         axes_list[1].set_xlabel('freq (Hz)')

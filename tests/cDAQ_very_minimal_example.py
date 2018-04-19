@@ -94,10 +94,10 @@ class DAQ():
             clk_source: the PFI channel of the hardware clock to lock the output to, or "" to use the default
                 internal clock
         """
-        if 'analog_output' not in self.settings.keys():
+        if 'analog_output' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog output')
         for c in channels:
-            if not c in self.settings['analog_output'].keys():
+            if not c in list(self.settings['analog_output'].keys()):
                 raise KeyError('This is not a valid analog output channel')
 
         task = {
@@ -221,7 +221,7 @@ class DAQ():
 
         channels = []
         voltages = []
-        for k, v in output_dict.iteritems():
+        for k, v in output_dict.items():
             channels.append('ao' + k.replace('ao', ''))  # make sure the key has the right format, e.g. ao0
             voltages.append(v)
 
@@ -277,7 +277,7 @@ def RUN_ME():
 
     #begin scan
     # start time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
     # set ao0 and ao1 to 0 V
     initPt = [0, 0]
@@ -286,6 +286,6 @@ def RUN_ME():
          settings['DAQ_channels']['y_ao_channel']: initPt[1]})
 
     # end time
-    print(datetime.datetime.now())
+    print((datetime.datetime.now()))
 
 RUN_ME()
