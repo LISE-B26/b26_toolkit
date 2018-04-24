@@ -634,7 +634,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
 
 
         try:
-            fits = fit_rabi_decay(tau, counts, varibale_phase=True)
+            fits = fit_rabi_decay(tau, counts, variable_phase=True)
             self.data['fits'] = fits
         except:
             self.data['fits'] = None
@@ -739,9 +739,11 @@ This script applies a microwave pulse at fixed power for varying durations to me
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
+
 class Rabi_double_init(PulseBlasterBaseScript): # ER 5.25.2017
     """
-This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+This script applies a microwave pulse at fixed power for varying durations to measure Rabi oscillations.
+To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time.
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -776,21 +778,21 @@ This script applies a microwave pulse at fixed power for varying durations to me
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(Rabi_double_init, self)._function(self.data)
+        super(Rabi_double_init, self)._function()
 
-        counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
-        tau = self.data['tau']
+        if 'counts' in self.data.keys() and 'tau' in self.data.keys():
+            counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
+            tau = self.data['tau']
 
-
-        try:
-            fits = fit_rabi_decay(tau, counts, varibale_phase=True)
-            self.data['fits'] = fits
-        except:
-            self.data['fits'] = None
-            self.log('rabi fit failed')
+            try:
+                fits = fit_rabi_decay(tau, counts, variable_phase=True)
+                self.data['fits'] = fits
+            except:
+                self.data['fits'] = None
+                self.log('rabi fit failed')
 
     def _create_pulse_sequences(self):
-        '''
+        """
 
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
@@ -800,12 +802,14 @@ This script applies a microwave pulse at fixed power for varying durations to me
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
 
-        '''
+        """
         pulse_sequences = []
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+        tau_list = list(range(int(self.settings['tau_times']['min_time']),
+                              int(self.settings['tau_times']['max_time']),
+                              self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -819,21 +823,25 @@ This script applies a microwave pulse at fixed power for varying durations to me
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
 
         for tau in tau_list:
-            pulse_sequence = \
-                [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
-                 Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time),
-                 ]
+            pulse_sequence = [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
+                              Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time)]
+
             # if tau is 0 there is actually no mw pulse
             if tau > 0:
-                pulse_sequence += [Pulse(microwave_channel, laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time, tau)]
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time,
+                                            tau))
 
-            pulse_sequence += [
-                Pulse('laser', laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout + delay_readout, meas_time)
-            ]
+            pulse_sequence.append(Pulse('laser',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout,
+                                        nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + delay_mw_readout + delay_readout,
+                                        meas_time))
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
+
 
         return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
 
@@ -854,7 +862,7 @@ This script applies a microwave pulse at fixed power for varying durations to me
         if data is None:
             data = self.data
 
-        if data['fits'] is not None:
+        if 'fits' in data.keys() and data['fits'] is not None:
             counts = data['counts'][:,1]/ data['counts'][:,0]
             tau = data['tau']
             fits = data['fits'] # amplitude, frequency, phase, offset
@@ -3247,7 +3255,7 @@ if __name__ == '__main__':
     xy8.update({'Tracking':{'on/off':False}}) # turn off tracking because this will cause an error if we don't run findnv
     print(xy8)
 
-    xy8.validate()
+    xy8.is_valid()
 
 
 
