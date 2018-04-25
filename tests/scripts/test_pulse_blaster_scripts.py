@@ -20,7 +20,7 @@ class TestScriptDummy(TestCase):
             'on/off': False}})  # turn off tracking because this will cause an error if we don't run findnv
         print(xy8)
 
-        xy8.validate()
+        xy8.is_valid()
 
 
 

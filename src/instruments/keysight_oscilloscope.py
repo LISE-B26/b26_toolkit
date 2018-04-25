@@ -249,7 +249,6 @@ class Oscilloscope(Instrument):
 
 
 
-        print(('adadaada', self.settings['waveform']))
         format = str(self.settings['waveform']['format']).lower()
         # depending on the setting we get differnet data back
         if format == 'ascii':

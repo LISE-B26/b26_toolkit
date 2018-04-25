@@ -111,7 +111,7 @@ class DAQ(Instrument):
     # currently includes four analog outputs, five analog inputs, and one digital counter input. Add
     # more as needed and your device allows
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'Dev1', ['Dev1'], 'Name of DAQ device'),
+        Parameter('device', 'Dev1', ['Dev1', 'cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1'], 'Name of DAQ device'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('analog_output',
@@ -256,7 +256,6 @@ class DAQ(Instrument):
             settings: a settings dictionary in the standard form
         """
         super(DAQ, self).update(settings)
-        print(('settings', settings))
         for key, value in settings.items():
             if key == 'device':
                 if not (self.is_connected):
@@ -346,7 +345,6 @@ class DAQ(Instrument):
         task['task_handle'] = TaskHandle(1)
 
         # set up clock
-        print(counter_out_str)
         self._dig_pulse_train_cont(task, .5, counter_out_str)
         # set up counter using clock as reference
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
@@ -774,15 +772,13 @@ class DAQ(Instrument):
             list of voltages (length N)
 
         """
-        print('self.settings in get_analog_voltages:')
-        print((self.settings))
         daq_channels_str = ''
         for channel in channel_list:
             if channel in self.settings['analog_output']:
                 daq_channels_str += self.settings['device'] + '/_' + channel + '_vs_aognd, '
             elif (channel in self.settings['analog_input']):
                 daq_channels_str += self.settings['device'] + '/' + channel + ', '
-        daq_channels_str = daq_channels_str[:-2]  # strip final comma period
+        daq_channels_str = daq_channels_str[:-2].encode('ascii')  # strip final comma period
         data = (float64 * len(channel_list))()
         sample_num = 1
         get_voltage_taskHandle = TaskHandle(0)

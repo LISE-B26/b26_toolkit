@@ -283,7 +283,6 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
             Parameter('delay_mw_readout', 100, int, 'delay between laser on and readout (in ns)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
         Parameter('max_points', 100, int, 'number of points to display if 0 show all')
     ]
 
@@ -418,7 +417,6 @@ This is different from the actual pulsed ESR, where we apply pi/2 pulses to get 
             Parameter('delay_mw_readout', 100, int, 'delay between laser on and readout (in ns)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -615,7 +613,6 @@ This script applies a microwave pulse at fixed power for varying durations to me
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -766,7 +763,6 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -908,7 +904,6 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1046,7 +1041,6 @@ This script sweeps the readout pulse duration. To symmetrize the sequence betwee
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1179,7 +1173,6 @@ This script sweeps the readout pulse rise time. To symmetrize the sequence betwe
             Parameter('readout_window', 300, int, 'length of readout window')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1318,7 +1311,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1472,7 +1464,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1648,7 +1639,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -1843,7 +1833,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2019,7 +2008,6 @@ This script applies a microwave pulse at fixed power for varying durations to me
         Parameter('meas_time', 300, float, 'measurement time after rabi sequence (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2191,7 +2179,6 @@ It applies a sliding measurement window with respect to a readout from the NV 0 
         Parameter('measurement_window_width', 20, int, 'the width of the sliding readout window'),
         Parameter('laser_on_time', 500, list(range(100, 1201, 100)), 'time laser is on for readout'),
         Parameter('ref_meas_off_time', 1000, int, 'time reset laser is turned off before reference measurement is made'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
         Parameter('num_averages', 1000000, int, 'number of averages')
     ]
 
@@ -2277,7 +2264,6 @@ This script runs an XY pulse sequence.
             Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)')
         ]),
         Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2441,7 +2427,6 @@ This script runs a CPMG pulse sequence.
             Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)')
         ]),
         Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2583,8 +2568,7 @@ Tau/2 is the time between the center of the pulses!
             Parameter('delay_mw_init', 1000, int, 'delay between initialization and mw (in ns)'),
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)')
         ]),
-        Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
+        Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)')
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2724,8 +2708,7 @@ This script runs a XY sequence for different number of pi pulses. Without pi-pul
         Parameter('reset_time', 1000, int, 'time duration of the green laser to reset the spin state'),
         Parameter('delay_init_mw', 100, int, 'delay between initialization and mw (in ns)'),
         Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
+        Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)')
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -2822,7 +2805,6 @@ This script measures the relaxation time of an NV center
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('nv_reset_time', 3000, int, 'time with laser on at the beginning to reset state (ns)'),
         Parameter('ref_meas_off_time', 1000, int,'laser off time before taking reference measurement at the end of init (ns)'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
         Parameter('tau_scale', 'linear', ['linear', 'logarithmic'])
     ]
 
@@ -2898,7 +2880,6 @@ Optionally a microwave pulse is applied as part of the initialization to prepare
                 Parameter('ref_meas_off_time', 1000, int, 'laser off time before taking reference measurement at the end of init (ns)')
             ]
         ),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15 ns commands'),
         Parameter('apply mw-pulse', True, bool, 'if true a pi pulse is at the beginning of the measurement'),
         Parameter('mw-pulse',
                   [
@@ -3024,7 +3005,6 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}

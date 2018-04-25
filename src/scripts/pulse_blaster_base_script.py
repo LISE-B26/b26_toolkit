@@ -88,8 +88,8 @@ for a given experiment
         print(('>>>> progress', int(round(self.progress))))
         return int(round(self.progress))
 
-    def _function(self, in_data={}):
-        '''
+    def _function(self, in_data=None):
+        """
         This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
         is performed.
 
@@ -103,18 +103,22 @@ for a given experiment
              normalization), and the third (optional) value is the counts in the |1> state (the minimum counts for
              normalization)
 
-        '''
+        """
         self.sequence_index = 0
 
-        # self.validate and create pulses
-        if self.validate(create_pulse=True) is False:
+        # self.is_valid and create pulses
+        self.pulse_sequences, self.num_averages, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
+        if not self.is_valid():
             self._abort = True
-            return # exit function in case validation fails
+            print('Aborting...')
+            return  # exit function in case validation fails
 
+        if in_data is None:
+            in_data = {}
 
-        #calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
-        #called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
-        #never receives the rest of the counts (number too high)
+        # calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
+        # called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
+        # never receives the rest of the counts (number too high)
         num_daq_reads = 0
 
         for pulse in self.pulse_sequences[0]:
@@ -124,16 +128,18 @@ for a given experiment
         norms = np.repeat([0.0], (num_daq_reads - 1))
         self.count_data = np.repeat([np.append(signal, norms)], len(self.pulse_sequences), axis=0)
         self.data = in_data
-        self.data.update({'tau': np.array(self.tau_list), 'counts': deepcopy(self.count_data)})
+        self.data['tau'] = np.array(self.tau_list)
+        self.data['counts'] = deepcopy(self.count_data)
 
-        #divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
-        #This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
-        #number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
+        # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
+        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
+        # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
             self.scripts['find_nv'].run()
             if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
+                self.log('Could not find an NV in FindNV.')
                 self._abort = True
                 return  # exit function in case no NV is found
 
@@ -160,7 +166,7 @@ for a given experiment
         #     self.save_log()
         #     self.save_image_to_disk()
 
-    def _plot(self, axes_list, data = None):
+    def _plot(self, axes_list, data=None):
         """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
@@ -179,15 +185,13 @@ for a given experiment
 #        else:
         if data is None:
             data = self.data
-        counts = data['counts']
-        x_data = data['tau']
-        axis1 = axes_list[0]
-    # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
-    # if counts != []:
-    #     plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
-        plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
-        axis2 = axes_list[1]
-        plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
+
+        if 'counts' in data.keys():
+            # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
+            # if counts != []:
+            #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts'])
+            plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts']])
+            plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
 
     def _update_plot(self, axes_list):
         '''
@@ -314,7 +318,7 @@ for a given experiment
         raise NotImplementedError
 
     def _normalize(self, signal, baseline_max=0, baseline_min=0):
-        '''
+        """
         Normalizes the signal values given a maximum value (counts in |0>) and optionally minimum value (counts in |1>,
         set to 0 if none provided). If no maximum given, returns the bare signal.
         Args:
@@ -324,11 +328,11 @@ for a given experiment
 
         Returns:
 
-        '''
+        """
         if baseline_max == 0:
             return signal
         else:
-            return ((signal - baseline_min) / (baseline_max - baseline_min))
+            return (signal - baseline_min) / (baseline_max - baseline_min)
 
     def _normalize_to_kCounts(self, signal, gate_width=1, num_averages=1):
         """
@@ -341,9 +345,9 @@ for a given experiment
         Returns:
 
         """
-        return (1. * signal * (1E6 / (gate_width * num_averages)))  # 1E6 is to convert from ns to ms
+        return signal * 1E6 / (gate_width * num_averages)  # 1E6 is to convert from ns to ms
 
-    def validate(self, create_pulse = True, verbose = True):
+    def is_valid(self, pulse_sequences=None, verbose=False):
         """
 
         Checks if a pulse blaster script is valid
@@ -356,141 +360,104 @@ for a given experiment
 
         """
 
-        valid = True
-
         # make sure that we have the pulse sequences that correspond to the current settings
-        if create_pulse:
-            self.create_pulse_sequences()
 
-        if verbose:
-            print(('validate: number of pulse sequences {:d}'.format(len(self.pulse_sequences))))
+        if pulse_sequences is None:
+            pulse_sequences, __, __, __ = self.create_pulse_sequences()
 
-        failure_list = self._find_bad_pulse_sequences(self.pulse_sequences)
-
-        # the failure list if no bad pulses is a list of empty lists
-        # thus if there is any non empty list, we know that a pulse sequence has failed
-        if any([f != [] for f in failure_list])>0:
-            self.log('WARNING: pulse_blaster_validation failed!!!')
-            self.log('Reason: at least one bad pulse sequence!')
-            valid = False
-
-            if verbose:
-
-                # call the function _find_bad_pulse_sequences but with more output
-                print('===== details about failed pulses ======')
-
-                for fail in failure_list:
-                    if fail != []:
-                        self._find_bad_pulse_sequences(fail, verbose = True)
-
+        for pulse_sequence in pulse_sequences:
+            if self._is_bad_pulse_sequence(pulse_sequence):
+                return False
 
         # give warning to user if tracking is on and you haven't ran find nv
         if self.settings['Tracking']['on/off']:
-
             if 'fluorescence' in self.scripts['find_nv'].data:
                 self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
             else:
-                self.log('WARNING: pulse_blaster_validation failed!!!')
-                self.log('Reason: no data in find_nv, check tracking!')
-                valid = False
+                self.log('WARNING: pulse_blaster_validation failed! No data in find_nv, check tracking!')
 
-        if valid:
-            self.log('pulse_blaster_validation passed!!!')
+        self.log('pulse_blaster_validation passed.')
 
-        return valid
+        return True
 
+    def _get_overlapping_pulses(self, pulse_sequence, verbose=False):
+        if self.settings['mw_switch']['no_iq_overlap']:
+            overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence,
+                                                                         combine_channels=['microwave_i',
+                                                                                           'microwave_q'])
+        else:
+            overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
 
+        if verbose and overlapping_pulses:
+                print('Found overlapping pulses:', overlapping_pulses)
 
-    def _find_bad_pulse_sequences(self, pulse_sequences, combine_iq = True, verbose=True):
+        return overlapping_pulses
+
+    def _get_commands_that_are_too_short(self, pulse_sequence, verbose=False):
+        pulse_blaster = self.instruments['PB']['instance']
+
+        delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
+        pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
+        pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
+
+        short_pulses = [command for command in pb_commands if command.duration < 15]
+
+        if verbose and short_pulses:
+            print('Found short pulses: ', short_pulses)
+
+        return short_pulses
+
+    def _has_bad_pulses(self, pulse_sequence, verbose=False):
+        for pulse in pulse_sequence:
+            if 0 < pulse.start_time < 1:
+                if verbose:
+                    print('Found pulse with start time between 0 and 1 -- remember that the units are nanoseconds.')
+                return True
+            if pulse.duration < 15:
+                if verbose:
+                    print('Found pulse with duration less than 15 ns --- remember the pulse blaster cannot do that')
+                return True
+
+        return False
+
+    def _is_too_complicated_for_pulse_blaster(self, pulse_sequence, verbose=False):
+        pulse_blaster = self.instruments['PB']['instance']
+        delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
+        pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
+        pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
+
+        if len(pb_commands) < 4096:
+            return False
+        else:
+            if verbose:
+                print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
+            return True
+
+    def _is_bad_pulse_sequence(self, pulse_sequence, combine_iq=True, verbose=False):
         """
 
-        validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains from the pulse-blaster,
+        validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains of the pulseblaster,
         e.g.
             - that pulses have to be multiples of 2.5ns
             - pulses have to be spaced at least 15ns apart
             - pulse can not be overlapping
 
         :return:
-            failure_list
+            failure_list: a list of either tuples of overlapping pulses or pulses that are too short (< 15 ns)
         """
-
-        pulse_blaster = self.instruments['PB']['instance']
-        failure_list = []
-
         if verbose:
             print(('checking {:d} pulse sequences'.format(len(pulse_sequences))))
-        for pulse_sequence in pulse_sequences:
 
-            if combine_iq:
-                overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence, combine_channels = ['microwave_i', 'microwave_q'])
-            else:
-                overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
-
-            if not overlapping_pulses == []:
-                failure_list.append(overlapping_pulses)
-                if verbose:
-                    print('failed pb pulses: found overlapping pulses!!')
-                    print(('overlapping_pulses', overlapping_pulses))
-                continue
-            for pulse in pulse_sequence:
-                assert pulse.start_time == 0 or pulse.start_time > 1, \
-                    'found a start time that was between 0 and 1. Remember pulse times are in nanoseconds!'
-                assert pulse.duration > 1, \
-                    'found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
-
-            # process the pulse collection into a format that is designed to deal with the low-level spincore API
-            delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
-            pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
-            pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
-
-            assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
-
-            short_pulses = [command for command in pb_commands if command.duration < 15]
-            if short_pulses:
-                failure_list.append(short_pulses[0])
-                if verbose:
-                    print('failed pb pulses: found short pulses!!')
-            else:
-                failure_list.append([])  # good sequence
-
-        return failure_list
-
-    def _remove_bad_pulse_sequences(self, pulse_sequences, tau_list, failure_list, verbose = True):
-        """
-        removes the bad pulse sequences (failure_list) from pulse_sequences and returns the cleaned pulse_sequences
-
-        Args:
-            pulse_sequences: pulse_sequences: input pulse_sequences that have bad sequences that can't run on the pulse blaster
-            tau_list: list of taus corresponding to the pulse sequences
-            failure_list: list of bad pulses that should be removed
-
-        Returns: pulse_sequences, tau_list with bad sequences removed
-
-        """
-        if verbose:
-            print(('len pulse_sequences before', len(pulse_sequences)))
-        delete_list = []
-        for index, result in enumerate(failure_list):
-            if not result == []:
-                delete_list.append(index)
-
-        if not delete_list == []:
-            delete_list.reverse()
-            for index in delete_list:
-                if verbose:
-                    print(('removing sequence', pulse_sequences[index]))
-                pulse_sequences.pop(index)
-
-        if len(delete_list)>0:
-            self.log('removed pulse sequences for following tau times: {:s}'.format([tau_list[index] for index in delete_list]))
-        tau_list = np.delete(np.array(tau_list), delete_list).tolist()
-
-
-        if verbose:
-
-            print(('len pulse_sequences after', len(pulse_sequences)))
-
-        return pulse_sequences, tau_list
+        if self._get_overlapping_pulses(pulse_sequence, verbose=verbose):
+            return True
+        elif self._get_commands_that_are_too_short(pulse_sequence, verbose=verbose):
+            return True
+        elif self._has_bad_pulses(pulse_sequence, verbose=verbose):
+            return True
+        elif self._is_too_complicated_for_pulse_blaster(pulse_sequence, verbose=verbose):
+            return True
+        else:
+            return False
 
     def _combine_pulses(self, pulse_sequence, channel_id, overlap_window):
         """
@@ -608,57 +575,41 @@ for a given experiment
         plot_pulses(axis2, self.pulse_sequences[0])
         plot_pulses(axis1, self.pulse_sequences[-1])
 
-    def create_pulse_sequences(self, verbose=True):
+    def create_pulse_sequences(self):
         """
         A function to create the pulse sequence.
 
         NOTE THAT this is different from _create_pulse_sequences(), which must be overwritten in scripts inheriting from this script
         in contrast this function here takes the output from _create_pulse_sequences() and cleans it up!
 
-        Returns: nothing but creates all the variables needed in the excution of the script
+        Returns:
+            pulse_sequences: a list of pulse sequences to be run
+            num_averages: a number of times to run each pulse sequence
+            tau_list: the list of tau times we vary
+            measurement_gate_width: not sure
         """
-
 
         pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
+        self.log('creating pulse sequences for different times; total number: {:d}'.format(len(pulse_sequences)))
 
-        self.log('create_pulse_sequences: number of pulse_sequences: {:d}'.format(len(pulse_sequences)))
-
+        # Adding microwave switch
         if self.settings['mw_switch']['add']:
-            self.log('create_pulse_sequences: adding switch')
+            self.log('Adding microwave switch to pulse sequences')
             pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)
 
         # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or
         # requiring that pulses don't overlap
-        if self.settings['mw_switch']['no_iq_overlap']:
-            self.log('create_pulse_sequences: checking for i-q overlap')
-            # combine i and q when looking for overlapping pulses
-            failure_list = self._find_bad_pulse_sequences(pulse_sequences, combine_iq=True)
-        else:
-            failure_list = self._find_bad_pulse_sequences(pulse_sequences, combine_iq=False)
 
-        pulse_sequences, tau_list = self._remove_bad_pulse_sequences(pulse_sequences, tau_list, failure_list)
+        valid_pulse_sequences = []
+        valid_tau_list = []
+        for pulse_sequence, tau in zip(pulse_sequences, tau_list):
+            if not self._is_bad_pulse_sequence(pulse_sequence):
+                valid_pulse_sequences.append(pulse_sequence)
+                valid_tau_list.append(tau)
 
-        # comment to log only of pulses have been removed
-        if any([f != [] for f in failure_list]):
-            self.log('create_pulse_sequences: found {:d} failed pulse sequences'.format(sum([(f != []) * 1 for f in failure_list])))
-            self.log('create_pulse_sequences: number of pulse_sequences after removing bad ones: {:d}'.format(len(pulse_sequences)))
-
-
-
-
-
-        # not set all the variables that we need to excecute _function
-        self.pulse_sequences = pulse_sequences
-        self.num_averages = num_averages
-        self.tau_list = tau_list
-        self.measurement_gate_width = measurement_gate_width
-
-        if len(tau_list) ==0:
-            self.log('all sequences are bad!')
-        else:
-            self.log('create_pulse_sequences: taus ranging from {:d} - {:d} ns'.format(min(tau_list), max(tau_list)))
-
+        # now set all the variables that we need to excecute _function
+        return valid_pulse_sequences, num_averages, valid_tau_list, measurement_gate_width
 
     def stop(self):
         """

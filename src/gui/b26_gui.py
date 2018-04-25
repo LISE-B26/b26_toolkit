@@ -44,7 +44,7 @@ class ControlMainWindowB26(ControlMainWindow):
             else:
                 data_folder_name = None
 
-            script_dict={name: scripts[name] for name in added_scripts}
+            script_dict = {name: scripts[name] for name in added_scripts}
 
             if verbose:
                 print(('load_scripts.script_dict', script_dict))

@@ -235,7 +235,7 @@ class PulseBlaster(Instrument):
         raise AttributeError('Could not find delay of channel name or number: {0}'.format(str(channel_id)))
 
     @staticmethod
-    def find_overlapping_pulses(pulses, combine_channels=[]):
+    def find_overlapping_pulses(pulses, combine_channels=None):
         """
         Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses.
 
@@ -249,6 +249,9 @@ class PulseBlaster(Instrument):
             position
 
         """
+
+        if combine_channels is None:
+            combine_channels = set()
 
         def get_overlapping_pulses(pulse1, pulse2):
             """
@@ -271,18 +274,20 @@ class PulseBlaster(Instrument):
             return overlapping_pulses
 
         overlapping_pulses = []
-        channel_ids = list(set([p.channel_id for p in pulses]))  # get all channel ids as a list
+        channel_ids = set([p.channel_id for p in pulses])  # get all channel ids as a list
 
         # check for overlapping pulses in the combined channels
         pulse_list = [p for p in pulses if p.channel_id in combine_channels]  # get all the pulses with any of the channel id
-        for pulse_pair in itertools.combinations(pulse_list, 2):
-            overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
+        for pulse1, pulse2 in itertools.combinations(pulse_list, 2):
+            if Pulse.is_overlapping(pulse1, pulse2):
+                overlapping_pulses.append(tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time)))
 
         # check for overlapping pulses in the each of the channels that are not combined
-        for channel_id in list(set(channel_ids) - set(combine_channels)):
-            pulse_list = [p for p in pulses if p.channel_id == channel_id]  # get all the pulses with channel id
-            for pulse_pair in itertools.combinations(pulse_list, 2):
-                overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
+        for channel_id in (channel_ids - set(combine_channels)):
+            pulse_list = [pulse for pulse in pulses if pulse.channel_id == channel_id]  # get all the pulses with channel id
+            for pulse1, pulse2 in itertools.combinations(pulse_list, 2):
+                if Pulse.is_overlapping(pulse1, pulse2):
+                    overlapping_pulses.append(tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time)))
 
         return overlapping_pulses
 

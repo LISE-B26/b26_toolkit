@@ -244,7 +244,7 @@ def plot_counts(axis, data):
     """
 
     axis.plot(data, linewidth=2.0)
-    axis.hold(False)
+    # axis.hold(False)
 
     axis.set_xlabel('time')
     axis.set_ylabel('kCounts/sec')
@@ -272,7 +272,7 @@ def plot_temperature(axis, data, sample_rate):
         time /= 60.
         label = 'time (h)'
     axis.plot(time, data)
-    axis.hold(False)
+    # axis.hold(False)
 
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
@@ -306,7 +306,7 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
     for counts in data_list:
         axis.plot(times, counts)
 
-    axis.hold(False)
+    # axis.hold(False)
 
 
     axis.set_xlabel(x_label)

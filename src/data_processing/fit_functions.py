@@ -408,13 +408,13 @@ def exp_offset(t, ao, tau, offset):
     return np.exp(-t / tau) * ao + offset
 
 
-def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = False):
+def fit_rabi_decay(t, y, variable_phase=False, verbose=False, return_guess = False):
     """
     fit to a cosine with an exponential envelope
     Args:
         t: time in ns
         y: counts in kilocounts
-        varibale_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
+        variable_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
         return_guess: return also the initial guess parameters that are used in the fit
 
     """
@@ -425,14 +425,14 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     t_decay, y_decay = get_decay_data(t, y, wx, verbose)
     [_, to] = fit_exp_decay(t_decay, y_decay, )
 
-    if varibale_phase:
+    if variable_phase:
         # added by ER 7.27.17 to make Rabi frequency from fit always positive
         initial_parameter = [ax, abs(wx), phi, offset, to]
     else:
         initial_parameter = [ax, abs(wx), offset, to]
     verbose = 1
     if verbose:
-        if varibale_phase:
+        if variable_phase:
             print(('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter))
         else:
             print(('initial estimates [ax, wx, offset, tau]:', initial_parameter))
@@ -441,7 +441,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
         """
         cost function for fit to exponentially decaying cosine
         """
-        if varibale_phase:
+        if variable_phase:
             ao, wo, po, offset, to = x
             # added by ER 7.27.17 to make Rabi frequency from fit always positive
             wo = abs(wo)

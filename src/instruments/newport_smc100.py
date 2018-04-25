@@ -17,7 +17,6 @@ print(dll_path)
 if dll_path:
 
     sys.path.insert(0, dll_path)
-
     # Uses python for .net to add dll assembly to namespace
     try: 
         clr.AddReference('Newport.SMC100.CommandInterface')
@@ -81,11 +80,11 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             raise
 
     def update(self, settings):
-        '''
+        """
         Updates internal settings, as well as the position set on the physical device
         Args:
             settings: A dictionary in the form of settings as seen in default settings
-        '''
+        """
         super(SMC100, self).update(settings)
         for key, value in settings.items():
             if key == 'position':
@@ -101,14 +100,14 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         }
 
     def read_probes(self, key):
-        '''
+        """
         requestes value from the instrument and returns it
         Args:
             key: name of requested value
 
         Returns: reads values from instrument
 
-        '''
+        """
         assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
@@ -118,10 +117,10 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             return self._get_velocity()*1e3
 
     def __del__(self):
-        '''
+        """
         Cleans up SMC100 connection
         :PostState: SMC100 is disconnected
-        '''
+        """
         self.SMC.CloseInstrument()
 
     def _get_position(self):

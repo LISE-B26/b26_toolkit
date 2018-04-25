@@ -3,12 +3,8 @@
 from PyLabControl.src.core import Parameter, Instrument
 
 import sys
-sys.path.append('C:\ProgramData\Anaconda2\Lib\site-packages')
 
-try:
-    import cv2
-except:
-    pass
+import cv2
 
 import atexit
 

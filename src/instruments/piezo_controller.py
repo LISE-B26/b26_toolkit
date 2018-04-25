@@ -22,26 +22,26 @@ from PyLabControl.src.core import Instrument, Parameter
 
 
 class PiezoController(Instrument):
-    '''
+    """
     Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
     interacts with the controller using PySerial and sending commands as defined in the controller documentation.
-    '''
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM5', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM4', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
     ])
 
     def __init__(self, name = None, settings = None):
-        '''
+        """
         Initializes connection to piezo controller. If none found, raises exception.
         Args:
             name: instrument name
             settings: dictionary of settings to override defaults
-        '''
+        """
         super(PiezoController, self).__init__(name, settings)
         self._is_connected = False
         try:
@@ -51,7 +51,7 @@ class PiezoController(Instrument):
             raise
 
     def connect(self, port, baudrate, timeout):
-        '''
+        """
         Connects to piezo controller
         Args:
             port: COM port on which to connect
@@ -60,21 +60,21 @@ class PiezoController(Instrument):
 
         Poststate: self._is_connected is True
 
-        '''
+        """
         self.ser = serial.Serial(port = port, baudrate = baudrate, timeout = timeout)
-        self.ser.write('echo=0\r') #disables repetition of input commands in output
+        self.ser.write('echo=0\r'.encode()) #disables repetition of input commands in output
         self.ser.readlines()
         self._is_connected = True
 
     def update(self, settings):
-        '''
+        """
         Updates internal settings, and sets piezo voltage on hardware if that is changed
         Args:
             settings: dictionary of settings to update
 
         Poststate: changes voltage on piezo controller if it is updated
 
-        '''
+        """
         super(PiezoController, self).update(settings)
         for key, value in settings.items():
             if self._settings_initialized:
@@ -85,45 +85,45 @@ class PiezoController(Instrument):
 
     @property
     def _PROBES(self):
-        '''
+        """
 
         Returns: a dictionary that contains the values that can be read from the instrument
         the key is the name of the value and the value of the dictionary is an info
 
-        '''
+        """
         return {
             'voltage': 'the voltage on the current channel',
             'voltage_limit': 'the maximum voltage that can be applied to the channel. must be physically switched on the back of the controller.',
         }
 
     def read_probes(self, key):
-        '''
+        """
         requestes value from the instrument and returns it
         Args:
             key: name of requested value
 
         Returns: reads values from instrument
 
-        '''
+        """
         assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key in ['voltage']:
-            self.ser.write(self.settings['axis'] + 'voltage?\r')
+            self.ser.write((self.settings['axis'] + 'voltage?\r').encode())
             xVoltage = self.ser.readline()
             return(float(xVoltage[2:-2].strip()))
         elif key in ['voltage_limit']:
-            self.ser.write('vlimit?\r')
+            self.ser.write(('vlimit?\r').encode())
             vlimit = self.ser.readline()
             return vlimit[2:-3].strip()
 
     @property
     def is_connected(self):
-        '''
+        """
 
         Returns: True if currently connected to piezo controller, False otherwise
 
-        '''
+        """
         try:
             self.voltage
             return True
@@ -131,21 +131,21 @@ class PiezoController(Instrument):
             return False
 
     def __del__(self):
-        '''
+        """
         Ensures that connection to hardware is closed on deletion of PiezoController object, to prevent a stale
         connection from a closed object from blocking further connections from new objects
-        '''
+        """
         if self._is_connected:
             self.ser.close()
 
     def set_voltage(self, voltage):
-        '''
+        """
         Sets the voltage on the piezo.
         Args:
             voltage: voltage (in V) to set
 
-        '''
-        self.ser.write(self.settings['axis'] + 'voltage=' + str(voltage) + '\r')
+        """
+        self.ser.write((self.settings['axis'] + 'voltage=' + str(voltage) + '\r').encode())
         successCheck = self.ser.readlines()
         # print(successCheck)
         # * and ! are values returned by controller on success or failure respectively
@@ -159,10 +159,10 @@ class PiezoController(Instrument):
             raise ValueError(message)
 
 class MDT693A(Instrument):
-    '''
+    """
     Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
     interacts with the controller using PySerial and sending commands as defined in the controller documentation.
-    '''
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
@@ -199,7 +199,7 @@ class MDT693A(Instrument):
 
         '''
         self.ser = serial.Serial(port = port, baudrate = baudrate, timeout = timeout)
-        self.ser.write('echo=0\r') #disables repetition of input commands in output
+        self.ser.write('echo=0\r'.encode()) #disables repetition of input commands in output
         self.ser.readlines()
         self._is_connected = True
 
@@ -245,7 +245,7 @@ class MDT693A(Instrument):
         assert isinstance(key, str)
 
         if key in ['voltage']:
-            self.ser.write(self.settings['axis'] + 'voltage?\r')
+            self.ser.write((self.settings['axis'] + 'voltage?\r').encode())
             xVoltage = self.ser.readline()
             return(float(xVoltage[2:-2].strip()))
         elif key in ['voltage_limit']:
@@ -281,13 +281,13 @@ class MDT693A(Instrument):
             voltage: voltage (in V) to set
 
         '''
-        self.ser.write(self.settings['axis'] + 'voltage=' + str(voltage) + '\r')
+        self.ser.write((self.settings['axis'] + 'voltage=' + str(voltage) + '\r').encode())
         successCheck = self.ser.readlines()
         if successCheck[0] == '!':
             message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
             raise ValueError(message)
 
 if __name__ == '__main__':
-    a = PiezoController('hi', settings={'port':'COM3'})
+    a = PiezoController('hi', settings={'port':'COM4'})
  #   a.axis = 'y'
     a.voltage = 45.5
