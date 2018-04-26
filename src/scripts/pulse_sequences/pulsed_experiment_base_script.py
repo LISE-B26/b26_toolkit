@@ -69,16 +69,13 @@ for a given experiment
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-
     def _calc_progress(self, index):
         # progress of inner loop (in _run_sweep)
-        progress_inner = float(index) / len(self.pulse_sequences)
-        print(('JG improving time esimtate: progress_inner, index', progress_inner, index, len(self.pulse_sequences)))
+        progress_inner = index / len(self.pulse_sequences)
 
-        print(('self.current_averages | MAX_AVERAGES_PER_SCAN | self.num_averages', self.current_averages, MAX_AVERAGES_PER_SCAN, self.num_averages))
         # progress of outer loop (in _function)
         if self.current_averages >= MAX_AVERAGES_PER_SCAN:
-            progress = float(self.current_averages + (progress_inner - 1.0) * MAX_AVERAGES_PER_SCAN) / self.num_averages
+            progress = (self.current_averages + (1.0 - progress_inner) * MAX_AVERAGES_PER_SCAN) / self.num_averages
         else:
             # if self.current_averages < MAX_AVERAGES_PER_SCAN, there is only a single run and
             # therefore the progress of the inner loop equals the outer loop
@@ -211,7 +208,7 @@ for a given experiment
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
     def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=False):
-        '''
+        """
         Each pulse sequence specified in pulse_sequences is run num_loops_sweep consecutive times.
 
         Args:
@@ -222,16 +219,7 @@ for a given experiment
 
         Poststate: self.data['counts'] is updated with the acquired data
 
-        '''
-        # randomize the indexes of the pulse sequences to run, to reduce heating. ER 5/25/2017
-        # rand_indexes = []
-        # for i in range(0, len(pulse_sequences)):
-        #     rand_indexes.append(i)
-        # if self.settings['randomize']:
-        #     random.shuffle(rand_indexes)
-
-
-        # short version of the above JG 20180221
+        """
         rand_indexes = list(range(len(pulse_sequences)))
         random.shuffle(rand_indexes)
         if verbose:
@@ -250,15 +238,14 @@ for a given experiment
             counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)
-            # self.sequence_index = rand_index
-            # JG 20180321: think this messed up the time predictions
+
             self.sequence_index = index
             counts_temp = counts_to_check[0]
 
             # track to the NV if necessary ER 5/31/17
-            if (self.settings['Tracking']['on/off']):
+            if self.settings['Tracking']['on/off']:
                 if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
-                            (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
+                        (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
                     print('TRACKING TO NV...')
                     print(('____ counts_temp', counts_temp))
                     print(('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor']))
@@ -638,8 +625,6 @@ for a given experiment
 
         pulse_sequences, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
-        self.log('creating pulse sequences for different times; total number: {:d}'.format(len(pulse_sequences)))
-
         # Adding microwave switch
         if self.settings['mw_switch']['add']:
             self.log('Adding microwave switch to pulse sequences')
@@ -650,12 +635,23 @@ for a given experiment
 
         valid_pulse_sequences = []
         valid_tau_list = []
+        invalid_tau_list = []
         for pulse_sequence, tau in zip(pulse_sequences, tau_list):
             if not self._is_bad_pulse_sequence(pulse_sequence):
                 valid_pulse_sequences.append(pulse_sequence)
                 valid_tau_list.append(tau)
+            else:
+                invalid_tau_list.append(tau)
 
-        # now set all the variables that we need to excecute _function
+        if invalid_tau_list:
+            self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
+                     "included when running this experiment: " + invalid_tau_list)
+        else:
+            self.log("All generated pulse sequences are valid --- pulse sequences for all tau's will be run in this"
+                     "experiment")
+
+        self.log("Running experiments for {:d} different tau times".format(len(valid_tau_list)))
+
         return valid_pulse_sequences, valid_tau_list, measurement_gate_width
 
     def stop(self):
