@@ -16,15 +16,8 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import datetime
-from copy import deepcopy
-
-import numpy as np
-
-from b26_toolkit.src.instruments.labview_fpga import FPGA_GalvoScan
-from b26_toolkit.src.plotting.plots_2d import  plot_fluorescence_new, update_fluorescence
-from PyLabControl.src.core import Script, Parameter
-from b26_toolkit.src.scripts.galvo_scan_generic import GalvoScanGeneric
+from PyLabControl.src.core import Script
+from b26_toolkit.src.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from b26_toolkit.src.instruments.labview_fpga import volt_2_bit, NI7845RMain
 
 class FPGA_GalvoScan(GalvoScanGeneric):

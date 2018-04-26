@@ -16,11 +16,11 @@
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseScript
+from b26_toolkit.src.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from PyLabControl.src.core import Parameter, Script
 
-class PDD(PulseBlasterBaseScript):
+class PDD(PulsedExperimentBaseScript):
     """
 This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different number of pi pulses.
 For a single pi-pulse this is a Hahn-echo sequence.
@@ -29,6 +29,8 @@ For zero pulses this is a Ramsey sequence.
 The sequence is pi/2 - tau/4 - (tau/4 - pi  - tau/4)^n - tau/4 - pi/2
 
 Tau/2 is the time between the center of the pulses!
+
+todo(emma): (make double_init sheme)
 
 
     """
@@ -170,4 +172,4 @@ Tau/2 is the time between the center of the pulses!
         # for pulse_sequence in pulse_sequences:
         #     pulse_sequence.append(Pulse('laser', end_time_max + 1850, 15))
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
+        return pulse_sequences, tau_list, meas_time

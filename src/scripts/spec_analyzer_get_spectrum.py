@@ -21,7 +21,7 @@ from b26_toolkit.src.instruments import SpectrumAnalyzer
 from PyLabControl.src.core import Script
 
 
-class KeysightGetSpectrum(Script):
+class SpecAnalyzerGetSpectrum(Script):
     # COMMENT_ME
 
     _DEFAULT_SETTINGS = [

@@ -1,12 +1,12 @@
-from b26_toolkit.src.scripts.galvo_scan_generic import GalvoScanGeneric
+from b26_toolkit.src.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from PyLabControl.src.core import Script, Parameter
 import numpy as np
-from b26_toolkit.src.scripts import SetLaser, ZISweeper
+from b26_toolkit.src.scripts import SetLaser, KeysightOsciGetTimeTrace
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from b26_toolkit.src.plotting.plots_1d import plot_psd
 from PyLabControl.src.data_processing.signal_processing import power_spectral_density
 
-class GalvoScanZI(GalvoScanGeneric):
+class GalvoScanOsci(GalvoScanGeneric):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
     resulting in an image in the current field of view of the objective.
@@ -20,7 +20,7 @@ class GalvoScanZI(GalvoScanGeneric):
                   ])
     ]
 
-    _SCRIPTS = {'setlaser': SetLaser, 'get_spectrum': ZISweeper}
+    _SCRIPTS = {'setlaser': SetLaser, 'get_trace': KeysightOsciGetTimeTrace}
 
     _ACQ_TYPE = 'point'
 
@@ -92,9 +92,12 @@ class GalvoScanZI(GalvoScanGeneric):
 
 
         # acquire timetrace with osci
-        self.scripts['get_spectrum'].run()
+        self.scripts['get_trace'].run()
 
-        return self.scripts['get_spectrum'].data[-1]['r']
+        # JG: keep a record of the metadata so that we know the timestep later, this is not a very elegant but the best I came up with for now
+        self.data['meta_data'] = self.scripts['get_trace'].data['meta_data']
+
+        return self.scripts['get_trace'].data['voltage']
 
 
     def _plot(self, axes_list, data=None):
@@ -111,7 +114,10 @@ class GalvoScanZI(GalvoScanGeneric):
 
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
-        self.scripts['get_spectrum']._plot([axes_list[1]], trace_only = True)
+        last_data = self.data['point_data'][-1]
+        dt = self.data['meta_data']['xincrement']
+        freq, psd = power_spectral_density(last_data, dt)
+        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
 
 
     def _update_plot(self, axes_list):
@@ -124,7 +130,12 @@ class GalvoScanZI(GalvoScanGeneric):
 
         update_fluorescence(self.data['image_data'], axes_list[0])
 
-        self.scripts['get_spectrum']._plot([axes_list[1]], trace_only = True)
+        last_data = self.data['point_data'][-1]
+        dt = self.data['meta_data']['xincrement']
+        freq, psd = power_spectral_density(last_data, dt)
+        plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+        axes_list[1].hold(False)
+
 
     def get_axes_layout(self, figure_list):
         """

@@ -15,14 +15,15 @@
     You should have received a copy of the GNU General Public License
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 """
-from b26_toolkit.src.scripts.pulse_blaster_base_script import PulseBlasterBaseScript
+from b26_toolkit.src.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from PyLabControl.src.core import Parameter
 from b26_toolkit.src.data_processing.fit_functions import fit_exp_decay, exp_offset
 
-class CPMG_double_init(PulseBlasterBaseScript): # ER 5.25.2017
+class CPMG(PulsedExperimentBaseScript): # ER 5.25.2017
     """
-This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+This script runs a CPMG on the NV to find the CPMG T2.
+To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -61,7 +62,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(CPMG_double_init, self)._function(self.data)
+        super(CPMG, self)._function(self.data)
 
         counts = (- self.data['counts'][:, 1] + self.data['counts'][:,0]) / (self.data['counts'][:,1] + self.data['counts'][:, 0])
         tau = self.data['tau']
@@ -161,7 +162,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-        return pulse_sequences, self.settings['num_averages'], tau_list, meas_time
+        return pulse_sequences, tau_list, meas_time
 
 
 
@@ -191,6 +192,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
         else:
-            super(CPMG_double_init, self)._plot(axislist)
+            super(CPMG, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)

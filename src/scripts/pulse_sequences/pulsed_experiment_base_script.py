@@ -31,7 +31,7 @@ MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed
                                  #pulseblaster stores this value in 22 bits in its register
 
 
-class PulseBlasterBaseScript(Script):
+class PulsedExperimentBaseScript(Script):
     '''
 This class is a base class that should be inherited by all classes that utilize the pulseblaster for experiments. The
 _function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
@@ -64,7 +64,7 @@ for a given experiment
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        self._DEFAULT_SETTINGS += PulseBlasterBaseScript._DEFAULT_SETTINGS
+        self._DEFAULT_SETTINGS += PulsedExperimentBaseScript._DEFAULT_SETTINGS
 
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
@@ -104,14 +104,13 @@ for a given experiment
              normalization)
 
         """
+
+        # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
 
         # self.is_valid and create pulses
-        self.pulse_sequences, self.num_averages, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
-        if not self.is_valid():
-            self._abort = True
-            print('Aborting...')
-            return  # exit function in case validation fails
+        self.pulse_sequences, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
+        self.num_averages = self.settings['num_averages']
 
         if in_data is None:
             in_data = {}
@@ -349,7 +348,6 @@ for a given experiment
 
     def is_valid(self, pulse_sequences=None, verbose=False):
         """
-
         Checks if a pulse blaster script is valid
 
         Args:
@@ -381,6 +379,17 @@ for a given experiment
         return True
 
     def _get_overlapping_pulses(self, pulse_sequence, verbose=False):
+        """
+        Finds and returns a list of ordered pairs of pulses from pulse_sequence that currently overlap, thus likely
+        not being the pulse sequence that was intended. (It would be strange to hope for this)
+        Args:
+            pulse_sequence:
+            verbose: if True, calls extra print() statements during execution, helpful for debugging.
+
+        Returns:
+            (list) a list of pairs of overlapping pulses in pulse_sequence
+
+        """
         if self.settings['mw_switch']['no_iq_overlap']:
             overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence,
                                                                          combine_channels=['microwave_i',
@@ -394,6 +403,18 @@ for a given experiment
         return overlapping_pulses
 
     def _get_commands_that_are_too_short(self, pulse_sequence, verbose=False):
+        """
+        Finds if the current pulse sequence would compile to commands that have intervals of less than 15 ns between
+        them, which it not supported by the pulse blaster as it is currently implemented.
+
+        Args:
+            pulse_sequence(list): list of pulses to check for commands that are too close
+            verbose: if True, calls extra print() statements during execution, helpful for debugging.
+
+        Returns:
+            (list) A list of pulseblaster commands resulting from pulse_sequence that are too short
+
+        """
         pulse_blaster = self.instruments['PB']['instance']
 
         delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
@@ -407,20 +428,39 @@ for a given experiment
 
         return short_pulses
 
-    def _has_bad_pulses(self, pulse_sequence, verbose=False):
+    def _has_pulses_with_bad_start_time(self, pulse_sequence, verbose=False):
+        """
+        Checks for pulses that have a start_time between 0 and 1 (exclusive), indicating that the user may have
+        used the wrong units for the pulses in the pulse sequence.
+
+        Args:
+            pulse_sequence(list): list of pulses to check for bad start_times
+            verbose(bool): if True, calls extra print() statements during execution, helpful for debugging.
+
+        Returns:
+            (bool) True if the pulse sequence contains a pulse with start time between 0 and 1, else False.
+        """
         for pulse in pulse_sequence:
             if 0 < pulse.start_time < 1:
                 if verbose:
                     print('Found pulse with start time between 0 and 1 -- remember that the units are nanoseconds.')
                 return True
-            if pulse.duration < 15:
-                if verbose:
-                    print('Found pulse with duration less than 15 ns --- remember the pulse blaster cannot do that')
-                return True
 
         return False
 
-    def _is_too_complicated_for_pulse_blaster(self, pulse_sequence, verbose=False):
+    def _compiles_to_too_many_commands_for_pb(self, pulse_sequence, verbose=False):
+        """
+        Checks to see if the current pulse sequence would result in more than 4096 commands to the pulseblaster,
+        which is too much for it to handle.
+
+        Args:
+            pulse_sequence: A list of pulse objects to check for compilation issue
+            verbose(bool): if True, calls extra print() statements during execution, helpful for debugging.
+
+        Returns:
+            (bool) True if the pulse sequence results into too many (4096) commands, else False
+
+        """
         pulse_blaster = self.instruments['PB']['instance']
         delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
@@ -433,7 +473,7 @@ for a given experiment
                 print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
             return True
 
-    def _is_bad_pulse_sequence(self, pulse_sequence, combine_iq=True, verbose=False):
+    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=False):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains of the pulseblaster,
@@ -441,20 +481,22 @@ for a given experiment
             - that pulses have to be multiples of 2.5ns
             - pulses have to be spaced at least 15ns apart
             - pulse can not be overlapping
+            - that pulse sequences are compiled to fewer than 4096 pulse blaster commands (too many for the pulse blaster)
 
-        :return:
-            failure_list: a list of either tuples of overlapping pulses or pulses that are too short (< 15 ns)
+        Args:
+            pulse_sequence(list): a list of Pulse objects to check for syndromes
+            verbose(bool): if True, calls extra print() statements during execution, helpful for debugging.
+
+        Returns:
+            (bool) True if the pulse sequence contains one of the above issues, else False
         """
-        if verbose:
-            print(('checking {:d} pulse sequences'.format(len(pulse_sequences))))
-
         if self._get_overlapping_pulses(pulse_sequence, verbose=verbose):
             return True
         elif self._get_commands_that_are_too_short(pulse_sequence, verbose=verbose):
             return True
-        elif self._has_bad_pulses(pulse_sequence, verbose=verbose):
+        elif self._has_pulses_with_bad_start_time(pulse_sequence, verbose=verbose):
             return True
-        elif self._is_too_complicated_for_pulse_blaster(pulse_sequence, verbose=verbose):
+        elif self._compiles_to_too_many_commands_for_pb(pulse_sequence, verbose=verbose):
             return True
         else:
             return False
@@ -572,8 +614,14 @@ for a given experiment
         """
         axis1 = axes_list[0]
         axis2 = axes_list[1]
-        plot_pulses(axis2, self.pulse_sequences[0])
-        plot_pulses(axis1, self.pulse_sequences[-1])
+
+        pulse_sequences, _, tau_list, _ = self.create_pulse_sequences()
+
+        plot_pulses(axis2, pulse_sequences[0])
+        axis2.set_title('Pulse Visualization for Minimum tau (tau = {:d})'.format(tau_list[0]))
+
+        plot_pulses(axis1, pulse_sequences[-1])
+        axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d})'.format(tau_list[-1]))
 
     def create_pulse_sequences(self):
         """
@@ -584,12 +632,11 @@ for a given experiment
 
         Returns:
             pulse_sequences: a list of pulse sequences to be run
-            num_averages: a number of times to run each pulse sequence
             tau_list: the list of tau times we vary
-            measurement_gate_width: not sure
+            measurement_gate_width: measurement window time
         """
 
-        pulse_sequences, num_averages, tau_list, measurement_gate_width = self._create_pulse_sequences()
+        pulse_sequences, tau_list, measurement_gate_width = self._create_pulse_sequences()
 
         self.log('creating pulse sequences for different times; total number: {:d}'.format(len(pulse_sequences)))
 
@@ -609,7 +656,7 @@ for a given experiment
                 valid_tau_list.append(tau)
 
         # now set all the variables that we need to excecute _function
-        return valid_pulse_sequences, num_averages, valid_tau_list, measurement_gate_width
+        return valid_pulse_sequences, valid_tau_list, measurement_gate_width
 
     def stop(self):
         """
@@ -617,7 +664,7 @@ for a given experiment
         NOT CURRENTLY WORKING, WILL CRASH PULSEBLASTER
         """
         # self.instruments['PB']['instance'].stop()
-        super(PulseBlasterBaseScript, self).stop()
+        super(PulsedExperimentBaseScript, self).stop()
 
 
 if __name__ == '__main__':
