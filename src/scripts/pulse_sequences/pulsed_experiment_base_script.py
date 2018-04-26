@@ -32,14 +32,14 @@ MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed
 
 
 class PulsedExperimentBaseScript(Script):
-    '''
+    """
 This class is a base class that should be inherited by all classes that utilize the pulseblaster for experiments. The
 _function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
 the daq for reading counter input (usually from the APD). It also provides all of the functionality needed to run a
 standard Script such as plotting.
 To use this class, the inheriting class need only overwrite _create_pulse_sequences to create the proper pulse sequence
 for a given experiment
-    '''
+    """
     _DEFAULT_SETTINGS = [
         Parameter('Tracking', [
             Parameter('on/off', True, bool, 'used to turn on tracking'),
@@ -246,9 +246,10 @@ for a given experiment
             if self.settings['Tracking']['on/off']:
                 if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
                         (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
-                    print('TRACKING TO NV...')
-                    print(('____ counts_temp', counts_temp))
-                    print(('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor']))
+                    if verbose:
+                        print('TRACKING TO NV...')
+                        print(('____ counts_temp', counts_temp))
+                        print(('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor']))
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
@@ -348,7 +349,7 @@ for a given experiment
         # make sure that we have the pulse sequences that correspond to the current settings
 
         if pulse_sequences is None:
-            pulse_sequences, __, __, __ = self.create_pulse_sequences()
+            pulse_sequences, __, __ = self.create_pulse_sequences()
 
         for pulse_sequence in pulse_sequences:
             if self._is_bad_pulse_sequence(pulse_sequence):
@@ -359,9 +360,7 @@ for a given experiment
             if 'fluorescence' in self.scripts['find_nv'].data:
                 self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
             else:
-                self.log('WARNING: pulse_blaster_validation failed! No data in find_nv, check tracking!')
-
-        self.log('pulse_blaster_validation passed.')
+                self.log('Warning: No data in find_nv, but tracking is turned on.')
 
         return True
 
@@ -592,25 +591,25 @@ for a given experiment
 
     def _plot_validate(self, axes_list):
         """
-        Preview pulse sequence by plotting first and last sequence to plots 1 and 2
+        Preview pulse sequence by plotting first and last sequence to plots 1 and 0, respectively
         Args:
             axes_list: List containing axes to plot to
 
         Returns:
 
         """
-        axis1 = axes_list[0]
-        axis2 = axes_list[1]
+        axis0 = axes_list[0]
+        axis1 = axes_list[1]
 
-        pulse_sequences, _, tau_list, _ = self.create_pulse_sequences()
+        pulse_sequences, tau_list, _ = self.create_pulse_sequences(logging=False)
 
-        plot_pulses(axis2, pulse_sequences[0])
-        axis2.set_title('Pulse Visualization for Minimum tau (tau = {:d})'.format(tau_list[0]))
+        plot_pulses(axis0, pulse_sequences[0])
+        axis0.set_title('Pulse Visualization for Minimum tau (tau = {:d} ns)'.format(tau_list[0]))
 
         plot_pulses(axis1, pulse_sequences[-1])
-        axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d})'.format(tau_list[-1]))
+        axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d} ns)'.format(tau_list[-1]))
 
-    def create_pulse_sequences(self):
+    def create_pulse_sequences(self, logging=True):
         """
         A function to create the pulse sequence.
 
@@ -627,7 +626,8 @@ for a given experiment
 
         # Adding microwave switch
         if self.settings['mw_switch']['add']:
-            self.log('Adding microwave switch to pulse sequences')
+            if logging:
+                self.log('Adding microwave switch to pulse sequences')
             pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)
 
         # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or
@@ -643,14 +643,14 @@ for a given experiment
             else:
                 invalid_tau_list.append(tau)
 
-        if invalid_tau_list:
-            self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
-                     "included when running this experiment: " + invalid_tau_list)
-        else:
-            self.log("All generated pulse sequences are valid --- pulse sequences for all tau's will be run in this"
-                     "experiment")
+        if logging:
+            if invalid_tau_list:
+                self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
+                         "included when running this experiment: " + invalid_tau_list)
+            else:
+                self.log("All generated pulse sequences are valid. No tau times will be skipped in this experiment.")
 
-        self.log("Running experiments for {:d} different tau times".format(len(valid_tau_list)))
+            self.log("{:d} different tau times have passed validation".format(len(valid_tau_list)))
 
         return valid_pulse_sequences, valid_tau_list, measurement_gate_width
 
