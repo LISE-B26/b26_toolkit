@@ -111,7 +111,7 @@ class PiezoController(Instrument):
         if key in ['voltage']:
             self.ser.write((self.settings['axis'] + 'voltage?\r').encode())
             xVoltage = self.ser.readline()
-            return(float(xVoltage[2:-2].strip()))
+            return(float(xVoltage[2:-3].strip()))
         elif key in ['voltage_limit']:
             self.ser.write(('vlimit?\r').encode())
             vlimit = self.ser.readline()

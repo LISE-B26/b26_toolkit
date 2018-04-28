@@ -2,12 +2,12 @@
     This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    PyLabControl is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    PyLabControl is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -82,7 +82,6 @@ for a given experiment
             progress = progress_inner
 
         self.progress = 100.0 * progress
-        print(('>>>> progress', int(round(self.progress))))
         return int(round(self.progress))
 
     def _function(self, in_data=None):
@@ -648,7 +647,7 @@ for a given experiment
                 self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
                          "included when running this experiment: " + invalid_tau_list)
             else:
-                self.log("All generated pulse sequences are valid. No tau times will be skipped in this experiment.")
+                self.log("All generated pulse sequences are valid. No tau times will b e skipped in this experiment.")
 
             self.log("{:d} different tau times have passed validation".format(len(valid_tau_list)))
 

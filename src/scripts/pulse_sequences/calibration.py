@@ -187,7 +187,6 @@ class ReadoutDuration(PulsedExperimentBaseScript):
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('skip_invalid_sequences', True, bool, 'Skips any sequences with <15ns commands'),
     ]
 
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
@@ -261,7 +260,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         return pulse_sequences, tau_list, meas_time
 
     def _plot(self, axislist, data=None):
-        '''
+        """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
         Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
@@ -269,7 +268,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         Args:
             axes_list: list of axes to write plots to (uses first 2)
             data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
-        '''
+        """
 
         if data is None:
             data = self.data
@@ -311,7 +310,6 @@ class ReadoutStartTimeWithoutMW(PulsedExperimentBaseScript):
         Parameter('delay_interval_step_size', 15, int, 'Amount delay is increased for each new run'),
         Parameter('num_averages', 1000, int, 'number of times to average for each delay'),
         Parameter('reset_time', 10000, int, 'How long to wait for laser to turn off and reach steady state'),
-        Parameter('skip_invalid_sequences', False, bool, 'Skips any sequences with <15ns commands')
     ]
 
     def _create_pulse_sequences(self):

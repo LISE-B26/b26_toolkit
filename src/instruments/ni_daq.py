@@ -522,6 +522,7 @@ class DAQ(Instrument):
 
         task['sample_rate'] = float(
             self.settings['analog_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
+
         for c in channels:
             if not self.settings['analog_output'][c]['sample_rate'] == task['sample_rate']:
                 raise ValueError('All sample rates must be the same')

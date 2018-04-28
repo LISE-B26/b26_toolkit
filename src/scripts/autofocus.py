@@ -450,7 +450,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        print('LOADING')
         self.scan_label = 'Piezo Voltage [V]'
         try:
             Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
@@ -461,7 +460,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             print("*** print_exception:")
             traceback.print_exception(exc_type, exc_value, exc_traceback,
                                       limit=2, file=sys.stdout)
-        print('LOADED')
 
     def _step_piezo(self, voltage, wait_time):
         """
