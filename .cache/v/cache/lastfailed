@@ -1,5 +1,0 @@
-{
-  "tests/instruments/test_PulseBlaster.py::TestPulseBlaster::test_adding_delays": true,
-  "tests/instruments/test_PulseBlaster.py::TestPulseBlaster::test_overlapping_pulses_finding": true,
-  "tests/instruments/test_PulseBlaster.py::TestPulseBlaster::test_pulseblaster_conversion": true
-}
