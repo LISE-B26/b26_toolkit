@@ -13,7 +13,7 @@ setup(
     license='GPL',
     author='Aaron Kabcenell, Jan Gieseler, and Arthur Safira',
     author_email='',
-    description='Instruments, Scripts, and other classes for use with PyLabControl',
+    description='Instruments, Scripts, and other classes for use with pylabcontrol',
     # long_description=readme(),
     keywords='laboratory control',
     classifiers=[

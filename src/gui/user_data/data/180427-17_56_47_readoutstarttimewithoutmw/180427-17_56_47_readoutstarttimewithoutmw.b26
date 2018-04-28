@@ -1,0 +1,531 @@
+{
+    "scripts": {
+        "ReadoutStartTimeWithoutMW": {
+            "class": "ReadoutStartTimeWithoutMW",
+            "filepath": "C:\\Users\\Experiment\\PycharmProjects\\python3versions\\b26_toolkit\\src\\scripts\\pulse_sequences\\calibration.py",
+            "info": "\n\n    This script sweeps the start time of the APD readout window, using a fixed-duration readout pulse.\n    The goal is to figure out when to turn on the readout window to maximize SNR.\n    Does not include a MW pulse (so no double-init scheme)\n\n    ",
+            "package": "b26_toolkit",
+            "scripts": {
+                "find_nv": {
+                    "class": "FindNV",
+                    "filepath": "C:\\Users\\Experiment\\PycharmProjects\\python3versions\\b26_toolkit\\src\\scripts\\find_nv.py",
+                    "info": "\nGalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,\nresulting in an image in the current field of view of the objective.\n\nKnown issues:\n    1.) if fits are poor, check  sweep_range. It should extend significantly beyond end of NV on both sides.\n    ",
+                    "package": "b26_toolkit",
+                    "scripts": {
+                        "take_image": {
+                            "class": "GalvoScan",
+                            "filepath": "C:\\Users\\Experiment\\PycharmProjects\\python3versions\\b26_toolkit\\src\\scripts\\galvo_scan\\galvo_scan.py",
+                            "info": null,
+                            "package": "b26_toolkit",
+                            "instruments": {
+                                "NI6259": {
+                                    "class": "NI6259",
+                                    "settings": {
+                                        "override_buffer_size": -1,
+                                        "digital_output": {
+                                            "do8": {
+                                                "sample_rate": 1000.0,
+                                                "channel": 8
+                                            },
+                                            "do0": {
+                                                "sample_rate": 1000.0,
+                                                "channel": 0
+                                            }
+                                        },
+                                        "digital_input": {
+                                            "ctr1": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 1,
+                                                "gate_PFI_channel": 14,
+                                                "counter_PFI_channel": 3,
+                                                "clock_PFI_channel": 12,
+                                                "clock_counter_channel": 0
+                                            },
+                                            "ctr0": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 0,
+                                                "gate_PFI_channel": 14,
+                                                "counter_PFI_channel": 8,
+                                                "clock_PFI_channel": 13,
+                                                "clock_counter_channel": 1
+                                            }
+                                        },
+                                        "device": "Dev1",
+                                        "ao_read_offset": 0.005,
+                                        "analog_output": {
+                                            "ao3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ao2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ao1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ao0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        },
+                                        "analog_input": {
+                                            "ai4": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 4
+                                            },
+                                            "ai3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ai2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ai1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ai0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        }
+                                    }
+                                },
+                                "NI9263": {
+                                    "class": "NI9263",
+                                    "settings": {
+                                        "override_buffer_size": -1,
+                                        "device": "cDAQ1Mod1",
+                                        "ao_read_offset": 0.005,
+                                        "analog_output": {
+                                            "ao3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ao2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ao1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ao0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        }
+                                    }
+                                },
+                                "NI9402": {
+                                    "class": "NI9402",
+                                    "settings": {
+                                        "override_buffer_size": -1,
+                                        "module": "Mod2",
+                                        "digital_input": {
+                                            "ctr2": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 2,
+                                                "gate_PFI_channel": 0,
+                                                "counter_PFI_channel": 1,
+                                                "clock_PFI_channel": 2,
+                                                "clock_counter_channel": 3
+                                            },
+                                            "ctr0": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 0,
+                                                "gate_PFI_channel": 3,
+                                                "counter_PFI_channel": 0,
+                                                "clock_PFI_channel": 1,
+                                                "clock_counter_channel": 2
+                                            }
+                                        },
+                                        "device": "cDAQ1",
+                                        "ao_read_offset": 0.005
+                                    }
+                                }
+                            },
+                            "settings": {
+                                "point_a": {
+                                    "x": 0,
+                                    "y": 0
+                                },
+                                "point_b": {
+                                    "x": 1.0,
+                                    "y": 1.0
+                                },
+                                "RoI_mode": "center",
+                                "num_points": {
+                                    "x": 126,
+                                    "y": 126
+                                },
+                                "time_per_pt": 0.002,
+                                "settle_time": 0.0002,
+                                "max_counts_plot": -1,
+                                "DAQ_channels": {
+                                    "x_ao_channel": "ao0",
+                                    "y_ao_channel": "ao3",
+                                    "counter_channel": "ctr0"
+                                },
+                                "ending_behavior": "return_to_start",
+                                "daq_type": "PCI",
+                                "path": "",
+                                "tag": "take_image",
+                                "save": false
+                            }
+                        },
+                        "set_laser": {
+                            "class": "SetLaser",
+                            "filepath": "C:\\Users\\Experiment\\PycharmProjects\\python3versions\\b26_toolkit\\src\\scripts\\set_laser.py",
+                            "info": "\nThis script points the laser to a point\n    ",
+                            "package": "b26_toolkit",
+                            "instruments": {
+                                "NI6259": {
+                                    "class": "NI6259",
+                                    "settings": {
+                                        "override_buffer_size": -1,
+                                        "digital_output": {
+                                            "do8": {
+                                                "sample_rate": 1000.0,
+                                                "channel": 8
+                                            },
+                                            "do0": {
+                                                "sample_rate": 1000.0,
+                                                "channel": 0
+                                            }
+                                        },
+                                        "digital_input": {
+                                            "ctr1": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 1,
+                                                "gate_PFI_channel": 14,
+                                                "counter_PFI_channel": 3,
+                                                "clock_PFI_channel": 12,
+                                                "clock_counter_channel": 0
+                                            },
+                                            "ctr0": {
+                                                "sample_rate": 1000.0,
+                                                "input_channel": 0,
+                                                "gate_PFI_channel": 14,
+                                                "counter_PFI_channel": 8,
+                                                "clock_PFI_channel": 13,
+                                                "clock_counter_channel": 1
+                                            }
+                                        },
+                                        "device": "Dev1",
+                                        "ao_read_offset": 0.005,
+                                        "analog_output": {
+                                            "ao3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ao2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ao1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ao0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        },
+                                        "analog_input": {
+                                            "ai4": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 4
+                                            },
+                                            "ai3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ai2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ai1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ai0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        }
+                                    }
+                                },
+                                "NI9263": {
+                                    "class": "NI9263",
+                                    "settings": {
+                                        "override_buffer_size": -1,
+                                        "device": "cDAQ1Mod1",
+                                        "ao_read_offset": 0.005,
+                                        "analog_output": {
+                                            "ao3": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 3
+                                            },
+                                            "ao2": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 2
+                                            },
+                                            "ao1": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 1
+                                            },
+                                            "ao0": {
+                                                "sample_rate": 1000.0,
+                                                "min_voltage": -10.0,
+                                                "max_voltage": 10.0,
+                                                "channel": 0
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "settings": {
+                                "point": {
+                                    "x": -0.4,
+                                    "y": -0.4
+                                },
+                                "DAQ_channels": {
+                                    "x_ao_channel": "ao0",
+                                    "y_ao_channel": "ao1"
+                                },
+                                "daq_type": "cDAQ",
+                                "path": "",
+                                "tag": "set_laser",
+                                "save": false
+                            }
+                        }
+                    },
+                    "settings": {
+                        "initial_point": {
+                            "x": 0,
+                            "y": 0
+                        },
+                        "sweep_range": 0.03,
+                        "num_points": 61,
+                        "nv_size": 11,
+                        "min_mass": 180,
+                        "number_of_attempts": 1,
+                        "center_on_current_location": false,
+                        "path": "",
+                        "tag": "find_nv",
+                        "save": false
+                    }
+                }
+            },
+            "instruments": {
+                "daq": {
+                    "class": "NI6259",
+                    "settings": {
+                        "override_buffer_size": -1,
+                        "digital_output": {
+                            "do8": {
+                                "sample_rate": 1000.0,
+                                "channel": 8
+                            },
+                            "do0": {
+                                "sample_rate": 1000.0,
+                                "channel": 0
+                            }
+                        },
+                        "digital_input": {
+                            "ctr1": {
+                                "sample_rate": 1000.0,
+                                "input_channel": 1,
+                                "gate_PFI_channel": 14,
+                                "counter_PFI_channel": 3,
+                                "clock_PFI_channel": 12,
+                                "clock_counter_channel": 0
+                            },
+                            "ctr0": {
+                                "sample_rate": 1000.0,
+                                "input_channel": 0,
+                                "gate_PFI_channel": 14,
+                                "counter_PFI_channel": 8,
+                                "clock_PFI_channel": 13,
+                                "clock_counter_channel": 1
+                            }
+                        },
+                        "device": "Dev1",
+                        "ao_read_offset": 0.005,
+                        "analog_output": {
+                            "ao3": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 3
+                            },
+                            "ao2": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 2
+                            },
+                            "ao1": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 1
+                            },
+                            "ao0": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 0
+                            }
+                        },
+                        "analog_input": {
+                            "ai4": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 4
+                            },
+                            "ai3": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 3
+                            },
+                            "ai2": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 2
+                            },
+                            "ai1": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 1
+                            },
+                            "ai0": {
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0,
+                                "channel": 0
+                            }
+                        }
+                    }
+                },
+                "PB": {
+                    "class": "B26PulseBlaster",
+                    "settings": {
+                        "off_channel": {
+                            "status": false,
+                            "delay_time": 0,
+                            "channel": 18
+                        },
+                        "microwave_switch": {
+                            "status": true,
+                            "delay_time": 0.2,
+                            "channel": 4
+                        },
+                        "microwave_q": {
+                            "status": false,
+                            "delay_time": 0.2,
+                            "channel": 3
+                        },
+                        "microwave_i": {
+                            "status": false,
+                            "delay_time": 0.2,
+                            "channel": 2
+                        },
+                        "laser": {
+                            "status": true,
+                            "delay_time": 350.2,
+                            "channel": 0
+                        },
+                        "clock_speed": 400,
+                        "apd_readout": {
+                            "status": false,
+                            "delay_time": 0.2,
+                            "channel": 1
+                        }
+                    }
+                }
+            },
+            "settings": {
+                "count_source_pulse_width": 10000,
+                "measurement_gate_pulse_width": 25,
+                "min_delay": 230,
+                "max_delay": 370,
+                "delay_interval_step_size": 15,
+                "num_averages": 1000000,
+                "reset_time": 10000,
+                "Tracking": {
+                    "on/off": false,
+                    "threshold": 0.85
+                },
+                "randomize": true,
+                "mw_switch": {
+                    "add": true,
+                    "extra_time": 50,
+                    "gating": "mw_switch",
+                    "no_iq_overlap": true
+                },
+                "path": "",
+                "tag": "readoutstarttimewithoutmw",
+                "save": true
+            }
+        }
+    }
+}

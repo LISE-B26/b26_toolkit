@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     b26_toolkit is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import numpy as np
 
 
 from b26_toolkit.src.instruments import NI6259,PiezoController
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 from b26_toolkit.src.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
 
 # JG: NOT FINISHED JUST COPIED CODE AND DIDN"T ADAPT IT YET

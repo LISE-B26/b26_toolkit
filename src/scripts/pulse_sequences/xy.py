@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 from b26_toolkit.src.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 from b26_toolkit.src.data_processing.fit_functions import fit_exp_decay, exp_offset
 
 class XY8_k(PulsedExperimentBaseScript): # ER 5.25.2017

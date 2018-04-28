@@ -1,4 +1,4 @@
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from .galvo_scan_ZI import GalvoScanZI
 from b26_toolkit.src.instruments.newport_smc100 import SMC100
 import numpy as np

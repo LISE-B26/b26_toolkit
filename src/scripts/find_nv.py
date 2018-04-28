@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ import trackpy as tp
 from matplotlib import patches
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.scripts import GalvoScan, SetLaser
 
 

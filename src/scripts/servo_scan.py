@@ -1,6 +1,6 @@
 import numpy as np
 
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.instruments import KDC001
 from b26_toolkit.src.scripts import GalvoScan
 

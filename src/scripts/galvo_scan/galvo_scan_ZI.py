@@ -1,5 +1,5 @@
 from b26_toolkit.src.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 import numpy as np
 from b26_toolkit.src.scripts import SetLaser, ZISweeper
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence

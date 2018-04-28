@@ -1,5 +1,5 @@
-from PyLabControl.src.core.script_iterator import ScriptIterator
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core.script_iterator import ScriptIterator
+from pylabcontrol.src.core import Script, Parameter
 import numpy as np
 
 class ScriptIteratorB26(ScriptIterator):
@@ -69,7 +69,7 @@ class ScriptIteratorB26(ScriptIterator):
         # for point iteration we add some default scripts
         if iterator_type == 'iter nvs':
 
-            module = Script.get_script_module('SelectPoints')# Select points is actually in PyLabControl
+            module = Script.get_script_module('SelectPoints')# Select points is actually in pylabcontrol
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
@@ -85,7 +85,7 @@ class ScriptIteratorB26(ScriptIterator):
             script_settings['script_order'] = {'select_points': -3, 'correlate_iter': -2, 'find_nv': -1}
 
         elif iterator_type == 'iter points':
-            module = Script.get_script_module('SelectPoints', 'PyLabControl')
+            module = Script.get_script_module('SelectPoints', 'pylabcontrol')
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
@@ -100,7 +100,7 @@ class ScriptIteratorB26(ScriptIterator):
             script_settings['script_order']={'select_points': -3, 'correlate_iter': -2, 'set_laser': -1}
 
         elif iterator_type == 'test':
-            module = Script.get_script_module('Wait', 'PyLabControl')
+            module = Script.get_script_module('Wait', 'pylabcontrol')
             sub_scripts.update(
                 {'wait': getattr(module, 'Wait')}
             )

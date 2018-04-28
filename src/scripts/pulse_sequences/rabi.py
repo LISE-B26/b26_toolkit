@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ import numpy as np
 from b26_toolkit.src.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.src.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.src.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
-from PyLabControl.src.core import Parameter
+from pylabcontrol.src.core import Parameter
 from b26_toolkit.src.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 
 class Rabi(PulsedExperimentBaseScript): # ER 5.25.2017

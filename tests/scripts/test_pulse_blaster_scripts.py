@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from PyLabControl.src.core import Script
+from pylabcontrol.src.core import Script
 
 
 class TestScriptDummy(TestCase):

@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ import time
 
 
 from b26_toolkit.src.plotting.plots_1d import plot_psd, update_1d_simple
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 from b26_toolkit.src.instruments import ZIHF2
 

@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ FPGA_PID_Loop_Simple.py which defines the higher level Python objects that are t
 from ctypes import *
 import numpy as np
 import os
-from PyLabControl.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core.read_write_functions import get_config_value
 # =========================================================================
 # ======= LOAD DLL ========================================================
 # =========================================================================

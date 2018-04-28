@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     b26_toolkit is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ import numpy as np
 from matplotlib import patches
 
 from b26_toolkit.src.instruments import NI6259, NI9263
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 
 class SetLaserPower(Script):
@@ -85,7 +85,7 @@ V450A
         return voltage
 
 if __name__ == '__main__':
-    from PyLabControl.src.core import Instrument
+    from pylabcontrol.src.core import Instrument
 
     # instruments, instruments_failed = Instrument.load_and_append({'daq':  'NI6259'})
 

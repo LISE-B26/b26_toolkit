@@ -1,0 +1,16 @@
+starting script ReadoutStartTimeWithoutMW at 17:56:47 on 27/04/18
+Adding microwave switch to pulse sequences
+All generated pulse sequences are valid. No tau times will b e skipped in this experiment.
+10 different tau times have passed validation
+Averaging over 10 blocks of 1e5
+Running average block 1 of 10
+Running average block 2 of 10
+Running average block 3 of 10
+Running average block 4 of 10
+Running average block 5 of 10
+Running average block 6 of 10
+Running average block 7 of 10
+Running average block 8 of 10
+Running average block 9 of 10
+Running average block 10 of 10
+script ReadoutStartTimeWithoutMW finished at 18:00:13 on 27/04/18

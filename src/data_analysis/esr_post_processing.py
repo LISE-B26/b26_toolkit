@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -29,10 +29,10 @@ import time
 import datetime
 
 
-from PyLabControl.src.core import Script
+from pylabcontrol.src.core import Script
 from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr, find_nv_peaks
 from b26_toolkit.src.plotting.plots_1d import plot_esr
-from PyLabControl.src.core.helper_functions import datetime_from_str
+from pylabcontrol.src.core.helper_functions import datetime_from_str
 
 from b26_toolkit.src.data_processing.esr_signal_processing import get_lorentzian_fit_starting_values, fit_lorentzian, fit_double_lorentzian
 

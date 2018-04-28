@@ -1,4 +1,4 @@
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 # import standard libraries
 import numpy as np

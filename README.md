@@ -1,19 +1,16 @@
 # b26_toolkit
-b26_toolkit is an add-on to PyLabControl, including all of the scripts 
+b26_toolkit is an implementation of the scripts
 and instruments used by the NV Nanomechanics project in the Lukin Group 
 at Harvard University. It contains PyLabControl-compatible instruments 
 and scripts that are utilized in the project, as well well as plotting
 and data processing convenience functions.
 
-b26_toolkit is built on python 2.7.x. It was built by Arthur Safira, 
+b26_toolkit is built on python 3.6.x. It was built by Arthur Safira,
 Jan Gieseler, and Aaron Kabcenell in the Lukin Group at Harvard University. 
 It is distributed under the GPLv3 license. For more information, see LICENSE.txt .
 
 
 ## Getting Started
-###Prerequisites
-Before installing b26_tookit, be sure to have PyLabControl installed. 
-Details can be found at the PyLabControl Github page,  https://github.com/LISE-B26/PyLabControl .
 
 ### Installation
 The simplest way to install b26_toolkit is with the command-line utility pip. To install simply issue the command

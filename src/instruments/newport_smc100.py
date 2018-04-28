@@ -2,8 +2,8 @@
 import clr # run pip install pythonnet
 import sys, os
 import time
-from PyLabControl.src.core.read_write_functions import get_config_value
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core import Parameter, Instrument
 
 
 # import dll for SMC100

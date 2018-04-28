@@ -1,6 +1,6 @@
 # # from https://stackoverflow.com/questions/40563139/ueye-camera-with-python-on-windows
 #
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core import Parameter, Instrument
 
 import sys
 

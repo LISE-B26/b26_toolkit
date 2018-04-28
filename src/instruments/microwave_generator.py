@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 import visa
 import pyvisa.errors
 
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core import Parameter, Instrument
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = 1012500000

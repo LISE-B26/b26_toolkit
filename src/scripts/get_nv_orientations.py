@@ -1,6 +1,6 @@
 import numpy as np
 
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 
 class GetNVOrientations(Script):

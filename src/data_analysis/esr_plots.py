@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     Foobar is free software: you can redistribute it and/or modify
@@ -33,8 +33,8 @@ from matplotlib import gridspec
 import os
 import datetime
 
-from PyLabControl.src.core.helper_functions import datetime_from_str
-from PyLabControl.src.core.scripts import Script
+from pylabcontrol.src.core.helper_functions import datetime_from_str
+from pylabcontrol.src.core.scripts import Script
 
 freq_to_mag = 1. / (2 * 2.8e6)
 

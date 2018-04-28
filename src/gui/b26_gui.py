@@ -1,8 +1,8 @@
 
-from PyLabControl.src.gui.qt_b26_gui import ControlMainWindow
+from pylabcontrol.src.gui.qt_b26_gui import ControlMainWindow
 from b26_toolkit.src.gui.b26_load_dialog import LoadDialogB26
 import os
-from PyLabControl.src.core import Script
+from pylabcontrol.src.core import Script
 
 
 class ControlMainWindowB26(ControlMainWindow):
