@@ -350,7 +350,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         sweep_voltages = self.data['sweep_voltages']
         if len(focus_data) > 0:
             axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data)
-            axis_focus.hold(False)
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
