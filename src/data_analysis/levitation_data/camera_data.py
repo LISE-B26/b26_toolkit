@@ -329,7 +329,7 @@ def exponential(x, amp, tau, offset):
     return amp * np.exp(-x/tau) + offset
 
 
-def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=False):
+def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=True):
     """
     returns the time max freq and totel power in freq range for chunks of timetrace
 
@@ -347,14 +347,14 @@ def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=
 
     x = x[0:int(np.floor(len(x) / nbin) * nbin)]
 
-    x = x.values.reshape([int(np.floor(len(x) / nbin)), int(nbin)])
+    x = x.reshape([int(np.floor(len(x) / nbin)), int(nbin)])
 
     df = 1. / (nbin * dt)
 
     f_of_t = []
     a_of_t = []
     for y in x:
-        f, p = get_power_spectral_density(y, dt, frequency_range)
+        f, p = power_spectral_density(y, dt, frequency_range)
         f_of_t.append(f[np.argmax(p)])
 
         if velocity_type:

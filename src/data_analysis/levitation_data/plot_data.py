@@ -27,8 +27,9 @@ rgb2gray_pipeline = pipeline(rgb2gray)
 from scipy.ndimage.filters import gaussian_filter
 
 import numpy as np
+from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density
 
-def plot_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None):
+def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None):
     """
 
     plots frames of the video
@@ -75,39 +76,161 @@ def plot_frame(file_path, frames, xy_position = None, gaussian_filter_width=None
         plt.ylim(ylim)
         plt.show()
 
-
-# older stuff
-def plot_fft(x, frame_rate, start_frame = 0, window_width = 10000, plottype= 'lin'):
+def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None):
     """
 
     Args:
-        x:
-        frame_rate: frame rate in fps of the original video
-        start frame: first frame to use for the window
-        window_width: number of frames to use in window
-        plottype: 'lin' linear plot, 'log' loglog plot, 'semilogy' semilog y plot
+        x: time trace
+        time_step: time_step between datapoints
+        start_frame: starting frame for analysis (default 0)
+        window_length: length of window over which we compute the psd (default 1000)
+        end_frame: end frame for analysis (optional if None end_frame is len of total timetrace)
+        full_spectrum: if true show full spectrum if false just mark the frequency range
+        frequency_range: a tupple or list of two elements frange =[mode_f_min, mode_f_min] that marks a freq range on the plot if full_spectrum is False otherwise plot only the spectrum within the frequency_range
 
     Returns:
 
     """
+    N_frames = len(x) # total number of frames
+
+    if end_frame is None:
+        end_frame = N_frames
 
 
-    # x,y = zip(*max_coors)
+    N_windows = (end_frame-start_frame)/window_length # number of windows
+    N_windows = int(np.floor(N_windows))
 
-    plt.figure()
+    print('total number of frames:\t\t{:d}'.format(N_frames))
+    print('total number of windows:\t{:d}'.format(N_windows))
 
-    if plottype== 'semilogy':
-        plt.semilogy(freqs[1:], np.abs(fft)[1:])
-    elif plottype== 'lin':
-        plt.plot(freqs[1:],np.abs(fft)[1:])
-    elif plottype== 'log':
-        plt.loglog(freqs[1:],np.abs(fft)[1:])
 
-    plt.title("Fourier Transform")
-    plt.xlabel('Frequency(Hz)')
-    plt.ylabel('Amplitude (arb)')
-    plt.xlim((1,frame_rate/2))
-    plt.show()
+    # reshape the timetrace such that each row is a window
+    X = x[start_frame:start_frame+window_length*N_windows].reshape(N_windows, window_length)
+    P = []
+    # c = 0
+    for x in X:
+        # c+=1
+        if full_spectrum:
+            f, p =  power_spectral_density(x, time_step, frequency_range=None)
+        else:
+            f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
+        P.append(p)
+        # print(c,len(p), np.min(p))
+
+
+    windows = np.arange(N_windows)
+
+    xlim = [min(f), max(f)]
+    ylim = [min(windows), max(windows)]
+
+    plt.pcolormesh(f, windows, np.log(P))
+
+    # print(np.min(P, axis=1), len(np.min(P, axis=1)))
+
+    if not frequency_range is None:
+        [mode_f_min, mode_f_max] = frequency_range
+        plt.plot([mode_f_min, mode_f_min], ylim, 'k--')
+        plt.plot([mode_f_max, mode_f_max], ylim, 'k--')
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+    plt.xlabel('frequency (Hz)')
+    plt.ylabel('window id')
+
+
+def plot_psds(x, time_step, window_ids, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None):
+    """
+
+    Args:
+        x: time trace
+        time_step: time_step between datapoints
+        window_ids: the id of the window to be plotted
+        start_frame: starting frame for analysis (default 0)
+        window_length: length of window over which we compute the psd (default 1000)
+        end_frame: end frame for analysis (optional if None end_frame is len of total timetrace)
+        full_spectrum: if true show full spectrum if false just mark the frequency range
+        frequency_range: a tupple or list of two elements frange =[mode_f_min, mode_f_min] that marks a freq range on the plot if full_spectrum is False otherwise plot only the spectrum within the frequency_range
+
+    Returns:
+
+    """
+    N_frames = len(x) # total number of frames
+
+    if end_frame is None:
+        end_frame = N_frames
+
+
+    N_windows = (end_frame-start_frame)/window_length # number of windows
+    N_windows = int(np.floor(N_windows))
+
+    print('total number of frames:\t\t{:d}'.format(N_frames))
+    print('total number of windows:\t{:d}'.format(N_windows))
+
+
+    # reshape the timetrace such that each row is a window
+    X = x[start_frame:start_frame+window_length*N_windows].reshape(N_windows, window_length)
+    P = []
+
+    for id, x in enumerate(X):
+
+        if id in window_ids:
+
+            if full_spectrum:
+                f, p =  power_spectral_density(x, time_step, frequency_range=None)
+            else:
+                f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
+            P.append(p)
+
+    windows = np.arange(N_windows)
+
+    xlim = [min(f), max(f)]
+    ylim = [min(windows), max(windows)]
+
+    for p, id in zip(P, window_ids):
+        plt.semilogy(f, p, 'o-', label = id)
+
+    if not frequency_range is None:
+        [mode_f_min, mode_f_max] = frequency_range
+        plt.plot([mode_f_min, mode_f_min], [np.min(P), np.max(P)], 'k--')
+        plt.plot([mode_f_max, mode_f_max], [np.min(P), np.max(P)], 'k--')
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+    plt.xlabel('frequency (Hz)')
+    plt.ylabel('psd (arb.u.)')
+    plt.legend(loc = (1,0))
+
+
+# older stuff
+# def plot_fft(x, frame_rate, start_frame = 0, window_width = 10000, plottype= 'lin'):
+#     """
+#
+#     Args:
+#         x:
+#         frame_rate: frame rate in fps of the original video
+#         start frame: first frame to use for the window
+#         window_width: number of frames to use in window
+#         plottype: 'lin' linear plot, 'log' loglog plot, 'semilogy' semilog y plot
+#
+#     Returns:
+#
+#     """
+#
+#
+#     # x,y = zip(*max_coors)
+#
+#     plt.figure()
+#
+#     if plottype== 'semilogy':
+#         plt.semilogy(freqs[1:], np.abs(fft)[1:])
+#     elif plottype== 'lin':
+#         plt.plot(freqs[1:],np.abs(fft)[1:])
+#     elif plottype== 'log':
+#         plt.loglog(freqs[1:],np.abs(fft)[1:])
+#
+#     plt.title("Fourier Transform")
+#     plt.xlabel('Frequency(Hz)')
+#     plt.ylabel('Amplitude (arb)')
+#     plt.xlim((1,frame_rate/2))
+#     plt.show()
 
 
 def plot_ringdown(filepaths, frequency, window_width, fps, bead_diameter, axis='x', starting_frame=0,
