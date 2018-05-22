@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     b26_toolkit is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 """
 
 from b26_toolkit.src.instruments import MaestroLightControl
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from copy import deepcopy
 
 class ApplyLightControlSettings(Script):
@@ -81,7 +81,7 @@ If parameter on is set to true applies the settings from the script. If false it
 
             self.log('reset lightcontrol settings')
 
-        print('SETTINGS: ', dictator)
+        print(('SETTINGS: ', dictator))
         self.instruments['light_control']['instance'].update(dictator)
 
 class CameraOn(Script):

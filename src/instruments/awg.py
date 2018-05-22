@@ -1,26 +1,26 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import visa
 import pyvisa.errors
 import numpy
 
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core import Parameter, Instrument
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = -0.500 # V, minimum voltage for the SRS IQ
@@ -34,7 +34,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
 
     _DEFAULT_SETTINGS = Parameter([
       #  Parameter('connection_type', 'GPIB', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 11, range(0,31), 'GPIB port on which to connect'),
+        Parameter('port', 11, list(range(0,31)), 'GPIB port on which to connect'),
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output_ch1', False, bool, 'enable output CH1'),
         Parameter('enable_output_ch2', False, bool, 'enable output CH2'),
@@ -85,7 +85,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
     def _connect(self):
         rm = visa.ResourceManager()
         self.awg = rm.open_resource(
-            u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
+            'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
         self.awg.query('*IDN?')
         self.awg.write('*RST')  # reset AWG
         self.awg.write('SOUR1:BURS:MODE TRIG')
@@ -109,7 +109,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         """
         super(AWG, self).update(settings)
         # ===========================================
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             print('KEY: ')
             print(key)
             print('VALUE: ')
@@ -131,7 +131,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                     self.awg.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
             elif type(value) == dict: # if nested dictionary keep iterating
-                for key2, value2 in value.iteritems():
+                for key2, value2 in value.items():
                     if key2 == 'phase':
                         value2 = value2*numpy.pi/180;
                     elif key2 == 'amplitude':
@@ -160,7 +160,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
 
         # assert hasattr(self, 'awg') #will cause read_probes to fail if connection not yet established, such as when called in init
         assert(self._settings_initialized) #will cause read_probes to fail if settings (and thus also connection) not yet initialized
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
 
         #query always returns string, need to cast to proper return type
         if key in ['enable_output_ch1']:
@@ -290,7 +290,7 @@ if __name__ == '__main__':
     arb = AWG()
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
-    print(arb.awg)
+    print((arb.awg))
 
     # instrument_name= 'MicrowaveGenerator'
     # instrument_settings = {'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'}

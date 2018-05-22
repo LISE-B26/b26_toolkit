@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 """
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # ===========================================
     def makeFig():
         # plt.scatter(xList,yList) # I think you meant this
-        time = range(len(piezo_list))
+        time = list(range(len(piezo_list)))
         axarr[0].scatter(time, piezo_list)
         axarr[1].scatter(time, detector_list)
 
@@ -86,8 +86,8 @@ if __name__ == '__main__':
         signal = PI.detector
         piezo = PI.piezo
         time.sleep(0.5)
-        print('detector value {:d}'.format(signal))
-        print('piezo value {:d}'.format(piezo))
+        print(('detector value {:d}'.format(signal)))
+        print(('piezo value {:d}'.format(piezo)))
 
         piezo_list.append(piezo)
         detector_list.append(signal)
@@ -104,5 +104,5 @@ if __name__ == '__main__':
     PI.status_PI = False
     fpga.stop()
 
-    print(fpga.session, fpga.status)
-    input("Please type enter to exit and close plot...")
+    print((fpga.session, fpga.status))
+    eval(input("Please type enter to exit and close plot..."))

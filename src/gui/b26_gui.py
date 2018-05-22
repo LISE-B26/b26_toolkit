@@ -1,8 +1,8 @@
 
-from PyLabControl.src.gui.qt_b26_gui import ControlMainWindow
+from pylabcontrol.src.gui.qt_b26_gui import ControlMainWindow
 from b26_toolkit.src.gui.b26_load_dialog import LoadDialogB26
 import os
-from PyLabControl.src.core import Script
+from pylabcontrol.src.core import Script
 
 
 class ControlMainWindowB26(ControlMainWindow):
@@ -35,20 +35,20 @@ class ControlMainWindowB26(ControlMainWindow):
             removed_scripts = set(self.scripts.keys()) - set(scripts.keys())
 
             if verbose:
-                print('load_scripts.scripts', scripts)
-                print('load_scripts.added_scripts', added_scripts)
-                print('load_scripts.removed_scripts', removed_scripts)
+                print(('load_scripts.scripts', scripts))
+                print(('load_scripts.added_scripts', added_scripts))
+                print(('load_scripts.removed_scripts', removed_scripts))
 
-            if 'data_folder' in self.gui_settings.keys() and os.path.exists(self.gui_settings['data_folder']):
+            if 'data_folder' in list(self.gui_settings.keys()) and os.path.exists(self.gui_settings['data_folder']):
                 data_folder_name = self.gui_settings['data_folder']
             else:
                 data_folder_name = None
 
-            script_dict={name: scripts[name] for name in added_scripts}
+            script_dict = {name: scripts[name] for name in added_scripts}
 
             if verbose:
-                print('load_scripts.script_dict', script_dict)
-                print('scripts, instruments', self.scripts, self.instruments)
+                print(('load_scripts.script_dict', script_dict))
+                print(('scripts, instruments', self.scripts, self.instruments))
 
             # create instances of new instruments/scripts
             self.scripts, loaded_failed, self.instruments = Script.load_and_append(
@@ -61,7 +61,7 @@ class ControlMainWindowB26(ControlMainWindow):
             assert not 'self.scripts' == {}
 
             if verbose:
-                print('self.scripts', self.scripts)
+                print(('self.scripts', self.scripts))
             # delete instances of new instruments/scripts that have been deselected
             for name in removed_scripts:
                 del self.scripts[name]

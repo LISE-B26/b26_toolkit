@@ -1,29 +1,29 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    PyLabControl is free software: you can redistribute it and/or modify
+    pylabcontrol is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    PyLabControl is distributed in the hope that it will be useful,
+    pylabcontrol is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
+    along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 # clr is python for .net
 import clr # run pip install pythonnet
 import sys, os
-from PyLabControl.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core.read_write_functions import get_config_value
 
 # JG: July 27 2016 uncommented folowing line: don't use import *!
-# from PyLabControl.src.core.instruments import *
-from PyLabControl.src.core import Parameter, Instrument
+# from pylabcontrol.src.core.instruments import *
+from pylabcontrol.src.core import Parameter, Instrument
 
 
 dll_path = get_config_value('KINESIS_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
@@ -45,7 +45,7 @@ if dll_path:
 
     except Exception as exception_details:
         print("Could not load Thorlabs dll's to control Thorlabs servos.")
-        print("exception details " + str(exception_details))
+        print(("exception details " + str(exception_details)))
         DeviceManagerCLI = None
         TCubeDCServo = None
         KCubeDCServo = None
@@ -95,7 +95,7 @@ class ThorlabsServo(Instrument):
         #point, the servo won't be connected, so don't make changes in hardware at this point. After the end of the
         #__init__ when initialization is complete and the servo is connected, we can then have changes update hardware
         if self._settings_initialized:
-            for key, value in settings.iteritems():
+            for key, value in settings.items():
                 if key == 'position':
                     self._move_servo(value)
                 elif key == 'velocity':
@@ -117,7 +117,7 @@ class ThorlabsServo(Instrument):
         }
 
     def read_probes(self, key):
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         #query always returns string, need to cast to proper return type
@@ -226,18 +226,18 @@ class TDC001(ThorlabsServo):
         except (Exception):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
-            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            print((str(self.settings['serial_number']) + " is not a valid serial number"))
             raise
 
         self.device = self.Servo.CreateTCubeDCServo(str(self.settings['serial_number']))
         if(self.device == None):
-            print(self.settings['serial_number'] + " is not a TCubeDCServo")
+            print((self.settings['serial_number'] + " is not a TCubeDCServo"))
             raise
 
         try:
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
-            print('Failed to open device ' + str(self.settings['serial_number']))
+            print(('Failed to open device ' + str(self.settings['serial_number'])))
             # raise
 
         if not self.device.IsSettingsInitialized():
@@ -276,18 +276,18 @@ class KDC001(ThorlabsServo):
         except (Exception):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
-            print(str(self.settings['serial_number']) + " is not a valid serial number")
+            print((str(self.settings['serial_number']) + " is not a valid serial number"))
             # raise
 
         self.device = self.Servo.CreateKCubeDCServo(str(self.settings['serial_number']))
         if (self.device == None):
-            print(self.settings['serial_number'] + " is not a KCubeDCServo")
+            print((self.settings['serial_number'] + " is not a KCubeDCServo"))
             # raise
 
         try:
             self.device.Connect(str(self.settings['serial_number']))
         except Exception:
-            print('Failed to open device ' + str(self.settings['serial_number']))
+            print(('Failed to open device ' + str(self.settings['serial_number'])))
             return
 
         if not self.device.IsSettingsInitialized():
@@ -308,5 +308,5 @@ class KDC001(ThorlabsServo):
 if __name__ == '__main__':
     #A test function for the device. Tries to connect to the
     a = KDC001()
-    print(a.is_connected)
+    print((a.is_connected))
     a._move_servo(5)

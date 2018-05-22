@@ -1,26 +1,26 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    PyLabControl is free software: you can redistribute it and/or modify
+    pylabcontrol is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    PyLabControl is distributed in the hope that it will be useful,
+    pylabcontrol is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
+    along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from b26_toolkit.src.instruments import Oscilloscope
-from PyLabControl.src.core import Script
+from pylabcontrol.src.core import Script
 import numpy as np
 
-from PyLabControl.src.data_processing.signal_processing import power_spectral_density
+from pylabcontrol.src.data_processing.signal_processing import power_spectral_density
 
 class KeysightOsciGetTimeTrace(Script):
     # COMMENT_ME
@@ -89,7 +89,7 @@ class KeysightOsciGetTimeTrace(Script):
 
         F, P = power_spectral_density(data, dt)
 
-        print('JG adasd', data, dt)
+        print(('JG adasd', data, dt))
 
         axes_list[1].plot(F, P, '-')
         axes_list[1].set_xlabel('freq (Hz)')
@@ -104,7 +104,7 @@ class KeysightOsciGetTimeTrace(Script):
 
 
 if __name__ == '__main__':
-    from PyLabControl.src.core import Instrument
+    from pylabcontrol.src.core import Instrument
     # from b26_toolkit.src.instruments import NI7845RMain
     #
     # fpga = NI7845RMain()

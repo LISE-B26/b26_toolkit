@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import matplotlib.patches as patches
@@ -131,13 +131,13 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     axis.set_xlim(0, max_time)
 
     # label y axis with pulse names
-    axis.set_yticks(range(len(instrument_names)))
+    axis.set_yticks(list(range(len(instrument_names))))
     axis.set_yticklabels(instrument_names)
 
     # create horizontal lines for each pulse
     for pulse_plot_y_position in range(0, len(instrument_names)):
         axis.axhline(pulse_plot_y_position - .25, 0.0, max_time, color='k')
-    axis.tick_params(axis='y', which=u'both', length=0)  # remove tick marks on y axis
+    axis.tick_params(axis='y', which='both', length=0)  # remove tick marks on y axis
 
     # create a vertical line denoting the end of the pulse sequence loop
     # axis.axvline(max_time, -0.5, len(instrument_names), color='r')
@@ -244,7 +244,7 @@ def plot_counts(axis, data):
     """
 
     axis.plot(data, linewidth=2.0)
-    axis.hold(False)
+    # axis.hold(False)
 
     axis.set_xlabel('time')
     axis.set_ylabel('kCounts/sec')
@@ -272,7 +272,7 @@ def plot_temperature(axis, data, sample_rate):
         time /= 60.
         label = 'time (h)'
     axis.plot(time, data)
-    axis.hold(False)
+    # axis.hold(False)
 
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
@@ -306,7 +306,7 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
     for counts in data_list:
         axis.plot(times, counts)
 
-    axis.hold(False)
+    # axis.hold(False)
 
 
     axis.set_xlabel(x_label)

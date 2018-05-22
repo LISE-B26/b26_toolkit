@@ -1,22 +1,22 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
@@ -143,7 +143,7 @@ class ESR(Script):
             # raw_data = sweep_mw_and_count_APD(freq_voltage_array, dt)
             # counter counts continiously so we take the difference to get the counts per time interval
             diff_data = np.diff(raw_data)
-            summed_data = np.zeros(len(freq_voltage_array) / clock_adjust)
+            summed_data = np.zeros(int(len(freq_voltage_array) / clock_adjust))
             for i in range(0, int((len(freq_voltage_array) / clock_adjust))):
                 summed_data[i] = np.sum(diff_data[(i * clock_adjust + 1):(i * clock_adjust + clock_adjust - 1)])
 
@@ -152,6 +152,12 @@ class ESR(Script):
 
             return summed_data
 
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            self.daq_out = self.instruments['NI9263']['instance']
 
         self.lines = []
 
@@ -206,12 +212,12 @@ class ESR(Script):
         self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts' : avrg_counts}
 
         # run sweeps
-        for scan_num in xrange(0, self.settings['esr_avg']):
+        for scan_num in range(0, self.settings['esr_avg']):
             if self._abort:
                 break
             esr_data_pos = 0
 
-            for sec_num in xrange(0, num_freq_sections):
+            for sec_num in range(0, int(num_freq_sections)):
 
                 freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
                                                                          sec_num,

@@ -1,20 +1,21 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 import numpy as np
 from PIL import Image as im
 from scipy import signal
@@ -58,7 +59,7 @@ def find_image_shift(reference_image, reference_image_extent, shifted_image, shi
         scaled_shifted_image_PIL = im.fromarray(shifted_image).resize(scaled_shifted_img_size)
         scaled_shifted_image_pixels = list(scaled_shifted_image_PIL.getdata())
         scaled_width, scaled_height = scaled_shifted_image_PIL.size
-        shifted_image = np.array([scaled_shifted_image_pixels[i * scaled_width:(i + 1) * scaled_width] for i in xrange(scaled_height)])
+        shifted_image = np.array([scaled_shifted_image_pixels[i * scaled_width:(i + 1) * scaled_width] for i in range(scaled_height)])
 
     # get correlation function, find max, return it
 

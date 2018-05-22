@@ -1,5 +1,5 @@
-from PyLabControl.src.core.script_iterator import ScriptIterator
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core.script_iterator import ScriptIterator
+from pylabcontrol.src.core import Script, Parameter
 import numpy as np
 
 class ScriptIteratorB26(ScriptIterator):
@@ -22,7 +22,7 @@ class ScriptIteratorB26(ScriptIterator):
         """
 
         if 'iterator_type' in script_settings:
-            print('JG tmp iterator_type', script_settings['iterator_type'])
+            print(('JG tmp iterator_type', script_settings['iterator_type']))
 
         if 'iterator_type' in script_settings:
             # figure out the iterator type
@@ -69,7 +69,7 @@ class ScriptIteratorB26(ScriptIterator):
         # for point iteration we add some default scripts
         if iterator_type == 'iter nvs':
 
-            module = Script.get_script_module('SelectPoints')# Select points is actually in PyLabControl
+            module = Script.get_script_module('SelectPoints')# Select points is actually in pylabcontrol
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
@@ -85,7 +85,7 @@ class ScriptIteratorB26(ScriptIterator):
             script_settings['script_order'] = {'select_points': -3, 'correlate_iter': -2, 'find_nv': -1}
 
         elif iterator_type == 'iter points':
-            module = Script.get_script_module('SelectPoints', 'PyLabControl')
+            module = Script.get_script_module('SelectPoints', 'pylabcontrol')
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
@@ -100,7 +100,7 @@ class ScriptIteratorB26(ScriptIterator):
             script_settings['script_order']={'select_points': -3, 'correlate_iter': -2, 'set_laser': -1}
 
         elif iterator_type == 'test':
-            module = Script.get_script_module('Wait', 'PyLabControl')
+            module = Script.get_script_module('Wait', 'pylabcontrol')
             sub_scripts.update(
                 {'wait': getattr(module, 'Wait')}
             )
@@ -163,7 +163,7 @@ class ScriptIteratorB26(ScriptIterator):
         script_order_parameter = []
         script_execution_freq = []
         # update the script order
-        for sub_script_name in script_order.keys():
+        for sub_script_name in list(script_order.keys()):
             script_order_parameter.append(Parameter(sub_script_name, script_order[sub_script_name], int,
                                           'Order in queue for this script'))
             if sub_script_name == 'select_points':
@@ -180,9 +180,9 @@ class ScriptIteratorB26(ScriptIterator):
         Runs either a loop or a parameter sweep over the subscripts in the order defined by the parameter_list 'script_order'
         """
 
-        script_names = self.settings['script_order'].keys()
+        script_names = list(self.settings['script_order'].keys())
         script_indices = [self.settings['script_order'][name] for name in script_names]
-        _, sorted_script_names = zip(*sorted(zip(script_indices, script_names)))
+        _, sorted_script_names = list(zip(*sorted(zip(script_indices, script_names))))
 
 
         if self.iterator_type in ('iter nvs', 'iter points'):
@@ -208,7 +208,7 @@ class ScriptIteratorB26(ScriptIterator):
                 shifted_pt[0] = pt[0] + x_shift
                 shifted_pt[1] = pt[1] + y_shift
 
-                print('NV num: {:d}, shifted_pt: {:.3e}, {:.3e}', i, shifted_pt[0], shifted_pt[1])
+                print(('NV num: {:d}, shifted_pt: {:.3e}, {:.3e}', i, shifted_pt[0], shifted_pt[1]))
 
                 self.iterator_progress = 1. * i / N_points
 
@@ -235,7 +235,7 @@ class ScriptIteratorB26(ScriptIterator):
                         shifted_pt[1] = pt[1] + y_shift
                         set_point.update({'x': shifted_pt[0], 'y': shifted_pt[1]})
 
-                        print('NV num: {:d}, shifted_pt: {:.3e}, {:.3e}', i, shifted_pt[0], shifted_pt[1])
+                        print(('NV num: {:d}, shifted_pt: {:.3e}, {:.3e}', i, shifted_pt[0], shifted_pt[1]))
 
 
         else:

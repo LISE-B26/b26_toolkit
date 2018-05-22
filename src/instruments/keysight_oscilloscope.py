@@ -1,22 +1,22 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    PyLabControl is free software: you can redistribute it and/or modify
+    pylabcontrol is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    PyLabControl is distributed in the hope that it will be useful,
+    pylabcontrol is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
+    along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyLabControl.src.core import Instrument, Parameter
+from pylabcontrol.src.core import Instrument, Parameter
 import visa
 import numpy as np
 import time
@@ -29,7 +29,7 @@ class Oscilloscope(Instrument):
     This class provides a python implementation of the Keysight DSO1024A oscilloscope.
     """
 
-    _INSTRUMENT_IDENTIFIER = u'Agilent Technologies,DSO1024A,CN56301388,00.04.06 SP06'
+    _INSTRUMENT_IDENTIFIER = 'Agilent Technologies,DSO1024A,CN56301388,00.04.06 SP06'
     # String returned by spectrum analyzer upon querying it with '*IDN?'
 
     _DEFAULT_SETTINGS = Parameter([
@@ -223,11 +223,11 @@ class Oscilloscope(Instrument):
         total_time = int(total_time * 1.2+1) # give another percent margin, this is empirical
 
         for i in range(total_time):
-            print('waiting {:d}/{:d}'.format(i, total_time))
+            print(('waiting {:d}/{:d}'.format(i, total_time)))
             time.sleep(0.1)
 
         operationComplete = bool(self.osci.query('*OPC?'))
-        print('operationComplete', operationComplete)
+        print(('operationComplete', operationComplete))
 
 
         # Get the preamble block
@@ -249,7 +249,6 @@ class Oscilloscope(Instrument):
 
 
 
-        print('adadaada', self.settings['waveform'])
         format = str(self.settings['waveform']['format']).lower()
         # depending on the setting we get differnet data back
         if format == 'ascii':
@@ -273,7 +272,7 @@ class Oscilloscope(Instrument):
             raw_data = []
             while len(raw_data) == 0 and count<max_attempts:
                 raw_data = self.osci.query_binary_values(':WAV:DATA?', datatype='H')
-                print('data empty retry, attempt {:02d}/{:02d}'.format(count, max_attempts))
+                print(('data empty retry, attempt {:02d}/{:02d}'.format(count, max_attempts)))
                 count += 1
                 time.sleep(0.1)
             data = raw_data
@@ -353,20 +352,20 @@ if __name__ == '__main__':
         #
         print('create oscilloscope instance:')
         oscil = Oscilloscope()
-        print oscil.is_connected()
+        print(oscil.is_connected())
         # print oscil.mode
         # oscil.mode = 'TrackingGenerator'
         # print oscil.mode
 
         print('=============')
 
-        print(oscil.settings)
+        print((oscil.settings))
 
         data, preambleBlock = oscil.get_timetrace()
 
         dt = preambleBlock['dt']
         time = dt*np.arange(len(data))
-        print('data', data)
+        print(('data', data))
         plt.plot(time, data, '-x')
 
         plt.show()

@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
@@ -23,12 +23,11 @@ import pandas as pd
 from scipy.optimize import curve_fit
 import time
 from b26_toolkit.src.instruments import NI9263, NI6259
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 from b26_toolkit.src.data_processing.fit_functions import fit_cose_parameter, cose
 from b26_toolkit.src.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage, voltage_to_int
 from b26_toolkit.src.instruments import MaestroLightControl
 import datetime
-
 
 
 class Ni9263_BalancePolarization(Script):
@@ -127,7 +126,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
         slope = 1 if self.settings['optimization']['slope'] == 'positive' else -1
 
         # get the channels
-        print(self.settings['channels']['channel_OnOff'])
+        print((self.settings['channels']['channel_OnOff']))
         control_channel = self.settings['channels']['channel_OnOff'].split('NI9263_')[1]
         channel_out = self.settings['channels']['channel_WP_{:d}'.format(wp_control)].split('NI9263_')[1]
         channel_in = self.settings['channels']['channel_detector'].split('NI6259_')[1]
@@ -191,8 +190,8 @@ script to balance photodetector to zero by adjusting polarization controller vol
             self.updateProgress.emit(self.progress)
 
             direction = get_direction(detector_value, slope)
-            print('----> out', v_out, voltage_to_int((v_out)))
-            print('----> det', detector_value, slope, direction)
+            print(('----> out', v_out, voltage_to_int((v_out))))
+            print(('----> det', detector_value, slope, direction))
             # calculate the next step
             if len(self.data['voltage_waveplate']) ==1:
                 v_step = self.settings['optimization']['dV'] # start with initial step size
@@ -287,7 +286,7 @@ script to balance photodetector to zero by adjusting polarization controller vol
 
 if __name__ == '__main__':
     pass
-    # from PyLabControl.src.core import Instrument, Parameter
+    # from pylabcontrol.src.core import Instrument, Parameter
     #
     # daq, failed = Instrument.load_and_append({'daq': NI9263})
     # print(daq)

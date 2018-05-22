@@ -8,8 +8,8 @@ class TestCryoStation(TestCase):
 
         inst = CryoStation()
 
-        print(inst._PROBES)
-        print(inst.platform_temp)
-        print(inst.stage_1_temp)
+        print((inst._PROBES))
+        print((inst.platform_temp))
+        print((inst.stage_1_temp))
 
 

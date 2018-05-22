@@ -1,23 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-
-
-    This file contains functions to plot previously processed ESR data
-
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import glob
@@ -33,8 +29,8 @@ from matplotlib import gridspec
 import os
 import datetime
 
-from PyLabControl.src.core.helper_functions import datetime_from_str
-from PyLabControl.src.core.scripts import Script
+from pylabcontrol.src.core.helper_functions import datetime_from_str
+from pylabcontrol.src.core.scripts import Script
 
 freq_to_mag = 1. / (2 * 2.8e6)
 
@@ -230,7 +226,7 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
 
     # f.set_tight_layout(True)
 
-    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))))
+    print(('path', os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder)))))
 
     f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot.jpg'.format(os.path.basename(folder))),
               bbox_inches='tight',
@@ -329,12 +325,12 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
         else:
             if folder_num >= 0:
                 nv_coors = list()
-                coordinates = zip(subset['xo'], subset['yo'])
+                coordinates = list(zip(subset['xo'], subset['yo']))
                 for c in coordinates:
                     c3 = [c[0], c[1], 1]
                     c3_trans = np.dot(transformation_matrix,c3)
                     nv_coors.append([c3_trans[0], c3_trans[1]])
-                    nv_xs, nv_ys = zip(*nv_coors)
+                    nv_xs, nv_ys = list(zip(*nv_coors))
 
         # plot the fields on a 1D plot
         if scatter_plot_axis == 'x':
@@ -417,7 +413,7 @@ def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_lo
 
     # f.set_tight_layout(True)
 
-    print('path', os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))))
+    print(('path', os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder)))))
 
     f.savefig(os.path.join('./==processed==', folder[2:], 'splittings_plot_comparison.jpg'.format(os.path.basename(folder))),
               bbox_inches='tight',

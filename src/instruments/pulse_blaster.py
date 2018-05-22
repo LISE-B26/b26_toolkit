@@ -1,26 +1,26 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyLabControl.src.core import Instrument, Parameter
+from pylabcontrol.src.core import Instrument, Parameter
 from collections import namedtuple
 import numpy as np
 import itertools, ctypes, datetime, time, warnings
-from PyLabControl.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core.read_write_functions import get_config_value
 import os
 
 # Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
@@ -170,15 +170,17 @@ class PulseBlaster(Instrument):
         try:
             dll_path = get_config_value('PULSEBLASTER_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         except IOError:
-            warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
+            warnings.warn("Pulseblaster DLL not found. If it should be present, check the path.")
             dll_path = None
-            print('dll_path: ', dll_path)
+            print(('Expected dll_path: ', dll_path))
             self.is_conneted = False
         try:
             self.pb = ctypes.windll.LoadLibrary(dll_path)
+            print("loaded pb!")
         except WindowsError:
             self.is_conneted = False
-            warnings.warn("NI Pulseblaster DLL not found. If it should be present, check the path:")
+            warnings.warn("Pulseblaster DLL not found. If it should be present, check the path:")
+            print(('Expected dll_path: ', dll_path))
         super(PulseBlaster, self).__init__(name, settings)
         self.update(self._DEFAULT_SETTINGS)
         self.estimated_runtime = None
@@ -188,7 +190,7 @@ class PulseBlaster(Instrument):
         # call the update_parameter_list to update the parameter list
         super(PulseBlaster, self).update(settings)
 
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             self.pb.pb_reset()
             assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'
             self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
@@ -205,7 +207,7 @@ class PulseBlaster(Instrument):
     def settings2bits(self):
         #COMMENT_ME
         bits = 0
-        for output, output_params in self.settings.iteritems():
+        for output, output_params in self.settings.items():
             if isinstance(output_params, dict) and 'channel' in output_params and 'status' in output_params:
                 if output_params['status']:
                     bits |= 1 << output_params['channel']
@@ -228,14 +230,14 @@ class PulseBlaster(Instrument):
 
         elif isinstance(channel_id, int):
             channel_num = channel_id
-            for key, value in self.settings.iteritems():
-                if isinstance(value, dict) and 'channel' in value.keys() and value['channel'] == channel_num:
+            for key, value in self.settings.items():
+                if isinstance(value, dict) and 'channel' in list(value.keys()) and value['channel'] == channel_num:
                     return self.settings[key]['delay_time']
 
         raise AttributeError('Could not find delay of channel name or number: {0}'.format(str(channel_id)))
 
     @staticmethod
-    def find_overlapping_pulses(pulses, combine_channels=[]):
+    def find_overlapping_pulses(pulses, combine_channels=None):
         """
         Finds all overlapping pulses in a collection of pulses, and returns the clashing pulses.
 
@@ -249,6 +251,9 @@ class PulseBlaster(Instrument):
             position
 
         """
+
+        if combine_channels is None:
+            combine_channels = set()
 
         def get_overlapping_pulses(pulse1, pulse2):
             """
@@ -271,18 +276,20 @@ class PulseBlaster(Instrument):
             return overlapping_pulses
 
         overlapping_pulses = []
-        channel_ids = list(set([p.channel_id for p in pulses]))  # get all channel ids as a list
+        channel_ids = set([p.channel_id for p in pulses])  # get all channel ids as a list
 
         # check for overlapping pulses in the combined channels
         pulse_list = [p for p in pulses if p.channel_id in combine_channels]  # get all the pulses with any of the channel id
-        for pulse_pair in itertools.combinations(pulse_list, 2):
-            overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
+        for pulse1, pulse2 in itertools.combinations(pulse_list, 2):
+            if Pulse.is_overlapping(pulse1, pulse2):
+                overlapping_pulses.append(tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time)))
 
         # check for overlapping pulses in the each of the channels that are not combined
-        for channel_id in list(set(channel_ids) - set(combine_channels)):
-            pulse_list = [p for p in pulses if p.channel_id == channel_id]  # get all the pulses with channel id
-            for pulse_pair in itertools.combinations(pulse_list, 2):
-                overlapping_pulses.extend(get_overlapping_pulses(pulse_pair[0], pulse_pair[1]))
+        for channel_id in (channel_ids - set(combine_channels)):
+            pulse_list = [pulse for pulse in pulses if pulse.channel_id == channel_id]  # get all the pulses with channel id
+            for pulse1, pulse2 in itertools.combinations(pulse_list, 2):
+                if Pulse.is_overlapping(pulse1, pulse2):
+                    overlapping_pulses.append(tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time)))
 
         return overlapping_pulses
 
@@ -348,13 +355,13 @@ class PulseBlaster(Instrument):
             pb_command_dict.setdefault(pulse_end_time, []).append(1 << pulse_channel)
 
         # Make sure we have a command at time=0, the command to have nothing on.
-        if 0 not in pb_command_dict.keys():
+        if 0 not in list(pb_command_dict.keys()):
             pb_command_dict[0] = 0
 
         # For each time, combine all of the channels we need to toggle into a single bit string, and add it to a
         # command list of PBStateChange objects
         pb_command_list = []
-        for instruction_time, bit_strings in pb_command_dict.iteritems():
+        for instruction_time, bit_strings in pb_command_dict.items():
             channel_bits = np.bitwise_xor.reduce(bit_strings)
             if channel_bits != 0 or instruction_time == 0:
                 pb_command_list.append(self.PBStateChange(channel_bits, instruction_time))
@@ -573,7 +580,7 @@ class PulseBlaster(Instrument):
 
         for command in pb_commands:
             if command.duration < 15:
-                print('JG 20180321 command', command)
+                print(('JG 20180321 command', command))
                 raise RuntimeError("Detected command with duration <15ns.")
 
         # begin programming the pulseblaster
@@ -620,8 +627,8 @@ class PulseBlaster(Instrument):
         if isinstance(channel_id, (int, float)):
             return channel_id
         elif isinstance(channel_id, str):
-            if channel_id in self.settings.keys() and isinstance(self.settings[channel_id], dict) and 'channel' in \
-                    self.settings[channel_id].keys():
+            if channel_id in list(self.settings.keys()) and isinstance(self.settings[channel_id], dict) and 'channel' in \
+                    list(self.settings[channel_id].keys()):
                 return self.settings[channel_id]['channel']
             else:
                 raise AttributeError('Could not find channel with the following id: {0}'.format(channel_id))
@@ -692,7 +699,7 @@ class B26PulseBlaster(PulseBlaster):
     def get_name(self, channel):
         #COMMENT_ME
         for key, value in self.settings:
-            if 'channel' in value.keys() and value['channel'] == channel:
+            if 'channel' in list(value.keys()) and value['channel'] == channel:
                 return key
 
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
@@ -700,25 +707,24 @@ class B26PulseBlaster(PulseBlaster):
 
 if __name__ == '__main__':
 
-    # pb = Script.load_and_append() #B26PulseBlaster()
-    inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
-    pb = inst['B26PulseBlaster']
-    print(inst)
-    for i in range(5):
-        pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
-                            Pulse(channel_id=1, start_time=2000, duration=2000),
-                            Pulse(channel_id=1, start_time=4000, duration=2000),
-                            Pulse(channel_id=0, start_time=6000, duration=2000)]
-        # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
-        pb.program_pb(pulse_collection, num_loops=5E5)
-        pb.start_pulse_seq()
-        pb.wait()
-        print 'finished #{0}!'.format(i)
+    #pb = Script.load_and_append() #B26PulseBlaster()
+    # inst, failed = Instrument.load_and_append({'B26PulseBlaster': B26PulseBlaster})
 
-    pb.update({'laser': {'status': True}})
-    #
-    #
-    # Pulse('channel_0', 0, 10)
-    # print(Pulse.channel_id)
-    # print(Pulse.duration)
-    # print(Pulse.start_time)
+    # for i in range(5):
+    #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
+    #                         Pulse(channel_id=1, start_time=2000, duration=2000),
+    #                         Pulse(channel_id=1, start_time=4000, duration=2000),
+    #                         Pulse(channel_id=0, start_time=6000, duration=2000)]
+    #     # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
+    #     pb.program_pb(pulse_collection, num_loops=5E5)
+    #     pb.start_pulse_seq()
+    #     pb.wait()
+    #     print 'finished #{0}!'.format(i)
+
+    #   pb.update({'laser': {'status': True}})
+
+
+    Pulse('channel_0', 0, 10)
+    print((Pulse.channel_id))
+    print((Pulse.duration))
+    print((Pulse.start_time))

@@ -2,8 +2,8 @@
 import clr # run pip install pythonnet
 import sys, os
 import time
-from PyLabControl.src.core.read_write_functions import get_config_value
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core import Parameter, Instrument
 
 
 # import dll for SMC100
@@ -13,17 +13,17 @@ dll_path = get_config_value('SMC100_DLL_PATH',
                             os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
 
 print(dll_path)
+
 if dll_path:
 
     sys.path.insert(0, dll_path)
-
     # Uses python for .net to add dll assembly to namespace
-    try:
+    try: 
         clr.AddReference('Newport.SMC100.CommandInterface')
         import CommandInterfaceSMC100
     except Exception as exception_details:
         print('Could not load SMC100 dll from path specified in configuration file. Check path is correct.')
-        print('exception encountered: ' + str(exception_details))
+        print(('exception encountered: ' + str(exception_details)))
         CommandInterfaceSMC100 = None
 else:
     print("Could not import SMC100CommandInterface, will not be able to initialize SMC100 object.")
@@ -76,17 +76,17 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         self.SMC = CommandInterfaceSMC100.SMC100()
         result = self.SMC.OpenInstrument(self.settings['port'])
         if result == -1:
-            print('Failed to open device on port' + str(self.settings['port']))
+            print(('Failed to open device on port' + str(self.settings['port'])))
             raise
 
     def update(self, settings):
-        '''
+        """
         Updates internal settings, as well as the position set on the physical device
         Args:
             settings: A dictionary in the form of settings as seen in default settings
-        '''
+        """
         super(SMC100, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'position':
                 self._set_position(value/1e3)
             elif key == 'velocity':
@@ -100,15 +100,15 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         }
 
     def read_probes(self, key):
-        '''
+        """
         requestes value from the instrument and returns it
         Args:
             key: name of requested value
 
         Returns: reads values from instrument
 
-        '''
-        assert key in self._PROBES.keys()
+        """
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key == 'position':
@@ -117,10 +117,10 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             return self._get_velocity()*1e3
 
     def __del__(self):
-        '''
+        """
         Cleans up SMC100 connection
         :PostState: SMC100 is disconnected
-        '''
+        """
         self.SMC.CloseInstrument()
 
     def _get_position(self):
@@ -134,7 +134,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         s_ref = ''
         result, response, errString = self.SMC.TP(1, i_ref, s_ref)
         if result == -1:
-            print('ERROR: ' + errString)
+            print(('ERROR: ' + errString))
             raise
         return response
 
@@ -149,34 +149,30 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         if pos < self.settings['height_lower_limit']:
             raise ValueError('cannot set position below height_lower_limit')
 
-
-        print('aaaaa - set pos to ', pos)
-
         s_ref = ''
         # reenable computer control if keypad was used last
         self._enable_computer_control() #reenable computer control if keypad was used last
         #start movement
         result, errString = self.SMC.PA_Set(1, pos, s_ref)
         if result == -1:
-            print('ERROR: ' + errString)
+            print(('ERROR: ' + errString))
             raise
         #block until movement is done
         while True:
             result, ErrorCode, StatusCode, errString = self.SMC.TS(1, s_ref, s_ref, s_ref)
             if result == -1:
-                print('ERROR: ' + errString)
+                print(('ERROR: ' + errString))
                 raise
             if StatusCode in [DONE_MOVING, '34']:
                 break
             time.sleep(.1)
             # print('motor is moving - gui blocked StatusCode: {:s}'.format(str(StatusCode)))
-        print(' - done -')
     def _get_velocity(self):
         i_ref = -1
         s_ref = ''
         result, response, errString = self.SMC.VA_Get(1, i_ref, s_ref)
         if result == -1:
-            print('ERROR: ' + errString)
+            print(('ERROR: ' + errString))
             raise
         return response
 
@@ -184,14 +180,14 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         s_ref = ''
         result, errString = self.SMC.VA_Set(1, vel, s_ref)
         if result == -1:
-            print('ERROR: ' + errString)
+            print(('ERROR: ' + errString))
             raise
 
     def _enable_computer_control(self):
         s_ref = ''
         result, errString = self.SMC.MM_Set(1, 1, s_ref)
         if result == -1:
-            print('ERROR: ' + errString)
+            print(('ERROR: ' + errString))
             raise
 
 if __name__ == "__main__":

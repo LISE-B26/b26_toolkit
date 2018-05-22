@@ -1,22 +1,22 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyLabControl.src.core import Instrument, Parameter
+from pylabcontrol.src.core import Instrument, Parameter
 import visa
 import numpy as np
 import time
@@ -28,7 +28,7 @@ class SpectrumAnalyzer(Instrument):
     with trigger generator.
     """
 
-    _INSTRUMENT_IDENTIFIER = u'Keysight Technologies,N9320B,CN0323B356,0B.03.58'
+    _INSTRUMENT_IDENTIFIER = 'Keysight Technologies,N9320B,CN0323B356,0B.03.58'
     # String returned by spectrum analyzer upon querying it with '*IDN?'
 
     _DEFAULT_SETTINGS = Parameter([
@@ -94,7 +94,7 @@ class SpectrumAnalyzer(Instrument):
         if 'mode' in settings:
             self._wait_for_spec_anal()
             self._set_mode(settings['mode'])
-            print('mode',settings['mode'])
+            print(('mode',settings['mode']))
             # since changes in the output_power are not applied to the instruments when in SpectrumAnalyzer mode, we make sure that is is updated once switched back to TrackingAnalyzer
             if settings['mode'] == 'TrackingGenerator':
                 self.update({'output_power':self.settings['output_power']})
@@ -284,11 +284,11 @@ if __name__ == '__main__':
         #
         print('creat spectrum analyzer instance:')
         spec_anal = SpectrumAnalyzer()
-        print spec_anal.is_connected()
-        print spec_anal.mode
+        print(spec_anal.is_connected())
+        print(spec_anal.mode)
         spec_anal.mode = 'TrackingGenerator'
-        print spec_anal.mode
+        print(spec_anal.mode)
 
         print('=============')
 
-        print(spec_anal.settings, type(spec_anal.settings))
+        print((spec_anal.settings, type(spec_anal.settings)))

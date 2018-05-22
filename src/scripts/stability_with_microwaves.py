@@ -1,4 +1,4 @@
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
@@ -89,8 +89,8 @@ class Stability_With_Microwaves(Script):
         Returns:
 
         """
-        print('time', self.data['time'])
-        print('counts_before', self.data['counts_before'])
+        print(('time', self.data['time']))
+        print(('counts_before', self.data['counts_before']))
 
         axes_list[0].plot(self.data['time'], self.data['counts_before'], label = 'before_mw')
         axes_list[0].plot(self.data['time'], self.data['counts_during'], label = 'during_mw')

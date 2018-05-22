@@ -5,7 +5,7 @@ import time
 import threading
 from copy import deepcopy
 
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.scripts import FindNV, SetMagneticCoils, ESR, Take_And_Correlate_Images
 from b26_toolkit.src.data_processing.esr_signal_processing import fit_esr
 from b26_toolkit.src.data_processing.coordinate_conversions import cartesian_to_spherical

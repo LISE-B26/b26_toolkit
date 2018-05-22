@@ -27,11 +27,11 @@ class TestScriptDummy(TestCase):
 
         self.assertEqual(self.script.settings,self.script.to_dict()[self.script.name]['settings'])
         s = self.script_with_sub
-        print('script name', s.name)
-        for key, val in s.to_dict()[s.name].iteritems():
-            print(key, val)
+        print(('script name', s.name))
+        for key, val in s.to_dict()[s.name].items():
+            print((key, val))
         print('----------------------')
-        print(self.inst.to_dict())
+        print((self.inst.to_dict()))
 
     def test_with_inst(self):
         instr = {}

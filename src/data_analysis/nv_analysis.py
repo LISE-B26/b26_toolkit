@@ -1,9 +1,9 @@
 # Here we collect code that is a bit higher level and helps to understand nv related measurements
 
 
-import fields as f
-import nv_optical_response as nv
-import fields_plot as fp
+from . import fields as f
+from . import nv_optical_response as nv
+from . import fields_plot as fp
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -123,7 +123,7 @@ def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, exclud
     """
 
     if verbose:
-        print('Calculated fields and gradients at {:d} points'.format(len(df)))
+        print(('Calculated fields and gradients at {:d} points'.format(len(df))))
 
     # =============== find the best position ==============
     # exclude the values within a ring of radius exclude_ring
@@ -133,17 +133,17 @@ def get_best_NV_position(df, max_broadening=100, max_off_axis_field=0.01, exclud
     else:
         x = df
     if verbose:
-        print('Limited to xy within ring of radius {:0.2f}, {:d} points left'.format(exclude_ring, len(x)))
+        print(('Limited to xy within ring of radius {:0.2f}, {:d} points left'.format(exclude_ring, len(x))))
 
     # get the points where the xy gradient is less than the specified limit
     x = x.loc[(np.abs(x['Broadening']) < max_broadening)]
     if verbose:
-        print('Limited to xy inhomogeneous broadening < {:0.0f} MHz, {:d} points left'.format(max_broadening, len(x)))
+        print(('Limited to xy inhomogeneous broadening < {:0.0f} MHz, {:d} points left'.format(max_broadening, len(x))))
 
     # get the points where the xy gradient is less than the specified limit
     x = x.loc[(np.abs(x['Bperp']) < max_off_axis_field)]
     if verbose:
-        print('Limited to off axis field < {:0.0f} mT, {:d} points left'.format(max_off_axis_field * 1e3, len(x)))
+        print(('Limited to off axis field < {:0.0f} mT, {:d} points left'.format(max_off_axis_field * 1e3, len(x))))
 
 
 
@@ -403,8 +403,8 @@ if __name__ == '__main__':
         assert nv_id in range(4)
         nv_rot = np.dot(rotation_matrix_100_to_111(nv_id), nv_rot)
 
-        print(np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[nv_id]))
-        print('---', np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[0]))
+        print((np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[nv_id])))
+        print(('---', np.dot(rotation_matrix_100_to_111(nv_id), nv.nNV[0])))
 
 
     print('---xxxx---------')
@@ -416,6 +416,6 @@ if __name__ == '__main__':
 
     for nv_id in range(4):
 
-        print(np.dot(nv_rot, nv.nNV[nv_id]))
+        print((np.dot(nv_rot, nv.nNV[nv_id])))
 
 

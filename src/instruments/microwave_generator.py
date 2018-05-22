@@ -1,25 +1,25 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import visa
 import pyvisa.errors
 
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core import Parameter, Instrument
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = 1012500000
@@ -32,8 +32,8 @@ class MicrowaveGenerator(Instrument):
     """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('connection_type', 'GPIB', ['GPIB', 'RS232'], 'type of connection to open to controller'), # GPIB for warm setup
-        Parameter('port', 27, range(0,31), 'GPIB or COM port on which to connect'),
+        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('port', 5, list(range(0, 31)), 'GPIB or COM port on which to connect'),
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -68,9 +68,8 @@ class MicrowaveGenerator(Instrument):
     def _connect(self):
         rm = visa.ResourceManager()
         if self.settings['connection_type'] == 'GPIB':
-            print('GPIB: ' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
             self.srs = rm.open_resource(
-                u'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
+                'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
         elif self.settings['connection_type'] == 'RS232':
             self.srs = rm.open_resource('COM' + str(self.settings['port']))
             self.srs.baud_rate = 115200
@@ -90,7 +89,7 @@ class MicrowaveGenerator(Instrument):
         super(MicrowaveGenerator, self).update(settings)
         # XXXXX MW ISSUE = START
         # ===========================================
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'connection_type':
                 self._connect()
             elif not (key == 'port' or key == 'GPIB_num'):
@@ -133,7 +132,7 @@ class MicrowaveGenerator(Instrument):
     def read_probes(self, key):
         # assert hasattr(self, 'srs') #will cause read_probes to fail if connection not yet established, such as when called in init
         assert(self._settings_initialized) #will cause read_probes to fail if settings (and thus also connection) not yet initialized
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
 
         #query always returns string, need to cast to proper return type
         if key in ['enable_output', 'enable_modulation']:
@@ -322,7 +321,7 @@ if __name__ == '__main__':
     mw = MicrowaveGenerator()
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
-    print(mw.srs)
+    print((mw.srs))
 
     # instrument_name= 'MicrowaveGenerator'
     # instrument_settings = {'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'}

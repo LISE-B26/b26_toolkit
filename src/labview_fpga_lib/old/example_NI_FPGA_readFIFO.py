@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 """
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # create PI (proportional integral) controler object to have access to piezo output channel (i.e. AO0)
     PI = NI.NI_FPGA_PI(fpga, **parameters_PI)
 
-    print('sample rate', 40e6 / parameters_Acq['sample_period_acq'])
+    print(('sample rate', 40e6 / parameters_Acq['sample_period_acq']))
 
     PI.piezo = 200
 
@@ -73,11 +73,11 @@ if __name__ == '__main__':
     status = AI.status
     print("status after running acquisition:")
     for elem in status:
-        print(elem, ': ', AI.status[elem])
+        print((elem, ': ', AI.status[elem]))
 
 
     number_of_reads = int(np.ceil(1.0 * parameters_Acq['data_length'] / parameters_Acq['block_size']))
-    print('number_of_reads', number_of_reads)
+    print(('number_of_reads', number_of_reads))
 
     data_AI1 = np.zeros((number_of_reads, parameters_Acq['block_size']))
 

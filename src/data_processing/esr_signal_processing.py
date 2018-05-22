@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from copy import deepcopy
@@ -254,10 +254,10 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
 
 
     if verbose:
-        print('found peaks at ', freq_peaks)
+        print(('found peaks at ', freq_peaks))
 
     if verbose:
-        print('minimum peak width:',  MIN_WIDTH)
+        print(('minimum peak width:',  MIN_WIDTH))
 
     # check if scanning full range for two peaks or half range for one peak
     if max(freq) < F0:
@@ -266,7 +266,7 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
         try:
 
             if verbose:
-                print('fit single peak with initial values', start_vals)
+                print(('fit single peak with initial values', start_vals))
 
             fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                  bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])
@@ -313,14 +313,14 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
         try:
             if len(freq_peaks) == 2:
                 if verbose:
-                    print('fit double peak with initial values', start_vals)
+                    print(('fit double peak with initial values', start_vals))
 
                 fit = fit_double_lorentzian(freq, ampl, starting_params=start_vals, bounds=
                 [(0, 0, -np.inf, -np.inf, min(freq), min(freq)), (np.inf, np.inf, 0, 0, max(freq), max(freq))])
 
             elif len(freq_peaks) == 1:
                 if verbose:
-                    print('fit single peak with initial values', start_vals)
+                    print(('fit single peak with initial values', start_vals))
 
                 fit = fit_lorentzian(freq, ampl, starting_params=start_vals,
                                      bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])

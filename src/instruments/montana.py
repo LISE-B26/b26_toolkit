@@ -1,21 +1,22 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-from PyLabControl.src.core import Instrument, Parameter
+
+from pylabcontrol.src.core import Instrument, Parameter
 import time, datetime
 import pandas as pd
 import os
@@ -95,7 +96,7 @@ class CryoStation(Instrument):
         '''
 
         key = key.lower()
-        assert key in self._PROBES.keys(), "key assertion failed {:s}".format(str(key))
+        assert key in list(self._PROBES.keys()), "key assertion failed {:s}".format(str(key))
 
 
 
@@ -112,7 +113,7 @@ class CryoStation(Instrument):
         data = dict(data.iloc[-1])
 
 
-        print('xxxx', self._dynamic_probes)
+        print(('xxxx', self._dynamic_probes))
 
         # since we striped some characters when defining the probes we have to find the right key,
         # which is give by the valeu in self._dynamic_probes

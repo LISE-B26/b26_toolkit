@@ -1,6 +1,6 @@
 import numpy as np
 
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.instruments import KDC001
 from b26_toolkit.src.scripts import GalvoScan
 
@@ -53,7 +53,7 @@ class ServoScan(Script):
         #when instruments are initially loaded after script is imported, all will have the same serial number and two
         #will fail to connect. This instead pushes the serial numbers from the script dropdown and forces a reconnect
         #so after this step, all three should be connected properly.
-        for key in self.instruments.keys():
+        for key in list(self.instruments.keys()):
             self.instruments[key]['instance'].update({'serial_number': self.instruments[key]['settings']['serial_number']})
 
         def _get_channel(channel_name):

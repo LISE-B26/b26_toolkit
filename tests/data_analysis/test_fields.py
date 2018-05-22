@@ -94,9 +94,9 @@ class fields(TestCase):
         self.DipolePositions = np.zeros([2, 3])  # we assume that the magnet is at 0,0,0
 
         print('shape M:')
-        print(np.shape(self.M))
+        print((np.shape(self.M)))
         print('shape DipolePositions:')
-        print(np.shape(self.DipolePositions))
+        print((np.shape(self.DipolePositions)))
 
     def my_grad_simple(self, r, dp_pos, m, s, n):
         """
@@ -132,7 +132,7 @@ class fields(TestCase):
         #         + sa * np.vdot(m, n)
         #         - (5 * sa * ma / rho ** 2 - np.vdot(m, s)) * na
         # )
-        print('>>>>>>gradB', gradB)
+        print(('>>>>>>gradB', gradB))
         return gradB
 
     def my_field_simple(self, r, dp_pos, m):
@@ -174,9 +174,9 @@ class fields(TestCase):
         # dp_pos =np.array([ 0.01321936, 0.6526304,   0.50160241])
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
 
         # calculate for each dipole with the simple formula
@@ -187,12 +187,12 @@ class fields(TestCase):
 
         err = np.mean(np.abs(B_simple - B))
         if self.verbose:
-            print('err', err)
-            print('B_simple', B_simple)
-            print('B', B)
+            print(('err', err))
+            print(('B_simple', B_simple))
+            print(('B', B))
         if err > 1e-8:
-            print('rB_simple', B_simple)
-            print('B', B)
+            print(('rB_simple', B_simple))
+            print(('B', B))
 
             raise ValueError
 
@@ -207,9 +207,9 @@ class fields(TestCase):
 
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
 
 
@@ -217,17 +217,17 @@ class fields(TestCase):
         # B_simple = np.sum(B_simple, 1)
 
         B = f.b_field(r, dp_pos, m)
-        print(B[['x','y','z']])
+        print((B[['x','y','z']]))
 
 
         if self.verbose:
-            print('B', B)
-            print('B_simple', B_simple)
+            print(('B', B))
+            print(('B_simple', B_simple))
 
         # err = np.sum(np.abs(B_simple - np.array(B[['x','y','z']])))
         err = np.mean(np.abs(B_simple - np.array(B[['Bx','By','Bz']])))
 
-        print('---', err)
+        print(('---', err))
 
         if err > 1e-6:
             raise ValueError
@@ -248,12 +248,12 @@ class fields(TestCase):
 
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
-            print('s', s)
-            print('n', n)
+            print(('s', s))
+            print(('n', n))
 
 
         # calculate for each dipole with the simple formula
@@ -264,8 +264,8 @@ class fields(TestCase):
 
         err = np.mean(np.abs(G_simple - G/2))
         if self.verbose:
-            print('err', err)
-            print('G_simple', G_simple)
+            print(('err', err))
+            print(('G_simple', G_simple))
         if err > 1e-8:
             raise ValueError
 
@@ -289,12 +289,12 @@ class fields(TestCase):
         # dp_pos =np.array([ 0.01321936, 0.6526304,   0.50160241])
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
-            print('s', s)
-            print('n', n)
+            print(('s', s))
+            print(('n', n))
 
 
         # calculate for each dipole with the simple formula
@@ -305,9 +305,9 @@ class fields(TestCase):
 
         err = np.mean(np.abs(G_simple - G))
         if self.verbose:
-            print('err', err)
-            print('G_simple', G_simple)
-            print('G', G)
+            print(('err', err))
+            print(('G_simple', G_simple))
+            print(('G', G))
         if err > 1e-8:
             raise ValueError
 
@@ -324,9 +324,9 @@ class fields(TestCase):
         n = np.random.rand(3)
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
 
 
@@ -335,9 +335,9 @@ class fields(TestCase):
         G = f.gradient(r, dp_pos, m, s, n)
 
         if self.verbose:
-            print('G', np.array(G['G']))
-            print('G_simple', G_simple)
-            print('G diff', G_simple - np.array(G['G']))
+            print(('G', np.array(G['G'])))
+            print(('G_simple', G_simple))
+            print(('G diff', G_simple - np.array(G['G'])))
 
         err = np.mean(np.abs(G_simple - np.array(G['G'])))
 
@@ -357,9 +357,9 @@ class fields(TestCase):
         n = np.random.rand(3)
 
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
 
         G_simple = np.array([f.gradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
@@ -367,9 +367,9 @@ class fields(TestCase):
         G = f.gradient(r, dp_pos, m, s, n)
 
         if self.verbose:
-            print('G', np.array(G['G']))
-            print('G_simple', G_simple)
-            print('G diff', G_simple - np.array(G['G']))
+            print(('G', np.array(G['G'])))
+            print(('G_simple', G_simple))
+            print(('G diff', G_simple - np.array(G['G'])))
 
         err = np.mean(np.abs(G_simple - np.array(G['G'])))
 
@@ -396,7 +396,7 @@ class fields(TestCase):
 
 
         if self.verbose:
-            print('shapes', np.shape(G1), np.shape(G2))
+            print(('shapes', np.shape(G1), np.shape(G2)))
 
             print('err')
             print(err)
@@ -404,7 +404,7 @@ class fields(TestCase):
             print('G1')
             print(G1)
             print('G2')
-            print(np.sum(G2, 0))
+            print((np.sum(G2, 0)))
 
 
         if err > 1e-6:
@@ -421,9 +421,9 @@ class fields(TestCase):
         s = np.random.rand(3)
         n = np.random.rand(3)
         if self.verbose:
-            print('r', r)
-            print('m', m)
-            print('dp_pos', dp_pos)
+            print(('r', r))
+            print(('m', m))
+            print(('dp_pos', dp_pos))
 
         # use the code for several dipoles but single point
         B1 = np.array([f.b_field_single_pt(ri, dp_pos, m) for ri in r])
@@ -432,7 +432,7 @@ class fields(TestCase):
 
         if self.verbose:
             print('err')
-            print(B1 - np.sum(B2, 0))
+            print((B1 - np.sum(B2, 0)))
 
             err = np.mean(np.abs(B1 - np.sum(B2, 0)))
 

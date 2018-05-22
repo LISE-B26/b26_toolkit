@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
@@ -32,7 +32,7 @@ except:
     # SMC100 = None
 
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 from b26_toolkit.src.scripts import GalvoScan, FindNV, SetLaser, TakeImage
 # from src.scripts import FPGA_GalvoScan
 
@@ -198,7 +198,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
 
         # set piezo value to the fit value if this is within the bounds of the piezo
-        if piezo_voltage>0 and piezo_voltage<100:
+        if piezo_voltage and piezo_voltage>0 and piezo_voltage<100:
             # set the voltage on the piezo
             self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
@@ -218,11 +218,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         pass
 
     def fit_focus(self):
-        '''
+        """
         fit the data and set piezo to focus spot
 
         if fails return None otherwise it returns the voltage for the piezo
-        '''
+        """
 
         noise_guess = np.min(self.data['focus_function_result'])
         amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
@@ -241,21 +241,19 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
             self.log('Found fit parameters: ' + str(p2))
         except(ValueError, RuntimeError):
-            average_voltage = np.mean(self.data['sweep_voltages'])
             self.log(
-                'Could not converge to fit parameters, setting piezo to middle of sweep range, {:0.3f} V'.format(
-                    average_voltage))
-            # z_piezo.update({'voltage': float(average_voltage)})
+                'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
+                    self.data['sweep_voltages'][-1]))
         finally:
             # even if there is an exception we want to script to continue
             sweep_voltages = self.data['sweep_voltages']
-            if not return_voltage is None:
+            if return_voltage is not None:
                 if return_voltage > sweep_voltages[-1]:
                     return_voltage = float(sweep_voltages[-1])
                     self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
-            elif return_voltage < sweep_voltages[0]:
-                return_voltage = float(sweep_voltages[0])
-                self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
+                elif return_voltage < sweep_voltages[0]:
+                    return_voltage = float(sweep_voltages[0])
+                    self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
 
             return return_voltage, p2
 
@@ -452,7 +450,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        print('LOADING')
         self.scan_label = 'Piezo Voltage [V]'
         try:
             Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
@@ -460,10 +457,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             import sys
             import traceback
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print "*** print_exception:"
+            print("*** print_exception:")
             traceback.print_exception(exc_type, exc_value, exc_traceback,
                                       limit=2, file=sys.stdout)
-        print('LOADED')
 
     def _step_piezo(self, voltage, wait_time):
         """
@@ -1062,7 +1058,7 @@ class AutoFocusCameraSMC(AutoFocusGeneric):
 if __name__ == '__main__':
 
 
-    # from PyLabControl.src.core.read_write_functions import load_b26_file
+    # from pylabcontrol.src.core.read_write_functions import load_b26_file
     #
     # in_data = load_b26_file('C:\\b26_tmp\\gui_settings.b26')
     #

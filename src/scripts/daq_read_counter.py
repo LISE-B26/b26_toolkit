@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
@@ -21,7 +21,7 @@ from collections import deque
 
 from b26_toolkit.src.instruments import NI9402
 from b26_toolkit.src.plotting.plots_1d import plot_counts
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 
 
 class Daq_Read_Counter(Script):
@@ -58,7 +58,7 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
-        print('settings in instrument', self.instruments['daq']['settings'])
+        print(('settings in instrument', self.instruments['daq']['settings']))
 
         sample_rate = float(1) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
@@ -71,9 +71,9 @@ This script reads the Counter input from the DAQ and plots it.
 
         sample_num = 2
 
-        print('settings in instrument 2', self.instruments['daq']['settings'])
+        print(('settings in instrument 2', self.instruments['daq']['settings']))
 
-        print('here', self.instruments['daq'])
+        print(('here', self.instruments['daq']))
 
         task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
@@ -92,7 +92,7 @@ This script reads the Counter input from the DAQ and plots it.
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
                 time.sleep(2.0 / sample_rate)
                 continue
-            print('raw data length: ', len(raw_data))
+            print(('raw data length: ', len(raw_data)))
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
                 self.last_value = value

@@ -1,23 +1,23 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import serial
-from PyLabControl.src.core import Instrument, Parameter
+from pylabcontrol.src.core import Instrument, Parameter
 
 
 class PressureGauge(Instrument):
@@ -150,7 +150,7 @@ class PressureGauge(Instrument):
         pressure = float(err_msg_and_pressure[3:])
 
         if err_msg != '0':
-            print('xx', err_msg, pressure)
+            print(('xx', err_msg, pressure))
             message = 'Pressure query resulted in an error: ' + self.MEASUREMENT_STATUS[err_msg]
             # raise IOError(message) # JG: don't raise the error because this crashes the programm, rather we want to return an invalid value
 
@@ -242,8 +242,8 @@ if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
 
 
-        print(instruments['GaugeController'])
-        print('PumpLinePressureGauge', instruments['GaugeController'].pressure)
+        print((instruments['GaugeController']))
+        print(('PumpLinePressureGauge', instruments['GaugeController'].pressure))
 
         instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': ChamberPressureGauge})
-        print('ChamberPressureGauge', instruments['GaugeController'].pressure)
+        print(('ChamberPressureGauge', instruments['GaugeController'].pressure))

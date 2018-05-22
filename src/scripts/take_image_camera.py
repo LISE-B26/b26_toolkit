@@ -1,9 +1,10 @@
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 try:
     from b26_toolkit.src.instruments import UEyeCamera
 except:
     UEyeCamera = None
 from b26_toolkit.src.plotting.plots_2d import plot_fluorescence_new
+
 
 class TakeImage(Script):
     """

@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from collections import deque
@@ -23,7 +23,7 @@ import time
 
 
 from b26_toolkit.src.plotting.plots_1d import plot_psd, update_1d_simple
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 from b26_toolkit.src.instruments import ZIHF2
 
@@ -63,7 +63,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         self.data = deque()
 
         # todo: clean this up! and plot data in gui!
-        self._sweep_values =  {'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys()
+        self._sweep_values =  list({'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys())
 
 
     def settings_to_commands(self, settings):
@@ -75,7 +75,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
         # create list that is passed to the ZI controler
 
         commands = []
-        for key, val in settings.iteritems():
+        for key, val in settings.items():
             if isinstance(val, dict) and 'value' in val:
                 commands.append(['sweep/%s' % (key), val['value']])
             elif key in ('start', 'stop', 'samplecount', 'gridnode', 'loopcount', 'averaging/sample'):
@@ -162,7 +162,7 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
                 self.sweeper.finish()
                 self._recording = False
 
-            print("Individual sweep %.2f%% complete. \n" % (self.progress))
+            print(("Individual sweep %.2f%% complete. \n" % (self.progress)))
 
             self.updateProgress.emit(int(self.progress))
 

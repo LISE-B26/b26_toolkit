@@ -16,7 +16,7 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
 
     dV = info['xstepsize'] * info['ystepsize'] * info['zstepsize'] * 1e18  # cell volume in um^3
 
-    print('length of data', len(data))
+    print(('length of data', len(data)))
 
     # pick only the data where the magnetization is actually non-zero
     data = data[np.sum(data[['mx', 'my', 'mz']].as_matrix()**2,1)>0]
@@ -133,15 +133,15 @@ def b_field(rs, DipolePositions, m, use_parallel = True, verbose = False):
     assert np.shape(rs)[1] == 3
 
     if verbose:
-        print('number of magnetic moments', len(m))
-        print('number of positions', len(rs))
+        print(('number of magnetic moments', len(m)))
+        print(('number of positions', len(rs)))
     if use_parallel:
         # try importing the multiprocessing library
         from joblib import Parallel, delayed
         import multiprocessing
         num_cores = multiprocessing.cpu_count()
         if verbose:
-            print('using ', num_cores, ' cores')
+            print(('using ', num_cores, ' cores'))
 
 
     if use_parallel:
@@ -153,7 +153,7 @@ def b_field(rs, DipolePositions, m, use_parallel = True, verbose = False):
         B = np.array([b_field_single_pt(r, DipolePositions, m) for r in rs])
 
     if verbose:
-        print('rs shape', np.shape(rs))
+        print(('rs shape', np.shape(rs)))
         # print('rs', rs)
 
     # put data into a dictionary
@@ -218,23 +218,23 @@ def gradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 =4 * np
     ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
 
     if verbose:
-        print('rho', rho)
-        print('a', a)
-        print('ma', ma)
-        print('sa', sa)
-        print('na', na)
+        print(('rho', rho))
+        print(('a', a))
+        print(('ma', ma))
+        print(('sa', sa))
+        print(('na', na))
 
     gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
             ma * sn + sa * mn + ms * na
             - 5 * (sa * ma / rho ** 2) * na
     )
     if verbose:
-        print('sn', sn)
-        print('mn', mn)
-        print('ms', ms)
+        print(('sn', sn))
+        print(('mn', mn))
+        print(('ms', ms))
 
     if verbose:
-        print('grad due to every dipole', gradB)
+        print(('grad due to every dipole', gradB))
 
     return np.sum(gradB,0)
 
@@ -259,15 +259,15 @@ def gradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False):
     '''
 
     if verbose:
-        print('number of magnetic moments', len(data))
-        print('number of positions', len(rs))
+        print(('number of magnetic moments', len(data)))
+        print(('number of positions', len(rs)))
     if use_parallel:
         # try importing the multiprocessing library
         from joblib import Parallel, delayed
         import multiprocessing
         num_cores = multiprocessing.cpu_count()
         if verbose:
-            print('using ', num_cores, ' cores')
+            print(('using ', num_cores, ' cores'))
 
 
     if use_parallel:
@@ -317,9 +317,9 @@ def b_field_single_dipole(r, DipolePosition, m, mu0 =4 * np.pi * 1e-7, verbose =
     ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
 
     if verbose:
-        print('rho', rho)
-        print('a', a)
-        print('ma', ma)
+        print(('rho', rho))
+        print(('a', a))
+        print(('ma', ma))
 
     B = mu0 / (4 * np.pi) * (3. * a * ma / rho ** 5 - m / rho ** 3)  # magnetic field in Tesla
 
@@ -374,11 +374,11 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     na = np.sum(n * a, 1).T
 
     if verbose:
-        print('rho', rho)
-        print('a', a)
-        print('ma', ma)
-        print('sa', sa)
-        print('na', na)
+        print(('rho', rho))
+        print(('a', a))
+        print(('ma', ma))
+        print(('sa', sa))
+        print(('na', na))
 
     # a = np.ones((N,1)) * np.array([r])-DipolePosition
     # rho = np.sqrt(np.sum(a**2,1))
@@ -399,9 +399,9 @@ def gradient_single_dipole(r, DipolePosition, m, s, n, verbose = False, mu0 =4 *
     # ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
 
     if verbose:
-        print('sn', sn)
-        print('mn', mn)
-        print('ms', ms)
+        print(('sn', sn))
+        print(('mn', mn))
+        print(('ms', ms))
 
     gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
             ma * sn + sa * mn + ms * na
@@ -444,7 +444,7 @@ def calc_B_field_single_dipole(p, verbose = False):
 
     end = time.time()
     if verbose:
-        print('duration: {:0.2f} min'.format((end - start) / 60))
+        print(('duration: {:0.2f} min'.format((end - start) / 60)))
 
 
     # create a pandas dataset
@@ -487,7 +487,7 @@ def calc_Gradient_single_dipole(p, s, n, verbose = False):
     data_out = gradient_single_dipole(r, DipolePositions, M, s, n)
     end = time.time()
     if verbose:
-        print('duration: {:0.2f} min'.format((end - start) / 60))
+        print(('duration: {:0.2f} min'.format((end - start) / 60)))
 
     # create a pandas dataset
     data_out = pd.DataFrame.from_dict(

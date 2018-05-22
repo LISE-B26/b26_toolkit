@@ -1,26 +1,25 @@
 
-# This file is part of PyLabControl, software for laboratory equipment control for scientific experiments.
+# This file is part of pylabcontrol, software for laboratory equipment control for scientific experiments.
 # Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 #
-# PyLabControl is free software: you can redistribute it and/or modify
+# pylabcontrol is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# PyLabControl is distributed in the hope that it will be useful,
+# pylabcontrol is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.
+# along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 
 
 # this is the gui for the measurment pc
 
 import ctypes
 import sys
-# sys.path.append('C:\Anaconda2\Lib\site-packages')
 
 from PyQt5 import QtGui, QtWidgets
 
@@ -31,28 +30,23 @@ from b26_toolkit.src.gui import b26_gui
 #myappid = 'lukinlab.b26.pythonlab' # arbitrary string
 #ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModeFlID(myappid)
 
-def run_gui(fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config.b26'):
+def run_gui(fname = 'C:\\Users\Experiment\PycharmProjects\\user_data\pythonlab_config.b26'):
     app = QtWidgets.QApplication(sys.argv)
-    # fname = 'c:\\b26_tmp\\pythonlab_config_dummy.b26'
-    # fname = 'c:\\b26_tmp\\pythonlab_config3a.b26'
-    fname = 'C:\Users\Experiment\PycharmProjects\user_data\pythonlab_config_lev_test2.b26'
-    fname = 'C:\Users\NV Experiment\PycharmProjects\user_data\\new_config.b26'
+    # fname = 'C:\\Users\\NV Experiment\\PycharmProjects\\user_data\\new_config.b26'
+    fname = ' '
 
-    # fname = 'c:\\b26_tmp\\pythonlab_config_safsafaf1.b26'
-
-    # fname = "C:\\Users\\Experiment\\PycharmProjects\\PythonLab\\b26_files\\pythonlab_config.b26"
     try:
-        print("PyLabControl  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \
-PyLabControl is free software: you can redistribute it and/or modify \n \
+        print("pylabcontrol  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \
+pylabcontrol is free software: you can redistribute it and/or modify \n \
 it under the terms of the GNU General Public License as published by \n \
 the Free Software Foundation, either version 3 of the License, or \n \
 (at your option) any later version. \n\n \
-PyLabControl is distributed in the hope that it will be useful, \n \
+pylabcontrol is distributed in the hope that it will be useful, \n \
 but WITHOUT ANY WARRANTY; without even the implied warranty of \n \
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the \n \
 GNU General Public License for more details. \n\n \
 You should have received a copy of the GNU General Public License \n \
-along with PyLabControl.  If not, see <http://www.gnu.org/licenses/>.")
+along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.")
 
         ex = b26_gui.ControlMainWindowB26(fname)
 

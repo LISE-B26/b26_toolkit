@@ -28,21 +28,21 @@ class NVOpticalResponse(TestCase):
         for i in range(4):
             B_NV = nv.B_fields_in_NV_frame(B_lab, i)
             err = np.dot(B_NV, B_NV)-np.dot(B_lab, B_lab)
-            print(i, err)
+            print((i, err))
 
     def test03_B_field_to_esr_ensemble_freq(self):
         print('testing ensemble_freq')
         B_lab = nv.B_cart(self.B_mag, self.theta, self.phi)
         ensemble_freq = nv.esr_frequencies_ensemble(B_lab)
 
-        print('ensemble_freq', ensemble_freq)
+        print(('ensemble_freq', ensemble_freq))
 
     def test04_calc_error_ensemble_mag(self):
         print('testing calc_error_ensemble_mag')
 
         err = nv_test.calc_error_ensemble_mag(self.B_mag, self.theta, self.phi)
 
-        print('err', err)
+        print(('err', err))
 
     def test_magnetic_field_mag_ensemble(self):
         print('05 testing magnetic_field_mag')
@@ -62,7 +62,7 @@ class NVOpticalResponse(TestCase):
 
         freq = nv.esr_frequencies_ensemble(B_cart)
 
-        print('B_cart', B_cart)
+        print(('B_cart', B_cart))
         for i in range(4):
             BNV = nv.B_fields_in_NV_frame(B_cart, i)
 
@@ -74,18 +74,18 @@ class NVOpticalResponse(TestCase):
             err = np.abs((np.abs(Br[0])- np.abs(BNV[2])))/B
             if np.abs(err)>1e-1:
                 success = False
-                print('err on axis ', err)
+                print(('err on axis ', err))
 
 
             err = np.abs((np.abs(Br[1]) - np.sqrt(BNV[0]**2+BNV[1]**2)) / B)
             if np.abs(err)>1e-1:
                 success = False
-                print('err off axis ', err)
+                print(('err off axis ', err))
 
             if not success:
-                print('NV', i, '=================')
-                print('BNV', BNV)
-                print('Br', Br)
+                print(('NV', i, '================='))
+                print(('BNV', BNV))
+                print(('Br', Br))
                 break
 
         if not success:
@@ -181,7 +181,7 @@ class NVOpticalResponse(TestCase):
             success = False
         if np.abs((Bc[2]-Bz)/Bz)>1e-7:
             success = False
-        print(not success)
+        print((not success))
         if not success:
             raise RuntimeError
         else:

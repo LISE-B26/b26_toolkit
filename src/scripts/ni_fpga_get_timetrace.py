@@ -1,25 +1,25 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from collections import deque
 
 from b26_toolkit.src.instruments import NI7845RReadFifo
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 
 
 class LabviewFpgaTimetrace(Script):
@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
     fpga = NI7845RReadFifo()
 
-    print(fpga.settings)
+    print((fpga.settings))
 
     # reset FIFO
     block_size = 2 ** 8
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     fpga.start_fifo()
     time.sleep(0.1)
     number_of_reads = int(np.ceil(1.0 * N / block_size))
-    print('number_of_reads', number_of_reads)
+    print(('number_of_reads', number_of_reads))
     N_actual = number_of_reads * block_size
 
     # apply settings to instrument
@@ -182,14 +182,14 @@ if __name__ == '__main__':
     time.sleep(0.1)
 
     print('----------')
-    print(fpga.settings)
+    print((fpga.settings))
     print('----------')
 
-    print('ElementsWritten: ', fpga.ElementsWritten)
+    print(('ElementsWritten: ', fpga.ElementsWritten))
     fpga.update({'Acquire': True})
 
     # time.sleep(1)
-    print(fpga.settings)
+    print((fpga.settings))
 
     ai1 = np.zeros(N_actual)
     ai2 = np.zeros(N_actual)
@@ -199,12 +199,12 @@ if __name__ == '__main__':
         if elem_written >= block_size:
             data = fpga.read_fifo(block_size)
             # print(i, 'AI1', data['AI1'])
-            print(i, 'elements_remaining', data['elements_remaining'])
+            print((i, 'elements_remaining', data['elements_remaining']))
             ai1[i * block_size:(i + 1) * block_size] = deepcopy(data['AI1'])
             ai2[i * block_size:(i + 1) * block_size] = deepcopy(data['AI2'])
             i += 1
 
-        print('-----', i, '------', 'elem_written', elem_written)
+        print(('-----', i, '------', 'elem_written', elem_written))
 
     print(ai1)
     print('------------------------------------------------')

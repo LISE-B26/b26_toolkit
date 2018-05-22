@@ -1,5 +1,4 @@
 import sys
-sys.path.append('C:\\ProgramData\\Anaconda2\\lib\\site-packages\\cv2\\')
 
 import cv2
 import numpy as np

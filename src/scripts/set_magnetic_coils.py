@@ -1,26 +1,26 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
 from matplotlib import patches
 
 from b26_toolkit.src.instruments import MagnetCoils
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.data_processing.coordinate_conversions import spherical_to_cartesian
 
 
@@ -91,15 +91,15 @@ This script sets the magnetic field coils to the given magnetic field values
                                                                                 self.instruments['MagnetCoils']['instance'].settings['magnetic_fields']['z_field'])
                  )
 
-        print('requested fields', self.instruments['MagnetCoils']['instance'].requested_fields)
-        print('applied fields', self.instruments['MagnetCoils']['instance'].applied_fields)
+        print(('requested fields', self.instruments['MagnetCoils']['instance'].requested_fields))
+        print(('applied fields', self.instruments['MagnetCoils']['instance'].applied_fields))
 
         self.data['new_voltages'] = self.instruments['MagnetCoils']['instance'].new_voltages
         self.data['requested_fields'] = self.instruments['MagnetCoils']['instance'].requested_fields
         self.data['applied_fields'] = self.instruments['MagnetCoils']['instance'].applied_fields
 
 if __name__ == '__main__':
-    from PyLabControl.src.core import Instrument
+    from pylabcontrol.src.core import Instrument
 
     instruments, instruments_failed = Instrument.load_and_append({'MagnetCoils': MagnetCoils })
 

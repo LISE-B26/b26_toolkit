@@ -1,22 +1,22 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyLabControl.src.core import Instrument,Parameter
+from pylabcontrol.src.core import Instrument,Parameter
 from time import sleep
 # =============== MAESTRO ==================================
 # ==========================================================
@@ -69,13 +69,13 @@ class MaestroController(Instrument):
 
 
         # now we actually apply these newsettings to the hardware
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'port':
                 try:
                     if self.usb is None or value != self.usb.port:
                         self.usb = self.serial.Serial(value)
                 except OSError:
-                    print('Couln\'t connect to maestro controler at port {:s}'.format(value))
+                    print(('Couln\'t connect to maestro controler at port {:s}'.format(value)))
 
 
     def read_probes(self, key):
@@ -88,7 +88,7 @@ class MaestroController(Instrument):
 
         '''
         # todo: replace getter old_functions with this function
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
 
         value = None
 
@@ -328,7 +328,7 @@ class MaestroLightControl(MaestroController):
         # call the update_parameter_list to update the parameter list
         super(MaestroLightControl, self).update(settings)
         # now we actually apply these newsettings to the hardware
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key in ['block_green', 'block_IR', 'white_light']:
                 channel = self.settings[key]['channel']
                 position = self.settings[key]['position_open'] if value['open'] else self.settings[key]['position_closed']
@@ -385,7 +385,7 @@ class MaestroBeamBlock(Instrument):
         super(MaestroBeamBlock, self).update(settings)
 
         # now we actually apply these newsettings to the hardware
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'open':
                 if value is True:
                     self.goto(self.settings['position_open'])
@@ -402,7 +402,7 @@ class MaestroBeamBlock(Instrument):
         Returns: reads values from instrument
 
         """
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
 
         value = None
 
@@ -473,7 +473,7 @@ class MaestroFilterWheel(Instrument):
         super(MaestroFilterWheel, self).update(settings)
 
         # now we actually apply these newsettings to the hardware
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'current_position':
                 self.goto(self.settings[value])
 
@@ -488,7 +488,7 @@ class MaestroFilterWheel(Instrument):
         Returns: reads values from instrument
 
         '''
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
 
         value = None
 

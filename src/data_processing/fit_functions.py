@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
@@ -288,7 +288,7 @@ def fit_cose_parameter(t, y, verbose = False):
     """
     [ax, wx, phi, offset] = guess_cose_parameter(t, y)
     if verbose:
-        print('initial estimates [ax, wx, phi, offset]:', [ax, wx, phi, offset])
+        print(('initial estimates [ax, wx, phi, offset]:', [ax, wx, phi, offset]))
     def cost_function_fit(x):
         """
         cost function for fit to sin
@@ -301,7 +301,7 @@ def fit_cose_parameter(t, y, verbose = False):
     opt = optimize.minimize(cost_function_fit, [ax, wx, phi, offset])
 
     if verbose:
-        print('optimization result:', opt)
+        print(('optimization result:', opt))
     [ax, wx, phi, offset] = opt.x
 
     return [ax, wx, phi, offset]
@@ -327,8 +327,8 @@ def get_decay_data(t, y, wo, verbose=False):
     number_of_oscillations = int(np.floor(len(y) / index_per_interval))
 
     if verbose:
-        print(
-        'initial estimates [index_per_interval, number_of_oscillations]:', [index_per_interval, number_of_oscillations])
+        print((
+        'initial estimates [index_per_interval, number_of_oscillations]:', [index_per_interval, number_of_oscillations]))
 
     decay_y = np.array(
         [np.std(y[index_per_interval * i:index_per_interval * (i + 1)]) for i in range(number_of_oscillations)])
@@ -362,11 +362,11 @@ def fit_exp_decay(t, y, offset = False, verbose=False):
 
     if offset:
         if verbose:
-            print('optimization result:', [ao, tau, offset])
+            print(('optimization result:', [ao, tau, offset]))
         return [ao, tau, offset]
     else:
         if verbose:
-            print('optimization result:', [ao, tau])
+            print(('optimization result:', [ao, tau]))
         return [ao, tau]
 
 def estimate_exp_decay_parameters(t,y,offset):
@@ -408,13 +408,13 @@ def exp_offset(t, ao, tau, offset):
     return np.exp(-t / tau) * ao + offset
 
 
-def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = False):
+def fit_rabi_decay(t, y, variable_phase=False, verbose=False, return_guess = False):
     """
     fit to a cosine with an exponential envelope
     Args:
         t: time in ns
         y: counts in kilocounts
-        varibale_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
+        variable_phase: if true the phase is a free parameter if false the phase is 0 (cosine)
         return_guess: return also the initial guess parameters that are used in the fit
 
     """
@@ -425,23 +425,23 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     t_decay, y_decay = get_decay_data(t, y, wx, verbose)
     [_, to] = fit_exp_decay(t_decay, y_decay, )
 
-    if varibale_phase:
+    if variable_phase:
         # added by ER 7.27.17 to make Rabi frequency from fit always positive
         initial_parameter = [ax, abs(wx), phi, offset, to]
     else:
         initial_parameter = [ax, abs(wx), offset, to]
     verbose = 1
     if verbose:
-        if varibale_phase:
-            print('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter)
+        if variable_phase:
+            print(('initial estimates [ax, wx, phi, offset, tau]:', initial_parameter))
         else:
-            print('initial estimates [ax, wx, offset, tau]:', initial_parameter)
+            print(('initial estimates [ax, wx, offset, tau]:', initial_parameter))
 
     def cost_function_fit(x):
         """
         cost function for fit to exponentially decaying cosine
         """
-        if varibale_phase:
+        if variable_phase:
             ao, wo, po, offset, to = x
             # added by ER 7.27.17 to make Rabi frequency from fit always positive
             wo = abs(wo)
@@ -463,7 +463,7 @@ def fit_rabi_decay(t, y, varibale_phase=False, verbose=False, return_guess = Fal
     # [ax, wx, phi, offset, tau] = opt.x
 
     if verbose:
-        print('optimization result:', opt)
+        print(('optimization result:', opt))
     if return_guess:
         return opt.x, initial_parameter
     else:

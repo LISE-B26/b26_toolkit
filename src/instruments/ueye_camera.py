@@ -1,14 +1,10 @@
 # # from https://stackoverflow.com/questions/40563139/ueye-camera-with-python-on-windows
 #
-from PyLabControl.src.core import Parameter, Instrument
+from pylabcontrol.src.core import Parameter, Instrument
 
 import sys
-sys.path.append('C:\ProgramData\Anaconda2\Lib\site-packages')
 
-try:
-    import cv2
-except:
-    pass
+import cv2
 
 import atexit
 

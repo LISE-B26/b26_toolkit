@@ -1,21 +1,23 @@
+"""
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-# This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
-# Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
-#
-# Foobar is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Foobar is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    b26_toolkit is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    b26_toolkit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
 import numpy as np
+from matplotlib.ticker import FormatStrFormatter
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
 def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None):
@@ -122,12 +124,15 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     axes_image.set_ylabel(r'V$_y$ [V]')
     axes_image.set_title('Confocal Image')
 
-    axes_image.set_xticklabels(axes_image.get_xticks(), rotation=90)
+    # explicitly round x_ticks because otherwise they have too much precision (~17 decimal points) when displayed
+    # on plot
+    axes_image.set_xticklabels([round(xticklabel, 4) for xticklabel in axes_image.get_xticks()], rotation=90)
 
     if np.min(image_data)<200:
         colorbar_min = 0
     else:
         colorbar_min = np.min(image_data)
+
     if max_counts < 0:
         colorbar_max = np.max(image_data)
     else:

@@ -41,4 +41,4 @@ class TestSpectrumAnalyzer(TestCase):
         self.assertEqual(self.spec_anal.output_power, -1.0)
 
     def get_trace(self):
-        print(self.spec_anal.trace)
+        print((self.spec_anal.trace))

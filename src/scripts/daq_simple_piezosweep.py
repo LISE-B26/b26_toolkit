@@ -1,5 +1,5 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
     b26_toolkit is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import numpy as np
 
 
 from b26_toolkit.src.instruments import NI6259,PiezoController, NI9263, NI9402
-from PyLabControl.src.core import Parameter, Script
+from pylabcontrol.src.core import Parameter, Script
 
 
 class SimplePiezoSweep(Script):

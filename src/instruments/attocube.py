@@ -1,26 +1,25 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 import ctypes
 import time, os
 import warnings
-from PyLabControl.src.core.read_write_functions import get_config_value
-from PyLabControl.src.core import Instrument, Parameter
+from pylabcontrol.src.core.read_write_functions import get_config_value
+from pylabcontrol.src.core import Instrument, Parameter
 
 int32 = ctypes.c_long
 uInt32 = ctypes.c_ulong
@@ -107,7 +106,7 @@ class Attocube(Instrument):
                 self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
                 self._check_error(self.attocube.PositionerClose(device_handle))
             except Exception:
-                print('Attocube not detected. Check connection.', UserWarning)
+                print(('Attocube not detected. Check connection.', UserWarning))
 
         super(Attocube, self).__init__(name, settings)
 
@@ -120,9 +119,9 @@ class Attocube(Instrument):
             settings: a dictionary in the same form as settings with the new values
         '''
         super(Attocube, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if isinstance(value, dict) and key in ['x', 'y', 'z']:
-                for sub_key, sub_value in sorted(value.iteritems()):
+                for sub_key, sub_value in sorted(value.items()):
                     if sub_key == 'on':
                         self._toggle_axis(self._convert_axis(key), sub_value)
                     elif sub_key == 'pos':
@@ -155,7 +154,7 @@ class Attocube(Instrument):
         }
 
     def read_probes(self, key):
-        assert key in self._PROBES.keys()
+        assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
         if key in ['x_pos', 'y_pos', 'z_pos']:
@@ -345,8 +344,8 @@ class Attocube(Instrument):
             raise Exception
 
 if __name__ == '__main__':
-    print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+    print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     a = Attocube()
     # a.update({'x': {'voltage': 20}})
-    print(a, a.is_connected)
+    print((a, a.is_connected))

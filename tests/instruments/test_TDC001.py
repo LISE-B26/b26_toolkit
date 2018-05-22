@@ -11,7 +11,7 @@ class TestTDC001(TestCase):
         self.servo.__del__()
 
     def test_connect(self):
-        self.assertEquals(self.servo.is_connected, True)
+        self.assertEqual(self.servo.is_connected, True)
 
     def test_move(self):
         self.servo.goto_home()
@@ -20,4 +20,4 @@ class TestTDC001(TestCase):
 
     def test_vel(self):
         self.servo.update({'velocity': 2.5})
-        self.assertEquals(self.servo.velocity, 2.5)
+        self.assertEqual(self.servo.velocity, 2.5)

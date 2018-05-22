@@ -1,13 +1,13 @@
 """
-    This file is part of b26_toolkit, a PyLabControl add-on for experiments in Harvard LISE B26.
+    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    Foobar is free software: you can redistribute it and/or modify
+    b26_toolkit is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Foobar is distributed in the hope that it will be useful,
+    b26_toolkit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -23,7 +23,7 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.src.plotting.plots_1d import plot_psd
-from PyLabControl.src.core import Script, Parameter
+from pylabcontrol.src.core import Script, Parameter
 from b26_toolkit.src.scripts import ZISweeper
 
 
@@ -49,7 +49,7 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
 
         self.data = deque()
 
-        self._sweep_values =  {'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys()
+        self._sweep_values =  list({'frequency' : [], 'x' : [], 'y' : [], 'phase': [], 'r':[]}.keys())
 
 
     # def _receive_signal(self, progess_sub_script):
@@ -108,11 +108,11 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
             weights['high res scan'] = t
 
 
-            total_time = sum([v for k, v in weights.iteritems()])
+            total_time = sum([v for k, v in weights.items()])
 
-            weights = {k: v/total_time for k, v in weights.iteritems()}
+            weights = {k: v/total_time for k, v in weights.items()}
 
-            print('weights',weights)
+            print(('weights',weights))
 
             return weights
 
@@ -139,7 +139,7 @@ First it acquires a sweep over a larger frequecy range. Then it finds the maximu
         df = self.settings['high_res_df']
         N = int(self.settings['high_res_N'])
         f_start, f_end = float(fo - N / 2 * df), float(fo + N / 2 * df)
-        print('f_start, f_end', f_start, f_end)
+        print(('f_start, f_end', f_start, f_end))
 
 
         self.log('found peak at {:1.2e}'.format(fo))
