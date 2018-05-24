@@ -31,6 +31,6 @@ from .montana import CryoStation
 from .newport_smc100 import SMC100
 from .awg import AWG
 from .keysight_oscilloscope import Oscilloscope
-from .dcservo_kinesis_dll import KDC001
+from .thorlabs_kcube import KDC001, TLI_DeviceInfo
 from .magnet_coils import MagnetCoils
 from .ueye_camera import UEyeCamera
