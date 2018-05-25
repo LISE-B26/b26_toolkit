@@ -1,4 +1,4 @@
-from b26_toolkit.src.instruments.microwave_generator import MicrowaveGenerator
+from b26_toolkit.b26_toolkit.instruments.microwave_generator import MicrowaveGenerator
 import timeit
 import matplotlib.pyplot as plt
 import numpy as np

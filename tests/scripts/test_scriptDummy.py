@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import DummyInstrument
+from b26_toolkit.b26_toolkit.instruments import DummyInstrument
 from src.scripts import ScriptDummy, ScriptDummyWithSubScript, ScriptDummyWithInstrument
 
 

@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import piezo_controller as PC
+from b26_toolkit.b26_toolkit.instruments import piezo_controller as PC
 
 
 class TestPiezoController(TestCase):

@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from b26_toolkit.src.instruments import  Pulse
+from b26_toolkit.b26_toolkit.instruments import  Pulse
 from collections import namedtuple
 
 PulseTuple = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))

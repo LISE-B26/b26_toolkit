@@ -19,8 +19,8 @@
 
 from unittest import TestCase
 
-from pylabcontrol.src.core import ScriptIterator
-from pylabcontrol.src.scripts.script_dummy import ScriptDummy
+from pylabcontrol.core import ScriptIterator
+from pylabcontrol.scripts.script_dummy import ScriptDummy
 import inspect
 
 class TestScriptIterator(TestCase):

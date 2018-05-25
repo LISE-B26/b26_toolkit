@@ -8,7 +8,7 @@ setup(
     name='b26_toolkit',
     version='0.1.0',
     package_dir={'b26_toolkit': ''},
-    packages=['b26_toolkit.src', 'b26_toolkit.src.data_processing', 'b26_toolkit.src.instruments', 'b26_toolkit.src.plotting', 'b26_toolkit.src.scripts', 'b26_toolkit.tests'],
+    packages=['b26_toolkit.pylabcontrol', 'b26_toolkit.pylabcontrol.data_processing', 'b26_toolkit.pylabcontrol.instruments', 'b26_toolkit.pylabcontrol.plotting', 'b26_toolkit.pylabcontrol.scripts', 'b26_toolkit.tests'],
     url='https://github.com/LISE-B26/b26_toolkit',
     license='GPL',
     author='Aaron Kabcenell, Jan Gieseler, and Arthur Safira',
