@@ -1,6 +1,7 @@
 # # from https://stackoverflow.com/questions/40563139/ueye-camera-with-python-on-windows
 from pylabcontrol.src.core import Parameter, Instrument
 import cv2
+import numpy as np
 
 
 class UEyeCamera(Instrument):
@@ -17,10 +18,11 @@ class UEyeCamera(Instrument):
 
     def __init__(self, name=None, settings=None):
         super(UEyeCamera, self).__init__(name, settings)
+        # the following assumes only one camera is connected to the computer, since it will connect to camera number 0.
         self.cam = cv2.VideoCapture(0)
         assert self.cam.isOpened(), "Could not open camera!"
-        self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
-        self.cam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, self.settings['width'])
+        self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, self.settings['height'])
+        self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, self.settings['width'])
 
     def update(self, settings):
         """
@@ -31,9 +33,9 @@ class UEyeCamera(Instrument):
         super(UEyeCamera, self).update(settings)
         for key, value in settings.iteritems():
             if key == 'width':
-                self.cam.set(cv2.CV_CAP_PROP_FRAME_WIDTH, self.settings['width'])
+                self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, self.settings['width'])
             elif key == 'height':
-                self.cam.set(cv2.CV_CAP_PROP_FRAME_HEIGHT, self.settings['height'])
+                self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, self.settings['height'])
 
     def read_probes(self, key):
         pass
@@ -45,12 +47,22 @@ class UEyeCamera(Instrument):
         Returns:
             A 2d numpy array containing the image
         """
-        ret, buff = self.cam.read()
 
-        if ret: #if read operation is successful
-            return cv2.cvtColor(buff, cv2.COLOR_BGR2GRAY)
+        is_successful, bgr_image = self.cam.read()
+
+        # try again if we get a completely black image
+        if np.count_nonzero(bgr_image) == 0:
+            is_successful, bgr_image = self.cam.read()
+
+        if is_successful:
+            return cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
         else:
             raise EnvironmentError("Could not successfully take image from camera.")
 
+
 if __name__ == '__main__':
-    a = UEyeCamera()
+    camera = UEyeCamera()
+    frame = camera.get_frame()
+    cv2.imshow('Captured Frame', frame)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

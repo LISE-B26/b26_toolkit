@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import dcservo_kinesis_dll as DC
+from b26_toolkit.src.instruments import dcservo_thorlabs_kinesis as DC
 
 
 class TestTDC001(TestCase):

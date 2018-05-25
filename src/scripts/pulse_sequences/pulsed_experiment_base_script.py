@@ -645,7 +645,7 @@ for a given experiment
         if logging:
             if invalid_tau_list:
                 self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
-                         "included when running this experiment: " + invalid_tau_list)
+                         "included when running this experiment: " + str(invalid_tau_list))
             else:
                 self.log("All generated pulse sequences are valid. No tau times will b e skipped in this experiment.")
 
