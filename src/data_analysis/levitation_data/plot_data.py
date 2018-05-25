@@ -25,7 +25,7 @@ from pims import pipeline
 from skimage.color import rgb2gray
 rgb2gray_pipeline = pipeline(rgb2gray)
 from scipy.ndimage.filters import gaussian_filter
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
 
 import numpy as np
 from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density
@@ -44,13 +44,11 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
         roi: region of interest, this allows to limit the search to a region of interest with the frame, the structure is
         roi = [roi_center, roi_dimension], where
-            roi_center = [xo, yo], roi_dimension = [w, h], where
-            xo, yo is the center of the roi and
-            w, h is the widht and the height of the roi
+            roi_center = [ro, co], roi_dimension = [h, w], where
+            ro, co is the center of the roi (row, columns) and
+            w, h is the width and the height of the roi
 
-            Note that roi dimensions w, h should be even numbers!
-
-        ax: optional axis object where to plot
+            Note that roi dimensions w, h should be odd numbers!
 
 
     """
@@ -78,12 +76,26 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
     for frame, axo in zip(frames, ax):
 
-        axo.imshow(video[frame], cmap='pink')
+        image = video[frame]
+
+
+        axo.imshow(image, cmap='pink')
+        # axo.imshow(video[frame], cmap='pink')
         if not xy_position is None:
-            axo.plot(xy_position[frame, 0], xy_position[frame, 1], 'xg', markersize = 30, linewidth = 4)
-            # plot also the positins obtained with trackpy
+
+
+
+            # note that we flip the x and y axis, because that is how
+            # axo.plot(xy_position[frame, 1], xy_position[frame, 0], 'xg', markersize = 30, linewidth = 4)
+            circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =1, linewidth=4, edgecolor='g', facecolor='none')
+            axo.add_patch(circ)
+
+            # plot also the positions obtained with trackpy
             if len ( xy_position[frame]) == 4:
-                axo.plot(xy_position[frame, 2], xy_position[frame, 3], 'xr', markersize=30, linewidth = 2)
+                # axo.plot(xy_position[frame, 3], xy_position[frame, 2], 'xr', markersize=30, linewidth = 2)
+                circ = Circle((xy_position[frame, 3], xy_position[frame, 2]), radius=5, linewidth=4, edgecolor='r',
+                              facecolor='none')
+                axo.add_patch(circ)
 
         if xylim is None:
             xlim = [0, frame_shape[0]]
@@ -91,15 +103,14 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         else:
             xlim, ylim = xylim
 
-        axo.set_xlim(xlim)
-        axo.set_ylim(ylim)
+        # axo.set_xlim(xlim)
+        # axo.set_ylim(ylim)
         # plt.show()
 
 
-        # Create a Rectangle patch
+        # Create a Rectangle patch to show roi
         if not roi is None:
-
-            rect = Rectangle((int(roi_center[0] - roi_dimension[0] / 2), int(roi_center[1] - roi_dimension[1] / 2)), roi_dimension[0], roi_dimension[1], linewidth=1, edgecolor='r', facecolor='none')
+            rect = Rectangle((int(roi_center[1] - roi_dimension[1] / 2)-1, int(roi_center[0] - roi_dimension[0] / 2)), roi_dimension[1], roi_dimension[0], linewidth=1, edgecolor='r', facecolor='none')
             axo.add_patch(rect)
 
     return fig, ax

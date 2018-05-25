@@ -190,6 +190,70 @@ def reencode_video(filepath, filepath_target = None):
     print('end time:\t{:s}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     print('wrote:\n{:s}'.format(filepath_target))
 
+
+def get_brightest_px(image, roi = None, verbose = False):
+    """
+
+
+    Args:
+        image:  image a 2D array
+        roi: region of interest, this allows to limit the search to a region of interest with the frame, the structure is
+        roi = [roi_center, roi_dimension], where
+            roi_center = [ro, co], roi_dimension = [h, w], where
+            ro, co is the center of the roi (row, columns) and
+            w, h is the width and the height of the roi
+
+            Note that roi dimensions w, h should be odd numbers!
+
+    Returns: the coordinates (row, column) of the brightest pixel in the image
+
+    """
+
+    if verbose:
+        print(image)
+    # reduce image to roi
+    if not roi is None:
+        [roi_center, roi_dimension] = roi
+
+        image_roi = image[
+                int(roi_center[0] - (roi_dimension[0] - 1) / 2): int(roi_center[0] + (roi_dimension[0] + 1) / 2),
+                int(roi_center[1] - (roi_dimension[1] - 1) / 2): int(roi_center[1] + (roi_dimension[1] + 1) / 2)
+                ]
+    else:
+        image_roi = image
+        roi_dimension = np.shape(image)
+
+    if verbose:
+        print(image_roi)
+
+    pixel_max = np.argmax(image_roi)
+    if verbose:
+        print('pixel_max', pixel_max, roi_dimension)
+
+    po = np.unravel_index(pixel_max, roi_dimension)
+    if verbose:
+        print('po', po)
+    # po = [po[1], po[0]]  # flip the order to get x, y
+
+    # add the offset from the roi
+    if not roi is None:
+        offset = [
+            int(roi_center[0] - (roi_dimension[0] - 1) / 2),
+            int(roi_center[1] - (roi_dimension[1] - 1) / 2)
+            ]
+
+        if verbose:
+            print('offset', offset)
+
+        po = [
+            po[0] + offset[0],
+            po[1] + offset[1]
+        ]
+
+    return po
+
+
+
 def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_trackpy =False, show_progress = True,
                    trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None):
     """
@@ -211,16 +275,17 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
     roi: region of interest, this allows to limit the search to a region of interest with the frame, the structure is
         roi = [roi_center, roi_dimension], where
-            roi_center = [xo, yo], roi_dimension = [w, h], where
-            xo, yo is the center of the roi and
-            w, h is the widht and the height of the roi
+            roi_center = [ro, co], roi_dimension = [h, w], where
+            ro, co is the center of the roi (row, columns) and
+            w, h is the width and the height of the roi
 
-            Note that roi dimensions w, h should be even numbers!
+            Note that roi dimensions w, h should be odd numbers!
 
     returns: path to .csv file
     """
 
-
+    if use_trackpy:
+        print('WARNGING THIS NEEDS TO BE TESTED. USE WITH CARE!!!')
 
     if target_path is None:
         target_path = os.path.dirname(filepath)
@@ -262,11 +327,12 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
         for i in [0, 1]:
             # assert that roi fits in the image
-            assert roi_center[i] + roi_dimension[i] / 2 <= image_size[i]
-            assert roi_center[i] - roi_dimension[i] / 2 >= 0
+            assert roi_center[i] + (roi_dimension[i]+1) / 2 <= image_size[i]
+            assert roi_center[i] - (roi_dimension[i]+1) / 2 >= 0
 
-            # assert that roi_dimension are even
-            assert roi_dimension[i] % 2 == 0
+            # assert that roi_dimension are odd
+            assert roi_dimension[i] % 2 == 1
+
 
 
     # we use range in this loop so that we can catch the CannotReadFrameError in the line where we try to access the next image
@@ -276,17 +342,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
         except CannotReadFrameError:
             skipped_frames_idx.append(index)
 
-        # reduce image to roi
-        if not roi is None:
-            image = image[
-                    int(roi_center[0] - roi_dimension[0] / 2) : int(roi_center[0]+ roi_dimension[0] / 2),
-                    int(roi_center[1] - roi_dimension[1] / 2): int(roi_center[1] + roi_dimension[1] / 2)
-                    ]
-
-        pixel_max = np.argmax(image)
-
-        po = np.unravel_index(pixel_max, image_size)
-        po = [po[1], po[0]] # flip the order to get x, y
+        po = get_brightest_px(image, roi)
 
         if use_trackpy:
             locate_info = tp.locate(image, trackpy_parameters['diameter'], minmass=trackpy_parameters['minmass'])
@@ -299,13 +355,11 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
             po = po + [pts[0], pts[1]] # append point found by findnv to dataset of current frame
         max_coors.append(po)
-        # max_coors.append((pixel_max % image_size[0], pixel_max / image_size[1]))
+
         if index % 1000 == 0:
             if show_progress:
                 f.value += 1000
 
-
-        # tmp for debugging purpuse end early
         if not max_frames is None:
             if index>max_frames:
                 break
@@ -319,7 +373,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
     info = {
         'filename_xy_position': target_filename,
-        'image_size':image_size,
+        'image_size':np.shape(filtered[0]),
         'gaussian_filter_width':gaussian_filter_width,
         'N_frames':len(filtered),
         'use_trackpy':use_trackpy,
@@ -327,7 +381,8 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
         'end_time':end_time,
         'max_frames':max_frames,
         'skipped_frames_idx':skipped_frames_idx,
-        'N_skipped_frames': len(skipped_frames_idx)
+        'N_skipped_frames': len(skipped_frames_idx),
+        'roi' : roi
     }
 
     # convert time back to datetime so that we can calculate the duration
@@ -607,3 +662,32 @@ def compute_gamma(filepaths, cd_height, bead_diameter, frequency, window_width, 
     tx = ax.xaxis.get_offset_text()
     tx.set_fontsize(10)
     plt.savefig(filepath[0][:-19] + '_anharmonicity2.png')
+
+
+if __name__ == '__main__':
+
+    # testing get_brightest_px
+
+    # simple test no roi
+    # po = np.random.randint(3,8, size=2)
+    #
+    # print('initial', po)
+    # image = np.zeros([11, 11])
+    # image[po[0], po[1]] = 255
+    #
+    # po = get_brightest_px(image, roi=None)
+    # print('found', po)
+
+
+    # test with roi
+    po = np.random.randint(3,8, size=2)
+
+    print('initial', po)
+    image = np.zeros([11, 11])
+    image[po[0], po[1]] = 255
+
+    po = get_brightest_px(image, roi=[po, [5, 3]], verbose=True)
+    print('found', po)
+
+
+    # end testing
