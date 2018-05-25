@@ -191,7 +191,7 @@ def reencode_video(filepath, filepath_target = None):
     print('wrote:\n{:s}'.format(filepath_target))
 
 def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_trackpy =False, show_progress = True,
-                   trackpy_parameters = None, min_frames = 0, max_frames = None):
+                   trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None):
     """
     Takes in a bead video, and saves the bead's extracted position in every frame in a csv, and
     (optionally) an uncorrupted version of the video
@@ -208,6 +208,14 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
     min_frames: first frame to analyze, usefull for debugging, if start from first frame
     max_frames: max number of frames to analyze, usefull for debugging, if none do entire video
+
+    roi: region of interest, this allows to limit the search to a region of interest with the frame, the structure is
+        roi = [roi_center, roi_dimension], where
+            roi_center = [xo, yo], roi_dimension = [w, h], where
+            xo, yo is the center of the roi and
+            w, h is the widht and the height of the roi
+
+            Note that roi dimensions w, h should be even numbers!
 
     returns: path to .csv file
     """
@@ -247,12 +255,33 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
     max_coors = []
     skipped_frames_idx = []
 
+
+    if not roi is None:
+
+        [roi_center, roi_dimension] = roi
+
+        for i in [0, 1]:
+            # assert that roi fits in the image
+            assert roi_center[i] + roi_dimension[i] / 2 <= image_size[i]
+            assert roi_center[i] - roi_dimension[i] / 2 >= 0
+
+            # assert that roi_dimension are even
+            assert roi_dimension[i] % 2 == 0
+
+
     # we use range in this loop so that we can catch the CannotReadFrameError in the line where we try to access the next image
     for index in range(min_frames, max_frames):
         try:
             image = filtered[index]
         except CannotReadFrameError:
             skipped_frames_idx.append(index)
+
+        # reduce image to roi
+        if not roi is None:
+            image = image[
+                    int(roi_center[0] - roi_dimension[0] / 2) : int(roi_center[0]+ roi_dimension[0] / 2),
+                    int(roi_center[1] - roi_dimension[1] / 2): int(roi_center[1] + roi_dimension[1] / 2)
+                    ]
 
         pixel_max = np.argmax(image)
 
