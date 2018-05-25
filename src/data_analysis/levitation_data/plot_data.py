@@ -25,11 +25,12 @@ from pims import pipeline
 from skimage.color import rgb2gray
 rgb2gray_pipeline = pipeline(rgb2gray)
 from scipy.ndimage.filters import gaussian_filter
+from matplotlib.patches import Rectangle
 
 import numpy as np
 from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density
 
-def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None):
+def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None, roi = None, ax = None):
     """
 
     plots frames of the video
@@ -41,11 +42,29 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         gaussian_filter_width: if not None apply Gaussian filter
         xylim: xylim to zoom in on a region, if not specified (ie None) show full image
 
+        roi: region of interest, this allows to limit the search to a region of interest with the frame, the structure is
+        roi = [roi_center, roi_dimension], where
+            roi_center = [xo, yo], roi_dimension = [w, h], where
+            xo, yo is the center of the roi and
+            w, h is the widht and the height of the roi
+
+            Note that roi dimensions w, h should be even numbers!
+
+        ax: optional axis object where to plot
+
 
     """
 
+
     if not hasattr(frames, '__len__'):
         frames = [frames]
+
+    if ax is None:
+        fig, ax = plt.subplots(1, len(frames))
+
+
+    if not roi is None:
+        [roi_center, roi_dimension] = roi
 
     v = pims.Video(file_path)
     video = rgb2gray_pipeline(v)
@@ -57,14 +76,14 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
     frame_shape = np.shape(video[frames[0]])
 
-    for frame in frames:
-        plt.figure()
-        plt.imshow(video[frame], cmap='pink')
+    for frame, axo in zip(frames, ax):
+
+        axo.imshow(video[frame], cmap='pink')
         if not xy_position is None:
-            plt.plot(xy_position[frame, 0], xy_position[frame, 1], 'xg', markersize = 30, linewidth = 4)
+            axo.plot(xy_position[frame, 0], xy_position[frame, 1], 'xg', markersize = 30, linewidth = 4)
             # plot also the positins obtained with trackpy
             if len ( xy_position[frame]) == 4:
-                plt.plot(xy_position[frame, 2], xy_position[frame, 3], 'xr', markersize=30, linewidth = 2)
+                axo.plot(xy_position[frame, 2], xy_position[frame, 3], 'xr', markersize=30, linewidth = 2)
 
         if xylim is None:
             xlim = [0, frame_shape[0]]
@@ -72,9 +91,18 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         else:
             xlim, ylim = xylim
 
-        plt.xlim(xlim)
-        plt.ylim(ylim)
-        plt.show()
+        axo.set_xlim(xlim)
+        axo.set_ylim(ylim)
+        # plt.show()
+
+
+        # Create a Rectangle patch
+        if not roi is None:
+
+            rect = Rectangle((int(roi_center[0] - roi_dimension[0] / 2), int(roi_center[1] - roi_dimension[1] / 2)), roi_dimension[0], roi_dimension[1], linewidth=1, edgecolor='r', facecolor='none')
+            axo.add_patch(rect)
+
+    return fig, ax
 
 def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None, ax = None, plot_avrg = False, verbose = False):
     """
@@ -157,7 +185,7 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
     return fig, ax
 
 
-def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None, plot_avrg = False):
+def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None):
     """
 
     Args:
