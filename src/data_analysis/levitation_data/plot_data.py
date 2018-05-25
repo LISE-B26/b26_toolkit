@@ -76,7 +76,7 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         plt.ylim(ylim)
         plt.show()
 
-def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None, ax = None, verbose = False):
+def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None, ax = None, plot_avrg = False, verbose = False):
     """
 
     Args:
@@ -91,6 +91,7 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
     Returns:
 
     """
+
     N_frames = len(x) # total number of frames
 
     if end_frame is None:
@@ -125,25 +126,38 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
     ylim = [min(time), max(time)]
 
     if ax is None:
-        fig, ax = plt.subplots(1, 1)
+        if plot_avrg:
+            fig, ax = plt.subplots(2, 1, sharex=True)
+            ax_id = 1
+        else:
+            fig, ax = plt.subplots(1, 1)
+            ax =[ax]
+            ax_id = 0
 
-    ax.pcolormesh(f, time, np.log(P))
+    ax[ax_id].pcolormesh(f, time, np.log(P))
 
     # print(np.min(P, axis=1), len(np.min(P, axis=1)))
 
     if not frequency_range is None:
         [mode_f_min, mode_f_max] = frequency_range
-        ax.plot([mode_f_min, mode_f_min], ylim, 'k--')
-        ax.plot([mode_f_max, mode_f_max], ylim, 'k--')
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-    ax.set_xlabel('frequency (Hz)')
-    ax.set_ylabel('time (s)')
+        ax[ax_id].plot([mode_f_min, mode_f_min], ylim, 'k--')
+        ax[ax_id].plot([mode_f_max, mode_f_max], ylim, 'k--')
+
+
+    if plot_avrg:
+        pmean =  np.mean(P, axis=0)
+        ax[0].semilogy(f, pmean)
+        ax[ax_id].set_ylim([min(pmean), max(pmean)])
+
+    ax[ax_id].set_xlim(xlim)
+    ax[ax_id].set_ylim(ylim)
+    ax[ax_id].set_xlabel('frequency (Hz)')
+    ax[ax_id].set_ylabel('time (s)')
 
     return fig, ax
 
 
-def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None):
+def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None, plot_avrg = False):
     """
 
     Args:
@@ -204,20 +218,20 @@ def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1
 
 
     if window_ids is None:
-        plt.semilogy(f, p, '-')
+        ax.semilogy(f, p, '-')
     else:
         for p, id in zip(P, window_ids):
-            plt.semilogy(f, p, '-', label = id)
+            ax.semilogy(f, p, '-', label = id)
         plt.legend(loc=(1, 0))
 
     if not frequency_range is None:
         [mode_f_min, mode_f_max] = frequency_range
-        plt.plot([mode_f_min, mode_f_min], ylim, 'k--')
-        plt.plot([mode_f_max, mode_f_max], ylim, 'k--')
-    plt.xlim(xlim)
-    plt.ylim(ylim)
-    plt.xlabel('frequency (Hz)')
-    plt.ylabel('psd (arb.u.)')
+        ax.plot([mode_f_min, mode_f_min], ylim, 'k--')
+        ax.plot([mode_f_max, mode_f_max], ylim, 'k--')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel('frequency (Hz)')
+    ax.set_ylabel('psd (arb.u.)')
 
     return fig, ax
 
