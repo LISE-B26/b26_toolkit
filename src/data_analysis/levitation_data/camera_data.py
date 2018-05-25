@@ -38,7 +38,15 @@ import trackpy as tp
 # status bar
 from ipywidgets import FloatProgress
 from IPython.display import display
+
+from imageio.core import CannotReadFrameError
+
+
+
 import datetime
+import yaml
+import sys
+import subprocess
 
 # following functions are imported just to make them available within the context of b26toolkit - analysis of levitation data
 # from PyLabControl.src.data_processing.signal_processing import power_spectral_density
@@ -49,12 +57,14 @@ def power_spectral_density(x, time_step, frequency_range = None):
     """
     returns the *single sided* power spectral density of the time trace x which is sampled at intervals time_step
     i.e. integral over the the PSD from f_min~0 to f_max is equal to variance over x
+
+
     Args:
         x (array):  timetrace
         time_step (float): sampling interval of x
         freq_range (array or tuple): frequency range in the form [f_min, f_max] to return only the spectrum within this range
 
-    Returns:
+    Returns: psd in units of the unit(x)^2/Hz
 
     """
     N = len(x)
@@ -77,7 +87,28 @@ def power_spectral_density(x, time_step, frequency_range = None):
 
 ## stuff by Jan including modified functions from Aaron
 
-def get_video_info(filename):
+
+def get_frame_rate(filename):
+    """
+
+    Args:
+        filename: path to .avi file
+
+    Returns: frame rate in fps
+
+    """
+    if not os.path.exists(filename):
+        sys.stderr.write("ERROR: filename %r was not found!" % (filename,))
+        return -1
+    out = subprocess.check_output(["ffprobe",filename,"-v","0","-select_streams","v","-print_format","flat","-show_entries","stream=r_frame_rate"])
+    rate = out.split('=')[1].strip()[1:-1].split('/')
+    if len(rate)==1:
+        return float(rate[0])
+    if len(rate)==2:
+        return float(rate[0])/float(rate[1])
+    return -1
+
+def get_video_info(filename, verbose = False):
     """
     Args:
         filename: path to video file
@@ -87,12 +118,46 @@ def get_video_info(filename):
     """
     v = pims.Video(filename)
 
+    if verbose:
+        print(v)
+
+    #JG: v.framerate worked on the Alice computer but not on Eve where I got
+    # AttributeError: 'ImageIOReader' object has no attribute 'duration'
+    # thus in case v.framerate doesn't work, we try to get the framerate from ffpeg
+    try:
+        frame_rate = v.frame_rate
+    except:
+        frame_rate = get_frame_rate(filename)
+
+    # JG: similar for v.duration
+    try:
+        duration = v.duration
+    except:
+        duration = len(v)
+
     video_info = {
-        'frame_rate': v.frame_rate,
-        'duration': v.duration
+        'frame_rate': frame_rate,
+        'duration': duration
     }
 
+
     return video_info
+
+def load_info(filename):
+    """
+
+    Args:
+        filename: path to info file
+
+    Returns:
+        info as dictionary
+
+    """
+
+    # if position has been extracted previously, there should be an info file
+    with open(filename, 'r') as infile:
+        info_from_disk = yaml.safe_load(infile)
+    return info_from_disk
 
 def reencode_video(filepath, filepath_target = None):
     """
@@ -120,12 +185,13 @@ def reencode_video(filepath, filepath_target = None):
     # cutting the first second isn't always necessary, but sometimes the videos will not load without it
     cmd_string = "ffmpeg -i " + filepath + " -ss 1 -c copy " + filepath_target
     # performs system (command line) call
-    os.system(cmd_string)
+    x = os.system(cmd_string)
+    print(x)
     print('end time:\t{:s}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     print('wrote:\n{:s}'.format(filepath_target))
 
 def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_trackpy =False, show_progress = True,
-                   trackpy_parameters = None, max_frames = None):
+                   trackpy_parameters = None, min_frames = 0, max_frames = None):
     """
     Takes in a bead video, and saves the bead's extracted position in every frame in a csv, and
     (optionally) an uncorrupted version of the video
@@ -140,6 +206,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
     trackpy_parameters: parameters for trackpy (only needed if use_trackpy is True)
 
+    min_frames: first frame to analyze, usefull for debugging, if start from first frame
     max_frames: max number of frames to analyze, usefull for debugging, if none do entire video
 
     returns: path to .csv file
@@ -170,7 +237,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
         max_frames=len(filtered)
 
     if show_progress:
-        f = FloatProgress(min=0, max=max_frames)  # instantiate the bar
+        f = FloatProgress(min=min_frames, max=max_frames)  # instantiate the bar
         display(f)  # display the bar
     start_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print('start time:\t{:s}'.format(start_time))
@@ -178,7 +245,15 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
     image_size = np.shape(filtered[0]) # size of image
     # find the maximum brightness pixel for every frame, corresponding to some consistent point at the bead
     max_coors = []
-    for index, image in enumerate(filtered):
+    skipped_frames_idx = []
+
+    # we use range in this loop so that we can catch the CannotReadFrameError in the line where we try to access the next image
+    for index in range(min_frames, max_frames):
+        try:
+            image = filtered[index]
+        except CannotReadFrameError:
+            skipped_frames_idx.append(index)
+
         pixel_max = np.argmax(image)
 
         po = np.unravel_index(pixel_max, image_size)
@@ -212,6 +287,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
     print('end time:\t{:s}'.format(end_time))
     print('file written to:\n{:s}'.format(target_filename))
 
+
     info = {
         'filename_xy_position': target_filename,
         'image_size':image_size,
@@ -220,14 +296,24 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
         'use_trackpy':use_trackpy,
         'start_time':start_time,
         'end_time':end_time,
-        'max_frames':max_frames
+        'max_frames':max_frames,
+        'skipped_frames_idx':skipped_frames_idx,
+        'N_skipped_frames': len(skipped_frames_idx)
     }
+
+    # convert time back to datetime so that we can calculate the duration
+    start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+    end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+    info['extract. duration (min)'] = (end_time - start_time).seconds / 60
+
 
     if use_trackpy:
         info.update({
             'trackpy_parameters': trackpy_parameters
         })
 
+    if info['N_skipped_frames']>100:
+        print('WARNING: more than 100 frames corrupted in this video!!')
 
     return info
 
@@ -254,15 +340,6 @@ def load_xy_time_trace(filepath, center_at_zero = True):
 
     return xy
 
-    """
-    Takes in a filepath to a csv containing the bead positions and a frame rate, and plots the fourier transform
-    for a given frame window
-    filepath: path to a csv containing the bead (x,y) position for each frame, such as the output from
-        extract_motion()
-    frame_rate: frame rate in fps of the original video
-    start frame: first frame to use for the window
-    window_width: number of frames to use in window
-    """
 
 ## stuff from Aaron
 def load_data(path):
@@ -329,18 +406,24 @@ def exponential(x, amp, tau, offset):
     return amp * np.exp(-x/tau) + offset
 
 
-def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=True):
+def get_freq_and_energy_timetrace(x, frequency_range, dt, nbin=10e3, mass = 1, velocity_type=True, fo = None):
     """
-    returns the time max freq and totel power in freq range for chunks of timetrace
 
-    x: timetrace
+    Args:
+        x: timetrace
 
-    frequency_range: freq range
+        frequency_range: freq range
 
-    nbin: length of timetrace chunk
+        nbin: length of timetrace chunk
 
-    velocity_type:  False - returns totel power of position spectral density in freq range for chunks of timetrace
-                    True - returns totel power of velocity spectral density in freq range for chunks of timetrace
+        mass: mass of harmonic oscillator mode
+
+        velocity_type:  False - uses position spectral density
+                        True - uses velocity spectral density
+
+        fo (optional) to calculate the energy in the position mode we need to know the mode frequency. If position mode is selected and fo is None, we assume that fo is the center of the freq. range
+
+    Returns: returns the time max freq and total energy in freq range for chunks of timetrace. Units are `Joules` if unit of input is `Meters`
 
 
     """
@@ -351,6 +434,10 @@ def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=
 
     df = 1. / (nbin * dt)
 
+    if velocity_type is False and fo is None:
+        # assume that fo is the center of the freq. range
+        fo = np.mean(frequency_range)
+
     f_of_t = []
     a_of_t = []
     for y in x:
@@ -360,7 +447,13 @@ def get_freq_and_amp_timetrace(x, frequency_range, dt, nbin=10e3, velocity_type=
         if velocity_type:
             a_of_t.append(np.sum(p * (2 * np.pi * f) ** 2) * df)
         else:
-            a_of_t.append(np.sum(p) * df)
+            a_of_t.append(np.sum(p)* (2 * np.pi * fo)** 2 * df)
+
+    # convert to numpy
+    f_of_t = np.array(f_of_t)
+    a_of_t = np.array(a_of_t)
+
+    a_of_t *= mass # multiply by mass to get the energy
 
     return f_of_t, a_of_t
 
@@ -423,9 +516,6 @@ def fit_Q(x, dt, bead_mass, frequency_range=[60, 80], tmax=10, nbin=1e4, plot=Tr
     ax.yaxis.offsetText.set_fontsize(12)
 
     return fit_params, freq, amp_vel, fig
-
-
-
 
 
 

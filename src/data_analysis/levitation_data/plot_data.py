@@ -76,7 +76,7 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         plt.ylim(ylim)
         plt.show()
 
-def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None):
+def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None, ax = None, verbose = False):
     """
 
     Args:
@@ -97,11 +97,12 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
         end_frame = N_frames
 
 
-    N_windows = (end_frame-start_frame)/window_length # number of windows
+    N_windows = (end_frame-start_frame)/window_length # number of time
     N_windows = int(np.floor(N_windows))
 
-    print('total number of frames:\t\t{:d}'.format(N_frames))
-    print('total number of windows:\t{:d}'.format(N_windows))
+    if verbose:
+        print('total number of frames:\t\t{:d}'.format(N_frames))
+        print('total number of windows:\t{:d}'.format(N_windows))
 
 
     # reshape the timetrace such that each row is a window
@@ -118,32 +119,37 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
         # print(c,len(p), np.min(p))
 
 
-    windows = np.arange(N_windows)
+    time = np.arange(N_windows) * time_step * window_length
 
     xlim = [min(f), max(f)]
-    ylim = [min(windows), max(windows)]
+    ylim = [min(time), max(time)]
 
-    plt.pcolormesh(f, windows, np.log(P))
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    ax.pcolormesh(f, time, np.log(P))
 
     # print(np.min(P, axis=1), len(np.min(P, axis=1)))
 
     if not frequency_range is None:
         [mode_f_min, mode_f_max] = frequency_range
-        plt.plot([mode_f_min, mode_f_min], ylim, 'k--')
-        plt.plot([mode_f_max, mode_f_max], ylim, 'k--')
-    plt.xlim(xlim)
-    plt.ylim(ylim)
-    plt.xlabel('frequency (Hz)')
-    plt.ylabel('window id')
+        ax.plot([mode_f_min, mode_f_min], ylim, 'k--')
+        ax.plot([mode_f_max, mode_f_max], ylim, 'k--')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel('frequency (Hz)')
+    ax.set_ylabel('time (s)')
+
+    return fig, ax
 
 
-def plot_psds(x, time_step, window_ids, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum=True, frequency_range= None):
+def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None):
     """
 
     Args:
         x: time trace
         time_step: time_step between datapoints
-        window_ids: the id of the window to be plotted
+        window_ids: the id of the window to be plotted if None, calculate the spectrum from the entire timetrace
         start_frame: starting frame for analysis (default 0)
         window_length: length of window over which we compute the psd (default 1000)
         end_frame: end frame for analysis (optional if None end_frame is len of total timetrace)
@@ -153,50 +159,92 @@ def plot_psds(x, time_step, window_ids, start_frame = 0, window_length= 1000, en
     Returns:
 
     """
-    N_frames = len(x) # total number of frames
 
-    if end_frame is None:
-        end_frame = N_frames
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    if window_ids is None:
+        if full_spectrum:
+            f, p = power_spectral_density(x, time_step, frequency_range=None)
+        else:
+            f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
+        ylim = [min(p), max(p)]
+    else:
+
+        N_frames = len(x) # total number of frames
+
+        if end_frame is None:
+            end_frame = N_frames
 
 
-    N_windows = (end_frame-start_frame)/window_length # number of windows
-    N_windows = int(np.floor(N_windows))
+        N_windows = (end_frame-start_frame)/window_length # number of windows
+        N_windows = int(np.floor(N_windows))
 
-    print('total number of frames:\t\t{:d}'.format(N_frames))
-    print('total number of windows:\t{:d}'.format(N_windows))
+        print('total number of frames:\t\t{:d}'.format(N_frames))
+        print('total number of windows:\t{:d}'.format(N_windows))
+
+        # reshape the timetrace such that each row is a window
+        X = x[start_frame:start_frame+window_length*N_windows].reshape(N_windows, window_length)
+        P = []
+
+        for id, x in enumerate(X):
+
+            if id in window_ids:
+
+                if full_spectrum:
+                    f, p =  power_spectral_density(x, time_step, frequency_range=None)
+                else:
+                    f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
+                P.append(p)
+                ylim = [np.min(P), np.max(P)]
 
 
-    # reshape the timetrace such that each row is a window
-    X = x[start_frame:start_frame+window_length*N_windows].reshape(N_windows, window_length)
-    P = []
-
-    for id, x in enumerate(X):
-
-        if id in window_ids:
-
-            if full_spectrum:
-                f, p =  power_spectral_density(x, time_step, frequency_range=None)
-            else:
-                f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
-            P.append(p)
-
-    windows = np.arange(N_windows)
 
     xlim = [min(f), max(f)]
-    ylim = [min(windows), max(windows)]
 
-    for p, id in zip(P, window_ids):
-        plt.semilogy(f, p, 'o-', label = id)
+
+    if window_ids is None:
+        plt.semilogy(f, p, '-')
+    else:
+        for p, id in zip(P, window_ids):
+            plt.semilogy(f, p, '-', label = id)
+        plt.legend(loc=(1, 0))
 
     if not frequency_range is None:
         [mode_f_min, mode_f_max] = frequency_range
-        plt.plot([mode_f_min, mode_f_min], [np.min(P), np.max(P)], 'k--')
-        plt.plot([mode_f_max, mode_f_max], [np.min(P), np.max(P)], 'k--')
+        plt.plot([mode_f_min, mode_f_min], ylim, 'k--')
+        plt.plot([mode_f_max, mode_f_max], ylim, 'k--')
     plt.xlim(xlim)
     plt.ylim(ylim)
     plt.xlabel('frequency (Hz)')
     plt.ylabel('psd (arb.u.)')
-    plt.legend(loc = (1,0))
+
+    return fig, ax
+
+
+
+def plot_timetrace(x, time_step, window_length =1, start=None, end =None, start_end_unit = 'frames', ax = None, verbose = False):
+    """
+    Takes a file or sequential files with a set of bead positions (such as created by extract_motion), and computes and plots the ringdown
+    filepaths: a list of filepaths to .csv files containing the bead position trace in (x,y) coordinates
+    frequency: oscillation frequency of mode
+    window_width: width of window centered on frequency over which to integrate
+    fps: frame rate in frames per second of the data
+    bead_diameter: diameter (in um) of the bead
+    axis: either 'x' or 'y', specifies which direction to look at oscillations in (if using the reflection on
+        the right wall, this is x for z mode, y for xy modes)
+    starting_frame: all frames before this one will not be included
+    save_filename: if provided, uses this path to save the plot, otherwise saves in the original filepath .png
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    time = np.arange(len(x)) * time_step * window_length
+    ax.plot(time, x)
+    ax.set_xlabel('time (s)')
+
+    return fig, ax
+
 
 
 # older stuff
