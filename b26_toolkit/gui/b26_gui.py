@@ -1,11 +1,11 @@
 
-from pylabcontrol.gui.qt_b26_gui import ControlMainWindow
+from gui.windows_and_widgets.main_window import MainWindow
 from b26_toolkit.gui.b26_load_dialog import LoadDialogB26
 import os
 from pylabcontrol.core import Script
 
 
-class ControlMainWindowB26(ControlMainWindow):
+class ControlMainWindowB26(MainWindow):
 
     startup_msg = '\n\n\
     ======================================================\n\
