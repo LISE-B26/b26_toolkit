@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='pylabcontrol',
+    name='b26_toolkit',
     version='0.1a0',
     packages=find_packages(exclude=['tests*']),
     url='https://github.com/LISE-B26/b26_toolkit',
     license='GPL',
     author='Arthur Safira, Jan Gieseler, and Aaron Kabcenell',
-    author_email='',
+    author_email='asafira@fas.harvard.edu',
     description='Python Laboratory Control Software',
     keywords='laboratory experiment control',
     classifiers=[
@@ -31,7 +31,8 @@ setup(
         'PIMS',
         'Pillow',
         'peakutils',
-        'pyserial'
+        'pyserial',
+        'pylabcontrol'
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

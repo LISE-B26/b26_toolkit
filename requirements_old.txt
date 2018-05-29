@@ -1,5 +1,0 @@
-pyserial
-trackpy
-pythonnet
-pyvisa
-peakutils
