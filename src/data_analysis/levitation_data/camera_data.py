@@ -249,13 +249,16 @@ def get_brightest_px(image, roi = None, verbose = False):
             po[0] + offset[0],
             po[1] + offset[1]
         ]
+    else:
+
+        po = list(po)
 
     return po
 
 
 
 def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_trackpy =False, show_progress = True,
-                   trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None):
+                   trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None, dynamic_roi = False):
     """
     Takes in a bead video, and saves the bead's extracted position in every frame in a csv, and
     (optionally) an uncorrupted version of the video
@@ -280,6 +283,9 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
             w, h is the width and the height of the roi
 
             Note that roi dimensions w, h should be odd numbers!
+            Note that the order of the dimensions is vertical, horizontal, that is NOT x,y!
+
+    dynamic_roi: if True, dynamically track the roi, ie. the center of the roi of the next frame is the detected position of the currenrt frame. If false the roi is static
 
     returns: path to .csv file
     """
@@ -308,6 +314,9 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
     if max_frames is None:
         max_frames=len(filtered)
+    else:
+        # make sure max_frames is integer
+        max_frames =int(max_frames)
 
     if show_progress:
         f = FloatProgress(min=min_frames, max=max_frames)  # instantiate the bar
@@ -352,9 +361,13 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
             pts = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
             if len(pts)< 2:
                 trackpy_parameters['missing_frames'].append(index)
-
+            
             po = po + [pts[0], pts[1]] # append point found by findnv to dataset of current frame
         max_coors.append(po)
+
+        # update center of roi with current position of bright spot
+        if dynamic_roi:
+            roi[0] = [int(po[0]), int(po[1])]
 
         if index % 1000 == 0:
             if show_progress:

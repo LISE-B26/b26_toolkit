@@ -59,6 +59,9 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
     if ax is None:
         fig, ax = plt.subplots(1, len(frames))
+        # if frames is an array of len=1, the ax object is not a list, so for the following code we make it into a list
+        if len(frames)==1:
+            ax =[ax]
 
 
     if not roi is None:
@@ -74,6 +77,8 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
     frame_shape = np.shape(video[frames[0]])
 
+    print(len(frames), len(ax))
+
     for frame, axo in zip(frames, ax):
 
         image = video[frame]
@@ -87,13 +92,14 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
             # note that we flip the x and y axis, because that is how
             # axo.plot(xy_position[frame, 1], xy_position[frame, 0], 'xg', markersize = 30, linewidth = 4)
-            circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =1, linewidth=4, edgecolor='g', facecolor='none')
+            circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =1, linewidth=2, edgecolor='g', facecolor='none')
             axo.add_patch(circ)
 
             # plot also the positions obtained with trackpy
             if len ( xy_position[frame]) == 4:
                 # axo.plot(xy_position[frame, 3], xy_position[frame, 2], 'xr', markersize=30, linewidth = 2)
-                circ = Circle((xy_position[frame, 3], xy_position[frame, 2]), radius=5, linewidth=4, edgecolor='r',
+                # the postions in trackpy are the usual x,y order
+                circ = Circle((xy_position[frame, 2], xy_position[frame, 3]), radius=2, linewidth=2, edgecolor='r',
                               facecolor='none')
                 axo.add_patch(circ)
 
@@ -103,8 +109,8 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         else:
             xlim, ylim = xylim
 
-        # axo.set_xlim(xlim)
-        # axo.set_ylim(ylim)
+        axo.set_xlim(xlim)
+        axo.set_ylim(ylim)
         # plt.show()
 
 
