@@ -879,6 +879,23 @@ class DAQ(Instrument):
             self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
             raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
 
+    @classmethod
+    def get_connected_devices(cls):
+        """
+        Checks which devices are present in the system
+        Returns: A list of device names, as recognized by NI commands, that are currently connected
+
+        """
+        device_list = ctypes.create_string_buffer(1000)
+        cls.nidaq.DAQmxGetSysDevNames(device_list, 1000)
+        device_list = device_list.value.decode('ascii').split(', ')
+        # print(device_list)
+        # product_type = ctypes.create_string_buffer(100)
+        # for device in device_list:
+        #     cls.nidaq.DAQmxGetDevProductType(device.encode('ascii'), product_type, 100)
+        #     print(product_type.value.decode('ascii'))
+        return device_list
+
 
 class NI6259(DAQ):
     """
@@ -1072,8 +1089,7 @@ class NI9402(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ1', ['cDAQ1', 'cDAQ9184-1BA7633', 'cDAQ9188-1BFB6F2'], 'Name of DAQ device - check in NiMax'),
-        Parameter('module', 'Mod2', ['Mod1', 'Mod2', 'Mod3', 'Mod4', 'Mod5', 'Mod6', 'Mod7', 'Mod8']),
+        Parameter('device', 'cDAQ1Mod2', ['cDAQ1Mod2', 'cDAQ9184-1BA7633Mod2', 'cDAQ9188-1BFB6F2Mod2'], 'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
         Parameter('digital_input',
@@ -1147,9 +1163,9 @@ class NI9402(DAQ):
         else:
             task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
-        input_channel_str = (self.settings['device'] + self.settings['module'] + '/' + channel).encode('ascii')
+        input_channel_str = (self.settings['device'] + '/' + channel).encode('ascii')
         task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')
-        counter_out_str = (self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('ascii')
+        counter_out_str = (self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('ascii')
         task['task_handle_ctr'] = TaskHandle(0)
         task['task_handle'] = TaskHandle(1)
 
@@ -1179,8 +1195,9 @@ class NI9402(DAQ):
         return task_name
 
 if __name__ == '__main__':
-    pass
+    # pass
     # daq, failed = Instrument.load_and_append({'daq': NI9263, 'daq_in': NI6259})
+    NI6259.get_connected_devices()
     # print('FAILED', failed)
     # print(daq['daq'].settings)
     #

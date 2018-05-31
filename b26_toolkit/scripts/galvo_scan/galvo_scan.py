@@ -98,6 +98,18 @@ class GalvoScan(GalvoScanGeneric):
             self.daq_in = self.instruments['NI9402']['instance']
             self.daq_out = self.instruments['NI9263']['instance']
 
+        #checks that requested daqs are actually physically present in the system
+        device_list = NI6259.get_connected_devices()
+        if not(self.daq_in.settings['device'] in device_list):
+            self.log('The requested input daq ' + self.daq_in.settings['device'] + ' is not connected to this computer. Possible daqs are '
+                     + device_list + '. Please choose one of these and try again.')
+            raise AttributeError
+
+        if not (self.daq_out.settings['device'] in device_list):
+            self.log('The requested output daq ' + self.daq_out.settings[
+                'device'] + ' is not connected to this computer. Possible daqs are '
+                     + device_list + '. Please choose one of these and try again.')
+            raise AttributeError
 
         self.clockAdjust = int(
             (self.settings['time_per_pt'] + self.settings['settle_time']) / self.settings['settle_time'])

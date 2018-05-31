@@ -103,7 +103,11 @@ class GalvoScanGeneric(Script):
         if self._ACQ_TYPE == 'point':
             self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
 
-        self.setup_scan()
+        #error is raised in setup_scan if requested daq is not connected. This then ends the script.
+        try:
+            self.setup_scan()
+        except AttributeError:
+            return
 
         # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
         initial_position = self.get_galvo_location()
