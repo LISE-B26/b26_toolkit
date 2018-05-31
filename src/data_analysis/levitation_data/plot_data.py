@@ -28,7 +28,7 @@ from scipy.ndimage.filters import gaussian_filter
 from matplotlib.patches import Rectangle, Circle
 
 import numpy as np
-from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density
+from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density, tracking_error
 
 def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None, roi = None, ax = None):
     """
@@ -62,6 +62,8 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
         # if frames is an array of len=1, the ax object is not a list, so for the following code we make it into a list
         if len(frames)==1:
             ax =[ax]
+    else:
+        fig = None
 
 
     if not roi is None:
@@ -95,14 +97,18 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
             circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =1, linewidth=2, edgecolor='g', facecolor='none')
             axo.add_patch(circ)
 
-            # plot also the positions obtained with trackpy
+            # plot also the positions obtained with center-of-mass
             if len ( xy_position[frame]) == 4:
-                # axo.plot(xy_position[frame, 3], xy_position[frame, 2], 'xr', markersize=30, linewidth = 2)
-                # the postions in trackpy are the usual x,y order
-                circ = Circle((xy_position[frame, 2], xy_position[frame, 3]), radius=2, linewidth=2, edgecolor='r',
+                circ = Circle((xy_position[frame, 3], xy_position[frame, 2]), radius=2, linewidth=2, edgecolor='r',
                               facecolor='none')
                 axo.add_patch(circ)
-
+            # plot also the positions obtained with trackpy
+            if len ( xy_position[frame]) == 6:
+                # axo.plot(xy_position[frame, 3], xy_position[frame, 2], 'xr', markersize=30, linewidth = 2)
+                # the postions in trackpy are the usual x,y order
+                circ = Circle((xy_position[frame, 5], xy_position[frame, 4]), radius=2, linewidth=2, edgecolor='r',
+                              facecolor='none')
+                axo.add_patch(circ)
         if xylim is None:
             xlim = [0, frame_shape[0]]
             ylim = [0, frame_shape[1]]
@@ -132,6 +138,7 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
         end_frame: end frame for analysis (optional if None end_frame is len of total timetrace)
         full_spectrum: if true show full spectrum if false just mark the frequency range
         frequency_range: a tupple or list of two elements frange =[mode_f_min, mode_f_min] that marks a freq range on the plot if full_spectrum is False otherwise plot only the spectrum within the frequency_range
+        plot_avrg: if true plot the time averaged PSD on top of the 2D plot
 
     Returns:
 
@@ -202,7 +209,7 @@ def plot_psd_vs_time(x, time_step, start_frame = 0, window_length= 1000, end_fra
     return fig, ax
 
 
-def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None):
+def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1000, end_frame = None,full_spectrum = True, frequency_range= None, ax = None,  plot_avrg = False):
     """
 
     Args:
@@ -214,10 +221,13 @@ def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1
         end_frame: end frame for analysis (optional if None end_frame is len of total timetrace)
         full_spectrum: if true show full spectrum if false just mark the frequency range
         frequency_range: a tupple or list of two elements frange =[mode_f_min, mode_f_min] that marks a freq range on the plot if full_spectrum is False otherwise plot only the spectrum within the frequency_range
-
+        plot_avrg: if true plot the time averaged PSD, windows ids should be None
     Returns:
 
     """
+
+    if plot_avrg:
+        assert window_ids is None
 
     if ax is None:
         fig, ax = plt.subplots(1, 1)
@@ -245,17 +255,30 @@ def plot_psds(x, time_step, window_ids = None, start_frame = 0, window_length= 1
         # reshape the timetrace such that each row is a window
         X = x[start_frame:start_frame+window_length*N_windows].reshape(N_windows, window_length)
         P = []
+        if plot_avrg:
 
-        for id, x in enumerate(X):
-
-            if id in window_ids:
-
+            for x in X:
                 if full_spectrum:
-                    f, p =  power_spectral_density(x, time_step, frequency_range=None)
+                    f, p = power_spectral_density(x, time_step, frequency_range=None)
                 else:
                     f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
                 P.append(p)
-                ylim = [np.min(P), np.max(P)]
+
+
+            pmean = np.mean(P, axis=0)
+            ax.semilogy(f, pmean)
+            ax.set_ylim([min(pmean), max(pmean)])
+        else:
+            for id, x in enumerate(X):
+
+                if id in window_ids:
+
+                    if full_spectrum:
+                        f, p =  power_spectral_density(x, time_step, frequency_range=None)
+                    else:
+                        f, p = power_spectral_density(x, time_step, frequency_range=frequency_range)
+                    P.append(p)
+                    ylim = [np.min(P), np.max(P)]
 
 
 
@@ -304,7 +327,21 @@ def plot_timetrace(x, time_step, window_length =1, start=None, end =None, start_
 
     return fig, ax
 
+def plot_tracking_error(data, methods):
 
+
+    y_pos = np.arange(len(methods))
+    for channel in ['x', 'y']:
+        errors = np.array([tracking_error(data['xo'], data['{:s} {:s}'.format(channel, m)]) for m in methods])
+        sign = -1 if channel == 'x' else +1
+        for i, err_type in zip([0,1], ['', 'diff']):
+            # plt.figure()
+            plt.bar(y_pos+sign*((i+0.5)*0.2), errors[:,i], align='center', alpha=0.5, width = 0.2, label = '{:s} {:s}'.format(channel, err_type))
+            plt.xticks(y_pos, methods)
+
+    plt.title('Tracking error ({:s})'.format(channel))
+    plt.ylabel('Error')
+    plt.legend(loc = (1,0.5))
 
 # older stuff
 # def plot_fft(x, frame_rate, start_frame = 0, window_width = 10000, plottype= 'lin'):
