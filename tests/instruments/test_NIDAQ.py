@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import NI6259
+from b26_toolkit.b26_toolkit.instruments import NI6259
 
 
 class TestDAQ(TestCase):

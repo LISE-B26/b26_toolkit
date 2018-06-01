@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import time
 
-from b26_toolkit.src.data_analysis import fields as f
+from b26_toolkit.b26_toolkit.data_analysis import fields as f
 
 class fields(TestCase):
     def setUp(self):

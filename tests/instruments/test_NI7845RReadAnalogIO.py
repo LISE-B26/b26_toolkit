@@ -4,7 +4,7 @@ from unittest import TestCase
 import numpy as np
 from src.instruments.labview_fpga_lib import int_to_voltage
 
-from b26_toolkit.src.instruments import NI7845RReadWrite
+from b26_toolkit.b26_toolkit.instruments import NI7845RReadWrite
 
 
 class TestNI7845RReadAnalogIO(TestCase):

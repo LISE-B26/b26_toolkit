@@ -5,8 +5,8 @@ import random
 
 
 
-from b26_toolkit.src.data_analysis import nv_optical_response as nv
-from b26_toolkit.src.data_analysis import nv_optical_response_test as nv_test
+from b26_toolkit.b26_toolkit.data_analysis import nv_optical_response as nv
+from b26_toolkit.b26_toolkit.data_analysis import nv_optical_response_test as nv_test
 
 class NVOpticalResponse(TestCase):
     def setUp(self):

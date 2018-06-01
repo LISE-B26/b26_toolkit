@@ -1,7 +1,7 @@
 import random
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import microwave_generator as MG
+from b26_toolkit.b26_toolkit.instruments import microwave_generator as MG
 
 
 class TestMicrowaveGenerator(TestCase):

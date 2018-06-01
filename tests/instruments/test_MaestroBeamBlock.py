@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from b26_toolkit.src.instruments import MaestroBeamBlock, MaestroController
+from b26_toolkit.b26_toolkit.instruments import MaestroBeamBlock, MaestroController
 
 
 class TestMaestroBeamBlock(TestCase):

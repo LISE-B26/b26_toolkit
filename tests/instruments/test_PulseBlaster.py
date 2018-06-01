@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from b26_toolkit.src.instruments import B26PulseBlaster, Pulse
+from b26_toolkit.b26_toolkit.instruments import B26PulseBlaster, Pulse
 
 
 class TestPulseBlaster(TestCase):

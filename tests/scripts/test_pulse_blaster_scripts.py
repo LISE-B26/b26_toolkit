@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pylabcontrol.src.core import Script
+from pylabcontrol.core import Script
 
 
 class TestScriptDummy(TestCase):
