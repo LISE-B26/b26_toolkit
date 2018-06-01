@@ -376,7 +376,7 @@ def get_position_center_of_mass(image, roi = None, verbose = False):
 
     return po
 
-def get_position_trackpy(image, po, trackpy_parameters):
+def get_position_trackpy(image, po, trackpy_parameters, verbose = False):
     """
     uses trackpy to locate the location of the brightest pixel in the image
     Args:
@@ -387,6 +387,8 @@ def get_position_trackpy(image, po, trackpy_parameters):
 
     """
     locate_info = tp.locate(image, trackpy_parameters['diameter'], minmass=trackpy_parameters['minmass'])
+    if verbose:
+        print(locate_info)
     pts = locate_info[['x', 'y']].as_matrix()
 
     if len(pts) == 0:
@@ -511,7 +513,7 @@ def get_position(image, roi, dynamic_roi=False, center_of_mass=False, use_trackp
     return po, roi
 
 def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_trackpy =False, show_progress = True,
-                   trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None, dynamic_roi = False, center_of_mass=True):
+                   trackpy_parameters = None, min_frames = 0, max_frames = None, roi = None, dynamic_roi = False, center_of_mass=False):
     """
     Takes in a bead video, and saves the bead's extracted position in every frame in a csv, and
     (optionally) an uncorrupted version of the video
@@ -597,7 +599,11 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
             # assert that roi_dimension are odd
             assert roi_dimension[i] % 2 == 1
 
-
+    cols = ['y bright', 'x bright']
+    if center_of_mass:
+        cols = cols + ['x com', 'y com']
+    if use_trackpy:
+        cols = cols + ['x tp', 'y tp']
 
     # we use range in this loop so that we can catch the CannotReadFrameError in the line where we try to access the next image
     for index in range(min_frames, max_frames):
@@ -608,6 +614,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
 
         po, roi = get_position(image, roi, dynamic_roi=dynamic_roi, center_of_mass=center_of_mass, use_trackpy=use_trackpy,
                          trackpy_parameters=trackpy_parameters)
+
         if po is None:
             trackpy_parameters['missing_frames'].append(index)
         else:
@@ -622,7 +629,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
             if index>max_frames:
                 break
 
-    df = pd.DataFrame(max_coors)
+    df = pd.DataFrame(max_coors, columns=cols)
     df.to_csv(target_filename)
     end_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print('end time:\t{:s}'.format(end_time))
@@ -635,6 +642,7 @@ def extract_motion(filepath, target_path=None,  gaussian_filter_width=2, use_tra
         'gaussian_filter_width':gaussian_filter_width,
         'N_frames':len(filtered),
         'use_trackpy':use_trackpy,
+        'center_of_mass':center_of_mass,
         'start_time':start_time,
         'end_time':end_time,
         'max_frames':max_frames,
@@ -982,22 +990,24 @@ if __name__ == '__main__':
 
 
 
-    # test with roi
-    v = False
-    po = np.random.randint(3,8, size=2)
+    # # test with roi
+    # v = False
+    # po = np.random.randint(3,8, size=2)
+    #
+    # print('initial', po)
+    # image = np.ones([11, 11])*3
+    # image[po[0], po[1]] = 255
+    #
+    # roi=[po, [5, 3]]
+    # roi = [[po[0]+1, po[1]], [5, 3]]
+    #
+    # image = image- np.mean(image)
+    #
+    # po = get_position_brightest_px(image, roi=roi, verbose=v)
+    # print('found', po)
+    # com = get_position_center_of_mass(image, roi=roi, verbose=v)
+    # print('found com', com)
+    #
+    # #  ======== end testing  ========
 
-    print('initial', po)
-    image = np.ones([11, 11])*3
-    image[po[0], po[1]] = 255
-
-    roi=[po, [5, 3]]
-    roi = [[po[0]+1, po[1]], [5, 3]]
-
-    image = image- np.mean(image)
-
-    po = get_position_brightest_px(image, roi=roi, verbose=v)
-    print('found', po)
-    com = get_position_center_of_mass(image, roi=roi, verbose=v)
-    print('found com', com)
-
-    #  ======== end testing  ========
+    print(tp.__version__)

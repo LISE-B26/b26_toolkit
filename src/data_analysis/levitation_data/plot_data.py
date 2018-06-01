@@ -30,7 +30,7 @@ from matplotlib.patches import Rectangle, Circle
 import numpy as np
 from b26_toolkit.src.data_analysis.levitation_data.camera_data import power_spectral_density, tracking_error
 
-def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None, roi = None, ax = None):
+def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_width=None, xylim = None, roi = None, ax = None, radius = 3):
     """
 
     plots frames of the video
@@ -50,6 +50,7 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
             Note that roi dimensions w, h should be odd numbers!
 
+        radius: sets the radiusof the circle that indicte the position xy
 
     """
 
@@ -79,7 +80,6 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
     frame_shape = np.shape(video[frames[0]])
 
-    print(len(frames), len(ax))
 
     for frame, axo in zip(frames, ax):
 
@@ -94,19 +94,19 @@ def plot_video_frame(file_path, frames, xy_position = None, gaussian_filter_widt
 
             # note that we flip the x and y axis, because that is how
             # axo.plot(xy_position[frame, 1], xy_position[frame, 0], 'xg', markersize = 30, linewidth = 4)
-            circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =1, linewidth=2, edgecolor='g', facecolor='none')
+            circ = Circle((xy_position[frame, 1], xy_position[frame, 0]), radius =radius, linewidth=2, edgecolor='g', facecolor='none')
             axo.add_patch(circ)
 
             # plot also the positions obtained with center-of-mass
             if len ( xy_position[frame]) == 4:
-                circ = Circle((xy_position[frame, 3], xy_position[frame, 2]), radius=2, linewidth=2, edgecolor='r',
+                circ = Circle((xy_position[frame, 3], xy_position[frame, 2]), radius=radius, linewidth=2, edgecolor='r',
                               facecolor='none')
                 axo.add_patch(circ)
             # plot also the positions obtained with trackpy
             if len ( xy_position[frame]) == 6:
                 # axo.plot(xy_position[frame, 3], xy_position[frame, 2], 'xr', markersize=30, linewidth = 2)
                 # the postions in trackpy are the usual x,y order
-                circ = Circle((xy_position[frame, 5], xy_position[frame, 4]), radius=2, linewidth=2, edgecolor='r',
+                circ = Circle((xy_position[frame, 5], xy_position[frame, 4]), radius=radius, linewidth=2, edgecolor='r',
                               facecolor='none')
                 axo.add_patch(circ)
         if xylim is None:
