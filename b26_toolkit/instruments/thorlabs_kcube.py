@@ -105,6 +105,7 @@ class KDC001(Instrument):
         """
 
         # this version of the serial number is useful
+        self._serial_num_int = self.settings['serial_number']
         self._serial_num = ctypes.c_char_p(bytes(str(self.settings['serial_number']), "utf-8"))
 
         if self._servo_library.TLI_BuildDeviceList() == 0:
@@ -147,7 +148,9 @@ class KDC001(Instrument):
 
         # open connection to the device. The other option is to NOT call _open_device, and require the script to handle device opening and closing
         self._open_device()
-        self.position = self.get_position()
+
+        # get the current position of the device and set the position setting to this value. That makes sure that the device does not move when you create the instrument.
+        self.settings['position'] = self.get_position()
         # todo(emma): implement self.get_velocity()
         #self.velocity = self.get_velocity()
 
@@ -156,7 +159,6 @@ class KDC001(Instrument):
         """
         sets position of device in mm
         """
-        print('executing set_position')
         position = ctypes.c_int(int(self._position_encoder2mm_conversion_factor * self.settings['position']))
         self._servo_library.CC_MoveToPosition(self._serial_num, position) # command sent to device
         message_type = ctypes.c_ushort(0)
@@ -246,8 +248,6 @@ class KDC001(Instrument):
         acceleration_pointer_type = ctypes.POINTER(ctypes.c_long) #ctypes.POINTER(ctypes.c_long)#ctypes.LP_c_long()#ctypes.POINTER(ctypes.c_int)
         velocity_pointer = ctypes.byref(ctypes.c_long())#velocity_pointer_type()
         acceleration_pointer = ctypes.byref(ctypes.c_long())#acceleration_pointer_type()
-#        print(len(acceleration_pointer))
-        print(acceleration_pointer)
         vel = self._servo_library.CC_GetVelParams(self.serial_num, velocity_pointer, acceleration_pointer)
         if verbose:
             print('Velocity of device is currently {0} mm/s'.format(vel))
@@ -258,8 +258,10 @@ class KDC001(Instrument):
         """
         sets velocity (when moving) of stage in mm/s
         """
-
-        print('executing set_velocity')
+        # maximum velocity of instrument
+        max_vel = 2.6
+        if self.settings['velocity'] > max_vel:
+            self.settings['velocity'] = max_vel
 
         velocity = ctypes.c_int(int(self._velocity_encoder2mm_conversion_factor * self.settings['velocity']))
         acceleration = ctypes.c_int(int(self._acceleration))
@@ -271,90 +273,135 @@ class KDC001(Instrument):
            # print('Device velocity was set to {0} mm/s'.format(set_vel))
 
     def update(self, settings, verbose=True):
-        print('update called!')
         super(KDC001, self).update(settings)
-        print('got to here after super')
         if self._settings_initialized:
             for key, value in settings.items():
-                print('updating keys')
-                print(key, value)
                 if key == 'position':
-                    print('key is position')
                     self.set_position()
                 elif key == 'velocity':
                     self.set_velocity()
 
     def read_probes(self, key = None):
-        pass
+        assert key in list(self._PROBES.keys())
+        assert isinstance(key, str)
+
+        if key in ['position']:
+            return (self.get_position(True))
+        if key in ['serial_number']:
+            print('self._serial_num', self._serial_num_int)
+            return (self._serial_num_int)
+        elif key in ['velocity']:
+            # todo(emma): implement get_velocity
+            pass
 
     def __del__(self):
         # when done with device we have to close the connections
         # called when GUI is closed
         self._close_device()
 
-class B26KDC001(KDC001):
+class B26KDC001x(KDC001):
     '''
 
-    Same as KDC001 except one more parameters: axis , which will be associated with each serial number
+    Same as KDC001 except adds safety limits and specifies serial number for the x axis
 
     '''
-    _DEFAULT_SETTINGS = Parameter([
-        Parameter('serial_number', 27501971, int, 'serial number written on device'),
-        Parameter('position', 6.0, float, 'servo position (0 to 25) [mm]'),
+    _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
+        Parameter('serial_number', 27001862, int, 'serial number written on device'),
+        Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
-                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used'),
-        Parameter('axis', 'x', ['x', 'y', 'z'], 'axis associated with the serial number')
+                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
     ])
 
-    _PROBES = {}
+    _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
-    def _set_serial_and_safety_lims(self):
-        '''
-
-        Hardcoded safety bounds and serial number values for our setup
-
-        '''
-        print('self.settings:')
-        print(self.settings)
-        if self.settings['axis'] == 'x':
-            self.serial_number = 27501971
-            self.min_pos = 0.
-            self.max_pos = 1.
-        elif self.settings['axis'] == 'y':
-            self.serial_number = 27501971
-            self.min_pos = 0.
-            self.max_pos = 2.
-        elif self.settings['axis'] == 'z':
-            self.serial_number = 27501971
-            self.min_pos = 0.
-            self.max_pos = 3.
-        else:
-            raise AttributeError('no such axis!!')
-
-    def update(self, settings):
-        # call the update_parameter_list to update the parameter list
-        print('self.settings before _set_serial_and_safety_limits:')
-        print(self.settings)
-
-        super(B26KDC001, self).update(settings)
-        self._set_serial_and_safety_lims()
-        print('self.settings after _set_serial_and_safety_limits:')
-        print(self.settings)
-
-    def read_probes(self, key):
-        pass
+    def __init__(self, name=None, settings=None):
+        self.max_pos = 12.
+        self.min_pos = 0.
+        super(B26KDC001x, self).__init__()
 
     def set_position(self, verbose=True):
+        '''
+
+        sets position of the stage x if safety limits are met
+
+        '''
+
         # check if safety limits are met
-        print('executing set_position in lower class')
-        if self.settings['position'] < self.settings['max_pos'] and self.settings['position'] > self.settings['min_pos']:
-            print('calling super set position')
-            super(B26KDC001, self).set_position(self, verbose)
+        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+            super(B26KDC001x, self).set_position(self)
         else:
-            print('didnt make the cut!')
-            raise AttributeError('position is outside safety limits!! Doing nothing.')
+            print('didnt make the safety cut! doing nothing')
+          #  raise AttributeError('position is outside safety limits!! Doing nothing.')
+
+class B26KDC001y(KDC001):
+    '''
+
+    Same as KDC001 except adds safety limits and specifies serial number for the y axis
+
+    '''
+    _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
+        Parameter('serial_number', 27501971, int, 'serial number written on device'),
+        Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
+        Parameter('velocity', 0.0, float,
+                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
+    ])
+
+    _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
+
+    def __init__(self, name=None, settings=None):
+        self.max_pos = 10.
+        self.min_pos = 0.
+        super(B26KDC001y, self).__init__()
+
+    def set_position(self, verbose=True):
+        '''
+
+        sets position of the stage y if safety limits are met
+
+        '''
+
+        # check if safety limits are met
+        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+            super(B26KDC001y, self).set_position(self)
+        else:
+            print('didnt make the safety cut! doing nothing')
+          #  raise AttributeError('position is outside safety limits!! Doing nothing.')
+
+class B26KDC001z(KDC001):
+    '''
+
+    Same as KDC001 except adds safety limits and specifies serial number for the y axis
+
+    '''
+    _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
+        Parameter('serial_number', 27501986, int, 'serial number written on device'),
+        Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
+        Parameter('velocity', 0.0, float,
+                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
+    ])
+
+    _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
+
+    def __init__(self, name=None, settings=None):
+        self.max_pos = 8.
+        self.min_pos = 0.
+        super(B26KDC001z, self).__init__()
+
+    def set_position(self, verbose=True):
+        '''
+
+        sets position of the stage z if safety limits are met
+
+        '''
+
+        # check if safety limits are met
+        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+            super(B26KDC001z, self).set_position(self)
+        else:
+            print('didnt make the safety cut! doing nothing')
+          #  raise AttributeError('position is outside safety limits!! Doing nothing.')
 
 if __name__ == '__main__':
-    a = B26KDC001()
+    a = B26KDC001x()
   #  a.set_velocity()
-  #  a.set_position()
+    a.set_position()
