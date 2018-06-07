@@ -342,3 +342,9 @@ def update_1d_simple(axis, times, counts_list):
         axis.lines[index].set_ydata(counts)
     axis.relim()
     axis.autoscale_view()
+
+def plot_counts_vs_pos(axis, data, pos):
+    axis.set_xlabel('position (mm)')
+    axis.set_ylabel('kCounts/sec')
+
+    axis.plot(pos, data, linewidth=2.0)

@@ -24,7 +24,8 @@ from matplotlib import patches
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.scripts import GalvoScan, SetLaser
+from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan
+from b26_toolkit.scripts.set_laser import SetLaser
 
 
 class FindNV(Script):

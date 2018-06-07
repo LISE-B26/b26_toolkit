@@ -18,6 +18,7 @@
 
 import time
 from collections import deque
+import numpy as np
 
 from b26_toolkit.instruments import NI6259
 from b26_toolkit.plotting.plots_1d import plot_counts
@@ -29,8 +30,9 @@ class Daq_Read_Counter(Script):
 This script reads the Counter input from the DAQ and plots it.
     """
     _DEFAULT_SETTINGS = [
-        Parameter('integration_time', .25, float, 'Time per data point'),
-        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
+        Parameter('integration_time', .25, float, 'Time per data point (s)'),
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
+        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)') # added by ER 20180606
     ]
 
     _INSTRUMENTS = {'daq': NI6259}
@@ -58,12 +60,12 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
-        print(('settings in instrument', self.instruments['daq']['settings']))
+      #  print(('settings in instrument', self.instruments['daq']['settings']))
 
         sample_rate = float(1) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
         self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
-        print('setting sample rate')
+      #  print('setting sample rate')
 
         self.data = {'counts': deque()}
 
@@ -71,14 +73,20 @@ This script reads the Counter input from the DAQ and plots it.
 
         sample_num = 2
 
-        print(('settings in instrument 2', self.instruments['daq']['settings']))
+      #  print(('settings in instrument 2', self.instruments['daq']['settings']))
 
-        print(('here', self.instruments['daq']))
+     #   print(('here', self.instruments['daq']))
 
         task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
+        # maximum number of samples if total_int_time > 0
+        if self.settings['total_int_time'] > 0:
+            max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
+
         # start counter and scanning sequence
         self.instruments['daq']['instance'].run(task)
+
+        sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
         while True:
             if self._abort:
@@ -92,7 +100,7 @@ This script reads the Counter input from the DAQ and plots it.
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
                 time.sleep(2.0 / sample_rate)
                 continue
-            print(('raw data length: ', len(raw_data)))
+           # print(('raw data length: ', len(raw_data)))
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
                 self.last_value = value
@@ -100,6 +108,9 @@ This script reads the Counter input from the DAQ and plots it.
             self.updateProgress.emit(int(self.progress))
 
             time.sleep(2.0 / sample_rate)
+            sample_index = sample_index + 1
+            if self.settings['total_int_time'] > 0. and sample_index >= max_samples: # if the maximum integration time is hit
+                self._abort = True # tell the script to abort
 
         # clean up APD tasks
         self.instruments['daq']['instance'].stop(task)
