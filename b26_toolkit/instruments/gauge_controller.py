@@ -17,7 +17,7 @@
 """
 
 import serial
-from pylabcontrol.core import Instrument, Parameter
+from pylabcontrol.core import Parameter, Instrument
 
 
 class PressureGauge(Instrument):
