@@ -69,7 +69,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         """
         if CommandInterfaceSMC100 is None:
             print("SMC100 dll not imported --- cannot initialize SMC100 object without dll")
-            raise
+            raise ImportError
 
         super(SMC100, self).__init__(name, settings)
 
@@ -77,7 +77,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         result = self.SMC.OpenInstrument(self.settings['port'])
         if result == -1:
             print(('Failed to open device on port' + str(self.settings['port'])))
-            raise
+            raise ConnectionError
 
     def update(self, settings):
         """
@@ -135,7 +135,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         result, response, errString = self.SMC.TP(1, i_ref, s_ref)
         if result == -1:
             print(('ERROR: ' + errString))
-            raise
+            raise ValueError('ERROR: ' + errString)
         return response
 
     def _set_position(self, pos):
@@ -156,13 +156,13 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         result, errString = self.SMC.PA_Set(1, pos, s_ref)
         if result == -1:
             print(('ERROR: ' + errString))
-            raise
+            raise ValueError('ERROR: ' + errString)
         #block until movement is done
         while True:
             result, ErrorCode, StatusCode, errString = self.SMC.TS(1, s_ref, s_ref, s_ref)
             if result == -1:
                 print(('ERROR: ' + errString))
-                raise
+                raise ValueError('ERROR: ' + errString)
             if StatusCode in [DONE_MOVING, '34']:
                 break
             time.sleep(.1)
@@ -173,7 +173,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         result, response, errString = self.SMC.VA_Get(1, i_ref, s_ref)
         if result == -1:
             print(('ERROR: ' + errString))
-            raise
+            raise ValueError('ERROR: ' + errString)
         return response
 
     def _set_velocity(self, vel):
@@ -181,14 +181,14 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         result, errString = self.SMC.VA_Set(1, vel, s_ref)
         if result == -1:
             print(('ERROR: ' + errString))
-            raise
+            raise ValueError('ERROR: ' + errString)
 
     def _enable_computer_control(self):
         s_ref = ''
         result, errString = self.SMC.MM_Set(1, 1, s_ref)
         if result == -1:
             print(('ERROR: ' + errString))
-            raise
+            raise ValueError('ERROR: ' + errString)
 
 if __name__ == "__main__":
     a = SMC100()
