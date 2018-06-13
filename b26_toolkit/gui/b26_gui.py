@@ -1,5 +1,5 @@
 
-from gui.windows_and_widgets.main_window import MainWindow
+from pylabcontrol.gui.windows_and_widgets.main_window import MainWindow
 from b26_toolkit.gui.b26_load_dialog import LoadDialogB26
 import os
 from pylabcontrol.core import Script

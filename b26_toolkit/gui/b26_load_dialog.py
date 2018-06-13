@@ -15,7 +15,7 @@
 # along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from pylabcontrol.gui import LoadDialog
+from pylabcontrol.gui.windows_and_widgets import LoadDialog
 
 
 
