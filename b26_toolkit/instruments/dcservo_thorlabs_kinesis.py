@@ -82,7 +82,7 @@ class ThorlabsServo(Instrument):
         #point, the servo won't be connected, so don't make changes in hardware at this point. After the end of the
         #__init__ when initialization is complete and the servo is connected, we can then have changes update hardware
         if self._settings_initialized:
-            for key, value in settings.iteritems():
+            for key, value in settings.items():
                 if key == 'position':
                     self._move_servo(value)
                 elif key == 'velocity':
@@ -207,7 +207,7 @@ class TDC001(ThorlabsServo):
             print("Exception raised by BuildDeviceList")
         if not (str(self.settings['serial_number']) in serial_number_list):
             print(str(self.settings['serial_number']) + " is not a valid serial number")
-            raise
+            raise ValueError
         self.device = self.Servo.CreateTCubeDCServo(str(self.settings['serial_number']))
         if self.device is None:
             error_msg = self.settings['serial_number'] + " is not a TCubeDCServo"
