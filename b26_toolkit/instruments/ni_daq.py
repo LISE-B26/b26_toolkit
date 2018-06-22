@@ -1185,6 +1185,40 @@ class NI9402(DAQ):
 
         return task_name
 
+
+
+def int_to_voltage(integer):
+    """
+    convert integer value to voltage
+    Args:
+        integer:
+
+    Returns:
+
+    """
+    return (10*integer)/32767.
+
+def voltage_to_int(voltage):
+    """
+    convert voltage to integer value
+    Args:
+        voltage:
+
+    Returns:
+
+    """
+    # TODO: make it work for arrays and lists
+    return int((voltage * 32767)/10)
+
+def time_to_buffersize(time, ticks=56):
+    return int(time / (ticks*0.000000025))
+
+def buffersize_to_time(size, ticks=56):
+    return size * (ticks*0.000000025)
+
+if __name__ == '__main__':
+    print((voltage_to_int(2.4)))
+
 if __name__ == '__main__':
     pass
     # daq, failed = Instrument.load_and_append({'daq': NI9263, 'daq_in': NI6259})

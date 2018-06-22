@@ -25,7 +25,7 @@ import time
 from b26_toolkit.instruments import NI9263, NI6259
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.data_processing.fit_functions import fit_cose_parameter, cose
-from b26_toolkit.labview_fpga_lib.labview_helper_functions.labview_conversion import int_to_voltage, voltage_to_int
+from b26_toolkit.instruments.ni_daq import int_to_voltage, voltage_to_int
 from b26_toolkit.instruments import MaestroLightControl
 import datetime
 
