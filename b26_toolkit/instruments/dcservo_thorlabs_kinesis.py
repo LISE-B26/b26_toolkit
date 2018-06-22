@@ -22,35 +22,38 @@ from pylabcontrol.core import Parameter, Instrument
 import ctypes
 import time
 
-dll_path = get_config_value('KINESIS_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
-if dll_path:
-    sys.path.insert(0, dll_path)
-# makes each dll, corresponding to a namespace, avaliable to python at runtime
-    try:
-        clr.AddReference('ThorLabs.MotionControl.DeviceManagerCLI')
-        clr.AddReference('Thorlabs.MotionControl.TCube.DCServoCLI')
-        clr.AddReference('Thorlabs.MotionControl.KCube.DCServoCLI')
-        clr.AddReference('System')
-        # imports classes from the namespaces. All read as unresolved references because python doesn't know about the dlls
-        # until runtime
-        # adds .NET stuctures corresponding to primitives
-        from System import Decimal, Double, String
-        # names will be in red due to the fact that pycharm can't see the thorlabs library until runtime
-        from Thorlabs.MotionControl.DeviceManagerCLI import DeviceManagerCLI
-        from Thorlabs.MotionControl.TCube.DCServoCLI import TCubeDCServo
-        from Thorlabs.MotionControl.KCube.DCServoCLI import KCubeDCServo
-    except Exception as exception_details:
-        print("Could not load Thorlabs dll's to control Thorlabs servos.")
-        print("exception details " + str(exception_details))
+
+class ThorlabsServo(Instrument):
+    dll_path = get_config_value('KINESIS_DLL_PATH',
+                                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+    if dll_path:
+        sys.path.insert(0, dll_path)
+        # makes each dll, corresponding to a namespace, avaliable to python at runtime
+        try:
+            clr.AddReference('ThorLabs.MotionControl.DeviceManagerCLI')
+            clr.AddReference('Thorlabs.MotionControl.TCube.DCServoCLI')
+            clr.AddReference('Thorlabs.MotionControl.KCube.DCServoCLI')
+            clr.AddReference('System')
+            # imports classes from the namespaces. All read as unresolved references because python doesn't know about the dlls
+            # until runtime
+            # adds .NET stuctures corresponding to primitives
+            from System import Decimal, Double, String
+            # names will be in red due to the fact that pycharm can't see the thorlabs library until runtime
+            from Thorlabs.MotionControl.DeviceManagerCLI import DeviceManagerCLI
+            from Thorlabs.MotionControl.TCube.DCServoCLI import TCubeDCServo
+            from Thorlabs.MotionControl.KCube.DCServoCLI import KCubeDCServo
+        except Exception as exception_details:
+            print("Could not load Thorlabs dll's to control Thorlabs servos.")
+            print("exception details " + str(exception_details))
+            DeviceManagerCLI = None
+            TCubeDCServo = None
+            KCubeDCServo = None
+    else:
+        print("Could not import Thorlabs dll's --- will not be able to initialize object.")
         DeviceManagerCLI = None
         TCubeDCServo = None
         KCubeDCServo = None
-else:
-    print("Could not import Thorlabs dll's --- will not be able to initialize SMC100 object.")
-    DeviceManagerCLI = None
-    TCubeDCServo = None
-    KCubeDCServo = None
-class ThorlabsServo(Instrument):
+
     _DEFAULT_SETTINGS = Parameter([
         Parameter('serial_number', 27501971, int, 'serial number written on device'),
         Parameter('position', 0, float, 'servo position (from 0 to 6 in mm)'),

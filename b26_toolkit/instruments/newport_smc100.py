@@ -9,26 +9,6 @@ from pylabcontrol.core import Parameter, Instrument
 # import dll for SMC100
 
 
-dll_path = get_config_value('SMC100_DLL_PATH',
-                            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
-
-print(dll_path)
-
-if dll_path:
-
-    sys.path.insert(0, dll_path)
-    # Uses python for .net to add dll assembly to namespace
-    try: 
-        clr.AddReference('Newport.SMC100.CommandInterface')
-        import CommandInterfaceSMC100
-    except Exception as exception_details:
-        print('Could not load SMC100 dll from path specified in configuration file. Check path is correct.')
-        print(('exception encountered: ' + str(exception_details)))
-        CommandInterfaceSMC100 = None
-else:
-    print("Could not import SMC100CommandInterface, will not be able to initialize SMC100 object.")
-    CommandInterfaceSMC100 = None
-
 
 ########################################################################################################################
 ## INSTRUCTIONS ON USING THIS DLL AND PYTHON FOR .NET
@@ -53,6 +33,26 @@ class SMC100(Instrument):
 Class to control the Newport SMC100 stepper motor driver. Class controlled over USB via DLL.
     """
 
+    dll_path = get_config_value('SMC100_DLL_PATH',
+                                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+
+    print(dll_path)
+
+    if dll_path:
+
+        sys.path.insert(0, dll_path)
+        # Uses python for .net to add dll assembly to namespace
+        try:
+            clr.AddReference('Newport.SMC100.CommandInterface')
+            import CommandInterfaceSMC100
+        except Exception as exception_details:
+            print('Could not load SMC100 dll from path specified in configuration file. Check path is correct.')
+            print(('exception encountered: ' + str(exception_details)))
+            CommandInterfaceSMC100 = None
+    else:
+        print("Could not import SMC100CommandInterface, will not be able to initialize SMC100 object.")
+        CommandInterfaceSMC100 = None
+
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM3', str, 'serial number written on device'),
         Parameter('position', 25000.0, float, 'servo position (from 0 to 25000 in um)'),
@@ -67,17 +67,17 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
             name: device name
             settings: dictionary containing desired settings for instrument
         """
-        if CommandInterfaceSMC100 is None:
+        if self.CommandInterfaceSMC100 is None:
             print("SMC100 dll not imported --- cannot initialize SMC100 object without dll")
-            raise
+            raise EnvironmentError
 
         super(SMC100, self).__init__(name, settings)
 
-        self.SMC = CommandInterfaceSMC100.SMC100()
+        self.SMC = self.CommandInterfaceSMC100.SMC100()
         result = self.SMC.OpenInstrument(self.settings['port'])
         if result == -1:
             print(('Failed to open device on port' + str(self.settings['port'])))
-            raise
+            raise EnvironmentError
 
     def update(self, settings):
         """

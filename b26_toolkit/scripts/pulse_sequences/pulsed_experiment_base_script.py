@@ -24,7 +24,7 @@ import numpy as np
 from b26_toolkit.scripts import FindNV
 from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
-from pylabcontrol.core.scripts import Script, Parameter
+from pylabcontrol.core.script import Script, Parameter
 import random
 
 MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
