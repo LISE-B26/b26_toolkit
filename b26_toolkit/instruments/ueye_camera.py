@@ -31,7 +31,7 @@ class UEyeCamera(Instrument):
             settings: A dictionary in the form of settings as seen in default settings
         """
         super(UEyeCamera, self).update(settings)
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if key == 'width':
                 self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, self.settings['width'])
             elif key == 'height':

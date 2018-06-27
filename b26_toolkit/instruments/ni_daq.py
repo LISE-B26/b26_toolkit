@@ -90,9 +90,14 @@ class DAQ(Instrument):
     try:
         dll_path = get_config_value('NIDAQ_DLL_PATH',
                                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
-        if os.name == 'nt':
+
+        if not os.name == 'nt':
             # checks for windows. If not on windows, check for your OS and add
             # the path to the DLL on your machine
+            print('NI DAQ instrument is currently configured to only work on Windows. You must add your operating system.')
+            raise WindowsError
+
+        if dll_path:
             nidaq = ctypes.WinDLL(dll_path)  # load the DLL
             dll_detected = True
         else:
@@ -245,6 +250,8 @@ class DAQ(Instrument):
             # except RuntimeError:
             #     self.hardware_detected = False
             super(DAQ, self).__init__(name, settings)
+        else:
+            raise EnvironmentError('Cannot load instrument, no DLL detected')
 
     def update(self, settings):
         """
