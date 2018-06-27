@@ -249,6 +249,23 @@ def plot_counts(axis, data):
     axis.set_xlabel('time')
     axis.set_ylabel('kCounts/sec')
 
+def plot_voltage(axis, data):
+    """
+    plots APD timeseries data
+
+    Args:
+        axis: the axis to draw the plot
+        data (2d array): APD count timeseries data
+
+    Returns: (none)
+    """
+
+    axis.plot(data, linewidth=2.0)
+    # axis.hold(False)
+
+    axis.set_xlabel('time')
+    axis.set_ylabel('voltage (V)')
+
 
 def plot_temperature(axis, data, sample_rate):
     """
@@ -344,7 +361,26 @@ def update_1d_simple(axis, times, counts_list):
     axis.autoscale_view()
 
 def plot_counts_vs_pos(axis, data, pos):
+    """
+    plots magnet position vs. counts for aligning the field with fluorescence
+
+    """
     axis.set_xlabel('position (mm)')
     axis.set_ylabel('kCounts/sec')
 
     axis.plot(pos, data, linewidth=2.0)
+
+def update_counts_vs_pos(axis, data, pos):
+    """
+
+    updates the plot of the position vs counts when scanning the magnet
+
+    """
+
+    if data == None:
+        return
+
+    axis.lines[0].set_ydata(data)
+    axis.lines[0].set_xdata(pos)
+    axis.relim()
+    axis.autoscale_view()

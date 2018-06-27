@@ -600,8 +600,10 @@ class DAQ(Instrument):
         task_name = self._add_to_tasklist('ai', task)
 
         channel_list = ''
-        channel_list += self.settings['device'] + '/' + channel + ','
-
+       # channel_list += self.settings['device'] + '/' + channel + ','
+        channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
+     #   print('channel_list')
+     #   print(channel_list)
         if 'analog_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
@@ -699,7 +701,7 @@ class DAQ(Instrument):
         data = (float64 * task['sample_num'])()
         samples_per_channel_read = int32()
         self._check_error(self.nidaq.DAQmxReadAnalogF64(task['task_handle'], task['sample_num'], float64(10.0),
-                                                        DAQmx_Val_GroupByChannel, data.ctypes.data,
+                                                        DAQmx_Val_GroupByChannel, ctypes.byref(data), #data.ctypes.data, ER 20180626
                                                         task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
         return data, samples_per_channel_read
@@ -1193,8 +1195,6 @@ class NI9402(DAQ):
 
 
         return task_name
-
-
 
 def int_to_voltage(integer):
     """
