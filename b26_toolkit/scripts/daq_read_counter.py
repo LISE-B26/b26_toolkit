@@ -104,7 +104,10 @@ This script reads the Counter input from the DAQ and plots it.
             for value in raw_data:
                 self.data['counts'].append(((float(value) - self.last_value) / normalization))
                 self.last_value = value
-            self.progress = 50.
+            if self.settings['total_int_time'] > 0:
+                self.progress = sample_index/max_samples
+            else:
+                self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 
             time.sleep(2.0 / sample_rate)

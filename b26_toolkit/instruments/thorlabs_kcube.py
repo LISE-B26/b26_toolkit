@@ -306,7 +306,7 @@ class B26KDC001x(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27001862, int, 'serial number written on device'),
+        Parameter('serial_number', 27501971, int, 'serial number written on device'),
         Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
@@ -315,7 +315,7 @@ class B26KDC001x(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 12.
+        self.max_pos = 25.
         self.min_pos = 0.
         super(B26KDC001x, self).__init__()
 
@@ -340,7 +340,7 @@ class B26KDC001y(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27501971, int, 'serial number written on device'),
+        Parameter('serial_number', 27501986, int, 'serial number written on device'),
         Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
@@ -349,7 +349,7 @@ class B26KDC001y(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 10.
+        self.max_pos = 25.
         self.min_pos = 0.
         super(B26KDC001y, self).__init__()
 
@@ -374,7 +374,7 @@ class B26KDC001z(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27501986, int, 'serial number written on device'),
+        Parameter('serial_number', 27001862, int, 'serial number written on device'),
         Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
@@ -383,7 +383,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 8.
+        self.max_pos = 17.0
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 
@@ -404,4 +404,4 @@ class B26KDC001z(KDC001):
 if __name__ == '__main__':
     a = B26KDC001x()
   #  a.set_velocity()
-    a.set_position()
+ #   a.set_position()

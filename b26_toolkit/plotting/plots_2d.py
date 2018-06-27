@@ -150,3 +150,56 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)
+
+def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, colorbar = None):
+    """
+    plots fluorescence data in a 2D plot
+    Args:
+        image_data: 2D - array
+        extent: vector of length 4, i.e. [x_min, x_max, y_max, y_min]
+        axes_image: axes object on which to plot
+        max_counts: cap colorbar at this value if negative autoscale
+
+    Returns:
+
+    """
+    print('extent in plot_...:', extent)
+
+    extent = [extent[2], extent[3], extent[1], extent[0]]
+
+    if max_counts >= 0:
+        image_data = np.clip(image_data, 0, max_counts)
+
+    fig = axes_image.get_figure()
+
+    implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent)
+    axes_image.set_xlabel(r'pos$_{outer}$ [mm]')
+    axes_image.set_ylabel(r'pos$_{inner}$ [mm]')
+    axes_image.set_title('Position scan: NV fluorescence')
+
+    # explicitly round x_ticks because otherwise they have too much precision (~17 decimal points) when displayed
+    # on plot
+    axes_image.set_xticklabels([round(xticklabel, 4) for xticklabel in axes_image.get_xticks()], rotation=90)
+
+    if np.min(image_data)<200:
+        colorbar_min = 0
+    else:
+        colorbar_min = np.min(image_data)
+
+    if max_counts < 0:
+        colorbar_max = np.max(image_data)
+    else:
+        colorbar_max = max_counts
+    colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
+
+    if max_counts <= 0:
+        implot.autoscale()
+
+    if colorbar is None:
+        colorbar = fig.colorbar(implot, label='kcounts/sec')
+        colorbar.set_ticks(colorbar_labels)
+        colorbar.set_clim(colorbar_min, colorbar_max)
+    else:
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        colorbar.set_ticks(colorbar_labels)
+        colorbar.set_clim(colorbar_min, colorbar_max)
