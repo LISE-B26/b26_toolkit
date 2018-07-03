@@ -30,10 +30,8 @@ from b26_toolkit.gui import b26_gui
 #myappid = 'lukinlab.b26.pythonlab' # arbitrary string
 #ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModeFlID(myappid)
 
-def run_gui(fname = 'C:\\Users\Experiment\PycharmProjects\\user_data\pythonlab_config.b26'):
+def run_gui(filepath=None):
     app = QtWidgets.QApplication(sys.argv)
-    # fname = 'C:\\Users\\NV Experiment\\PycharmProjects\\user_data\\new_config.b26'
-    fname = ' '
 
     try:
         print("pylabcontrol  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \
@@ -48,7 +46,7 @@ GNU General Public License for more details. \n\n \
 You should have received a copy of the GNU General Public License \n \
 along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.")
 
-        ex = b26_gui.ControlMainWindowB26(fname)
+        ex = b26_gui.ControlMainWindowB26(filepath)
 
         app.setWindowIcon(QtGui.QIcon('magnet_and_nv.ico'))
 
