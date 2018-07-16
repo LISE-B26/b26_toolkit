@@ -50,7 +50,7 @@ class GalvoScan(GalvoScanGeneric):
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'], 'Daq channel used for counter')
                   ]),
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn'),
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
     _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402}
@@ -71,6 +71,10 @@ class GalvoScan(GalvoScanGeneric):
         '''
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
                         data_path=data_path)
+
+        device_list = NI6259.get_connected_devices()
+        if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
+            self.settings['daq_type'] = 'cDAQ'
         # # defines which daqs contain the input and output based on user selection of daq interface
         # if self.settings['daq_type'] == 'PCI':
         #     self.daq_in = self.instruments['NI6259']['instance']
