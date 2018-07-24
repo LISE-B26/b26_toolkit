@@ -202,7 +202,7 @@
                     "class": "PiezoController",
                     "settings": {
                         "axis": "x",
-                        "port": "COM4",
+                        "port": "COM9",
                         "baudrate": 115200,
                         "timeout": 0.1,
                         "voltage": 0.0
