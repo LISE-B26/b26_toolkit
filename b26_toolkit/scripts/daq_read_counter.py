@@ -20,8 +20,8 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259
-from b26_toolkit.plotting.plots_1d import plot_counts
+from b26_toolkit.instruments import NI6259, NI9402
+from b26_toolkit.plotting.plots_1d import plot_counts, update_counts
 from pylabcontrol.core import Parameter, Script
 
 
@@ -32,10 +32,11 @@ This script reads the Counter input from the DAQ and plots it.
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
-        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)') # added by ER 20180606
+        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'), # added by ER 20180606
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for counting')
     ]
 
-    _INSTRUMENTS = {'daq': NI6259}
+    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9402': NI9402}
 
     _SCRIPTS = {
 
@@ -60,11 +61,16 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
+        if self.settings['daq_type'] == 'PCI':
+            self.daq = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq = self.instruments['NI9402']['instance']
+
       #  print(('settings in instrument', self.instruments['daq']['settings']))
 
         sample_rate = float(1) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
-        self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
+        self.daq.settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
       #  print('setting sample rate')
 
         self.data = {'counts': deque()}
@@ -77,14 +83,14 @@ This script reads the Counter input from the DAQ and plots it.
 
      #   print(('here', self.instruments['daq']))
 
-        task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
+        task = self.daq.setup_counter("ctr0", sample_num, continuous_acquisition=True)
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
             max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
 
         # start counter and scanning sequence
-        self.instruments['daq']['instance'].run(task)
+        self.daq.run(task)
 
         sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
@@ -94,7 +100,7 @@ This script reads the Counter input from the DAQ and plots it.
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-            raw_data, num_read = self.instruments['daq']['instance'].read(task)
+            raw_data, num_read = self.daq.read(task)
             #skip first read, which gives an anomolous value
             if num_read.value == 1:
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
@@ -116,7 +122,7 @@ This script reads the Counter input from the DAQ and plots it.
                 self._abort = True # tell the script to abort
 
         # clean up APD tasks
-        self.instruments['daq']['instance'].stop(task)
+        self.daq.stop(task)
         self.data['counts'] = list(self.data['counts'])
 
     def plot(self, figure_list):
@@ -130,6 +136,11 @@ This script reads the Counter input from the DAQ and plots it.
 
         if data:
             plot_counts(axes_list[0], data['counts'])
+
+    def _update_plot(self, axes_list):
+        if self.data:
+            update_counts(axes_list[0], self.data['counts'])
+
 
 if __name__ == '__main__':
     script = {}
