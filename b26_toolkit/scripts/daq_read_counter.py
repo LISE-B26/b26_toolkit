@@ -21,18 +21,30 @@ from collections import deque
 import numpy as np
 
 from b26_toolkit.instruments import NI6259
-from b26_toolkit.plotting.plots_1d import plot_counts
+from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos
 from pylabcontrol.core import Parameter, Script
 
 
 class Daq_Read_Counter(Script):
     """
-This script reads the Counter input from the DAQ and plots it.
+This script reads the Counter input from the DAQ and plots it. Only implemented for the PCI DAQ!!!!
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
-        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)') # added by ER 20180606
+        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'), # added by ER 20180606
+        Parameter('track_laser_power_photodiode1',
+                  [
+                      Parameter('on/off', False, bool,
+                                'If true, measure and normalize out laser power drifts during daq_read_counter'),
+                      Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'],
+                                'channel to use for analog input, to which the photodiode is connected')
+                  ]),
+        Parameter('track_laser_power_photodiode2',
+                  [
+                      Parameter('on/off', False, bool, 'If true, measure and save laser power drifts during daq_read_counter on this photodiode. Cant use both simultaneously'),
+                      Parameter('ai_channel', 'ai4', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'channel to use for photodiode 2, cant be the same as the track_laser_power photodiode')
+                  ])
     ]
 
     _INSTRUMENTS = {'daq': NI6259}
@@ -51,7 +63,7 @@ This script reads the Counter input from the DAQ and plots it.
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'counts': deque()}
+        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
 
 
     def _function(self):
@@ -60,31 +72,44 @@ This script reads the Counter input from the DAQ and plots it.
         will be overwritten in the __init__
         """
 
-      #  print(('settings in instrument', self.instruments['daq']['settings']))
+        if self.settings['track_laser_power_photodiode1']['on/off'] and self.settings['track_laser_power_photodiode2']['on/off']:
+            print('cant use both photodiodes at the same time - only use one AI channel at a time, unfortunately :-(')
+            return
 
-        sample_rate = float(1) / self.settings['integration_time']
+        sample_rate = float(2) / self.settings['integration_time']
         normalization = self.settings['integration_time']/.001
         self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
-      #  print('setting sample rate')
-
-        self.data = {'counts': deque()}
-
+        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
         self.last_value = 0
-
         sample_num = 2
 
-      #  print(('settings in instrument 2', self.instruments['daq']['settings']))
-
-     #   print(('here', self.instruments['daq']))
-
         task = self.instruments['daq']['instance'].setup_counter("ctr0", sample_num, continuous_acquisition=True)
+
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            aitask = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode1']['ai_channel'], sample_num,
+                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                          clk_source=task)
+
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            aitask2 = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode2']['ai_channel'], sample_num,
+                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                          clk_source=task)
+            print('aitask2: ', aitask2)
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
             max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
 
         # start counter and scanning sequence
+        if (self.settings['track_laser_power_photodiode1']['on/off'] and not self.settings['track_laser_power_photodiode2']['on/off']):
+            self.instruments['daq']['instance'].run(aitask)
+        elif (self.settings['track_laser_power_photodiode2']['on/off'] and not self.settings['track_laser_power_photodiode1']['on/off']):
+            self.instruments['daq']['instance'].run(aitask2)
+
         self.instruments['daq']['instance'].run(task)
+
+        # ER 20180827 wait for at least one clock tick to go by to start with a full clock tick of acquisition time for the first bin
+        time.sleep(self.settings['integration_time'])
 
         sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
@@ -94,16 +119,30 @@ This script reads the Counter input from the DAQ and plots it.
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                raw_data_laser, num_read_laser = self.instruments['daq']['instance'].read(aitask)
+            if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+                raw_data_laser2, num_read_laser2 = self.instruments['daq']['instance'].read(aitask2)
+
             raw_data, num_read = self.instruments['daq']['instance'].read(task)
             #skip first read, which gives an anomolous value
             if num_read.value == 1:
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
                 time.sleep(2.0 / sample_rate)
                 continue
-           # print(('raw data length: ', len(raw_data)))
+
+            tmp_count = 0
             for value in raw_data:
-                self.data['counts'].append(((float(value) - self.last_value) / normalization))
+                new_val = ((float(value) - self.last_value) / normalization)
+                self.data['counts'].append(new_val)
                 self.last_value = value
+                if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                    self.data['laser_power'].append(raw_data_laser[tmp_count])
+                if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+                    self.data['laser_power2'].append(raw_data_laser2[tmp_count])
+
+                tmp_count = tmp_count + 1
+
             if self.settings['total_int_time'] > 0:
                 self.progress = sample_index/max_samples
             else:
@@ -117,7 +156,18 @@ This script reads the Counter input from the DAQ and plots it.
 
         # clean up APD tasks
         self.instruments['daq']['instance'].stop(task)
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            self.instruments['daq']['instance'].stop(aitask)
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            self.instruments['daq']['instance'].stop(aitask2)
+
         self.data['counts'] = list(self.data['counts'])
+
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            self.data['laser_power'] = list(self.data['laser_power'])
+            self.data['normalized_counts'] = list(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']))
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            self.data['laser_power2'] = list(self.data['laser_power2'])
 
     def plot(self, figure_list):
         super(Daq_Read_Counter, self).plot([figure_list[1]])
@@ -129,7 +179,24 @@ This script reads the Counter input from the DAQ and plots it.
             data = self.data
 
         if data:
-            plot_counts(axes_list[0], data['counts'])
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
+            else:
+                array_to_plot = np.delete(data['counts'], 0)
+
+            plot_counts(axes_list[0], array_to_plot)
+
+    def _update_plot(self, axes_list, data = None):
+        if data is None:
+            data = self.data
+
+        if data:
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']), 0)
+            else:
+                array_to_plot = np.delete(data['counts'], 0)
+
+            update_counts_vs_pos(axes_list[0], array_to_plot, np.linspace(0, len(array_to_plot), len(array_to_plot)))
 
 if __name__ == '__main__':
     script = {}

@@ -92,7 +92,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list) # 20180731 ER convert to list
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]

@@ -288,7 +288,6 @@ class KDC001(Instrument):
         if key in ['position']:
             return (self.get_position(True))
         if key in ['serial_number']:
-            print('self._serial_num', self._serial_num_int)
             return (self._serial_num_int)
         elif key in ['velocity']:
             # todo(emma): implement get_velocity
@@ -383,7 +382,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 15.3
+        self.max_pos = 16. #16.0
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 

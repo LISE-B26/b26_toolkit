@@ -219,6 +219,9 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         """
+        # ER 20180731 set init_fluor to zero
+        self.data['init_fluor'] = 0.
+
         rand_indexes = list(range(len(pulse_sequences)))
         random.shuffle(rand_indexes)
         if verbose:
@@ -243,6 +246,10 @@ for a given experiment
 
             # track to the NV if necessary ER 5/31/17
             if self.settings['Tracking']['on/off']:
+                if not self.data['init_fluor']: # check if there's an initial fluorescence value, and if not run find_nv
+                    self.log('Warning: running find_nv first to get initial fluorescence')
+                    self.scripts['find_nv'].run()
+                    self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
                 if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
                         (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
                     if verbose:
@@ -354,12 +361,14 @@ for a given experiment
             if self._is_bad_pulse_sequence(pulse_sequence):
                 return False
 
-        # give warning to user if tracking is on and you haven't ran find nv
-        if self.settings['Tracking']['on/off']:
-            if 'fluorescence' in self.scripts['find_nv'].data:
-                self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
-            else:
-                self.log('Warning: No data in find_nv, but tracking is turned on.')
+# ER 20180731 changed to set init_fluor if it hasn't been set just before tracking
+        # throw error if tracking is on and you haven't ran find nv
+ #              if self.settings['Tracking']['on/off']:
+ #          if 'fluorescence' in self.scripts['find_nv'].data:
+ #              self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
+ #          else:
+ #              AttributeError('no initial fluorescence data!!!')
+ #              self.log('Warning: No data in find_nv, but tracking is turned on.')
 
         return True
 

@@ -249,6 +249,7 @@ def plot_counts(axis, data):
     axis.set_xlabel('time')
     axis.set_ylabel('kCounts/sec')
 
+
 def plot_voltage(axis, data):
     """
     plots APD timeseries data
@@ -377,10 +378,21 @@ def update_counts_vs_pos(axis, data, pos):
 
     """
 
-    if data == None:
-        return
+ #   if data == None:
+ #       return
 
     axis.lines[0].set_ydata(data)
     axis.lines[0].set_xdata(pos)
     axis.relim()
     axis.autoscale_view()
+
+def plot_diff_freq_vs_freq(axis, data, freq_in):
+    """
+    plots the difference frequency in the peak read out on the spectrum analyzer, minus the freq set in software, vs freq set in software
+    for ESR_spec_ana script
+
+    """
+    axis.set_xlabel('frequency set in software')
+    axis.set_ylabel('diff freq')
+
+    axis.plot(freq_in, data, linewidth=2.0)

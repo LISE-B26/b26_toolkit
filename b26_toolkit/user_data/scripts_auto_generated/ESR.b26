@@ -3,7 +3,7 @@
         "ESR": {
             "class": "ESR",
             "filepath": "C:\\Users\\Experiment\\PycharmProjects\\b26_toolkit\\b26_toolkit\\scripts\\esr.py",
-            "info": "This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using\na DAQ.",
+            "info": "This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using\na DAQ. Each frequency is set explicitly on the SRS, instead of using FM.",
             "package": "b26_toolkit",
             "instruments": {
                 "microwave_generator": {
@@ -185,16 +185,20 @@
                 "freq_stop": 2920000000.0,
                 "range_type": "start_stop",
                 "freq_points": 100,
-                "integration_time": 0.01,
-                "settle_time": 0.0002,
+                "integration_time": 0.05,
+                "num_samps_per_pt": 100,
                 "mw_generator_switching_time": 0.01,
                 "turn_off_after": false,
-                "take_ref": true,
+                "norm_to_ref": true,
                 "save_full_esr": true,
                 "daq_type": "PCI",
                 "fit_constants": {
                     "minimum_counts": 0.5,
                     "contrast_factor": 1.5
+                },
+                "track_laser_power": {
+                    "on/off": false,
+                    "ai_channel": "ai4"
                 },
                 "path": "",
                 "tag": "esr",
