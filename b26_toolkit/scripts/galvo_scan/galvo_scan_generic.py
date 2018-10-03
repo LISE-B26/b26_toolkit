@@ -289,6 +289,11 @@ class GalvoScanDAQ(GalvoScanGeneric):
 
     def setup_scan(self):
 
+        # clockAdjust is needed to account for the finite settle time of the Galvo
+        # since we have to give the DAQ a clock time we define the settle time as one time bin unit and then the
+        # measurement time must be a multiple of that unit. t_meas = N x t_settle
+        # Hence, instead of measuring once at each position we measure N+1 times and set the galvo N+1 times to the same position
+        # Later we throw out the first measurement since that is when the galvo still settles.
         self.clockAdjust = int((self.settings['time_per_pt'] + self.settings['settle_time']) / self.settings['settle_time'])
 
         [xVmin, xVmax, yVmax, yVmin] = self.pts_to_extent(self.settings['point_a'],self.settings['point_b'],self.settings['RoI_mode'])
