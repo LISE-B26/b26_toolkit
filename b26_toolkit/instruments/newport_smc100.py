@@ -54,7 +54,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         CommandInterfaceSMC100 = None
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM8', ['COM'+ str(i) for i in range(10)], 'serial number written on device'),
+        Parameter('port', 'COM6', ['COM'+ str(i) for i in range(10)], 'serial number written on device'),
         Parameter('position', 25000.0, float, 'servo position (from 0 to 25000 in um)'),
         Parameter('velocity', 1000, float, 'servo velocity (from 0 to 1000 in um/s)'),
         Parameter('height_lower_limit', 9, float, 'lowest position servo can move to (in mm)')

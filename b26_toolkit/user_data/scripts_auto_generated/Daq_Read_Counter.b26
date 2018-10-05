@@ -3,7 +3,7 @@
         "Daq_Read_Counter": {
             "class": "Daq_Read_Counter",
             "filepath": "C:\\Users\\Experiment\\PycharmProjects\\b26_toolkit\\b26_toolkit\\scripts\\daq_read_counter.py",
-            "info": "This script reads the Counter input from the DAQ and plots it.\n    ",
+            "info": "This script reads the Counter input from the DAQ and plots it. Only implemented for the PCI DAQ!!!!\n    ",
             "package": "b26_toolkit",
             "instruments": {
                 "daq": {
@@ -105,6 +105,14 @@
                 "integration_time": 0.25,
                 "counter_channel": "ctr0",
                 "total_int_time": 3.0,
+                "track_laser_power_photodiode1": {
+                    "on/off": false,
+                    "ai_channel": "ai2"
+                },
+                "track_laser_power_photodiode2": {
+                    "on/off": false,
+                    "ai_channel": "ai4"
+                },
                 "path": "",
                 "tag": "daq_read_counter",
                 "save": false

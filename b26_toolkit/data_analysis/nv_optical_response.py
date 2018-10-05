@@ -398,6 +398,7 @@ def photoluminescence_contrast(Bfield, k12, k13, beta, kr=63.2, k47=10.8, k57=60
 
 
 def B_field_from_esr(fp, fn, D=2.8707e9, gamma=27.969e9, angular_freq=False, verbose=False):
+
     """
     wp, wn: upper and lower esr frequency
     gamma: Gyromagnetic ratio (in GHz/Tesla)
@@ -416,6 +417,11 @@ def B_field_from_esr(fp, fn, D=2.8707e9, gamma=27.969e9, angular_freq=False, ver
     # check that wp>wn if not flip them
     if wp < wn:
         wp, wn = wn, wp
+
+    threshold = 0.1
+
+    if verbose and (2*D - wp - wn)/10*D > threshold:
+        print('2D - wp - wn: ', 2*D - wp - wn) #
 
     Bz = np.sqrt(-(D + wp - 2 * wn) * (D + wn - 2 * wp) * (D + wn + wp)) / (3 * gamma * np.sqrt(3 * D))
     Bp = np.sqrt(-(2 * D - wp - wn) * (2 * D + 2 * wn - wp) * (2 * D - wn + 2 * wp)) / (3 * gamma * np.sqrt(3 * D))
@@ -540,7 +546,9 @@ def calc_bfields_esr_ensemble_mag(frequencies, verbose=False):
 
     if len(np.shape(frequencies)) == 1:
         # reshape to expected N x 2 format
-        frequencies = np.reshape(frequencies, (len(frequencies)/2, 2))
+        #frequencies = np.reshape(frequencies, (len(frequencies)/2, 2))
+        frequencies = np.reshape(frequencies, (int(len(frequencies)/2), 2))  # ER 20180820
+
 
     assert len(frequencies.T) == 2
 
@@ -869,9 +877,6 @@ def get_r_dr(nv_locations, magnet_diam, magnet_center):
 
     return r, dr
 
-
-
-
 def get_theta_dr(nv_locations, method='radius'):
     """
 
@@ -911,7 +916,6 @@ def get_theta_dr(nv_locations, method='radius'):
         print("unknown method try 'diff' or 'radius'")
 
     return theta, dr
-
 
 def sort_esr_frequencies(freq_data, permutate_all = True, verbose = False):
     """
@@ -1048,7 +1052,9 @@ def sort_esr_frequencies(freq_data, permutate_all = True, verbose = False):
             # print(freqs_sorted[-1])
             print(['{:0.3f}'.format(freqs_sorted[-1][k] / 1e9) for k in range(len(freqs_sorted[-1]))])
 
-    return freqs_sorted, perm_index
+  #  print('freqs_sorted shape: ', np.shape(freqs_sorted))
+
+    return freqs_sorted, perm_index, np.shape(freqs_sorted)
 
 def connect_esr_frequencies(esr_data, verbose=False):
     """
@@ -1087,8 +1093,8 @@ def connect_esr_frequencies(esr_data, verbose=False):
 
         # if vector get into the desired form
         if len(np.shape(freq)) == 1:
-            freq = np.reshape(freq, [len(freq) / 2, 2])
-            freq_last = np.reshape(freq_last, [len(freq_last) / 2, 2])
+            freq = np.reshape(freq, [int(len(freq) / 2), 2])
+            freq_last = np.reshape(freq_last, [int(len(freq_last) / 2), 2])
 
         freq = np.sort(freq)
         freq_last = np.sort(freq_last)
@@ -1098,11 +1104,11 @@ def connect_esr_frequencies(esr_data, verbose=False):
         return np.reshape(list(permutations(freq))[index_min], len(freq) * 2)
 
     # sort the first dataset such that
-    freq_last = esr_data[0]
-    freq_last = np.reshape(freq_last, [len(freq_last) / 2, 2])
-    freq_last = np.sort(freq_last)
-    freq_last = list(np.reshape(freq_last, len(freq_last) * 2))
-
+    freq_last = np.array(esr_data[0])
+    freq_last = np.reshape(freq_last, [int(len(freq_last) / 2), 2])
+    freq_last = np.sort(freq_last) # order from low to high
+   # freq_last = list(np.reshape(freq_last, int(len(freq_last) * 2)))
+    freq_last = np.reshape(freq_last, int(len(freq_last) * 2))
     esr_data_sorted = []
     #     freq_last = esr_data[0]
     for i in range(len(esr_data) - 1):

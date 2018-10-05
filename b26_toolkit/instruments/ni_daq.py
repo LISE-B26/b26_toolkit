@@ -588,7 +588,7 @@ class DAQ(Instrument):
 
         return task_name
 
-    def setup_AI(self, channel, num_samples_to_acquire, continuous = False):
+    def setup_AI(self, channel, num_samples_to_acquire, continuous = False, clk_source=""):
         """
         Initializes an input channel to read on
         Args:
@@ -617,18 +617,22 @@ class DAQ(Instrument):
         task['sample_num'] = num_samples_to_acquire
         data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
         # now, on with the program
+
+        if not (clk_source == ""):
+            clk_source = self.tasklist[clk_source]['counter_out_PFI_str']
+
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
         self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
                                                               DAQmx_Val_Cfg_Default,
                                                               float64(-10.0), float64(10.0),
                                                               DAQmx_Val_Volts, None))
         if not continuous:
-            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
                                                            self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
                                                            uInt64(task['sample_num'])))
         else:
-            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], "", float64(
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
                                                             self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                            uInt64(task['sample_num'])))

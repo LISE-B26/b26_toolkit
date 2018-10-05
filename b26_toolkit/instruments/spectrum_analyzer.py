@@ -48,7 +48,7 @@ class SpectrumAnalyzer(Instrument):
 
     _PROBES = {'start_frequency': 'the lower bound of the frequency sweep',
                'stop_frequency': 'the upper bound of the frequency sweep',
-               'trace': 'the frequency sweep of the inputted signal',
+               'trace': 'the frequency sweep of the input signal',
                'tracking_generator': 'checks if the tracking generator is on',
                'bandwidth': 'the curent bandwidth of the spectrum analyzer',
                'output_power': 'the power of the tracking generator',
@@ -69,7 +69,7 @@ class SpectrumAnalyzer(Instrument):
 
         rm = visa.ResourceManager()
 
-        # todo: JG 20170623 implement proper error handling when insturment is not connected.
+        # todo: JG 20170623 implement proper error handling when instrument is not connected.
         # try:
         self.spec_anal = rm.open_resource(self.settings['visa_resource'])
         self.spec_anal.read_termination = '\n'
@@ -164,6 +164,8 @@ class SpectrumAnalyzer(Instrument):
             return self._get_output_power()
         elif probe_name == 'mode':
             return self._get_mode()
+        elif probe_name == 'peak':
+            return self._get_peak()
         else:
             message = 'no probe with that name exists!'
             raise AttributeError(message)
@@ -247,6 +249,11 @@ class SpectrumAnalyzer(Instrument):
         #COMMENT_ME
         return float(self.spec_anal.query('SOURCE:POWER?'))
 
+    def _get_peak(self):
+        # return the frequency that comes out of 'peak search'
+        self.spec_anal.write('CALC:MARK:MAX')
+        return float(self.spec_anal.query('CALC:MARK:X?'))
+
     def _set_output_power(self, power):
         #COMMENT_ME
         assert self.mode == 'TrackingGenerator', "mode need to be 'TrackingGenerator' to change power"
@@ -282,7 +289,7 @@ if __name__ == '__main__':
         #     }
         # }
         #
-        print('creat spectrum analyzer instance:')
+        print('create spectrum analyzer instance:')
         spec_anal = SpectrumAnalyzer()
         print(spec_anal.is_connected())
         print(spec_anal.mode)
