@@ -249,6 +249,15 @@ def plot_counts(axis, data):
     axis.set_xlabel('time')
     axis.set_ylabel('kCounts/sec')
 
+def update_counts(axis, data):
+    if data == None:
+        return
+
+    axis.lines[0].set_ydata(data)
+    axis.lines[0].set_xdata(range(0,len(data)))
+    axis.relim()
+    axis.autoscale_view()
+
 def plot_voltage(axis, data):
     """
     plots APD timeseries data

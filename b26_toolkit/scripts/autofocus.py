@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
-from b26_toolkit.instruments import PiezoController, MaestroLightControl
+from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens
 
 try:
     from b26_toolkit.instruments import SMC100
@@ -1052,6 +1052,42 @@ class AutoFocusCameraSMC(AutoFocusGeneric):
             raise
             self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
         time.sleep(wait_time)
+
+class AutoFocusDaqOptotune(AutoFocusDAQ):
+    _INSTRUMENTS = {
+        'ELens': OptotuneLens
+    }
+
+    def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        self.scan_label = 'ELens Current [mA]'
+        Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
+
+    def _step_piezo(self, position, wait_time):
+        """
+        steps the piezo.  Has to be overwritten specifically for each different hardware realization
+        voltage: target piezo voltage
+        wait_time: settle time after voltage step
+        """
+        z_driver = self.instruments['ELens']['instance']
+        # set the voltage on the piezo
+        try:
+            z_driver.current = float(position)
+        except ValueError:
+            raise
+            self.log('requested value not permitted. Did not set value to {:0.3f} mA'.format(position))
+        time.sleep(wait_time)
+
+    def _function(self):
+        #update piezo settings
+        if self.settings['use_current_z_axis_position']:
+            self.settings['z_axis_center_position'] = self.instruments['ELens']['instance'].read_probes('current')
+        AutoFocusGeneric._function(self)
 
 if __name__ == '__main__':
 
