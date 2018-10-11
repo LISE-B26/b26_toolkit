@@ -1,5 +1,8 @@
 # clr is python for .net
-import clr # run pip install pythonnet
+try:
+    import clr # run pip install pythonnet
+except:
+    print('import clr failed, run pip install pythonnet')
 import sys, os
 import time
 from pylabcontrol.core.read_write_functions import get_config_value
