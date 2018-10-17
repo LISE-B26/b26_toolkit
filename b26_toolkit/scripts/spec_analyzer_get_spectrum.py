@@ -60,8 +60,13 @@ class SpecAnalyzerGetSpectrum(Script):
         instrument.update(settings)
         trace = instrument.trace
 
+        peak = instrument.peak
+
         self.data = trace
-        print('acquired spectrume')
+        self.data['peak_freq'] = peak
+        self.log('peak freq = {:0.2f} MHz'.format(peak/1e6))
+        print('peak freq = ', peak)
+        print('acquired spectrum')
 
 
 

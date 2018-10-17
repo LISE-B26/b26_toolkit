@@ -4,6 +4,7 @@ from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y
 from b26_toolkit.scripts.find_nv import FindNV
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from collections import deque
 import scipy as sp
@@ -26,12 +27,14 @@ class ServoScan(Script):
         Parameter('num_points', 100, int, 'number of points in the scan'),
         Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
         Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
-        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)')
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+        Parameter('use_autofocus', True, bool, 'check to enable autofocus during tracking'),
+        Parameter('track_to_nv', False, bool, 'check to use find_nv to track to the NV')
         ]
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
 
     def _get_instr(self):
         """
@@ -117,6 +120,13 @@ class ServoScan(Script):
             scan_instr.set_position() # actually move the instrument to that location. If this is not within the safety
                                       # limits of the instruments, it will not actually move and say so in the log
 
+            # track to the NV if it's time to
+            if index > 0 and index % self.settings['track_n_pts'] == 0:
+                if self.settings['use_autofocus']:
+                    self.scripts['autofocus'].run()
+                if self.settings['track_to_nv']:
+                    self.scripts['find_nv'].run()
+
             # run daq_read_counter or the relevant script to get fluorescence
             self.scripts['daq_read_counter'].run()
             time.sleep(self.settings['time_per_pt'])
@@ -129,11 +139,6 @@ class ServoScan(Script):
 
             self.progress = index*100./self.settings['num_points']
             self.updateProgress.emit(int(self.progress))
-
-
-            # track to the NV
-            if index > 0 and index % self.settings['track_n_pts'] == 0:
-                self.scripts['find_nv'].run()
 
         # clean up data, as in daq_read_counter
         self.data['counts'] = list(self.data['counts'])
@@ -192,12 +197,14 @@ class ServoScan_2D(Script):
                       Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
                       Parameter('num_points', 100, int, 'number of points in the inner loop')
                   ]),
-        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)')
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+        Parameter('use_autofocus', True, bool, 'check to enable autofocus during tracking'),
+        Parameter('track_to_nv', False, bool, 'check to use find_nv to track to the NV')
     ]
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
 
     def _get_instr(self):
         """
@@ -312,21 +319,29 @@ class ServoScan_2D(Script):
                 outer_instr.set_position()  # actually move the instrument to that location. If this is not within the safety
                 inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
 
+                # track to the NV
+                if tot_index > 0 and tot_index % self.settings['track_n_pts'] == 0:
+                    if self.settings['use_autofocus']:
+                        self.scripts['autofocus'].run()
+                    if self.settings['track_to_nv']:
+                        self.scripts['find_nv'].run()
+
                 # run daq_read_counter or the relevant script to get fluorescence
                 self.scripts['daq_read_counter'].run()
                 time.sleep(self.settings['time_per_pt'])
                 self.scripts['daq_read_counter'].stop()
 
                 # add to output structures which will be plotted
-                data = self.scripts['daq_read_counter'].data['counts']
+                if self.scripts['daq_read_counter'].settings['track_laser_power_photodiode1']['on/off'] == True:
+                    data = self.scripts['daq_read_counter'].data['normalized_counts']
+                else:
+                    data = self.scripts['daq_read_counter'].data['counts']
                 self.data['counts'][index_in][index_out] = np.mean(data)
 
                 self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
                 self.updateProgress.emit(int(self.progress))
 
-                # track to the NV
-                if tot_index > 0 and tot_index % self.settings['track_n_pts'] == 0:
-                    self.scripts['find_nv'].run()
+
 
                 tot_index = tot_index + 1
 

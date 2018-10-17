@@ -110,6 +110,9 @@ class MicrowaveGenerator(Instrument):
                 if self._settings_initialized:
                     self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
+                    # ER 20180904
+                   # if key == 'FREQ':
+                   #     print('frequency set to: ', float(self.srs.query('FREQ?')))
                     # print(self.srs.query('*OPC?'))
 
         # XXXXX MW ISSUE = END
