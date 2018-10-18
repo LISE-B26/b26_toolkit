@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
@@ -53,7 +53,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME

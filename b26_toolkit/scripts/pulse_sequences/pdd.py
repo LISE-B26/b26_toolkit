@@ -17,7 +17,7 @@
 """
 
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 
 class PDD(PulsedExperimentBaseScript):
@@ -56,7 +56,7 @@ todo(emma): (make double_init sheme)
         Parameter('num_averages', 1000, int, 'number of averages (should be less than a million)')
     ]
 
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     _SCRIPTS = {}
 

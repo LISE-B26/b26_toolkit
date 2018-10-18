@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.scripts import FindNV
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse
+from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse, NI9402
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random
@@ -51,9 +51,10 @@ for a given experiment
             Parameter('extra_time', 50, int, 'extra time that is added before and after the time of the i/q pulses in ns'),
             Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source '),
             Parameter('no_iq_overlap', True, bool,'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
-        ])
+        ]),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
     _SCRIPTS = {'find_nv': FindNV}
 
@@ -68,6 +69,10 @@ for a given experiment
 
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
+
+        device_list = NI6259.get_connected_devices()
+        if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
+            self.settings['daq_type'] = 'cDAQ'
 
     def _calc_progress(self, index):
         # progress of inner loop (in _run_sweep)
@@ -100,6 +105,20 @@ for a given experiment
              normalization)
 
         """
+
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq = self.instruments['NI9402']['instance']
+
+        # checks that requested daqs are actually physically present in the system
+        device_list = NI6259.get_connected_devices()
+        if not (self.daq.settings['device'] in device_list):
+            self.log('The requested daq ' + self.daq.settings[
+                'device'] + ' is not connected to this computer. Possible daqs are '
+                     + str(device_list) + '. Please choose one of these and try again.')
+            raise AttributeError
 
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
@@ -219,6 +238,7 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         """
+        print('AKHERE')
         # ER 20180731 set init_fluor to zero
         self.data['init_fluor'] = 0.
 
@@ -277,18 +297,22 @@ for a given experiment
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
 
         if num_daq_reads != 0:
-            task = self.instruments['daq']['instance'].setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
-            self.instruments['daq']['instance'].run(task)
+            task = self.daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+            self.daq.run(task)
+
 
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            result_array, _ = self.instruments['daq']['instance'].read(task)  # thread waits on DAQ getting the right number of gates
+            result_array, _ = self.daq.read(task)  # thread waits on DAQ getting the right number of gates
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
         # clean up APD tasks
         if num_daq_reads != 0:
-            self.instruments['daq']['instance'].stop(task)
+            self.daq.stop(task)
+
+        if(self.instruments['PB']['instance'].settings['PB_type'] == 'USB'):
+            self.instruments['PB']['instance'].stop_pulse_seq()
 
         return result
 
@@ -415,7 +439,7 @@ for a given experiment
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
 
-        short_pulses = [command for command in pb_commands if command.duration < 15]
+        short_pulses = [command for command in pb_commands if command.duration < pulse_blaster.settings['min_pulse_dur']]
 
         if verbose and short_pulses:
             print('Found short pulses: ', short_pulses)
@@ -467,6 +491,28 @@ for a given experiment
                 print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
             return True
 
+    def _doesnt_match_clock_speed(self, pulse_sequence, verbose = False):
+        print("checking clock speed")
+        pulse_blaster = self.instruments['PB']['instance']
+
+        delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
+        pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
+        pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
+        tick = 1000.0/pulse_blaster.settings['clock_speed']
+
+        invalid_pulses = [command for command in pb_commands if
+                        (command.duration % tick != 0)]
+
+        for pulse in pb_commands:
+            print(pulse.duration, pulse.duration % tick)
+
+        if verbose and invalid_pulses:
+            print('Found pulses with durations not matching the clock speed: ', invalid_pulses)
+
+        print('cs: ', tick, invalid_pulses)
+
+        return invalid_pulses
+
     def _is_bad_pulse_sequence(self, pulse_sequence, verbose=False):
         """
 
@@ -491,6 +537,8 @@ for a given experiment
         elif self._has_pulses_with_bad_start_time(pulse_sequence, verbose=verbose):
             return True
         elif self._compiles_to_too_many_commands_for_pb(pulse_sequence, verbose=verbose):
+            return True
+        elif self._doesnt_match_clock_speed(pulse_sequence, verbose = verbose):
             return True
         else:
             return False
@@ -611,11 +659,12 @@ for a given experiment
 
         pulse_sequences, tau_list, _ = self.create_pulse_sequences(logging=False)
 
-        plot_pulses(axis0, pulse_sequences[0])
-        axis0.set_title('Pulse Visualization for Minimum tau (tau = {:d} ns)'.format(tau_list[0]))
+        if(pulse_sequences):
+            plot_pulses(axis0, pulse_sequences[0])
+            axis0.set_title('Pulse Visualization for Minimum tau (tau = {:d} ns)'.format(tau_list[0]))
 
-        plot_pulses(axis1, pulse_sequences[-1])
-        axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d} ns)'.format(tau_list[-1]))
+            plot_pulses(axis1, pulse_sequences[-1])
+            axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d} ns)'.format(tau_list[-1]))
 
     def create_pulse_sequences(self, logging=True):
         """

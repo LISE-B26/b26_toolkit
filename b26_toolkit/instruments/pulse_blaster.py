@@ -150,7 +150,9 @@ class PulseBlaster(Instrument):
             Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
-        Parameter('clock_speed', 400.0, [100.0, 400.0], 'Clock speed of the pulse blaster [MHz]')
+        Parameter('clock_speed', 400.0, [100.0, 400.0], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 15, [15, 50], 'Minimum allowed pulse duration (ns)'),
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
     PULSE_PROGRAM = ctypes.c_int(0)
@@ -663,8 +665,20 @@ class PulseBlaster(Instrument):
 
         self.pb.pb_start()
         assert self.pb.pb_read_status() & 0b100 == 0b100, 'pulseblaster did not begin running after start() called.'
-        self.pb.pb_close()
+        if(self.settings['PB_type'] == 'PCI'): #leave USB PB connection open to stop it later
+            self.pb.pb_close()
         self.sequence_start_time = datetime.datetime.now()
+
+    def stop_pulse_seq(self):
+        """
+        Stops pulse sequence. Only needs to be called for USB pulseblasters. Requires that the PB-computer connection
+        is still open.
+
+        Returns:
+
+        """
+        self.pb.pb_stop()
+        self.pb.pb_close()
 
     def wait(self):
         #COMMENT_ME
@@ -725,7 +739,9 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
         ]),
-        Parameter('clock_speed', 400, [100, 400], 'Clock speed of the pulse blaster [MHz]')
+        Parameter('clock_speed', 400, [100, 400], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 15, [15, 50], 'Minimum allowed pulse duration (ns)'),
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
     _PROBES = {}
