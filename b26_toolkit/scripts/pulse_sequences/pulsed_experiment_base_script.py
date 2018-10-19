@@ -101,6 +101,9 @@ for a given experiment
 
         """
 
+        # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
 
@@ -142,6 +145,7 @@ for a given experiment
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
+                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 self.log('aborted pulseblaster script during loop')
                 break
 
@@ -233,6 +237,7 @@ for a given experiment
 
             rand_index = rand_indexes[index]
             if self._abort:
+                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 break
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result

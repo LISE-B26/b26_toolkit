@@ -58,6 +58,7 @@ Uses a double_init scheme
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(Rabi, self)._function()
@@ -150,7 +151,7 @@ Uses a double_init scheme
             fits = data['fits'] # amplitude, frequency, phase, offset
 
             axislist[0].plot(tau, counts, 'b')
-            axislist[0].hold(True)
+            #axislist[0].hold(True) ER 20181012
 
             axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
             #pi_time = 2*np.pi / fits[1] / 2

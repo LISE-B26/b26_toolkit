@@ -34,7 +34,8 @@ class ServoScan(Script):
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+  #  _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
 
     def _get_instr(self):
         """

@@ -303,10 +303,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             focus_data = data['focus_function_result']
             sweep_voltages = data['sweep_voltages']
             if len(focus_data)>0:
+                axis_focus.clear()  # ER 20181016 - axis.hold removed from old version of matplotlib
                 axis_focus.plot(sweep_voltages[0:len(focus_data)],focus_data)
                 if not (np.array_equal(data['fit_parameters'], [0,0,0,0])):
                     axis_focus.plot(sweep_voltages[0:len(focus_data)], self.gaussian(sweep_voltages[0:len(focus_data)], *self.data['fit_parameters']), 'k')
-                axis_focus.hold(False)
+#                axis_focus.hold(False)
 
 
         # axis_focus.set_xlabel('Piezo Voltage [V]')
@@ -348,6 +349,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         focus_data = self.data['focus_function_result']
         sweep_voltages = self.data['sweep_voltages']
         if len(focus_data) > 0:
+            axis_focus.clear() #ER 20181016 - axis.hold removed from old version of matplotlib
             axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data)
 
     def gaussian(self, x, noise, amp, center, width):
@@ -731,6 +733,7 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
             focus_data_2 = data['focus_function_result_2']
             sweep_voltages = data['sweep_voltages']
             if len(focus_data) > 0:
+                axis_focus.clear()  # ER 20181016 - axis.hold removed from old version of matplotlib
                 axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, sweep_voltages[0:len(focus_data_2)], focus_data_2)
                 if not (np.array_equal(data['fit_parameters'], [0, 0, 0, 0])):
                     axis_focus.plot(sweep_voltages[0:len(focus_data)],
@@ -740,7 +743,7 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
                     axis_focus.plot(sweep_voltages[0:len(focus_data_2)],
                                     self.gaussian(sweep_voltages[0:len(focus_data_2)], *self.data['fit_parameters_2']),
                                     'g')
-                axis_focus.hold(False)
+             #   axis_focus.hold(False)
 
         axis_focus.set_xlabel('Piezo Voltage [V]')
 
@@ -786,8 +789,9 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
         focus_data_2 = self.data['focus_function_result_2']
         sweep_voltages = self.data['sweep_voltages']
         if len(focus_data) > 0:
+            axis_focus.clear() #ER 20181016 - axis.hold removed from old version of matplotlib
             axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, sweep_voltages[0:len(focus_data_2)], focus_data_2)
-            axis_focus.hold(False)
+        #    axis_focus.hold(False)
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
@@ -935,6 +939,7 @@ class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
             focus_data_2 = data['focus_function_result_2']
             sweep_voltages = data['sweep_voltages']
             if len(focus_data) > 0:
+                axis_focus.clear()  # ER 20181016 - axis.hold removed from old version of matplotlib
                 axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, 'r', label='Fluorescence')
                 axis_focus.plot(sweep_voltages[0:len(focus_data_2)], focus_data_2, 'g', label='Reflection')
                 if not (np.array_equal(data['fit_parameters'], [0, 0, 0, 0])):
@@ -945,7 +950,7 @@ class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
                     axis_focus.plot(sweep_voltages[0:len(focus_data_2)],
                                     self.gaussian(sweep_voltages[0:len(focus_data_2)], *self.data['fit_parameters_2']),
                                     'g')
-                axis_focus.hold(False)
+  #              axis_focus.hold(False)
 
         axis_focus.set_xlabel('Piezo Voltage [V]')
 
@@ -992,11 +997,12 @@ class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
         focus_data_2 = self.data['focus_function_result_2']
         sweep_voltages = self.data['sweep_voltages']
         if len(focus_data) > 0:
+            axis_focus.clear() #ER 20181016 - axis.hold removed from old version of matplotlib
             axis_focus.plot(sweep_voltages[0:len(focus_data)], focus_data, 'r', label='Fluorescence')
-            axis_focus.hold(True)
+   #         axis_focus.hold(True)
             axis_focus.plot(sweep_voltages[0:len(focus_data_2)], focus_data_2, 'g', label='Reflection')
             axis_focus.legend()
-            axis_focus.hold(False)
+    #        axis_focus.hold(False)
 
         axis_focus.set_xlabel('Piezo Voltage [V]')
 

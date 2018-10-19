@@ -22,7 +22,6 @@ from matplotlib.collections import PatchCollection
 
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
-
 def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     '''
     plots the power spectral density on to the canvas axes
@@ -70,8 +69,9 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     """
 
     #  ======== plot data =========
+    axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
     axes.plot(frequency, counts, plot_marker_data)
-    axes.hold(True)
+    #axes.hold(True) #ER 20181012
 
     title = 'ESR'
     fit_data = None
@@ -99,7 +99,8 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     axes.set_title(title)
     axes.set_xlabel('Frequency (Hz)')
     axes.set_ylabel('Kcounts/s')
-    axes.hold(False)
+  #  axes.hold(False) ER 20181012: in matplotlib 3.0.0, axes.hold is removed
+
     # return lines
 
 
@@ -386,7 +387,7 @@ def update_counts_vs_pos(axis, data, pos):
 
     """
 
-    if data == None:
+    if data.all() is None:
         return
 
     axis.lines[0].set_ydata(data)

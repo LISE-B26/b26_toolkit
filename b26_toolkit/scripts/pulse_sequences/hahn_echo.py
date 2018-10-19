@@ -62,6 +62,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True}) # ER 20181018
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(HahnEcho, self)._function(self.data)
@@ -168,7 +169,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             fits = data['fits']
 
             axislist[0].plot(tau, counts, 'b')
-            axislist[0].hold(True)
+           # axislist[0].hold(True)
 
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
@@ -176,6 +177,136 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             super(HahnEcho, self)._plot(axislist)
             axislist[0].set_title('Hahn Echo mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
+
+class HahnEcho_bothIQ(PulsedExperimentBaseScript): # ER 20181013
+    """
+This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time.
+The difference between this script and HahnEcho is that the phases of the pulses should be xyx, instead of xxx; i.e., we use BOTH IQ channels now.
+The channel 'microwave_channel' in the settings corresponds to the pi/2 and 3pi/2 pulses. The other one the user chooses will be for the pi pulse.
+We do this to check if we can extend T2 with something like this, which may help mitigate pulse errors.
+
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi/2 pulses (other one will be for the pi pulses)'),
+            Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
+            Parameter('pi_half_pulse_time', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
+            Parameter('3pi_half_pulse_time', 75.0, float, 'time duration of a 3pi/2 pulse (in ns)')
+        ]),
+        Parameter('tau_times', [
+            Parameter('min_time', 500, float, 'minimum time between pi pulses'),
+            Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
+            Parameter('time_step', 5, [2.5, 5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+                  'time step increment of time between pi pulses (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 1000, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+    ]
+
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    def _function(self):
+        #COMMENT_ME
+
+        self.data['fits'] = None
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
+        super(HahnEcho_bothIQ, self)._function(self.data)
+
+        counts = (- self.data['counts'][:, 1] + self.data['counts'][:,0]) / (self.data['counts'][:,1] + self.data['counts'][:, 0])
+        tau = self.data['tau']
+
+        try:
+            fits = fit_exp_decay(tau, counts, offset = True, verbose = True)
+            self.data['fits'] = fits
+        except:
+            self.data['fits'] = None
+            self.log('t2 fit failed')
+
+    def _create_pulse_sequences(self):
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        '''
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list) # 20180731 ER convert to list
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+        if self.settings['mw_pulses']['microwave_channel'] == 'i':
+            mw_chan_pi = 'q'
+        else:
+            mw_chan_pi = 'i'
+        microwave_channel_pi = 'microwave_' + mw_chan_pi
+        pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        pi_half_time = self.settings['mw_pulses']['pi_half_pulse_time']
+        three_pi_half_time = self.settings['mw_pulses']['3pi_half_pulse_time']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = \
+            [
+                Pulse(microwave_channel, laser_off_time, pi_half_time),
+                Pulse(microwave_channel_pi, laser_off_time + pi_half_time/2. + tau - pi_time/2., pi_time),
+                Pulse(microwave_channel, laser_off_time + pi_half_time/2. + tau + tau - pi_half_time/2., pi_half_time)
+            ]
+
+            end_of_first_HE = laser_off_time + pi_half_time/2. + tau + tau - pi_half_time/2. + pi_half_time
+
+            pulse_sequence += [
+                 Pulse('laser', end_of_first_HE + delay_mw_readout, nv_reset_time),
+                 Pulse('apd_readout', end_of_first_HE + delay_mw_readout + delay_readout, meas_time),
+                 ]
+
+            start_of_second_HE = end_of_first_HE + delay_mw_readout + nv_reset_time + laser_off_time
+
+            pulse_sequence += \
+            [
+                Pulse(microwave_channel, start_of_second_HE, pi_half_time),
+                Pulse(microwave_channel_pi, start_of_second_HE + pi_half_time/2. + tau - pi_time/2., pi_time),
+                Pulse(microwave_channel, start_of_second_HE + pi_half_time/2. + tau + tau - pi_half_time/2., three_pi_half_time)
+            ]
+
+            end_of_second_HE = start_of_second_HE + pi_half_time/2. + tau + tau - pi_half_time/2. + pi_half_time
+
+            pulse_sequence += [
+                Pulse('laser', end_of_second_HE + delay_mw_readout, nv_reset_time),
+                Pulse('apd_readout', end_of_second_HE + delay_mw_readout + delay_readout, meas_time)
+            ]
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
 
 class HahnEchoManyNVs(Script):
     _DEFAULT_SETTINGS = [

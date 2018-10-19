@@ -60,6 +60,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(XY8_k, self)._function(self.data)
@@ -182,8 +183,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
         return pulse_sequences, tau_list, meas_time
 
-
-
     def _plot(self, axislist, data = None):
         '''
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
@@ -205,7 +204,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             fits = data['fits']
 
             axislist[0].plot(tau, counts, 'b')
-            axislist[0].hold(True)
+         #   axislist[0].hold(True) ER 20181012
 
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
@@ -248,6 +247,7 @@ todo(emma): (make double_init scheme)
 
     def _function(self):
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(XY4, self)._function()
@@ -391,6 +391,7 @@ Uses double_init scheme
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(XYXY, self)._function(self.data)
@@ -535,7 +536,7 @@ Uses double_init scheme
             fits = data['fits']
 
             axislist[0].plot(tau, counts, 'b')
-            axislist[0].hold(True)
+         #   axislist[0].hold(True) ER 20181012
 
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
