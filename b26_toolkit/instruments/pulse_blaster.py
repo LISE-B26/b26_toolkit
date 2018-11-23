@@ -634,7 +634,6 @@ class PulseBlaster(Instrument):
 
         for command in pb_commands:
             if command.duration < 15:
-                print(('JG 20180321 command', command))
                 raise RuntimeError("Detected command with duration <15ns.")
 
         # begin programming the pulseblaster

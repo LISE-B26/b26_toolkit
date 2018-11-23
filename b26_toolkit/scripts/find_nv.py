@@ -65,7 +65,7 @@ Known issues:
         """
 
         attempt_num = 1
-        print((self.scripts['take_image'].instruments))
+       # print((self.scripts['take_image'].instruments))
         if self.settings['center_on_current_location']:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])

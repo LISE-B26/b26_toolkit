@@ -37,7 +37,7 @@ Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
             Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
-            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+            Parameter('time_step', 5., [2.5, 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
                   'time step increment of rabi pulse duration (in ns)')
         ]),
         Parameter('read_out', [
@@ -90,9 +90,12 @@ Uses a double_init scheme
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']),
-                              int(self.settings['tau_times']['max_time']),
-                              self.settings['tau_times']['time_step']))
+       # tau_list = list(range(int(self.settings['tau_times']['min_time']),
+                            #  int(self.settings['tau_times']['max_time']),
+                            #  self.settings['tau_times']['time_step']))
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -125,10 +128,7 @@ Uses a double_init scheme
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-
         return pulse_sequences, tau_list, meas_time
-
-
 
     def _plot(self, axislist, data = None):
         '''

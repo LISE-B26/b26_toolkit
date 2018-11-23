@@ -382,7 +382,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 16. #16.0
+        self.max_pos = 16.7 #16.0
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 

@@ -387,7 +387,7 @@ def update_counts_vs_pos(axis, data, pos):
 
     """
 
-    if data.all() is None:
+    if data is None:
         return
 
     axis.lines[0].set_ydata(data)

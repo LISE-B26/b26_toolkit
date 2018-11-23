@@ -419,10 +419,8 @@ class ESR(Script):
 
         '''
         if self.instruments['microwave_generator']['instance'].amplitude < -10.0:
-            print('amplitude is OK!')
             self.instruments['PB']['instance'].update({'microwave_switch': {'status': True}})
         else:
-            print('amplitude is not OK! Keeping microwave_switch off.')
             self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
 
     def get_freq_array(self):
@@ -605,6 +603,7 @@ class ESR(Script):
                 self.data.update({'data_laser_norm': data_laser_norm})
 
             self.data.update({'data': esr_avg, 'fit_params': fit_params})
+       #     self.data.update({'data': avrg_counts})  # ER 20181022
 
             if self.settings['save_full_esr']:
                 self.data.update({'esr_data':esr_data})
@@ -917,7 +916,7 @@ class ESR_Spec_Ana(Script):
             self.data.update({'avrg_counts': avrg_counts})
 
             if self.settings['save_full_esr']:
-                self.data.update({'esr_data':esr_data})
+                self.data.update({'esr_data': esr_data})
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)

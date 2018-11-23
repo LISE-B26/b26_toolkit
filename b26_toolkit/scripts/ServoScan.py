@@ -34,8 +34,8 @@ class ServoScan(Script):
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-  #  _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+  #  _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
 
     def _get_instr(self):
         """
@@ -124,6 +124,7 @@ class ServoScan(Script):
             # track to the NV if it's time to
             if index > 0 and index % self.settings['track_n_pts'] == 0:
                 if self.settings['use_autofocus']:
+                  #  raise (NotImplementedError)
                     self.scripts['autofocus'].run()
                 if self.settings['track_to_nv']:
                     self.scripts['find_nv'].run()
@@ -206,6 +207,8 @@ class ServoScan_2D(Script):
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
     _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+#    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+
 
     def _get_instr(self):
         """
@@ -285,14 +288,10 @@ class ServoScan_2D(Script):
 
         # get the relevant instrument.
         outer_instr, inner_instr = self._get_instr()
-        print('outer_instr', outer_instr)
-        print('inner_instr', inner_instr)
 
         # get positions for the scan.
         scan_pos_outer, scan_pos_inner = self._get_scan_positions()
 
-        print('scan_pos_outer', scan_pos_outer)
-        print('scan_pos_inner', scan_pos_inner)
         # data structure
        # self.data = {'counts': deque()}
         self.data['counts'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
@@ -323,6 +322,7 @@ class ServoScan_2D(Script):
                 # track to the NV
                 if tot_index > 0 and tot_index % self.settings['track_n_pts'] == 0:
                     if self.settings['use_autofocus']:
+                      #  raise(NotImplementedError)
                         self.scripts['autofocus'].run()
                     if self.settings['track_to_nv']:
                         self.scripts['find_nv'].run()
@@ -346,8 +346,6 @@ class ServoScan_2D(Script):
 
                 tot_index = tot_index + 1
 
-        print('self.data[counts]', self.data['counts'])
-
     def plot(self, figure_list):
         super(ServoScan_2D, self).plot([figure_list[0]])
 
@@ -363,6 +361,7 @@ class ServoScan_2D(Script):
             plot_fluorescence_pos(data['counts'], extent, axes_list[0])
 
     def _update_plot(self, axes_list):
+        extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
         update_fluorescence(self.data['counts'], axes_list[0])
 
 

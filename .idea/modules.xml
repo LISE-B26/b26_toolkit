@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/b26_toolkit.iml" filepath="$PROJECT_DIR$/.idea/b26_toolkit.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../pylabcontrol/.idea/pylabcontrol.iml" filepath="$PROJECT_DIR$/../pylabcontrol/.idea/pylabcontrol.iml" />
     </modules>
   </component>
 </project>

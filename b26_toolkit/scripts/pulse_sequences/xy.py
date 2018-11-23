@@ -15,6 +15,7 @@
     You should have received a copy of the GNU General Public License
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+import numpy as np
 
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
@@ -31,6 +32,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
             Parameter('microwave_channel_pi2', 'q', ['i', 'q'], 'Channel to use for the mw pi/2 pulses'),
+            Parameter('pi_pulse_time_mwchan', 50.0, float, 'time duration of a pi pulse (in ns) for the mw_channel'),
             Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
             Parameter('pi_half_pulse_time', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
             Parameter('3pi_half_pulse_time', 75.0, float, 'time duration of a 3pi/2 pulse (in ns)'),
@@ -91,7 +93,11 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+        #tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],
+                             self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list)  # 20180731 ER convert to list
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -101,6 +107,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
         microwave_channel_pi2 = 'microwave_' + self.settings['mw_pulses']['microwave_channel_pi2']
         pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        pi_time_mwchan = self.settings['mw_pulses']['pi_pulse_time_mwchan']
         pi_half_time = self.settings['mw_pulses']['pi_half_pulse_time']
         three_pi_half_time = self.settings['mw_pulses']['3pi_half_pulse_time']
 
@@ -115,7 +122,9 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 Pulse(microwave_channel_pi2, laser_off_time, pi_half_time), # pi/2 pulse
             ]
 
-            next_pi_t =  laser_off_time + pi_half_time/2. + tau/2 - pi_time/2.
+          #  next_pi_t = laser_off_time + pi_half_time/2. + tau/2 - pi_time/2.
+            next_pi_t = laser_off_time + pi_half_time + tau/2 - pi_time/2.
+
             N = self.settings['mw_pulses']['pi_pulse_blocks_k']*8
             counter = 0
             for ind in range(0, N):
@@ -125,7 +134,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                     ]
                 else:
                     pulse_sequence += [
-                        Pulse(microwave_channel, next_pi_t, pi_time) # pulses along y
+                        Pulse(microwave_channel, next_pi_t, pi_time_mwchan) # pulses along y
                     ]
                 if counter == 7:
                     counter = -1
@@ -133,9 +142,9 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 counter += 1
 
             pulse_sequence += [
-                Pulse(microwave_channel_pi2, next_pi_t - tau + pi_time/2. + tau/2 - pi_half_time/2., pi_half_time)
+                Pulse(microwave_channel_pi2, next_pi_t - tau/2., pi_half_time)
                 ]
-            end_of_first_CPMG = next_pi_t - tau + pi_time/2. + tau/2 - pi_half_time/2. + pi_half_time
+            end_of_first_CPMG = next_pi_t - tau/2. + pi_half_time
 
             pulse_sequence += \
                 [
@@ -150,7 +159,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 Pulse(microwave_channel_pi2, start_of_second_CPMG, pi_half_time),
             ]
 
-            next_pi_t =  start_of_second_CPMG + pi_half_time/2. + tau/2 - pi_time/2.
+            next_pi_t = start_of_second_CPMG + pi_half_time + tau/2. - pi_time/2.
             counter = 0
             for ind in range(0, N):
                 if counter == 0 or counter == 2 or counter == 5 or counter == 7:
@@ -159,7 +168,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                     ]
                 else:
                     pulse_sequence += [
-                        Pulse(microwave_channel, next_pi_t, pi_time) # pulses along y
+                        Pulse(microwave_channel, next_pi_t, pi_time_mwchan) # pulses along y
                     ]
                 if counter == 7:
                     counter = -1
@@ -167,10 +176,10 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 counter += 1
 
             pulse_sequence += [
-                Pulse(microwave_channel_pi2, next_pi_t - tau + pi_time/2. + tau/2 - three_pi_half_time/2., three_pi_half_time)
+                Pulse(microwave_channel_pi2, next_pi_t - tau/2., three_pi_half_time)
                 ]
 
-            end_of_second_CPMG = next_pi_t - tau + pi_time/2. + tau/2 - three_pi_half_time/2. + three_pi_half_time
+            end_of_second_CPMG = next_pi_t - tau/2. + three_pi_half_time
 
             pulse_sequence += [
                 Pulse('laser', end_of_second_CPMG + delay_mw_readout, nv_reset_time),
