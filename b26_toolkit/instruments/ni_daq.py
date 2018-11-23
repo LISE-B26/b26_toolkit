@@ -1208,6 +1208,78 @@ class NI9402(DAQ):
 
         return task_name
 
+    def setup_gated_counter(self, channel, num_samples):
+        """
+        Initializes a gated digital input task. The gate acts as a clock for the counter, so if one has a fast ttl source
+        this allows one to read the counter for a shorter time than would be allowed by the daq's internal clock.
+        Args:
+            channel: channel to use for counter input
+            num_samples: number of samples to read on counter
+        """
+        if 'digital_input' not in list(self.settings.keys()):
+            raise ValueError('This DAQ does not support digital input')
+        if not channel in list(self.settings['digital_input'].keys()):
+            raise KeyError('This is not a valid digital input channel')
+        channel_settings = self.settings['digital_input'][channel]
+
+        task = {
+            'task_handle': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+
+        task_name = self._add_to_tasklist('gatedctr', task)
+
+        input_channel_str_gated = (self.settings['device'] + self.settings['module'] + '/' + channel).encode('ascii')
+        counter_out_PFI_str_gated = ('/' + self.settings['device'] + '/Ctr' + str(
+            channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')  # initial / required only here, see NIDAQ documentation
+        gate_PFI_str = ('/' + self.settings['device'] + self.settings['module'] + '/PFI' + str(
+            channel_settings['gate_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
+
+        #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
+        task['sample_num'] = num_samples
+        task['num_samples_per_channel'] = num_samples
+
+        task['task_handle'] = TaskHandle(0)
+
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+
+        MIN_TICKS = 0;
+        MAX_TICKS = 100000;
+
+
+        # setup counter to measure pulse widths
+        self._check_error(
+            self.nidaq.DAQmxCreateCIPulseWidthChan(task['task_handle'], input_channel_str_gated, '', MIN_TICKS,
+                                                   MAX_TICKS, DAQmx_Val_Ticks, DAQmx_Val_Rising, ''))
+
+        # specify number of samples to acquire
+        self._check_error(self.nidaq.DAQmxCfgImplicitTiming(task['task_handle'],
+                                                            DAQmx_Val_FiniteSamps, uInt64(task['sample_num'])))
+
+        # set the terminal for the counter timebase source to the APD source
+        # in B26, this is the ctr0 source PFI8, but this will vary from daq to daq
+        self._check_error(self.nidaq.DAQmxSetCICtrTimebaseSrc(task['task_handle'], input_channel_str_gated,
+                                                              counter_out_PFI_str_gated))
+
+        # set the terminal for the gate to the pulseblaster source
+        # in B26, due to crosstalk issues when we use the default PFI9 which is adjacent to the ctr0 source, we set this
+        # to the non-default value PFI14
+        self._check_error(self.nidaq.DAQmxSetCIPulseWidthTerm(task['task_handle'], input_channel_str_gated,
+                                                                  gate_PFI_str))
+
+        # turn on duplicate count prevention (allows 0 counts to be a valid count for clock ticks during a gate, even
+        # though the timebase never went high and thus nothing would normally progress, by also referencing to the internal
+        # clock at max frequency, see http://zone.ni.com/reference/en-XX/help/370466AC-01/mxdevconsid/dupcountprevention/
+        # for more details)
+        self._check_error(
+            self.nidaq.DAQmxSetCIDupCountPrevent(task['task_handle'], input_channel_str_gated, bool32(True)))
+
+        return task_name
+
+
 def int_to_voltage(integer):
     """
     convert integer value to voltage

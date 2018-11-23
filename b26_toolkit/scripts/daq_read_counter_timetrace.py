@@ -74,21 +74,24 @@ Future: plot also the PSD
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
-            number_of_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
+            number_of_samples = int(np.floor(self.settings['total_int_time']/self.settings['integration_time']))
         else:
             self.log('total measurement time must be positive. Abort script')
             return
 
 
         # initialize APD thread
-        ctrtask = self.daq_in.setup_counter(
-            self.settings['DAQ_channels']['counter_channel'], number_of_samples + 1)
+        ctrtask = self.daq.setup_counter(
+            self.settings['counter_channel'], number_of_samples + 1)
 
         # start counter and scanning sequence
-        self.daq_in.run(ctrtask)
-        self.daq_out.waitToFinish(ctrtask)
-        data, _ = self.daq_in.read(ctrtask)
-        self.daq_in.stop(ctrtask)
+        self.daq.run(ctrtask)
+
+        print('JG asdadad I am here')
+        data, _ = self.daq.read(ctrtask)
+
+        print('JG data', data)
+        self.daq.stop(ctrtask)
         counts = np.diff(data)  # counter gives the accumulated counts, thus the diff gives the counts per interval
 
         self.data['counts'] = counts

@@ -21,8 +21,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.scripts import FindNV, ESR
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse, MicrowaveGenerator
+from b26_toolkit.scripts import FindNV
+from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random
@@ -44,12 +44,6 @@ for a given experiment
         Parameter('Tracking', [
             Parameter('on/off', True, bool, 'used to turn on tracking'),
             Parameter('threshold', 0.85, float, 'threshold for tracking'),
-            Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps')
-        ]),
-        Parameter('ESR_Tracking', [
-            Parameter('on/off', False, bool, 'turn on to track NV ESR'),
-            Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
-            Parameter('allowed_delta_freq', 2., float, 'do not change the mw carrier frequency if the new ESR is different by more than this amount (MHz) (protects against bad fits)')
         ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
@@ -61,7 +55,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNV}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -107,13 +101,6 @@ for a given experiment
 
         """
 
-        # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
-        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-
-        # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
-        last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
-        pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
-
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
 
@@ -140,7 +127,7 @@ for a given experiment
         self.data['counts'] = deepcopy(self.count_data)
 
         # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
-        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
+        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits avaliable to store loop
         # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
         # run find_nv if tracking is on ER 5/30/2017
@@ -155,44 +142,10 @@ for a given experiment
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
-                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 self.log('aborted pulseblaster script during loop')
                 break
 
-            # ER 20181028
-            if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking']['track_every_N']==0:
-                self.scripts['esr'].run()
-
-                # retrieve the new mw frequency: if there are two frequencies in the fit, pick the one closest to the old frequency
-                fit_params = self.scripts['esr'].data['fit_params']
-
-                # default update flag to false
-                update_mw = False
-
-                if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
-                    if len(fit_params) == 4:
-                        # single peak
-                        if (fit_params[2] - last_mw)**2 < (self.settings['ESR_Tracking']['allowed_delta_freq']*1e6)**2: # check if new value is within range allowed
-                            update_mw = True
-                        new_mw = fit_params[2]
-                    elif len(fit_params) == 6:
-                        # double peak, don't update the frequency - the fit may be bad
-                        update_mw = False
-
-                if update_mw:
-                    #self.instruments['mw_gen'].update({'frequency': new_mw})
-                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(new_mw)})
-                    self.log('updated mw carrier frequency to: {}'.format(new_mw))
-                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
-                    last_mw = new_mw
-                else:
-                    #self.instruments['mw_gen'].update({'frequency': last_mw})
-                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(last_mw)})
-                    self.log('not updating the mw carrier frequency. SRS carrier frequency kept at {0} Hz'.format(last_mw))
-                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
-
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
-            print('tau sequences running: ', self.tau_list)
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
@@ -232,7 +185,6 @@ for a given experiment
             # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
             # if counts != []:
             #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts'])
-            print('plotting with tau values: ', data['tau'])
             plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts']])
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
 
@@ -254,7 +206,7 @@ for a given experiment
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=True):
+    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=False):
         """
         Each pulse sequence specified in pulse_sequences is run num_loops_sweep consecutive times.
 
@@ -268,7 +220,7 @@ for a given experiment
 
         """
         # ER 20180731 set init_fluor to zero
-     #   self.data['init_fluor'] = 0.
+        self.data['init_fluor'] = 0.
 
         rand_indexes = list(range(len(pulse_sequences)))
         random.shuffle(rand_indexes)
@@ -281,7 +233,6 @@ for a given experiment
 
             rand_index = rand_indexes[index]
             if self._abort:
-                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 break
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
@@ -292,21 +243,19 @@ for a given experiment
 
             self.sequence_index = index
             counts_temp = counts_to_check[0]
+
             # track to the NV if necessary ER 5/31/17
             if self.settings['Tracking']['on/off']:
-             #   if not self.data['init_fluor']: # check if there's an initial fluorescence value, and if not run find_nv
-             #       self.log('Warning: running find_nv first to get initial fluorescence')
-             #       self.scripts['find_nv'].run()
-             #       self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
-             #       print('self.data[init_fluor] = ', self.data['init_fluor'])
-            #    if self.settings['Tracking']['threshold']*self.data['init_fluor'][0] > counts_temp: #or \
-                       # self.data['init_fluor'][0]*(1-self.settings['Tracking']['threshold']+1) < counts_temp:
-                print('init fluor in self.settings: ', self.settings['Tracking']['init_fluor'])
-                print('counts to check: ', counts_temp)
-                if (1+(1-self.settings['Tracking']['threshold']))*self.settings['Tracking']['init_fluor'] < counts_temp or \
-                        self.settings['Tracking']['threshold']*self.settings['Tracking']['init_fluor'] > counts_temp:
+                if not self.data['init_fluor']: # check if there's an initial fluorescence value, and if not run find_nv
+                    self.log('Warning: running find_nv first to get initial fluorescence')
+                    self.scripts['find_nv'].run()
+                    self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
+                if (self.settings['Tracking']['threshold']*self.data['init_fluor'] > counts_temp or
+                        (2-self.settings['Tracking']['threshold'])*self.data['init_fluor'] < counts_temp):
                     if verbose:
                         print('TRACKING TO NV...')
+                        print(('____ counts_temp', counts_temp))
+                        print(('____ init_fluor', self.settings['Tracking']['threshold']*self.data['init_fluor']))
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
@@ -391,7 +340,7 @@ for a given experiment
         """
         return signal * 1E6 / (gate_width * num_averages)  # 1E6 is to convert from ns to ms
 
-    def is_valid(self, pulse_sequences=None, verbose=True):
+    def is_valid(self, pulse_sequences=None, verbose=False):
         """
         Checks if a pulse blaster script is valid
 
@@ -412,9 +361,18 @@ for a given experiment
             if self._is_bad_pulse_sequence(pulse_sequence):
                 return False
 
+# ER 20180731 changed to set init_fluor if it hasn't been set just before tracking
+        # throw error if tracking is on and you haven't ran find nv
+ #              if self.settings['Tracking']['on/off']:
+ #          if 'fluorescence' in self.scripts['find_nv'].data:
+ #              self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
+ #          else:
+ #              AttributeError('no initial fluorescence data!!!')
+ #              self.log('Warning: No data in find_nv, but tracking is turned on.')
+
         return True
 
-    def _get_overlapping_pulses(self, pulse_sequence, verbose=True):
+    def _get_overlapping_pulses(self, pulse_sequence, verbose=False):
         """
         Finds and returns a list of ordered pairs of pulses from pulse_sequence that currently overlap, thus likely
         not being the pulse sequence that was intended. (It would be strange to hope for this)
@@ -438,7 +396,7 @@ for a given experiment
 
         return overlapping_pulses
 
-    def _get_commands_that_are_too_short(self, pulse_sequence, verbose=True):
+    def _get_commands_that_are_too_short(self, pulse_sequence, verbose=False):
         """
         Finds if the current pulse sequence would compile to commands that have intervals of less than 15 ns between
         them, which it not supported by the pulse blaster as it is currently implemented.
@@ -454,9 +412,9 @@ for a given experiment
         pulse_blaster = self.instruments['PB']['instance']
 
         delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
-
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
+
         short_pulses = [command for command in pb_commands if command.duration < 15]
 
         if verbose and short_pulses:
@@ -464,7 +422,7 @@ for a given experiment
 
         return short_pulses
 
-    def _has_pulses_with_bad_start_time(self, pulse_sequence, verbose=True):
+    def _has_pulses_with_bad_start_time(self, pulse_sequence, verbose=False):
         """
         Checks for pulses that have a start_time between 0 and 1 (exclusive), indicating that the user may have
         used the wrong units for the pulses in the pulse sequence.
@@ -482,16 +440,9 @@ for a given experiment
                     print('Found pulse with start time between 0 and 1 -- remember that the units are nanoseconds.')
                 return True
 
-            if np.mod(pulse.start_time, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
-                print('bad start time!!: ', pulse.start_time)
-                return True
-            if np.mod(pulse.start_time + pulse.duration, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
-                print('bad end time!!: ', pulse.start_time + pulse.duration)
-                return True
-
         return False
 
-    def _compiles_to_too_many_commands_for_pb(self, pulse_sequence, verbose=True):
+    def _compiles_to_too_many_commands_for_pb(self, pulse_sequence, verbose=False):
         """
         Checks to see if the current pulse sequence would result in more than 4096 commands to the pulseblaster,
         which is too much for it to handle.
@@ -505,7 +456,7 @@ for a given experiment
 
         """
         pulse_blaster = self.instruments['PB']['instance']
-        delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence) # ER 20181027 don't have time to debug why these delays are giving errors today
+        delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
 
@@ -516,7 +467,7 @@ for a given experiment
                 print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
             return True
 
-    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=True):
+    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=False):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains of the pulseblaster,
@@ -660,15 +611,11 @@ for a given experiment
 
         pulse_sequences, tau_list, _ = self.create_pulse_sequences(logging=False)
 
-      #  if pulse_sequences[0]:
-        if pulse_sequences:
-            plot_pulses(axis0, pulse_sequences[0])
-            axis0.set_title('Pulse Visualization for Minimum tau (tau = {:f} ns)'.format(tau_list[0]))
+        plot_pulses(axis0, pulse_sequences[0])
+        axis0.set_title('Pulse Visualization for Minimum tau (tau = {:d} ns)'.format(tau_list[0]))
 
-            plot_pulses(axis1, pulse_sequences[-1])
-            axis1.set_title('Pulse Visualization for Maximum tau (tau = {:f} ns)'.format(tau_list[-1]))
-        else:
-            print('no pulse sequences passed validation!!!')
+        plot_pulses(axis1, pulse_sequences[-1])
+        axis1.set_title('Pulse Visualization for Maximum tau (tau = {:d} ns)'.format(tau_list[-1]))
 
     def create_pulse_sequences(self, logging=True):
         """
@@ -703,14 +650,13 @@ for a given experiment
                 valid_tau_list.append(tau)
             else:
                 invalid_tau_list.append(tau)
-                print('invalid sequence is: ', pulse_sequence)
 
         if logging:
             if invalid_tau_list:
                 self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
                          "included when running this experiment: " + str(invalid_tau_list))
             else:
-                self.log("All generated pulse sequences are valid. No tau times will be skipped in this experiment.")
+                self.log("All generated pulse sequences are valid. No tau times will b e skipped in this experiment.")
 
             self.log("{:d} different tau times have passed validation".format(len(valid_tau_list)))
 
