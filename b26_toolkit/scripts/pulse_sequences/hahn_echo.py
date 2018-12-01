@@ -18,7 +18,7 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.scripts import SelectPoints
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
@@ -55,7 +55,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
@@ -276,11 +276,11 @@ We do this to check if we can extend T2 with something like this, which may help
             pulse_sequence = \
             [
                 Pulse(microwave_channel, laser_off_time, pi_half_time),
-                Pulse(microwave_channel_pi, laser_off_time + pi_half_time/2. + tau - pi_time/2., pi_time),
-                Pulse(microwave_channel, laser_off_time + pi_half_time/2. + tau + tau - pi_half_time/2., pi_half_time)
+                Pulse(microwave_channel_pi, laser_off_time + pi_half_time + tau - pi_time/2., pi_time),
+                Pulse(microwave_channel, laser_off_time + pi_half_time + tau + tau, pi_half_time)
             ]
 
-            end_of_first_HE = laser_off_time + pi_half_time/2. + tau + tau - pi_half_time/2. + pi_half_time
+            end_of_first_HE = laser_off_time + pi_half_time + tau + tau + pi_half_time
 
             pulse_sequence += [
                  Pulse('laser', end_of_first_HE + delay_mw_readout, nv_reset_time),
@@ -292,11 +292,11 @@ We do this to check if we can extend T2 with something like this, which may help
             pulse_sequence += \
             [
                 Pulse(microwave_channel, start_of_second_HE, pi_half_time),
-                Pulse(microwave_channel_pi, start_of_second_HE + pi_half_time/2. + tau - pi_time/2., pi_time),
-                Pulse(microwave_channel, start_of_second_HE + pi_half_time/2. + tau + tau - pi_half_time/2., three_pi_half_time)
+                Pulse(microwave_channel_pi, start_of_second_HE + pi_half_time + tau - pi_time/2., pi_time),
+                Pulse(microwave_channel, start_of_second_HE + pi_half_time + tau + tau, three_pi_half_time)
             ]
 
-            end_of_second_HE = start_of_second_HE + pi_half_time/2. + tau + tau - pi_half_time/2. + pi_half_time
+            end_of_second_HE = start_of_second_HE + pi_half_time + tau + tau + three_pi_half_time
 
             pulse_sequence += [
                 Pulse('laser', end_of_second_HE + delay_mw_readout, nv_reset_time),

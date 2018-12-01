@@ -120,11 +120,12 @@ This script reads the analog input from the DAQ and plots it. ER 20180626
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
-        axes_list[0].hold(False)
+#        axes_list[0].hold(False)
         if data is None:
             data = self.data_to_plot
 
         if data:
+            axes_list[0].clear()
             plot_voltage(axes_list[0], data['voltage'])
 
 if __name__ == '__main__':

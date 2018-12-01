@@ -21,7 +21,7 @@ from matplotlib import patches
 
 from b26_toolkit.instruments import ZIHF2
 from pylabcontrol.core import Script, Parameter
-
+import time
 
 class SetZIOutput(Script):
     """
@@ -106,7 +106,10 @@ ER 20181120
         self.instruments['ZI']['instance'].update(instr_stngs)
 
         self.log('updated ZI instrument settings.')
-        self.log('frequency set to {:0.3f} MHz'.format(self.settings['freq'])*1e-6)
+        self.log('frequency set to {:0.3f} MHz'.format(self.settings['freq']*1e-6))
         self.log('amplitude set to {:0.3f} V'.format(self.settings['amp']))
         self.log('offset set to {:0.3f} V'.format(self.settings['aux']['offset']))
+
+        time.sleep(0.5)
+
 

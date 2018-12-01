@@ -254,7 +254,7 @@ for a given experiment
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=True):
+    def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=False):
         """
         Each pulse sequence specified in pulse_sequences is run num_loops_sweep consecutive times.
 
@@ -294,15 +294,6 @@ for a given experiment
             counts_temp = counts_to_check[0]
             # track to the NV if necessary ER 5/31/17
             if self.settings['Tracking']['on/off']:
-             #   if not self.data['init_fluor']: # check if there's an initial fluorescence value, and if not run find_nv
-             #       self.log('Warning: running find_nv first to get initial fluorescence')
-             #       self.scripts['find_nv'].run()
-             #       self.data['init_fluor'] = deepcopy(self.scripts['find_nv'].data['fluorescence'])
-             #       print('self.data[init_fluor] = ', self.data['init_fluor'])
-            #    if self.settings['Tracking']['threshold']*self.data['init_fluor'][0] > counts_temp: #or \
-                       # self.data['init_fluor'][0]*(1-self.settings['Tracking']['threshold']+1) < counts_temp:
-                print('init fluor in self.settings: ', self.settings['Tracking']['init_fluor'])
-                print('counts to check: ', counts_temp)
                 if (1+(1-self.settings['Tracking']['threshold']))*self.settings['Tracking']['init_fluor'] < counts_temp or \
                         self.settings['Tracking']['threshold']*self.settings['Tracking']['init_fluor'] > counts_temp:
                     if verbose:
@@ -391,7 +382,7 @@ for a given experiment
         """
         return signal * 1E6 / (gate_width * num_averages)  # 1E6 is to convert from ns to ms
 
-    def is_valid(self, pulse_sequences=None, verbose=True):
+    def is_valid(self, pulse_sequences=None, verbose=False):
         """
         Checks if a pulse blaster script is valid
 
@@ -414,7 +405,7 @@ for a given experiment
 
         return True
 
-    def _get_overlapping_pulses(self, pulse_sequence, verbose=True):
+    def _get_overlapping_pulses(self, pulse_sequence, verbose=False):
         """
         Finds and returns a list of ordered pairs of pulses from pulse_sequence that currently overlap, thus likely
         not being the pulse sequence that was intended. (It would be strange to hope for this)
@@ -438,7 +429,7 @@ for a given experiment
 
         return overlapping_pulses
 
-    def _get_commands_that_are_too_short(self, pulse_sequence, verbose=True):
+    def _get_commands_that_are_too_short(self, pulse_sequence, verbose=False):
         """
         Finds if the current pulse sequence would compile to commands that have intervals of less than 15 ns between
         them, which it not supported by the pulse blaster as it is currently implemented.
@@ -464,7 +455,7 @@ for a given experiment
 
         return short_pulses
 
-    def _has_pulses_with_bad_start_time(self, pulse_sequence, verbose=True):
+    def _has_pulses_with_bad_start_time(self, pulse_sequence, verbose=False):
         """
         Checks for pulses that have a start_time between 0 and 1 (exclusive), indicating that the user may have
         used the wrong units for the pulses in the pulse sequence.
@@ -489,7 +480,7 @@ for a given experiment
 
         return False
 
-    def _compiles_to_too_many_commands_for_pb(self, pulse_sequence, verbose=True):
+    def _compiles_to_too_many_commands_for_pb(self, pulse_sequence, verbose=False):
         """
         Checks to see if the current pulse sequence would result in more than 4096 commands to the pulseblaster,
         which is too much for it to handle.
@@ -514,7 +505,7 @@ for a given experiment
                 print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
             return True
 
-    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=True):
+    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=False):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains of the pulseblaster,
