@@ -192,7 +192,7 @@ for a given experiment
                     self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
 
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
-            print('tau sequences running: ', self.tau_list)
+        #    print('tau sequences running: ', self.tau_list)
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
@@ -232,7 +232,7 @@ for a given experiment
             # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
             # if counts != []:
             #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts'])
-            print('plotting with tau values: ', data['tau'])
+          #  print('plotting with tau values: ', data['tau'])
             plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts']])
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
 

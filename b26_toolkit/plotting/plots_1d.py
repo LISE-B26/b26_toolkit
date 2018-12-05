@@ -371,6 +371,7 @@ def update_1d_simple(axis, times, counts_list):
         print('number of lines to plot is not equal to number of counts lists!!!')
         print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
               ' (they should be the same!!)')
+        print('counts_list: ', counts_list)
         return
 
     else:

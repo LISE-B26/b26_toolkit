@@ -192,7 +192,7 @@ todo(emma): (write as a double_init scheme)
                                     self.settings['max_mw_power'] + self.settings['mw_power_step'],
                                     self.settings['mw_power_step'])
 
-        print(mw_power_values)
+     #   print(mw_power_values)
         self.data = {'mw_power_values': mw_power_values, 'counts_for_mw': np.zeros(len(mw_power_values))}
         for index, power in enumerate(mw_power_values):
             self.instruments['mw_gen']['instance'].update({'amplitude': float(power)})
