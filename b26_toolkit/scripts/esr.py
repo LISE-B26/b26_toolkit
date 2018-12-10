@@ -20,7 +20,7 @@ from pylabcontrol.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, SpectrumAnalyzer
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, SpectrumAnalyzer
 from b26_toolkit.scripts.spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from b26_toolkit.plotting.plots_1d import plot_esr
 
@@ -32,6 +32,9 @@ class ESR_DAQ_FM(Script):
     """
     This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
     a DAQ. It uses FM using AO2 on the DAQ, which is off by a few MHz but may be faster than the other ESR script.
+
+    Does not turn the PB card microwave channel off after the experiment!!
+
     """
 
     _DEFAULT_SETTINGS = [
@@ -348,8 +351,8 @@ class ESR(Script):
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
-        Parameter('integration_time', 0.05, float, 'measurement time of fluorescent counts (must be a multiple of settle time)'),
-        Parameter('num_samps_per_pt', 100, int, 'number of samples per point'),
+        Parameter('integration_time', 0.05, float, 'The TOTAL integration time. The integration time per daq bins is integration_time / num_samps_per_pt'),
+        Parameter('num_samps_per_pt', 100, int, 'Number of samples within one DAQ buffer, for each frequency. This should be large because the first measurement is thrown away (may start in the middle of a clock tick)'),
         Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('norm_to_ref', True, bool, 'If true normalize each frequency sweep by the average counts.'),
@@ -371,7 +374,8 @@ class ESR(Script):
         'microwave_generator': MicrowaveGenerator,
         'NI6259': NI6259,
         'NI9263': NI9263,
-        'NI9402': NI9402
+        'NI9402': NI9402,
+        'PB': B26PulseBlaster
     }
 
     _SCRIPTS = {}
@@ -407,6 +411,17 @@ class ESR(Script):
 
         sample_rate = float(1) / (self.settings['integration_time']/self.settings['num_samps_per_pt']) # DAQ minimum buffer size is 2, so we break the integration time in half
         self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
+
+    def setup_pb(self): # ER 20181017
+        '''
+
+        Setup the channels on the PB card.
+
+        '''
+        if self.instruments['microwave_generator']['instance'].amplitude < -10.0:
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': True}})
+        else:
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
 
     def get_freq_array(self):
         '''
@@ -528,8 +543,11 @@ class ESR(Script):
         # setup the microwave generator
         self.setup_microwave_gen()
 
+        # setup the pulseblaster card (i.e., turn mw_switch on)
+        self.setup_pb()
+
         # intialize some of the fields in self.data
-        self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts' : []}
+        self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts': []}
 
         # get the frequencices of the sweep
         freq_values, freq_range = self.get_freq_array()
@@ -537,7 +555,6 @@ class ESR(Script):
         # initialize data arrays
         esr_data = np.zeros((self.settings['esr_avg'], len(freq_values))) # for the raw esr data
         laser_data = np.zeros((self.settings['esr_avg'], len(freq_values))) # for the raw photodiode data
-#        laser_norm_data = np.zeros((self.settings['esr_avg'], len(freq_values))) # this will be esr_data / laser_data
         avrg_counts = np.zeros(self.settings['esr_avg']) # average counts for EACH average to normalize the plot if take_ref is true
 
         # run sweeps
@@ -567,7 +584,6 @@ class ESR(Script):
                 laser_norm_data = np.divide(esr_data, laser_data)
 
                 # average of the normalized data for the number of averages completed so far, to plot and fit to if laser power tracking is on
-            #    tmp_laser = np.mean(np.mean(laser_data[0:(scan_num + 1)], axis=0)) # instantaneous average of the laser power
                 data_laser_norm = (np.mean(laser_norm_data[0:(scan_num+1)], axis=0)) #*tmp_laser
 
             # current non-normalized averaged data to plot and fit to if laser power tracking is off
@@ -587,12 +603,17 @@ class ESR(Script):
                 self.data.update({'data_laser_norm': data_laser_norm})
 
             self.data.update({'data': esr_avg, 'fit_params': fit_params})
+       #     self.data.update({'data': avrg_counts})  # ER 20181022
 
             if self.settings['save_full_esr']:
                 self.data.update({'esr_data':esr_data})
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)
+
+        # turn off the PB card channel: this is so that it's not left on, you run a high amplitude experiment next (e.g. Rabi), and burn the cables or CPW
+        # ER 20181017
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
 
         if self.settings['turn_off_after']:
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
@@ -895,7 +916,7 @@ class ESR_Spec_Ana(Script):
             self.data.update({'avrg_counts': avrg_counts})
 
             if self.settings['save_full_esr']:
-                self.data.update({'esr_data':esr_data})
+                self.data.update({'esr_data': esr_data})
 
             progress = self._calc_progress(scan_num)
             self.updateProgress.emit(progress)

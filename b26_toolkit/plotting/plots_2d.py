@@ -163,7 +163,6 @@ def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, color
     Returns:
 
     """
-    print('extent in plot_...:', extent)
 
     extent = [extent[2], extent[3], extent[1], extent[0]]
 

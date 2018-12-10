@@ -22,7 +22,6 @@ from matplotlib.collections import PatchCollection
 
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
-
 def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     '''
     plots the power spectral density on to the canvas axes
@@ -70,8 +69,9 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     """
 
     #  ======== plot data =========
+    axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
     axes.plot(frequency, counts, plot_marker_data)
-    axes.hold(True)
+    #axes.hold(True) #ER 20181012
 
     title = 'ESR'
     fit_data = None
@@ -99,7 +99,8 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     axes.set_title(title)
     axes.set_xlabel('Frequency (Hz)')
     axes.set_ylabel('Kcounts/s')
-    axes.hold(False)
+  #  axes.hold(False) ER 20181012: in matplotlib 3.0.0, axes.hold is removed
+
     # return lines
 
 
@@ -360,14 +361,24 @@ def update_1d_simple(axis, times, counts_list):
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
 
+
+    #print('===>> JG 20181128: number of lines', len(axis.lines),' number of list ', len(counts_list), ' (they should be the same!!)')
     # if len(axis.lines) != len(counts_list):
     #     print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))
 
-    assert len(axis.lines) == len(counts_list)
-    for index, counts in enumerate(counts_list):
-        axis.lines[index].set_ydata(counts)
-    axis.relim()
-    axis.autoscale_view()
+    #assert len(axis.lines) == len(counts_list)
+    if len(axis.lines) != len(counts_list): # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
+        print('number of lines to plot is not equal to number of counts lists!!!')
+        print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
+              ' (they should be the same!!)')
+        print('counts_list: ', counts_list)
+        return
+
+    else:
+        for index, counts in enumerate(counts_list):
+            axis.lines[index].set_ydata(counts)
+        axis.relim()
+        axis.autoscale_view()
 
 def plot_counts_vs_pos(axis, data, pos):
     """
@@ -386,7 +397,7 @@ def update_counts_vs_pos(axis, data, pos):
 
     """
 
-    if data == None:
+    if data is None:
         return
 
     axis.lines[0].set_ydata(data)

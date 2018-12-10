@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pylabcontrol.core import Instrument,Parameter
+from pylabcontrol.core import Instrument, Parameter
 import numpy as np
 
 
@@ -89,12 +89,13 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
         }
 
     '''
-    instrument class to talk to Zurich instrument HF2 lock in ampifier
+    instrument class to talk to Zurich instrument HF2 lock in amplifier
     '''
     def __init__(self, name = None, settings = None):
         #COMMENT_ME
 
         self.daq = self.utils.autoConnect(8005,1) # connect to ZI, 8005 is the port number
+       #  self.daq = self.utils.autoConnect(8006,1) # connect to ZI, 0014 is the port number
         self.device = self.utils.autoDetect(self.daq)
         self.options = self.daq.getByte('/%s/features/options' % self.device)
 
@@ -104,7 +105,6 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
 
         if self._lib_detected:
             self._is_connected = True
-
 
     # ========================================================================================
     # ======= overwrite old_functions from instrument superclass =================================
@@ -122,16 +122,13 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
 
         def commands_from_settings(settings):
             '''
-            converts dictionary to list of  setting, which can then be passed to the zi controler
+            converts dictionary to list of  setting, which can then be passed to the zi controller
             :param settings = dictionary that contains the commands
-            :return: commands = list of commands, which can then be passed to the zi controler
+            :return: commands = list of commands, which can then be passed to the zi controller
             '''
             # create list that is passed to the ZI controler
 
-
             commands = []
-
-
 
             for key, element in sorted(settings.items()):
                 if isinstance(element, dict) and key in ['sigins', 'sigouts', 'demods']:
@@ -159,7 +156,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
                     else:
                         offset = self.settings['aux']['offset']
                         print(('offset', offset))
-                    commands.append(['/%s/AUXOUTS/%d/OFFSET'% (self.device, channel),offset ])
+                    commands.append(['/%s/AUXOUTS/%d/OFFSET'% (self.device, channel), offset ])
                 elif key in ['freq']:
                     channel = self.settings['sigouts']['channel']
                     # commands.append(['/%s/oscs/%d/freq' % (self.device, channel), settings['freq']])
@@ -179,9 +176,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
                 elif isinstance(element, dict) == False:
                     commands.append([key, element])
 
-
             return commands
-
 
         # now we actually apply these newsettings to the hardware
         commands = commands_from_settings(settings)
@@ -204,6 +199,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
         Returns: reads values from instrument
 
         '''
+        print('key: ', key)
         assert key in list(self._PROBES.keys()), "key assertion failed {:s}".format(str(key))
 
         if key.upper() in ['X', 'Y', 'R']:
@@ -256,7 +252,7 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
             if isinstance(variable,str):
                 variable = [variable]
 
-            # poll gives an array of values read from the instrument, here we are only instersted in the mean
+            # poll gives an array of values read from the instrument, here we are only interested in the mean
             return_variable = {k: np.mean(data[k.upper()]) for k in variable}
         else:
             return_variable = None

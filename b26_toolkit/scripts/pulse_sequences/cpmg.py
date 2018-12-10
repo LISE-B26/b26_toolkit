@@ -60,6 +60,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True}) # ER 20181018
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(CPMG, self)._function(self.data)

@@ -18,7 +18,7 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
@@ -37,7 +37,7 @@ Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
             Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
-            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+            Parameter('time_step', 5., [2.5, 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
                   'time step increment of rabi pulse duration (in ns)')
         ]),
         Parameter('read_out', [
@@ -51,13 +51,14 @@ Uses a double_init scheme
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         super(Rabi, self)._function()
@@ -89,9 +90,12 @@ Uses a double_init scheme
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']),
-                              int(self.settings['tau_times']['max_time']),
-                              self.settings['tau_times']['time_step']))
+       # tau_list = list(range(int(self.settings['tau_times']['min_time']),
+                            #  int(self.settings['tau_times']['max_time']),
+                            #  self.settings['tau_times']['time_step']))
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -124,10 +128,7 @@ Uses a double_init scheme
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
 
-
         return pulse_sequences, tau_list, meas_time
-
-
 
     def _plot(self, axislist, data = None):
         '''
@@ -150,7 +151,7 @@ Uses a double_init scheme
             fits = data['fits'] # amplitude, frequency, phase, offset
 
             axislist[0].plot(tau, counts, 'b')
-            axislist[0].hold(True)
+            #axislist[0].hold(True) ER 20181012
 
             axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
             #pi_time = 2*np.pi / fits[1] / 2
@@ -181,7 +182,7 @@ todo(emma): (write as a double_init scheme)
         Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # COMMENT_ME
@@ -191,7 +192,7 @@ todo(emma): (write as a double_init scheme)
                                     self.settings['max_mw_power'] + self.settings['mw_power_step'],
                                     self.settings['mw_power_step'])
 
-        print(mw_power_values)
+     #   print(mw_power_values)
         self.data = {'mw_power_values': mw_power_values, 'counts_for_mw': np.zeros(len(mw_power_values))}
         for index, power in enumerate(mw_power_values):
             self.instruments['mw_gen']['instance'].update({'amplitude': float(power)})
