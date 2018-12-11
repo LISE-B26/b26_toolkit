@@ -20,11 +20,9 @@ from pylabcontrol.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, SpectrumAnalyzer
-from b26_toolkit.scripts.spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402
 from b26_toolkit.plotting.plots_1d import plot_esr
 
-# from b26_toolkit.plotting.plots_1d import plot_diff_freq_vs_freq
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 import time
 
@@ -39,6 +37,7 @@ class ESR_FM_Dither(Script):
         Parameter('esr_avg', 50, int, 'number of esr averages'),
         Parameter('freq_one', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_two', 2.92e9, float, 'end frequency of scan'),
+        Parameter('reps_per_average', 100, int, 'number of points per frequency per average')
         Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts (must be a multiple of settle time)'),
         Parameter('settle_time', .0002, float, 'time wait after changing frequencies using daq (s)'),
         Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
@@ -186,40 +185,13 @@ class ESR_FM_Dither(Script):
 
         self.lines = []
 
-        take_ref = self.settings['take_ref']
-
-        # contruct the frequency array
-        if self.settings['range_type'] == 'start_stop':
-            if self.settings['freq_start']>self.settings['freq_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
-                self._abort = True
-
-            if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
-                self.log('start or stop frequency out of bounds')
-                self._abort = True
-
-            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
-            freq_range = max(freq_values) - min(freq_values)
-        elif self.settings['range_type'] == 'center_range':
-            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
-                self._abort = True
-            freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
-                                      self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
-            freq_range = max(freq_values) - min(freq_values)
-
-            if self.settings['freq_stop'] > 1e9:
-                self.log('freq_stop (range) is quite large --- did you mean to set \'range_type\' to \'start_stop\'? ')
-        else:
-            self.log('unknown range parameter. Abort script')
-            self._abort = True
-
+        freq_values = [self.settings['freq_one'], self.settings['freq_two']]
 
         if(np.abs(self.settings['freq_one'] - self.settings['freq_two']) > 64e6):
             print('Two frequencies used must be between 64 MHz')
             return
         clock_adjust = int((self.settings['integration_time'] + self.settings['settle_time']) / self.settings['settle_time'])
-        freq_array = np.repeat(freq_values, clock_adjust)
+        freq_array = np.tile(np.repeat(freq_values, clock_adjust), self.settings['reps_per_average'])
         self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
         self.instruments['microwave_generator']['instance'].update({'modulation_type': 'FM'})
 
@@ -246,13 +218,8 @@ class ESR_FM_Dither(Script):
                 break
             esr_data_pos = 0
 
-            freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
-                                                                     sec_num,
-                                                                     self.instruments['microwave_generator']['instance'].settings['dev_width'],
-                                                                     freq_array)
-            # if section is empty skip
-            if len(freq_voltage_array) is None:
-                continue
+            freq_voltage_array = freq_array
+            center_freq = np.mean(freq_array)
 
             summed_data, normalized_data, laser_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
 
@@ -265,9 +232,6 @@ class ESR_FM_Dither(Script):
 
             avrg_counts[scan_num] = np.mean(esr_data[scan_num])
             norm_data = np.mean(full_normalized_data[0:(scan_num + 1)] , axis=0)
-
-            if take_ref is True:
-                esr_data[scan_num] /=avrg_counts[scan_num]
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)] , axis=0)
             if not self.settings['track_laser_power']['on/off']:
