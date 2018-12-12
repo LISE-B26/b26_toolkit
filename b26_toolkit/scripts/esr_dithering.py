@@ -37,14 +37,15 @@ class ESR_FM_Dither(Script):
         Parameter('esr_avg', 50, int, 'number of esr averages'),
         Parameter('freq_one', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_two', 2.92e9, float, 'end frequency of scan'),
-        Parameter('reps_per_average', 100, int, 'number of points per frequency per average')
-        Parameter('integration_time', 0.01, float, 'measurement time of fluorescent counts (must be a multiple of settle time)'),
-        Parameter('settle_time', .0002, float, 'time wait after changing frequencies using daq (s)'),
+        Parameter('reps_per_average', 100, int, 'number of points per frequency per average'),
+        Parameter('integration_time', 90, float, 'measurement time of fluorescent counts (must be a multiple of settle time) in us'),
+        Parameter('settle_time', 10, float, 'time wait after changing frequencies using daq (us)'),
         Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('take_ref', True, bool, 'If true normalize each frequency sweep by the average counts. This should be renamed at some point because now we dont take additional data for the reference.'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('FM_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3']),
         Parameter('fit_constants',
                   [
                       Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
@@ -134,7 +135,7 @@ class ESR_FM_Dither(Script):
             time.sleep(self.settings['mw_generator_switching_time'])
 
             ctrtask = self.daq_in.setup_counter("ctr0", len(freq_voltage_array) + 1)
-            aotask = self.daq_out.setup_AO(["ao2"], freq_voltage_array, ctrtask)
+            aotask = self.daq_out.setup_AO([self.settings['FM_channel']], freq_voltage_array, ctrtask)
 
             if self.settings['track_laser_power']['on/off'] == True and self.settings['daq_type'] == 'PCI':
                 aitask = self.daq_in.setup_AI(self.settings['track_laser_power']['ai_channel'], len(freq_voltage_array), continuous=False, clk_source=ctrtask) # for optional arguments spell out every one if there are multiple
@@ -199,15 +200,15 @@ class ESR_FM_Dither(Script):
         self.instruments['microwave_generator']['instance'].update({'dev_width': self.instruments['microwave_generator']['instance'].settings['dev_width']})
         self.instruments['microwave_generator']['instance'].update({'enable_modulation': True})
 
-        sample_rate = float(1) / self.settings['settle_time']
-        self.daq_out.settings['analog_output']['ao2']['sample_rate'] = sample_rate
+        sample_rate = float(1) / (self.settings['settle_time']*(1e-6))
+        self.daq_out.settings['analog_output'][self.settings['FM_channel']]['sample_rate'] = sample_rate
         self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
 
         self.instruments['microwave_generator']['instance'].update({'enable_output': True})
 
-        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
-        full_laser_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
-        full_normalized_data = np.zeros((self.settings['esr_avg'], len(freq_values)))
+        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)*self.settings['reps_per_average']))
+        full_laser_data = np.zeros((self.settings['esr_avg'], len(freq_values)*self.settings['reps_per_average']))
+        full_normalized_data = np.zeros((self.settings['esr_avg'], len(freq_values)*self.settings['reps_per_average']))
         avrg_counts = np.zeros(self.settings['esr_avg']) # here we save the avrg of the esr scan which we will use to normalize
         norm_data = np.zeros(len(freq_values))
         self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts' : avrg_counts}
@@ -218,15 +219,18 @@ class ESR_FM_Dither(Script):
                 break
             esr_data_pos = 0
 
-            freq_voltage_array = freq_array
-            center_freq = np.mean(freq_array)
+            freq_voltage_array, center_freq = get_frequency_voltages(freq_values,
+                                                                     0,
+                                                                     self.instruments['microwave_generator'][
+                                                                         'instance'].settings['dev_width'],
+                                                                     freq_array)
 
             summed_data, normalized_data, laser_data = read_freq_section(freq_voltage_array, center_freq, clock_adjust)
 
             # also normalizing to kcounts/sec
-            esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / self.settings['integration_time'])
+            esr_data[scan_num, esr_data_pos:(esr_data_pos + len(summed_data))] = summed_data * (.001 / (self.settings['integration_time'] * (1e-6)))
             full_laser_data[scan_num, esr_data_pos:(esr_data_pos + len(laser_data))] = laser_data
-            full_normalized_data[scan_num, esr_data_pos:(esr_data_pos + len(laser_data))] = normalized_data * (.001 / self.settings['integration_time'])
+            full_normalized_data[scan_num, esr_data_pos:(esr_data_pos + len(laser_data))] = normalized_data * (.001 / (self.settings['integration_time'] * (1e-6)))
             esr_data_pos += len(summed_data)
 
 
@@ -234,13 +238,16 @@ class ESR_FM_Dither(Script):
             norm_data = np.mean(full_normalized_data[0:(scan_num + 1)] , axis=0)
 
             esr_avg = np.mean(esr_data[0:(scan_num + 1)] , axis=0)
-            if not self.settings['track_laser_power']['on/off']:
-                fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['minimum_counts'],
-                                    contrast_factor=self.settings['fit_constants']['contrast_factor'])
-            elif self.settings['track_laser_power']['on/off'] == True and self.settings['daq_type'] == 'PCI':
-                fit_params = fit_esr(freq_values, norm_data, min_counts = self.settings['fit_constants']['minimum_counts'],
-                                    contrast_factor=self.settings['fit_constants']['contrast_factor'])
-            self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+            # if not self.settings['track_laser_power']['on/off']:
+            #     fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['minimum_counts'],
+            #                         contrast_factor=self.settings['fit_constants']['contrast_factor'])
+            # elif self.settings['track_laser_power']['on/off'] == True and self.settings['daq_type'] == 'PCI':
+            #     fit_params = fit_esr(freq_values, norm_data, min_counts = self.settings['fit_constants']['minimum_counts'],
+            #                         contrast_factor=self.settings['fit_constants']['contrast_factor'])
+            # self.data.update({'frequency': freq_values, 'data': esr_avg, 'fit_params': fit_params})
+
+            self.data.update({'frequency': np.tile(freq_values, self.settings['reps_per_average']), 'data': esr_avg})
+
 
             if self.settings['track_laser_power']['on/off'] == True and self.settings['daq_type'] == 'PCI':
                 self.data.update({'full_normalized_data': full_normalized_data, 'full_laser_data': full_laser_data})
@@ -275,10 +282,11 @@ class ESR_FM_Dither(Script):
         """
         if data is None:
             data = self.data
+
         if not self.settings['track_laser_power']['on/off']:
-            plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+            plot_esr(axes_list[0], data['frequency'], data['data'], linestyle = 'None', marker = 'o')
         elif self.settings['track_laser_power']['on/off'] and self.settings['daq_type'] == 'PCI':
-            plot_esr(axes_list[0], data['frequency'], data['norm_data'], data['fit_params'])
+            plot_esr(axes_list[0], data['frequency'], data['norm_data'], linestyle = 'None', marker = 'o')
 
 
     def get_axes_layout(self, figure_list):
@@ -293,12 +301,12 @@ class ESR_FM_Dither(Script):
 
         """
         new_figure_list = [figure_list[1]]
-        return super(ESR_DAQ_FM, self).get_axes_layout(new_figure_list)
+        return super(ESR_FM_Dither, self).get_axes_layout(new_figure_list)
 
 if __name__ == '__main__':
     script = {}
     instr = {}
-    script, failed, instr = Script.load_and_append({'ESR': 'ESR'}, script, instr)
+    script, failed, instr = Script.load_and_append({'ESR': 'ESR_dithering'}, script, instr)
 
     print(script)
     print(failed)

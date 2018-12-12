@@ -54,7 +54,7 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
 
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
-def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r'):
+def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r', linestyle = '-', marker = '.'):
     """
     plots the esr
     Args:
@@ -70,7 +70,7 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #  ======== plot data =========
     axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
-    axes.plot(frequency, counts, plot_marker_data)
+    axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
     #axes.hold(True) #ER 20181012
 
     title = 'ESR'

@@ -1,9 +1,10 @@
 import numpy as np
 import time
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y
+from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y, NI9219
 from b26_toolkit.scripts.find_nv import FindNV
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
+from b26_toolkit.scripts.daq_read_ai import Daq_Read_AI
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from collections import deque
