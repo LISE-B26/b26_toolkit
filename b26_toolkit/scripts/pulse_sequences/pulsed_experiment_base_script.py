@@ -114,6 +114,9 @@ for a given experiment
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
         pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
 
+        # ER 20181214 retrieve modulation on or off for main experiment
+        mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
+
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
 
@@ -184,12 +187,15 @@ for a given experiment
                     self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(new_mw)})
                     self.log('updated mw carrier frequency to: {}'.format(new_mw))
                     self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'enable_modulation': bool(mod_flag)})
+
                     last_mw = new_mw
                 else:
                     #self.instruments['mw_gen'].update({'frequency': last_mw})
                     self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(last_mw)})
                     self.log('not updating the mw carrier frequency. SRS carrier frequency kept at {0} Hz'.format(last_mw))
                     self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'enable_modulation': bool(mod_flag)})
 
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
         #    print('tau sequences running: ', self.tau_list)

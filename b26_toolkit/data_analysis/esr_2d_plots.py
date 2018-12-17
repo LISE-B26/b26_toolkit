@@ -18,7 +18,7 @@ V_to_dist = 60 # convert galvo voltages to distances 1 V is about 60um
 #%load_ext autoreload
 #%autoreload 2
 
-def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=True):
+def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=False, get_freqs=False):
     '''
     Get the frequencies of the ESR sweep as well as ESR contrast.
 
@@ -30,13 +30,15 @@ def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=Tr
 
     get_times: record and return the time duration of each ESR experiment.
 
+    get_piezo_freqs: record and return the piezo frequency drive of each ESR experiment (see OneNotes from early Dec. 2018)
+
     '''
     data_esr = []
     times = []
     counter = 0  # use a counter to figure out the number of ESR points actually taken, to trunctate the real space coordinate to
-
+    freqs = []
     if plot_with_norm:
-        for f in sorted(glob.glob('{:s}/data_subscripts/*'.format(ESR_FOLDER))[-1]):
+        for f in sorted(glob.glob('{:s}/data_subscripts/*esr*'.format(ESR_FOLDER))):
             data = Script.load_data(f)
             if 'esr_data' not in data or data is None: # not an ESR folder (e.g., find_nv instead)
                 continue
@@ -55,10 +57,14 @@ def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=Tr
                 time = time.split('_')
                 time = float(time[0]) + float(time[1])/60 + float(time[2])/3600 + float(day)*24
                 times.append(time)
+
+            if get_freqs:
+                freqs.append(float(f[-9:]))
+
     else:
-        for f in sorted(glob.glob('{:s}/data_subscripts/*'.format(ESR_FOLDER))):
+        for f in sorted(glob.glob('{:s}\\data_subscripts\\*esr*'.format(ESR_FOLDER))):
             data = Script.load_data(f)
-            if 'esr_data' not in data or data is None: # not an ESR folder (e.g., find_nv instead)
+            if data is None or 'esr_data' not in data: # not an ESR folder (e.g., find_nv instead)
                 continue
             data = Script.load_data(f)
             data_esr.append(data['data'])
@@ -73,11 +79,18 @@ def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=Tr
                 time = float(time[0]) + float(time[1])/60 + float(time[2])/3600 + float(day)*24
                 times.append(time)
 
+            if get_freqs:
+                freqs.append(float(f[-9:]))
+
     f = data['frequency']
-    if not get_times:
+    if not get_times and not get_freqs:
         return f, data_esr, counter
-    else:
+    elif get_times and not get_freqs:
         return f, data_esr, counter, times
+    elif get_freqs and not get_times:
+        return f, data_esr, counter, freqs
+    elif get_freqs and get_times:
+        return f, data_esr, counter, times, freqs
 
 def get_pts(PTS_FOLDER, counter, flip = False):
     '''
@@ -164,7 +177,6 @@ def plot_2d_esr_vs_time(ESR_FOLDER, plot_with_norm=False, esr_fixed=False, get_t
     max_contrast = np.max(data_esr_norm)
     print('size of data_esr_norm: ', np.size(data_esr_norm))
     print('size of times: ', np.size(times))
-    print('times: ', times)
     fig = plt.pcolormesh(f, times, data_esr_norm, vmin=1-(1-min_contrast)/2, vmax=(max_contrast-1)/2+1)  # np.max(data_esr_norm))
     plt.axis([f.min(), f.max(), times.min(), times.max()])
     plt.xlim(min(f), max(f))
@@ -212,3 +224,39 @@ def plot_esr_fit_vs_time(ESR_FOLDER):
     plt.plot(times, fit_freqs[1:])
     plt.xlabel('time (hours)')
     plt.ylabel('fit frequency (MHz)')
+
+def plot_2d_esr_vs_piezo_freq(ESR_FOLDER, plot_with_norm=False, esr_fixed=False, get_freqs=True):
+
+    if not get_freqs:
+        f, data_esr, counter = get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed, get_freqs=False)
+        freqs = np.linspace(0, counter-1, counter)
+    else:
+        f, data_esr, counter, freqs = get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed, get_freqs=True)
+        freqs = np.array(freqs)/1e6
+
+    print('number of ESRs found: ', counter)
+    data_esr_norm = []
+    counter = 0
+    for d in data_esr:
+        data_esr_norm.append(d/np.mean(d))
+        counter += 1
+
+    min_contrast = np.min(data_esr_norm)
+    max_contrast = np.max(data_esr_norm)
+    print('size of data_esr_norm: ', np.size(data_esr_norm))
+    print('size of freqs: ', np.size(freqs))
+    data_array_to_plot = np.array(data_esr_norm)[np.argsort(freqs)]
+    freq_array_to_plot = np.sort(freqs)
+    fig = plt.pcolormesh(f, freq_array_to_plot, data_array_to_plot, vmin=1-(1-min_contrast)/2, vmax=(max_contrast-1)/2+1)  # np.max(data_esr_norm))
+    plt.axis([f.min(), f.max(), freqs.min(), freqs.max()])
+    plt.xlim(min(f), max(f))
+    plt.xlabel('frequency (Hz)')
+    if not get_freqs:
+        plt.ylabel('piezo frequency (MHz)')
+    else:
+        plt.ylabel('piezo frequency (MHz)')
+    plt.ylim([freqs.min(), freqs.max()])
+    plt.title('ESR contrast versus piezo drive frequency (MHz)')
+    plt.show()
+
+    return fig
