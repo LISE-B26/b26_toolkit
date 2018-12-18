@@ -25,7 +25,7 @@ def plot_find_nv_pos(path, convert_to_um=True):
     Returns:
 
     '''
-    findnv_paths = glob.glob(os.path.abspath(path + '/data_subscripts/*/data_subscripts/*find_nv*'))
+    findnv_paths = glob.glob(os.path.abspath(path + '/data_subscripts/*/data_subscripts/*find_nv*/'))
     findnv_paths += glob.glob(os.path.abspath(path + '/data_subscripts/*find_nv*'))
     x = []
     y = []
