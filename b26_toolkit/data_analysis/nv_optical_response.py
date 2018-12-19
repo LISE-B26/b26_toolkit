@@ -42,7 +42,7 @@ nNV_angles = np.array([
 ])
 
 
-def projetion_matrix(theta, phi):
+def projection_matrix(theta, phi):
     """
     projection matrix that projects a vector onto spherical coordinate systems that is defined by the angles th
     theta   - angle between Nv direction and z axis in (deg)
@@ -488,7 +488,7 @@ def B_fields_in_NV_frame(B_lab, NV_id):
     assert len(np.shape(B_lab)) == 2
     assert np.shape(B_lab)[1] == 3
 
-    B_NV = np.dot(projetion_matrix(*nNV_angles[NV_id]), B_lab.T).T
+    B_NV = np.dot(projection_matrix(*nNV_angles[NV_id]), B_lab.T).T
 
     if vector:
         B_NV = B_NV[0]
