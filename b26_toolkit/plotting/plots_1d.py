@@ -54,7 +54,7 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
 
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
-def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r'):
+def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r', linestyle = '-', marker = '.'):
     """
     plots the esr
     Args:
@@ -70,7 +70,7 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #  ======== plot data =========
     axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
-    axes.plot(frequency, counts, plot_marker_data)
+    axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
     #axes.hold(True) #ER 20181012
 
     title = 'ESR'
@@ -361,14 +361,24 @@ def update_1d_simple(axis, times, counts_list):
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
 
+
+    #print('===>> JG 20181128: number of lines', len(axis.lines),' number of list ', len(counts_list), ' (they should be the same!!)')
     # if len(axis.lines) != len(counts_list):
     #     print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))
 
-    assert len(axis.lines) == len(counts_list)
-    for index, counts in enumerate(counts_list):
-        axis.lines[index].set_ydata(counts)
-    axis.relim()
-    axis.autoscale_view()
+    #assert len(axis.lines) == len(counts_list)
+    if len(axis.lines) != len(counts_list): # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
+        print('number of lines to plot is not equal to number of counts lists!!!')
+        print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
+              ' (they should be the same!!)')
+        print('counts_list: ', counts_list)
+        return
+
+    else:
+        for index, counts in enumerate(counts_list):
+            axis.lines[index].set_ydata(counts)
+        axis.relim()
+        axis.autoscale_view()
 
 def plot_counts_vs_pos(axis, data, pos):
     """

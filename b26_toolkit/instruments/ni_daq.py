@@ -890,7 +890,9 @@ class DAQ(Instrument):
             buffer_size = 1000
             buffer = ctypes.create_string_buffer(('\000' * buffer_size).encode('ascii'))
             self.nidaq.DAQmxGetErrorString(err, ctypes.byref(buffer), buffer_size)
-            raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
+            # raise RuntimeError('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
+            print('nidaq generated warning %d: %s' % (err, repr(buffer.value)))
+
 
     @classmethod
     def get_connected_devices(cls):
@@ -1115,7 +1117,7 @@ class NI9402(DAQ):
                                     Parameter('gate_PFI_channel', 3, list(range(0, 32)), 'PFI for counter channel input'),
                                     Parameter('clock_PFI_channel', 1, list(range(0, 32)), 'PFI for clock channel output'),
                                     Parameter('clock_counter_channel', 2, list(range(0, 32)), 'channel for clock output'),
-                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)')
+                                    Parameter('sample_rate', 50000.0, float, 'input sample rate (Hz)')
                                 ]
                                 ),
                       Parameter('ctr2',
@@ -1278,6 +1280,54 @@ class NI9402(DAQ):
             self.nidaq.DAQmxSetCIDupCountPrevent(task['task_handle'], input_channel_str_gated, bool32(True)))
 
         return task_name
+
+class NI9219(DAQ):
+    """
+    This class implements the NI9263 DAQ, which includes 4 AO channels. It inherits output functionality from the DAQ
+    class.
+    """
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'cDAQ1Mod3', ['cDAQ1Mod3'],
+                  'Name of DAQ device - check in NiMax'),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
+        Parameter('analog_input',
+                  [
+                      Parameter('ai0',
+                                [
+                                    Parameter('channel', 0, [0, 1, 2, 3], 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                ),
+                      Parameter('ai1',
+                                [
+                                    Parameter('channel', 1, [0, 1, 2, 3], 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                ),
+                      Parameter('ai2',
+                                [
+                                    Parameter('channel', 2, [0, 1, 2, 3], 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                ),
+                      Parameter('ai3',
+                                [
+                                    Parameter('channel', 3, [0, 1, 2, 3], 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                )
+                  ]
+                  )
+    ])
 
 
 def int_to_voltage(integer):
