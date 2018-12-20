@@ -27,6 +27,8 @@ from b26_toolkit.plotting.plots_1d import plot_esr
 # from b26_toolkit.plotting.plots_1d import plot_diff_freq_vs_freq
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 import time
+import random
+
 
 class ESR_DAQ_FM(Script):
     """
@@ -368,6 +370,7 @@ class ESR(Script):
                       Parameter('on/off', False, bool, 'If true, measure and normalize out laser power drifts during esr'),
                       Parameter('ai_channel', 'ai4', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'channel to use for analog input, to which the photodiode is connected')
                   ]),
+        Parameter('randomize', True, bool, 'check to randomize esr frequencies'),
     ]
 
     _INSTRUMENTS = {
@@ -481,12 +484,16 @@ class ESR(Script):
         single_sweep_data = np.zeros(len(freq_values))
         single_sweep_laser_data = np.zeros(len(freq_values))
 
-        freq_index = 0
+        indeces = list(range(len(freq_values)))
+        if self.settings['randomize']:
+            random.shuffle(indeces)
 
-        for freq in freq_values:
+        for freq_index in indeces:
 
             if self._abort:
                 break
+
+            freq = freq_values[freq_index]
 
             # change MW frequency
             self.instruments['microwave_generator']['instance'].update({'frequency': float(freq)})
@@ -513,8 +520,6 @@ class ESR(Script):
             if self.settings['track_laser_power']['on/off']:
                 raw_data_laser, _ = self.daq_in.read(aitask)
                 single_sweep_laser_data[freq_index] = np.mean(raw_data_laser)
-
-            freq_index += 1
 
             # clean up APD tasks
             if self.settings['track_laser_power']['on/off']:

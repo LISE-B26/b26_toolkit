@@ -271,7 +271,9 @@ for a given experiment
      #   self.data['init_fluor'] = 0.
 
         rand_indexes = list(range(len(pulse_sequences)))
-        random.shuffle(rand_indexes)
+
+        if self.settings['randomize']:
+            random.shuffle(rand_indexes)
         if verbose:
             print(('_run_sweep number of pulse sequences', len(pulse_sequences)))
 
