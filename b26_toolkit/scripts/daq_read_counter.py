@@ -186,7 +186,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
         if data is None:
             data = self.data
 
-        if data:
+        if len(data['counts']) > 0:
             if self.settings['track_laser_power_photodiode1']['on/off'] == True:
                 array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
             else:
