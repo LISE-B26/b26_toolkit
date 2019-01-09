@@ -22,6 +22,7 @@ from .set_laser import SetLaser
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
 from .esr import ESR
+from .esr_dithering import ESR_FM_Dither
 from .esr_two_freq_continuous import ESRTwoFreqContinuous
 from .spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from .zi_sweeper import ZISweeper

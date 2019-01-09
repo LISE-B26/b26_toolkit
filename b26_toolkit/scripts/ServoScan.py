@@ -1,9 +1,10 @@
 import numpy as np
 import time
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y
+from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y, NI9219
 from b26_toolkit.scripts.find_nv import FindNV
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
+from b26_toolkit.scripts.daq_read_ai import Daq_Read_AI
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from collections import deque
@@ -363,6 +364,85 @@ class ServoScan_2D(Script):
     def _update_plot(self, axes_list):
         extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
         update_fluorescence(self.data['counts'], axes_list[0])
+
+class ServoScan_voltage(ServoScan_2D):
+    _DEFAULT_SETTINGS = [
+        Parameter('outer_loop',
+                  [
+                      Parameter('scan_axis', 'x', ['x', 'y', 'z'], 'outer loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the outer loop')
+                  ]),
+        Parameter('inner_loop',
+                  [
+                      Parameter('scan_axis', 'y', ['x', 'y', 'z'], 'inner loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the inner loop')
+                  ]),
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+    ]
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z, 'DAQ_voltage': NI9219}
+    _SCRIPTS = {'daq_read_ai': Daq_Read_AI}
+
+    def _function(self):
+        self.scripts['daq_read_ai'].settings['integration_time'] = self.settings['time_per_pt']/10
+        self.scripts['daq_read_ai'].settings['total_int_time'] = self.settings['time_per_pt']
+
+
+        # get the relevant instrument.
+        outer_instr, inner_instr = self._get_instr()
+        print('outer_instr', outer_instr)
+        print('inner_instr', inner_instr)
+
+        # get positions for the scan.
+        scan_pos_outer, scan_pos_inner = self._get_scan_positions()
+
+        print('scan_pos_outer', scan_pos_outer)
+        print('scan_pos_inner', scan_pos_inner)
+        # data structure
+       # self.data = {'counts': deque()}
+        self.data['counts'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+
+        # place for positions
+        self.data['positions_outer'] = scan_pos_outer
+        self.data['positions_inner'] = scan_pos_inner
+
+        tot_index = 0
+
+        # loop over scan positions and call the scripts
+        for index_out in range(0, self.settings['outer_loop']['num_points']):
+            for index_in in range(0, self.settings['inner_loop']['num_points']):
+
+                if self._abort:
+                    break
+
+                new_pos = [float(scan_pos_outer[int(index_out)]), float(scan_pos_inner[int(index_in)])]
+                self.log('new pos: ' + str(new_pos) + ' mm')
+                self.log('set outer instr: '+ str(outer_instr) + ' to ' + str(new_pos[0]) + ' mm')
+                self.log('set inner instr: '+ str(inner_instr) + ' to ' + str(new_pos[1]) + ' mm')
+
+                outer_instr.settings['position'] = new_pos[0]  # update the position setting of the instrument
+                inner_instr.settings['position'] = new_pos[1]
+                outer_instr.set_position()  # actually move the instrument to that location. If this is not within the safety
+                inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
+
+                # run daq_read_counter or the relevant script to get fluorescence
+                self.scripts['daq_read_ai'].run()
+                time.sleep(self.settings['time_per_pt'])
+                self.scripts['daq_read_ai'].stop()
+
+                data = self.scripts['daq_read_ai'].data['voltage']
+                self.data['counts'][index_in][index_out] = np.mean(data)
+
+                self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
+                self.updateProgress.emit(int(self.progress))
+
+
+
+                tot_index = tot_index + 1
+
 
 
 if __name__ == '__main__':

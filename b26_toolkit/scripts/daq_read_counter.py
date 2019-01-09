@@ -20,14 +20,20 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259
+from b26_toolkit.instruments import NI9402
+# from b26_toolkit.instruments import NI6259
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos
 from pylabcontrol.core import Parameter, Script
 
 
 class Daq_Read_Counter(Script):
     """
-This script reads the Counter input from the DAQ and plots it. Only implemented for the PCI DAQ!!!!
+This script reads the Counter input from the DAQ and plots it.
+
+WARNING: Only implemented either for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
+
+If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
+
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
@@ -47,7 +53,9 @@ This script reads the Counter input from the DAQ and plots it. Only implemented 
                   ])
     ]
 
-    _INSTRUMENTS = {'daq': NI6259}
+    _INSTRUMENTS = {'daq': NI9402}
+    # _INSTRUMENTS = {'daq': NI6259}
+
 
     _SCRIPTS = {
 
@@ -178,7 +186,7 @@ This script reads the Counter input from the DAQ and plots it. Only implemented 
         if data is None:
             data = self.data
 
-        if data:
+        if len(data['counts']) > 0:
             if self.settings['track_laser_power_photodiode1']['on/off'] == True:
                 array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
             else:
