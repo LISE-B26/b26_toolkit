@@ -21,9 +21,9 @@ from collections import deque
 import numpy as np
 
 from b26_toolkit.instruments import NI6259, NI9402
-from b26_toolkit.plotting.plots_1d import plot_counts, update_counts
+from b26_toolkit.plotting.plots_1d import plot_counts, update_counts,  plot_psd
 from pylabcontrol.core import Parameter, Script
-
+from pylabcontrol.data_processing.signal_processing import power_spectral_density
 
 class Daq_Read_Counter_TimeTrace(Script):
     """
@@ -107,10 +107,15 @@ Future: plot also the PSD
 
         if data:
             plot_counts(axes_list[0], data['counts'])
+            freq, psd = power_spectral_density(data['counts'], self.settings['integration_time'])
+            plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
 
     def _update_plot(self, axes_list):
         if self.data:
+            axis_timetrace, axis_fft = axes_list
+
             update_counts(axes_list[0], self.data['counts'])
+
 
 
 if __name__ == '__main__':

@@ -194,6 +194,10 @@ for a given experiment
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
         #    print('tau sequences running: ', self.tau_list)
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
+
+
+
+
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
             self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
