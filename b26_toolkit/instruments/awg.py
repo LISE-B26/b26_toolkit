@@ -18,7 +18,7 @@
 
 import visa
 import pyvisa.errors
-import numpy
+import numpy as np
 
 from pylabcontrol.core import Parameter, Instrument
 
@@ -34,8 +34,8 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
 
     _DEFAULT_SETTINGS = Parameter([
       #  Parameter('connection_type', 'GPIB', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 11, list(range(0,31)), 'GPIB port on which to connect'),
-        Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
+        #Parameter('port', 11, list(range(0,31)), 'GPIB port on which to connect'),
+        Parameter('USB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output_ch1', False, bool, 'enable output CH1'),
         Parameter('enable_output_ch2', False, bool, 'enable output CH2'),
 
@@ -63,9 +63,33 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             Parameter('offset', 0, float, 'DC offset of waveform, in volts')
         ]),
 
+        # Arbitrary waveforms
+        Parameter('arbitrary_waveform_ch1', [
+            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values'),
+            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values')
+        ]),
+
+        Parameter('arbitrary_waveform_ch2', [
+            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values'),
+            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values')
+        ]),
+
+        # Parameter('pulse_sequence_ch1', [
+        #     Parameter('period', 1e6, float, 'time between  pulses in ns'),
+        #     Parameter('pi_pulse_width', 1e6, float, 'pulse width in ns for pi pulse'),
+        #     Parameter('half_pi_pulse_width', 1e6, float, 'pulse width in ns for half pi pulse'),
+        #     Parameter('x_amplitude', 0.5, float, 'pulse height in volts for x pulse'),
+        #     Parameter('y_amplitude', 0.5, float, 'pulse height in volts for y pulse'),
+        #     Parameter('sequence', [], )
+        # ])
+
         Parameter('run_mode_ch1', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
         Parameter('run_mode_ch2', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
     ])
+
+    MANUFACTURER_ID = '0x0699'
+    MODEL_CODE = '0x034A'
+    SERIAL_NUMBER = 'C020007'
 
     def __init__(self, name=None, settings=None):
 
@@ -82,10 +106,12 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             raise(e)
         #===========================================
 
+        self.update(self.settings)
+
     def _connect(self):
         rm = visa.ResourceManager()
         self.awg = rm.open_resource(
-            'GPIB' + str(self.settings['GPIB_num']) + '::' + str(self.settings['port']) + '::INSTR')
+            '::'.join(['USB' + str(self.settings['USB_num']), self.MANUFACTURER_ID, self.MODEL_CODE, self.SERIAL_NUMBER, 'INSTR']))
         self.awg.query('*IDN?')
         self.awg.write('*RST')  # reset AWG
         self.awg.write('SOUR1:BURS:MODE TRIG')
@@ -115,7 +141,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             print('VALUE: ')
             print(value)
 
-            if not ((key == 'port' or key == 'GPIB_num') and (not type(value) == dict)):
+            if not (key == 'USB_num' and (not type(value) == dict)):
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif (key == 'function_ch1' or key == 'function_ch2'):
@@ -133,7 +159,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             elif type(value) == dict: # if nested dictionary keep iterating
                 for key2, value2 in value.items():
                     if key2 == 'phase':
-                        value2 = value2*numpy.pi/180;
+                        value2 = value2*np.pi/180;
                     elif key2 == 'amplitude':
                         if value2 > RANGE_MAX or value2 < RANGE_MIN:
                             raise ValueError("Invalid amplitude. All amplitudes must be between -0.5 and +0.5V.")
@@ -255,6 +281,8 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 return 'SOUR1:VOLT:LEV:IMM:OFFS'
             elif key0 == 'default_waveform_ch2':
                 return 'SOUR2:VOLT:LEV:IMM:OFFS'
+
+        # Arbitrary waveform
         else:
             raise KeyError
 
@@ -287,7 +315,7 @@ if __name__ == '__main__':
     # print(loaded_failed)
     # import pylabcontrol.instruments.microwave_generator MicrowaveGenerator
 
-    arb = AWG()
+    arb = AWG(settings={'enable_output_ch1': True, 'function_ch1': 'Square'})
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
     print((arb.awg))
