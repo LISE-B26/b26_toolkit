@@ -20,7 +20,7 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259
+from b26_toolkit.instruments import NI6259, NI9402
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos
 from pylabcontrol.core import Parameter, Script
 
@@ -47,7 +47,7 @@ This script reads the Counter input from the DAQ and plots it. Only implemented 
                   ])
     ]
 
-    _INSTRUMENTS = {'daq': NI6259}
+    _INSTRUMENTS = {'daq': NI9402}
 
     _SCRIPTS = {
 
@@ -178,7 +178,7 @@ This script reads the Counter input from the DAQ and plots it. Only implemented 
         if data is None:
             data = self.data
 
-        if data:
+        if data['counts']:
             if self.settings['track_laser_power_photodiode1']['on/off'] == True:
                 array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
             else:
