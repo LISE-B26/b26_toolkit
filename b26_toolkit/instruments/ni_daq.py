@@ -395,6 +395,27 @@ class DAQ(Instrument):
         self._check_error(self.nidaq.DAQmxCfgImplicitTiming(task['task_handle'],
                                                             DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
 
+    def setup_clock(self, channel, sample_num):
+        task = {
+            'task_handle': None,
+            'counter_out_PFI_str': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+        task_name = self._add_to_tasklist('clk', task)
+
+        task['task_handle'] = TaskHandle(0)
+        channel_settings = self.settings['digital_input'][channel]
+        counter_out_str = (self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('utf-8')
+        task['sample_num'] = sample_num
+        task['sample_rate'] = float(channel_settings['sample_rate'])
+
+        self._dig_pulse_train_cont(task, .5, counter_out_str)
+
+        return task_name
+
     def setup_gated_counter(self, channel, num_samples):
         """
         Initializes a gated digital input task. The gate acts as a clock for the counter, so if one has a fast ttl source
@@ -549,7 +570,7 @@ class DAQ(Instrument):
         # special case 1D waveform since length(waveform[0]) is undefined
         # converts python array to ctypes array
         if len(numpy.shape(waveform)) == 2:
-            data = numpy.zeros((numChannels, task['sample_num']),dtype=numpy.float64)
+            data = numpy.zeros((numChannels, task['sample_num']), dtype=numpy.float64)
             for i in range(numChannels):
                 for j in range(task['sample_num']):
                     data[i, j] = waveform[i, j]
@@ -584,7 +605,6 @@ class DAQ(Instrument):
                                                          data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
                                                          None,
                                                          None))
-
 
         return task_name
 
