@@ -30,7 +30,7 @@ import os
 import datetime
 
 from pylabcontrol.core.helper_functions import datetime_from_str
-from pylabcontrol.core.scripts import Script
+from pylabcontrol.core.script import Script
 
 freq_to_mag = 1. / (2 * 2.8e6)
 
@@ -186,7 +186,6 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
             subset_dict['B-field (gauss)'].append(0)
 
     if scatter_plot_axis == 'x':
-        print('HERE')
         x_coor = subset_dict['xo']
     elif scatter_plot_axis == 'y':
         x_coor = subset_dict['yo']
@@ -232,6 +231,55 @@ def visualize_magnetic_fields(folder, manual=True, legend_location = 'upper righ
               bbox_inches='tight',
               pad_inches=0)
 
+def plot_esr_fit_vs_time(ESR_FOLDER):  # ER 20181211
+    '''
+
+    Plots the fit frequency found for each ESR spectrum on the y axis, and the time the ESR data was taken relative to the
+    start of the experiment on the x axis.
+
+    Args:
+        ESR_FOLDER: the folder corresponding to the data you want to plot.
+        in_expt_file: whether or not the ESR data to plot is within the subscript of a 'higher level' experiment folder / data
+        exp_str: string to search for when finding the ESR data. For example, for hahn echo this could be 'hahn_echo' or 'he'
+            depending on what the user put as the 'tag' for the hahn echo data. The script then finds all esr data WITHIN
+            the data folders / data_subscripts with the tag 'hahn_echo' or 'he'.
+
+    '''
+
+    fit_freqs = []
+    times = []
+    paths = []
+    paths = glob.glob('{:s}/data_subscripts/*'.format(ESR_FOLDER))
+    paths += glob.glob('{:s}/data_subscripts/*/data_subscripts/*esr*'.format(ESR_FOLDER))
+    for f in sorted(paths):
+        data = Script.load_data(f)
+        if data is None or 'esr_data' not in data:  # not an ESR folder (e.g., find_nv instead)
+            continue
+        fit_params = data['fit_params']
+        if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+            if len(fit_params) == 4:
+                # single peak
+                fit_freqs.append(fit_params[2])
+                split_path = f.split('-')
+                time = split_path.pop(-1)
+                day = split_path.pop(-1)
+                day = day.split('18')[-1]  # will need to change 18 to 19 when it becomes 2019
+                time = time.split('_')
+                time = float(time[0]) + float(time[1]) / 60 + float(time[2]) / 3600 + float(day) * 24
+                times.append(time)
+            elif len(fit_params) == 6:
+                # double peak, don't update the frequency - the fit may be bad
+                continue
+
+    times = np.array(times)
+    times = times - times[0]
+    times = times[1:]
+    fit_freqs = np.array(fit_freqs) / 1.e6
+    plt.figure()
+    plt.plot(times, fit_freqs[1:])
+    plt.xlabel('time (hours)')
+    plt.ylabel('fit frequency (MHz)')
+    plt.title('ESR fit frequency vs. time')
 
 def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_location = 'upper right', bbox_to_anchor = (1,1), scatter_plot_axis = 'x', line_points_array = None, transformation_matrix = None):
     """
