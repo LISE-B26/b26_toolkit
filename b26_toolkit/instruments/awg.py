@@ -65,26 +65,26 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
 
         # Arbitrary waveforms
         Parameter('arbitrary_waveform_ch1', [
-            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values'),
-            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values')
+            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
+            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
         ]),
 
         Parameter('arbitrary_waveform_ch2', [
-            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values'),
-            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values')
+            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
+            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
         ]),
 
         # Parameter('pulse_sequence_ch1', [
-        #     Parameter('period', 1e6, float, 'time between  pulses in ns'),
-        #     Parameter('pi_pulse_width', 1e6, float, 'pulse width in ns for pi pulse'),
-        #     Parameter('half_pi_pulse_width', 1e6, float, 'pulse width in ns for half pi pulse'),
+        #     Parameter('period', 1e6, float, 'time between  pulses in seconds'),
+        #     Parameter('pi_pulse_width', 1e6, float, 'pulse width in seconds for pi pulse'),
+        #     Parameter('half_pi_pulse_width', 1e6, float, 'pulse width in seconds for half pi pulse'),
         #     Parameter('x_amplitude', 0.5, float, 'pulse height in volts for x pulse'),
         #     Parameter('y_amplitude', 0.5, float, 'pulse height in volts for y pulse'),
         #     Parameter('sequence', [], )
         # ])
 
-        Parameter('run_mode_ch1', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
-        Parameter('run_mode_ch2', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
+        # Parameter('run_mode_ch1', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
+        # Parameter('run_mode_ch2', 'Burst', ['Continuous', 'Burst'], 'Run Mode: continuous or burst once'),
     ])
 
     MANUFACTURER_ID = '0x0699'
@@ -139,15 +139,15 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             print('KEY: ')
             print(key)
             print('VALUE: ')
-            print(value)
+            print(type(value) is dict)
 
-            if not (key == 'USB_num' and (not type(value) == dict)):
+            if key != 'USB_num' and type(value) is not dict:
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif (key == 'function_ch1' or key == 'function_ch2'):
                     value = self._func_type_to_internal(value, key)
                 elif (key == 'run_mode_ch1' or key == 'run_mode_ch2'):
-                    value = self._run_mode_type_to_internal(value, key)
+                    value = self._run_mode_type_to_internal(key)
                 elif key == 'amplitude':
                     if value > RANGE_MAX or value < RANGE_MIN:
                         raise ValueError("Invalid amplitude. All amplitudes must be between -0.5 and +0.5V.")
@@ -156,24 +156,35 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 if self._settings_initialized:
                     self.awg.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
-            elif type(value) == dict: # if nested dictionary keep iterating
+            elif type(value) is dict: # if nested dictionary keep iterating
                 for key2, value2 in value.items():
-                    if key2 == 'phase':
-                        value2 = value2*np.pi/180;
-                    elif key2 == 'amplitude':
-                        if value2 > RANGE_MAX or value2 < RANGE_MIN:
-                            raise ValueError("Invalid amplitude. All amplitudes must be between -0.5 and +0.5V.")
-                    elif key2 == 'offset':
-                        if (value2 > 0.5 or value2 < -0.5):
-                            raise ValueError("All voltages programmed on the AWG must be between -0.5 and +0.5V")
-                    key2 = self._param_to_internal(key2, key)
-                    # only send update to instrument if connection to instrument has been established
-                    if self._settings_initialized:
-                        self.awg.write(
-                            key2 + ' ' + str(value2))  # frequency change operation timed using timeit.timeit and
-                        # completion confirmed by query('*OPC?'), found delay of <10ms
+                    if (key == 'default_waveform_ch1' and settings['function_ch1'] != 'Arb') \
+                            or (key == 'default_waveform_ch2' and settings['function_ch2'] != 'Arb'):
 
-                    # print(self.awg.query('*OPC?'))
+                        if key2 == 'phase':
+                            value2 = np.deg2rad(np.mod(value2, 360) - 180)
+                        elif key2 == 'amplitude':
+                            if value2 > RANGE_MAX or value2 < RANGE_MIN:
+                                raise ValueError("Invalid amplitude. All amplitudes must be between -0.5 and +0.5V.")
+                        elif key2 == 'offset':
+                            if (value2 > 0.5 or value2 < -0.5):
+                                raise ValueError("All voltages programmed on the AWG must be between -0.5 and +0.5V")
+
+                        key2 = self._param_to_internal(key2, key)
+                        # only send update to instrument if connection to instrument has been established
+                        if self._settings_initialized:
+                            self.awg.write(
+                                key2 + ' ' + str(value2))  # frequency change operation timed using timeit.timeit and
+                            # completion confirmed by query('*OPC?'), found delay of <10ms
+
+                        # print(self.awg.query('*OPC?'))
+                    elif (key == 'arbitrary_waveform_ch1' and settings['function_ch1'] == 'Arb') \
+                            or (key == 'arbitrary_waveform_ch2' and settings['function_ch2'] == 'Arb'):
+                        if key2 == 'time' or key2 == 'amplitude' and (type(value2) is not np.ndarray or len(value2.shape) != 1):
+                            ValueError('Time is not a 1D array.')
+
+
+
 
         # ===========================================
 
@@ -315,7 +326,7 @@ if __name__ == '__main__':
     # print(loaded_failed)
     # import pylabcontrol.instruments.microwave_generator MicrowaveGenerator
 
-    arb = AWG(settings={'enable_output_ch1': True, 'function_ch1': 'Square'})
+    arb = AWG(settings={'enable_output_ch1': True, 'function_ch1': 'Gaussian'})
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
     print((arb.awg))
