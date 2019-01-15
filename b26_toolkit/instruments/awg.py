@@ -21,6 +21,7 @@ import pyvisa.errors
 import numpy as np
 
 from pylabcontrol.core import Parameter, Instrument
+from instruments.pulse_blaster import Pulse
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = -0.500 # V, minimum voltage for the SRS IQ
@@ -63,16 +64,16 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             Parameter('offset', 0, float, 'DC offset of waveform, in volts')
         ]),
 
-        # Arbitrary waveforms
-        Parameter('arbitrary_waveform_ch1', [
-            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
-            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
-        ]),
-
-        Parameter('arbitrary_waveform_ch2', [
-            Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
-            Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
-        ]),
+        # # Arbitrary waveforms
+        # Parameter('arbitrary_waveform_ch1', [
+        #     Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
+        #     Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
+        # ]),
+        #
+        # Parameter('arbitrary_waveform_ch2', [
+        #     Parameter('time', np.zeros([1]), np.ndarray, '1D array of time values in seconds'),
+        #     Parameter('amplitude', np.zeros([1]), np.ndarray, '1D array of amplitude values in volts')
+        # ]),
 
         # Parameter('pulse_sequence_ch1', [
         #     Parameter('period', 1e6, float, 'time between  pulses in seconds'),
@@ -91,9 +92,14 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
     MODEL_CODE = '0x034A'
     SERIAL_NUMBER = 'C020007'
 
+    SIGNAL_MAX = 16382
+    POINTS_MAX = 131027
+
     def __init__(self, name=None, settings=None):
 
         super(AWG, self).__init__(name, settings)
+        self.__pulse_sequence_ch1 = np.array([])
+        self.__pulse_sequence_ch2 = np.array([])
 
         #===========================================
         # Issue where visa.ResourceManager() takes 4 minutes no longer happens after using pdb to debug (??? not sure why???)
@@ -178,14 +184,20 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                             # completion confirmed by query('*OPC?'), found delay of <10ms
 
                         # print(self.awg.query('*OPC?'))
-                    elif (key == 'arbitrary_waveform_ch1' and settings['function_ch1'] == 'Arb') \
-                            or (key == 'arbitrary_waveform_ch2' and settings['function_ch2'] == 'Arb'):
-                        if key2 == 'time' or key2 == 'amplitude' and (type(value2) is not np.ndarray or len(value2.shape) != 1):
-                            ValueError('Time is not a 1D array.')
+                    # elif (key == 'arbitrary_waveform_ch1' and settings['function_ch1'] == 'Arb') \
+                    #         or (key == 'arbitrary_waveform_ch2' and settings['function_ch2'] == 'Arb'):
+                    #     if key2 == 'time' or key2 == 'amplitude' and (type(value2) is not np.ndarray or len(value2.shape) != 1):
+                    #         raise ValueError('Time is not a 1D array.')
+                    elif settings['function_ch1'] == 'Arb':
+                        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
+                        for i in range(1, len(self.__pulse_sequence_ch1)):
+                            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([self.__pulse_sequence_ch1[0, i - 1],
+                                                                              self.__pulse_sequence_ch1[1, i - 1],
+                                                                              self.__pulse_sequence_ch1[0, i],
+                                                                              self.__pulse_sequence_ch1[1, i]]))
 
-
-
-
+                        self.awg.write('DATA:COPY USER1,EMEM')
+                        
         # ===========================================
 
     @property
@@ -296,6 +308,37 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         # Arbitrary waveform
         else:
             raise KeyError
+
+    def _pulse_to_points(self, pulse_sequence):
+        time = np.array([0.0])
+        amplitude = np.array([0.0])
+        for pulse in pulse_sequence:
+            if type(pulse) is not Pulse:
+                raise ValueError('List is not a sequence of Pulse objects.')
+            if pulse.amplitude is None:
+                raise ValueError('Amplitude not defined.')
+            time = np.append(time, [pulse.start_time, pulse.end_time])
+            amplitude = np.append(amplitude, [pulse.amplitude, pulse.amplitude])
+
+        amplitude *= self.SIGNAL_MAX / np.max(amplitude)
+        time *= self.POINTS_MAX / np.max(time)
+        return np.array([np.rint(time, dtype=int), np.rint(amplitude, dtype=int)])
+
+    @property
+    def pulse_sequence_ch1(self):
+        return self.__pulse_sequence_ch1
+
+    @pulse_sequence_ch1.setter
+    def pulse_sequence_ch1(self, pulse_sequence):
+        self.__pulse_sequence_ch1 = self._pulse_to_points(pulse_sequence)
+
+    @property
+    def pulse_sequence_ch2(self):
+        return self.__pulse_sequence_ch2
+
+    @pulse_sequence_ch2.setter
+    def pulse_sequence_ch2(self, pulse_sequence):
+        self.__pulse_sequence_ch2 = self._pulse_to_points(pulse_sequence)
 
 if __name__ == '__main__':
     # from pylabcontrol.core import Instrument
