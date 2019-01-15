@@ -79,7 +79,8 @@ Future: plot also the PSD
             self.log('total measurement time must be positive. Abort script')
             return
 
-
+        progress = 50
+        self.updateProgress.emit(progress)
         # initialize APD thread
         ctrtask = self.daq.setup_counter(
             self.settings['counter_channel'], number_of_samples + 1)
@@ -87,17 +88,15 @@ Future: plot also the PSD
         # start counter and scanning sequence
         self.daq.run(ctrtask)
 
-        print('JG asdadad I am here')
         data, _ = self.daq.read(ctrtask)
 
-        print('JG data', data)
         self.daq.stop(ctrtask)
         counts = np.diff(data)  # counter gives the accumulated counts, thus the diff gives the counts per interval
 
         self.data['counts'] = counts
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter_TimeTrace, self).plot([figure_list[1]])
+        super(Daq_Read_Counter_TimeTrace, self).plot(figure_list)
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
@@ -105,7 +104,8 @@ Future: plot also the PSD
         if data is None:
             data = self.data
 
-        if data:
+
+        if len(data['counts'])>0:
             plot_counts(axes_list[0], data['counts'])
             freq, psd = power_spectral_density(data['counts'], self.settings['integration_time'])
             plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
@@ -115,7 +115,6 @@ Future: plot also the PSD
             axis_timetrace, axis_fft = axes_list
 
             update_counts(axes_list[0], self.data['counts'])
-
 
 
 if __name__ == '__main__':
