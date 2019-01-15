@@ -79,8 +79,8 @@ Future: plot also the PSD
             self.log('total measurement time must be positive. Abort script')
             return
 
-        progress = 50
-        self.updateProgress.emit(progress)
+        self.progress = 50
+        self.updateProgress.emit(self.progress)
         # initialize APD thread
         ctrtask = self.daq.setup_counter(
             self.settings['counter_channel'], number_of_samples + 1)
@@ -93,7 +93,7 @@ Future: plot also the PSD
         self.daq.stop(ctrtask)
         counts = np.diff(data)  # counter gives the accumulated counts, thus the diff gives the counts per interval
 
-        self.data['counts'] = counts
+        self.data['counts'] = counts * sample_rate/1000  # multiply by the sample rate to get kcounts /second
 
     def plot(self, figure_list):
         super(Daq_Read_Counter_TimeTrace, self).plot(figure_list)
@@ -117,11 +117,11 @@ Future: plot also the PSD
             update_counts(axes_list[0], self.data['counts'])
 
 
-if __name__ == '__main__':
-    script = {}
-    instr = {}
-    script, failed, instr = Script.load_and_append({'Daq_Read_Cntr': 'Daq_Read_Cntr'}, script, instr)
-
-    print(script)
-    print(failed)
-    print(instr)
+# if __name__ == '__main__':
+#     script = {}
+#     instr = {}
+#     script, failed, instr = Script.load_and_append({'Daq_Read_Cntr': 'Daq_Read_Cntr'}, script, instr)
+#
+#     print(script)
+#     print(failed)
+#     print(instr)
