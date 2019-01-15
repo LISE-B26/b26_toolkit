@@ -31,7 +31,7 @@ class Pulse(object):
     pulse object that defines a pulse that is sent to the microwave source
 
     """
-    def __init__(self, channel_id, start_time, duration=None, end_time=None):
+    def __init__(self, channel_id, start_time, duration=None, end_time=None, amplitude=None):
 
         self.channel_id = channel_id
         self.start_time = start_time
@@ -42,6 +42,8 @@ class Pulse(object):
         if end_time is None:
             assert duration is not None
             self.duration = duration
+        if amplitude is not None:
+            self.amplitude = amplitude
 
     def __str__(self):
         """
@@ -51,10 +53,12 @@ class Pulse(object):
 
         """
 
-        return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns)'.format(self.channel_id,
-                                                                                          self.start_time,
-                                                                                          self.end_time,
-                                                                                          self.duration)
+        return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns, amplitude = {:0.1f}V)'.format(
+            self.channel_id,
+            self.start_time,
+            self.end_time,
+            self.duration,
+            self.amplitude)
 
     def __repr__(self):
         """
@@ -88,7 +92,6 @@ class Pulse(object):
 
         self._end_time = end_time
         self._duration = end_time - self.start_time
-
 
     @staticmethod
     def is_overlapping(pulse1, pulse2, dead_time = 0):
