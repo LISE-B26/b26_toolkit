@@ -152,6 +152,18 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                     value = int(value)                #the integers used internally in the SRS
                 elif (key == 'function_ch1' or key == 'function_ch2'):
                     value = self._func_type_to_internal(value, key)
+
+                    pulse_sequence = []
+                    if value == 'USER1':
+
+                        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
+                        for i in range(1, len(self.__pulse_sequence_ch1)):
+                            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([self.__pulse_sequence_ch1[0, i - 1],
+                                                                              self.__pulse_sequence_ch1[1, i - 1],
+                                                                              self.__pulse_sequence_ch1[0, i],
+                                                                              self.__pulse_sequence_ch1[1, i]]))
+
+                        self.awg.write('DATA:COPY '+ value + ',EMEM')
                 elif (key == 'run_mode_ch1' or key == 'run_mode_ch2'):
                     value = self._run_mode_type_to_internal(key)
                 elif key == 'amplitude':
@@ -188,16 +200,8 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                     #         or (key == 'arbitrary_waveform_ch2' and settings['function_ch2'] == 'Arb'):
                     #     if key2 == 'time' or key2 == 'amplitude' and (type(value2) is not np.ndarray or len(value2.shape) != 1):
                     #         raise ValueError('Time is not a 1D array.')
-                    elif settings['function_ch1'] == 'Arb':
-                        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
-                        for i in range(1, len(self.__pulse_sequence_ch1)):
-                            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([self.__pulse_sequence_ch1[0, i - 1],
-                                                                              self.__pulse_sequence_ch1[1, i - 1],
-                                                                              self.__pulse_sequence_ch1[0, i],
-                                                                              self.__pulse_sequence_ch1[1, i]]))
 
-                        self.awg.write('DATA:COPY USER1,EMEM')
-                        
+
         # ===========================================
 
     @property
@@ -308,6 +312,10 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         # Arbitrary waveform
         else:
             raise KeyError
+
+    def _waveform_to_memory(self, channel)
+        if channel == 1:
+        elif channel == 2:
 
     def _pulse_to_points(self, pulse_sequence):
         time = np.array([0.0])
