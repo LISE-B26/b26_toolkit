@@ -153,17 +153,8 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 elif (key == 'function_ch1' or key == 'function_ch2'):
                     value = self._func_type_to_internal(value, key)
 
-                    pulse_sequence = []
-                    if value == 'USER1':
 
-                        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
-                        for i in range(1, len(self.__pulse_sequence_ch1)):
-                            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([self.__pulse_sequence_ch1[0, i - 1],
-                                                                              self.__pulse_sequence_ch1[1, i - 1],
-                                                                              self.__pulse_sequence_ch1[0, i],
-                                                                              self.__pulse_sequence_ch1[1, i]]))
 
-                        self.awg.write('DATA:COPY '+ value + ',EMEM')
                 elif (key == 'run_mode_ch1' or key == 'run_mode_ch2'):
                     value = self._run_mode_type_to_internal(key)
                 elif key == 'amplitude':
@@ -313,9 +304,22 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         else:
             raise KeyError
 
-    def _waveform_to_memory(self, channel)
+    def _waveform_to_memory(self, channel):
         if channel == 1:
+            pulse_sequence = self.__pulse_sequence_ch1
         elif channel == 2:
+            pulse_sequence = self.__pulse_sequence_ch2
+        else:
+            raise ValueError('There are only two channels for the Tektronix AFG3022C.')
+
+        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
+        for i in range(1, len(pulse_sequence)):
+            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([pulse_sequence[0, i - 1],
+                                                              pulse_sequence[1, i - 1],
+                                                              pulse_sequence[0, i],
+                                                              pulse_sequence[1, i]]))
+
+        self.awg.write('DATA:COPY USER' + str(channel) + ',EMEM')
 
     def _pulse_to_points(self, pulse_sequence):
         time = np.array([0.0])
