@@ -934,6 +934,8 @@ class ESR_Spec_Ana(Script):
 
         progress = float(scan_num) / self.settings['esr_avg'] * 100.
         self.progress = progress
+
+        print('JG ESR progress', progress)
         return int(progress)
 
     def _plot(self, axes_list, data = None):
