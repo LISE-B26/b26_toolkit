@@ -112,7 +112,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             raise(e)
         #===========================================
 
-        self.update(self.settings)
+        #self.update(self.settings)
 
     def _connect(self):
         rm = visa.ResourceManager()
@@ -151,10 +151,9 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif (key == 'function_ch1' or key == 'function_ch2'):
+                    if value == 'Arb':
+                        self._waveform_to_memory(int(key[-1]))
                     value = self._func_type_to_internal(value, key)
-
-
-
                 elif (key == 'run_mode_ch1' or key == 'run_mode_ch2'):
                     value = self._run_mode_type_to_internal(key)
                 elif key == 'amplitude':
@@ -179,19 +178,18 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                             if (value2 > 0.5 or value2 < -0.5):
                                 raise ValueError("All voltages programmed on the AWG must be between -0.5 and +0.5V")
 
-                        key2 = self._param_to_internal(key2, key)
-                        # only send update to instrument if connection to instrument has been established
-                        if self._settings_initialized:
-                            self.awg.write(
-                                key2 + ' ' + str(value2))  # frequency change operation timed using timeit.timeit and
-                            # completion confirmed by query('*OPC?'), found delay of <10ms
+                    key2 = self._param_to_internal(key2, key)
+                    # only send update to instrument if connection to instrument has been established
+                    if self._settings_initialized:
+                        self.awg.write(
+                            key2 + ' ' + str(value2))  # frequency change operation timed using timeit.timeit and
+                        # completion confirmed by query('*OPC?'), found delay of <10ms
 
                         # print(self.awg.query('*OPC?'))
                     # elif (key == 'arbitrary_waveform_ch1' and settings['function_ch1'] == 'Arb') \
                     #         or (key == 'arbitrary_waveform_ch2' and settings['function_ch2'] == 'Arb'):
                     #     if key2 == 'time' or key2 == 'amplitude' and (type(value2) is not np.ndarray or len(value2.shape) != 1):
                     #         raise ValueError('Time is not a 1D array.')
-
 
         # ===========================================
 
@@ -305,21 +303,22 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
             raise KeyError
 
     def _waveform_to_memory(self, channel):
-        if channel == 1:
-            pulse_sequence = self.__pulse_sequence_ch1
-        elif channel == 2:
-            pulse_sequence = self.__pulse_sequence_ch2
-        else:
-            raise ValueError('There are only two channels for the Tektronix AFG3022C.')
+        if self._settings_initialized:
+            if channel == 1:
+                pulse_sequence = self.__pulse_sequence_ch1
+            elif channel == 2:
+                pulse_sequence = self.__pulse_sequence_ch2
+            else:
+                raise ValueError('There are only two channels for the Tektronix AFG3022C.')
 
-        self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
-        for i in range(1, len(pulse_sequence)):
-            self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([pulse_sequence[0, i - 1],
-                                                              pulse_sequence[1, i - 1],
-                                                              pulse_sequence[0, i],
-                                                              pulse_sequence[1, i]]))
+            self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
+            for i in range(1, len(pulse_sequence)):
+                self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([pulse_sequence[0, i - 1],
+                                                                  pulse_sequence[1, i - 1],
+                                                                  pulse_sequence[0, i],
+                                                                  pulse_sequence[1, i]]))
 
-        self.awg.write('DATA:COPY USER' + str(channel) + ',EMEM')
+            self.awg.write('DATA:COPY USER' + str(channel) + ',EMEM')
 
     def _pulse_to_points(self, pulse_sequence):
         time = np.array([0.0])
