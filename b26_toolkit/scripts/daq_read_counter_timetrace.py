@@ -269,6 +269,8 @@ Future: plot also the PSD
 
             update_counts(axes_list[0], self.data['counts'])
 
+
+
 ## work in progress (JG) write generic timetrace class
 class Daq_TimeTrace_NI9402_NI9219(Script):
     """
@@ -419,6 +421,10 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
     #         axis_timetrace, axis_fft = axes_list
     #
     #         update_counts(axes_list[0], self.data['counts'])
+
+
+class Daq_TimeTrace_NI6259(Daq_TimeTrace_NI9402_NI9219):
+    _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
 
 # if __name__ == '__main__':
 #     script = {}
