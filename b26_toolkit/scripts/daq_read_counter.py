@@ -131,6 +131,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 raw_data_laser2, num_read_laser2 = self.instruments['daq']['instance'].read(aitask2)
 
             raw_data, num_read = self.instruments['daq']['instance'].read(task)
+            print('HERE', raw_data, num_read)
             #skip first read, which gives an anomolous value
             if num_read.value == 1:
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
