@@ -34,18 +34,20 @@ def fit_gaussian(x_values, y_values, starting_params=None, bounds=None):
                 ([offset_lb, amplitude_lb, center_lb, width_lb],[offset_ub, amplitude_ub, center_ub, width_ub])
 
     Returns:
-        a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, width]
+        a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, width].
+        If fitting fails, returns list of zeros
 
     """
 
-    if bounds:
-        fit_params = optimize.curve_fit(gaussian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
-    else:
-        fit_params = optimize.curve_fit(gaussian, x_values, y_values, p0=starting_params)[0]
-
-    # todo: catch if fit is not successful and return all zeros
-
+    try:
+        if bounds:
+            fit_params = optimize.curve_fit(gaussian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+        else:
+            fit_params = optimize.curve_fit(gaussian, x_values, y_values, p0=starting_params)[0]
+    except RuntimeError:
+        return [0, 0, 0, 0]
     return fit_params
+
 def gaussian(x, constant_offset, amplitude, center, width):
     return constant_offset + amplitude * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2))))
 
@@ -66,7 +68,57 @@ def guess_gaussian_parameter(x_values, y_values):
 
     return [noise_guess, amplitude_guess, center_guess, width_guess]
 
+def fit_gaussian2D(x, y, starting_params=None, bounds=None):
+    """
 
+    Args:
+        x: domain of fit function (array of 2D points)
+        y: y-values to fit
+        starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
+        length 5 list of the form [constant_offset, amplitude, center, width].
+        bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
+                ([offset_lb, amplitude_lb, center_lb, width_lb],[offset_ub, amplitude_ub, center_ub, width_ub])
+
+    Returns:
+        a length-5 list of [fit_parameters] in the form [constant_offset, amplitude, center_x, center_y, width].
+        If fitting fails, returns list of zeros
+
+    """
+    x = np.array(x)
+    y = np.array(y)
+    if len(x.shape) != 2:
+        raise ValueError('x values are not of correct shape')
+    if x.shape[0] != 2:
+        raise ValueError('x values are not array of 2D points')
+
+    try:
+        if bounds:
+            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params, bounds=bounds, max_nfev=2000)
+        else:
+            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params)
+    except RuntimeError:
+        return [0, 0, 0, 0, 0]
+    return fit_params
+
+def gaussian2D(x, constant_offset, amplitude, center_x, center_y, width):
+    return constant_offset + amplitude * np.exp(-(np.square(x[0, :] - center_x) + np.square(x[1, :] - center_y)) / (2 * width ** 2))
+
+def guess_gaussian2D_parameter(x, y):
+    """
+    guesses the parameters for a Gaussian dataset
+    Args:
+        x_values:
+        y_values:
+
+    Returns: estimated fit parameters for Gaussian fit
+    """
+    # todo: find a smarter algorith, in particular for the width, for now this function is only used in autofocus, but might be good to generalize
+    noise_guess = np.min(y)
+    amplitude_guess = np.max(y) - noise_guess
+    center_x_guess, center_y_guess = x[:, np.argmax(y)]
+    width_guess = 0.8
+
+    return [noise_guess, amplitude_guess, center_x_guess, center_y_guess, width_guess]
 
 # ========= Lorenzian fit functions =============================
 #===============================================================

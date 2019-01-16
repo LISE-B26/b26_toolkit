@@ -30,7 +30,7 @@ class OptotuneLens(Instrument):
     """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM20', str, 'serial port on which to connect'),
+        Parameter('port', 'COM10', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('current', 0.0, float, 'current applied to lens')
