@@ -288,6 +288,6 @@ class MDT693A(Instrument):
             raise ValueError(message)
 
 if __name__ == '__main__':
-    a = PiezoController('hi', settings={'port':'COM4'})
+    a = PiezoController('hi', settings={'port':'COM9'})
  #   a.axis = 'y'
-    a.voltage = 45.5
+ #    a.voltage = 45.5

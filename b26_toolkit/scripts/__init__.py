@@ -18,6 +18,7 @@
 
 # from test_script import ScriptTest
 from .galvo_scan.galvo_scan import GalvoScan
+from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
 from .set_laser import SetLaser
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage

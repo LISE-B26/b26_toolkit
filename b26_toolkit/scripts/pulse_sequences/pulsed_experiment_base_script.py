@@ -21,7 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts import FindNV, ESR  #, AutoFocusDAQ
 from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
@@ -61,7 +61,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR} ##, 'autofocus': AutoFocusDAQ}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -148,6 +148,8 @@ for a given experiment
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, MAX_AVERAGES_PER_SCAN)
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
+            #if self.settings['Tracking']['use_autofocus']:
+                #self.scripts['autofocus'].run()
             self.scripts['find_nv'].run()
             if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
                 self.log('Could not find an NV in FindNV.')
@@ -273,13 +275,11 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         """
-        # ER 20180731 set init_fluor to zero
-     #   self.data['init_fluor'] = 0.
 
-        rand_indexes = list(range(len(pulse_sequences)))
 
+        indexes = list(range(len(pulse_sequences)))
         if self.settings['randomize']:
-            random.shuffle(rand_indexes)
+            random.shuffle(indexes)
         if verbose:
             print(('_run_sweep number of pulse sequences', len(pulse_sequences)))
 
@@ -287,7 +287,7 @@ for a given experiment
             if verbose:
                 print(('_run_sweep index', index, len(pulse_sequences)))
 
-            rand_index = rand_indexes[index]
+            rand_index = indexes[index]
             if self._abort:
                 self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 break

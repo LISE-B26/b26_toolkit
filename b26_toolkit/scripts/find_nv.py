@@ -65,7 +65,7 @@ Known issues:
         """
 
         attempt_num = 1
-       # print((self.scripts['take_image'].instruments))
+        # print((self.scripts['take_image'].instruments))
         if self.settings['center_on_current_location']:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
@@ -107,7 +107,7 @@ Known issues:
 
         def min_mass_adjustment(min_mass):
             #COMMENT_ME
-            return (min_mass - 40)
+            return (min_mass - 20)
 
         self.scripts['take_image'].settings['point_a'].update({'x': self.settings['initial_point']['x'], 'y': self.settings['initial_point']['y']})
         self.scripts['take_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
@@ -143,7 +143,9 @@ Known issues:
                         counter += 1
                 break
 
-            if attempt_num <= self.settings['number_of_attempts']:
+            if attempt_num <= self.settings['number_of_attempts'] and min_mass_adjustment(min_mass) > 0: # ER 20181219
+                self.log('changing the minimum mass from: {:d}'.format(min_mass))
+                self.log('to: {:d}'.format(min_mass_adjustment(min_mass)))
                 min_mass = min_mass_adjustment(min_mass)
                 attempt_num += 1
             else:
