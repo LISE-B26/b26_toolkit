@@ -32,7 +32,7 @@ except:
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage
+from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage, GalvoScanPhotodiode
 # from pylabcontrol.scripts import FPGA_GalvoScan
 
 
@@ -553,6 +553,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     _INSTRUMENTS = {
         'z_piezo': PiezoController
+    }
+
+class AutoFocusPhotodiode(AutoFocusDAQ):
+    _SCRIPTS = {
+        'take_image': GalvoScanPhotodiode
     }
 
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
