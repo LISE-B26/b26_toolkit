@@ -164,9 +164,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
             elif type(value) is dict: # if nested dictionary keep iterating
                 for key2, value2 in value.items():
-                    if (key == 'default_waveform_ch1' and settings['function_ch1'] != 'Arb') \
-                            or (key == 'default_waveform_ch2' and settings['function_ch2'] != 'Arb'):
-
+                    if key == 'default_waveform_ch1' or key == 'default_waveform_ch2':
                         if key2 == 'phase':
                             value2 = np.deg2rad(np.mod(value2, 360) - 180)
                         elif key2 == 'amplitude':
@@ -310,12 +308,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 raise ValueError('There are only two channels for the Tektronix AFG3022C.')
 
             self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
-            print(pulse_sequence)
             for i in range(1, pulse_sequence.shape[1]):
-                print('DATA:DATA:LINE EMEM,' + ','.join([str(el) for el in [pulse_sequence[0, i - 1],
-                                                                  pulse_sequence[1, i - 1],
-                                                                  pulse_sequence[0, i],
-                                                                  pulse_sequence[1, i]]]))
                 self.awg.write('DATA:DATA:LINE EMEM,' + ','.join([str(el) for el in [pulse_sequence[0, i - 1],
                                                                   pulse_sequence[1, i - 1],
                                                                   pulse_sequence[0, i],
@@ -386,9 +379,6 @@ if __name__ == '__main__':
     # import pylabcontrol.instruments.microwave_generator MicrowaveGenerator
     pulse_sequence_ch1 = [Pulse('', 0, 10, amplitude=1000), Pulse('', 20, 10, amplitude=2000)]
     arb = AWG(pulse_sequence_ch1=pulse_sequence_ch1)
-    print(arb.pulse_sequence_ch1)
-    plt.plot(arb.pulse_sequence_ch1[0, :], arb.pulse_sequence_ch1[1, :])
-    plt.show()
     settings = {'enable_output_ch1': True, 'function_ch1': 'Arb'}
     arb.update(settings)
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
