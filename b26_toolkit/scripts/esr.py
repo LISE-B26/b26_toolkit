@@ -488,6 +488,7 @@ class ESR(Script):
         if self.settings['randomize']:
             random.shuffle(indeces)
 
+        print("executing run_sweep!")
         for freq_index in indeces:
 
             if self._abort:
@@ -534,6 +535,8 @@ class ESR(Script):
         will be overwritten in the __init__
         """
 
+        start_time = time.time()
+
         # if tracking laser power drifts, check for PCI daq
         if self.settings['track_laser_power']['on/off'] and not self.settings['daq_type'] == 'PCI':
             print("tracking laser power drifts only enabled for PCI daq")
@@ -571,6 +574,9 @@ class ESR(Script):
                 break
 
             # get the data for a single sweep. These are raw data.
+            print('calling run_sweep!')
+            print('time elapsed: ', time.time()-start_time)
+            self.log('starting average number: ' + str(scan_num) + ' time elapsed: ' + str(time.time()-start_time))
             single_sweep_data, single_sweep_laser_data = self.run_sweep(freq_values)
 
             # save the single sweep data and normalize to kcounts/sec

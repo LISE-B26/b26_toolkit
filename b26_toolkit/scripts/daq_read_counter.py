@@ -53,7 +53,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
     ]
 
     _INSTRUMENTS = {'daq': NI9402}
-    # _INSTRUMENTS = {'daq': NI6259}
+
 
     _SCRIPTS = {
     }
@@ -202,6 +202,10 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 array_to_plot = np.delete(data['counts'], 0)
 
             update_counts_vs_pos(axes_list[0], array_to_plot, np.linspace(0, len(array_to_plot), len(array_to_plot)))
+
+
+class Daq_Read_Counter_NI6259(Daq_Read_Counter):
+    _INSTRUMENTS = {'daq': NI6259}
 
 if __name__ == '__main__':
     script = {}
