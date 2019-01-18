@@ -19,6 +19,7 @@
 import visa
 import pyvisa.errors
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pylabcontrol.core import Parameter, Instrument
 from instruments.pulse_blaster import Pulse
@@ -95,11 +96,13 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
     SIGNAL_MAX = 16382
     POINTS_MAX = 131027
 
-    def __init__(self, name=None, settings=None):
+    def __init__(self, name=None, settings=None, pulse_sequence_ch1=None, pulse_sequence_ch2=None):
 
+        if pulse_sequence_ch1 is not None:
+            self.pulse_sequence_ch1 = pulse_sequence_ch1
+        if pulse_sequence_ch2 is not None:
+            self.pulse_sequence_ch2 = pulse_sequence_ch2
         super(AWG, self).__init__(name, settings)
-        self.__pulse_sequence_ch1 = np.array([])
-        self.__pulse_sequence_ch2 = np.array([])
 
         #===========================================
         # Issue where visa.ResourceManager() takes 4 minutes no longer happens after using pdb to debug (??? not sure why???)
@@ -142,11 +145,6 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         super(AWG, self).update(settings)
         # ===========================================
         for key, value in settings.items():
-            print('KEY: ')
-            print(key)
-            print('VALUE: ')
-            print(type(value) is dict)
-
             if key != 'USB_num' and type(value) is not dict:
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
@@ -166,9 +164,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
             elif type(value) is dict: # if nested dictionary keep iterating
                 for key2, value2 in value.items():
-                    if (key == 'default_waveform_ch1' and settings['function_ch1'] != 'Arb') \
-                            or (key == 'default_waveform_ch2' and settings['function_ch2'] != 'Arb'):
-
+                    if key == 'default_waveform_ch1' or key == 'default_waveform_ch2':
                         if key2 == 'phase':
                             value2 = np.deg2rad(np.mod(value2, 360) - 180)
                         elif key2 == 'amplitude':
@@ -312,28 +308,30 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                 raise ValueError('There are only two channels for the Tektronix AFG3022C.')
 
             self.awg.write('DATA:DEF EMEM,' + str(self.POINTS_MAX))  # Reset edit memory
-            for i in range(1, len(pulse_sequence)):
-                self.awg.write('DATA:DATA:LINE EMEM,' + '.'.join([pulse_sequence[0, i - 1],
+            for i in range(1, pulse_sequence.shape[1]):
+                self.awg.write('DATA:DATA:LINE EMEM,' + ','.join([str(el) for el in [pulse_sequence[0, i - 1],
                                                                   pulse_sequence[1, i - 1],
                                                                   pulse_sequence[0, i],
-                                                                  pulse_sequence[1, i]]))
+                                                                  pulse_sequence[1, i]]]))
 
             self.awg.write('DATA:COPY USER' + str(channel) + ',EMEM')
 
     def _pulse_to_points(self, pulse_sequence):
-        time = np.array([0.0])
-        amplitude = np.array([0.0])
+        time = np.array([0.])
+        amplitude = np.array([0.])
+
         for pulse in pulse_sequence:
             if type(pulse) is not Pulse:
                 raise ValueError('List is not a sequence of Pulse objects.')
             if pulse.amplitude is None:
                 raise ValueError('Amplitude not defined.')
-            time = np.append(time, [pulse.start_time, pulse.end_time])
-            amplitude = np.append(amplitude, [pulse.amplitude, pulse.amplitude])
+            time = np.append(time, [pulse.start_time, pulse.start_time, pulse.end_time, pulse.end_time])
+            amplitude = np.append(amplitude, [0., pulse.amplitude, pulse.amplitude, 0.])
 
         amplitude *= self.SIGNAL_MAX / np.max(amplitude)
         time *= self.POINTS_MAX / np.max(time)
-        return np.array([np.rint(time, dtype=int), np.rint(amplitude, dtype=int)])
+
+        return np.array([np.floor(time).astype(int), np.floor(amplitude).astype(int)])
 
     @property
     def pulse_sequence_ch1(self):
@@ -379,11 +377,13 @@ if __name__ == '__main__':
     # print(instr)
     # print(loaded_failed)
     # import pylabcontrol.instruments.microwave_generator MicrowaveGenerator
-
-    arb = AWG(settings={'enable_output_ch1': True, 'function_ch1': 'Gaussian'})
+    pulse_sequence_ch1 = [Pulse('', 0, 10, amplitude=1000), Pulse('', 20, 10, amplitude=2000)]
+    arb = AWG(pulse_sequence_ch1=pulse_sequence_ch1)
+    settings = {'enable_output_ch1': True, 'function_ch1': 'Arb'}
+    arb.update(settings)
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
-    print((arb.awg))
+    print(arb.awg)
 
     # instrument_name= 'MicrowaveGenerator'
     # instrument_settings = {'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'}
