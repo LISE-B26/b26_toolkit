@@ -21,7 +21,10 @@ from copy import deepcopy
 import numpy as np
 import scipy.signal as signal
 from peakutils.peak import indexes # package required https://pypi.python.org/pypi/PeakUtils
+import matplotlib.pyplot as plt
 
+from scipy import stats
+from scipy.optimize import minimize
 from b26_toolkit.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian, lorentzian, double_lorentzian
 
 
@@ -398,3 +401,156 @@ def calc_esr_noise(freq, amp, fit_params):
         return average_deviation
     else:
         return None
+
+
+def get_counts_threshold(esr, show_plot=False):
+    """
+    returns the threshold value above which measuements are considered to be background
+
+    """
+    # plot histogram
+    if show_plot:
+        plt.figure()
+        counts, bins, _ = plt.hist(esr, 20, density=True, alpha=0.3)
+    else:
+        counts, bins = np.histogram(esr, 20, density=True)
+
+    # calculate the gaussian kernal estimate
+    x = np.linspace(min(bins), max(bins), 25)
+    density = stats.gaussian_kde(esr)
+
+    # find the mode of the density distribution
+    xo = x[density(x).argmax()]
+    res = minimize(lambda x: -density(x), xo)
+    mode = res.x[0]
+
+    # find the threshold counts
+    counts_threshold = 2 * mode - max(x)
+
+    # plot the density
+    if show_plot:
+        plt.plot(x, density(x))
+
+    # color the part that we consider background
+
+    if show_plot:
+
+        x = np.linspace(counts_threshold, max(bins), 25)
+        plt.fill_between(x, density(x), color='r', alpha=0.8)
+
+        for m in [mode, counts_threshold]:
+            plt.plot([m, m], [0, density(m)], 'k')
+
+        plt.xlabel('counts')
+        plt.ylabel('probability density')
+        plt.title('counts threshold {:0.1f}'.format(counts_threshold))
+
+    return counts_threshold
+
+
+def get_background_idx(counts, counts_threshold, frequencies=None, show_plot=False):
+    """
+
+    counts: counts as a list
+
+    frequencies: need for plotting
+    returns a list of true false values, where true indicates that this position in the list belongs to the background
+
+
+    """
+
+    background_idx = np.arange(len(frequencies))[counts > counts_threshold]
+    if show_plot:
+        plt.figure()
+        #         plt.plot(frequencies[counts>counts_threshold],counts[counts>counts_threshold], 'o', label = 'background')
+        plt.plot(frequencies[background_idx], counts[background_idx], 'o', label='background')
+        plt.plot(frequencies, counts, label='full data')
+
+        plt.xlabel('frequencies (Hz)')
+        plt.ylabel('counts (kCounts/s)')
+        plt.legend()
+
+    return background_idx
+
+
+def split_counts_background(idx_data, counts_data, frequencies, background_idx, dt, show_plot=False, verbose=False,
+                            freq_ordered=True):
+    """
+
+    idx_data: a list that contains the time ordered indecies of the esr frequencies in the list counts_data
+    counts_data: list of fluorescence count measurements
+    background_idx: list of indeces that corresbond to the background
+
+    time_ordered: if true return time ordered if false freq. ordered
+
+    splits the data into signal and background (time_ordered!)
+    """
+
+    return_dict = {}
+    # list of true and false, picks the elements that are in background
+    is_background = [idx in background_idx for idx in idx_data]
+
+    # now the list is actually the frequency indecies corrsponding to the counts background
+    idx_background = idx_data[is_background]  # time ordered background frequency indices
+
+    if freq_ordered:
+        # freq ordered background counts
+        counts_background = counts_data[sorted(idx_background)]  # freq ordered background counts
+        #         counts_background = counts_data[is_background][idx_background.argsort()] # freq ordered background counts
+        freqs_background = frequencies[sorted(idx_background)]
+    else:
+        counts_background = counts_data[idx_data][is_background]  # time ordered background counts
+        freqs_background = frequencies[idx_background]
+        time_background = dt * np.arange(len(idx_data))[is_background]
+        return_dict['time_background'] = time_background
+
+    # list of true and false, picks the elements that are in signal
+    is_signal = [idx not in background_idx for idx in idx_data]
+    # now the list is actually the frequncy indecies corrsponding to the counts_background
+    idx_signal = idx_data[is_signal]  # time ordered signal frequency indices
+
+    if freq_ordered:
+        counts_signal = counts_data[sorted(idx_signal)]  # freq ordered signal counts
+        #         counts_signal = counts_data[is_signal][idx_signal.argsort()] # freq ordered background counts
+        freqs_signal = frequencies[sorted(idx_signal)]
+    else:
+        counts_signal = counts_data[idx_data][is_signal]
+        #         counts_signal = counts_data[is_signal] # time ordered signal counts
+        freqs_signal = frequencies[idx_signal]
+        time_signal = dt * np.arange(len(idx_data))[is_signal]
+        return_dict['time_signal'] = time_signal
+
+    total_avrg_time = dt * len(counts_data)  # total time of measurement
+
+    # time or freq. ordered data
+    return_dict['idx_signal'] = np.array(idx_signal)
+    return_dict['counts_signal'] = np.array(counts_signal)
+    return_dict['freqs_signal'] = np.array(freqs_signal)
+    return_dict['idx_background'] = np.array(idx_background)
+    return_dict['counts_background'] = np.array(counts_background)
+    return_dict['freqs_background'] = np.array(freqs_background)
+
+    if show_plot:
+        if freq_ordered:
+            for label in ['background', 'signal']:
+                f, s = return_dict['freqs_' + label], return_dict['counts_' + label]
+                plt.plot(f, s, 'o', label=label, alpha=0.5)
+            f, s = frequencies, counts_data
+            plt.plot(f, s, 'x', label='all')
+            plt.xlabel('frequency (Hz)')
+        else:
+            for label in ['background', 'signal']:
+                t, s = return_dict['time_' + label], return_dict['counts_' + label]
+                plt.plot(t, s, 'o', label=label, alpha=0.5)
+            t, s = dt * np.arange(len(idx_data)), counts_data[idx_data]
+            plt.plot(t, s, 'x', label='all')
+            plt.xlabel('time (s)')
+
+        #         f, s = return_dict['freqs_signal'], return_dict['counts_signal']
+        # #         s, f  = s[return_dict['idx_signal'].argsort()], np.sort(f)
+        #         plt.plot(f, s, '-o', label='signal')
+
+        plt.ylabel('counts')
+        plt.legend()
+
+    return return_dict
