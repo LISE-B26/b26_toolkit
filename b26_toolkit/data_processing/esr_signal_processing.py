@@ -447,11 +447,10 @@ def get_counts_threshold(esr, show_plot=False):
 
     return counts_threshold
 
-
 def get_background_idx(counts, counts_threshold, frequencies=None, show_plot=False):
     """
 
-    counts: counts as a list
+    counts: counts as a list, i.e. the esr data
 
     frequencies: need for plotting
     returns a list of true false values, where true indicates that this position in the list belongs to the background
@@ -554,3 +553,64 @@ def split_counts_background(idx_data, counts_data, frequencies, background_idx, 
         plt.legend()
 
     return return_dict
+
+
+
+def esr_normalize_background(esr_full, idx_data, frequencies, show_plot=False, verbose=False):
+    """
+
+    smart way of normalizing the esr spectra to the background.
+    First we look at the histogram of the time averaged sepctrum to determime the count threshold.
+    All the freq, where counts of the time averaged spectrum are above the threshold are considered to be
+    the background while the ones below are considered signal.
+
+    esr_full: esr spectra as a matrix, first dimension is the iteration and second the MW frequency,
+    this data is obtained with the ESR_simple script and selecting `save full esr`
+
+    idx_data: the time indecies when the acquisition has been randomized
+    this data is obtained with the ESR_simple script and selecting `save timetrace`
+
+
+    :return: background corrected spectra same shape as esr_full
+    """
+
+    esr_mean = np.mean(esr_full, axis=0)
+    counts_threshold = get_counts_threshold(esr_mean, show_plot=show_plot)
+
+    background_idx = get_background_idx(esr_mean, counts_threshold, frequencies=frequencies, show_plot=show_plot)
+
+    counts_background, counts_signal = [], []
+
+    for meas_id in range(len(esr_full)):
+        return_dict = split_counts_background(
+            idx_data[meas_id], esr_full[meas_id], frequencies, background_idx, dt=1,
+            show_plot=show_plot, verbose=verbose, freq_ordered=True
+        )
+
+        counts_background.append(return_dict['counts_background'])
+        counts_signal.append(return_dict['counts_signal'])
+
+    counts_background = np.array(counts_background)
+    counts_signal = np.array(counts_signal)
+
+    freq_background = return_dict['freqs_background']
+    freq_signal = return_dict['freqs_signal']
+
+    # plt.plot(np.mean(esr_full, axis=0), label='original (full)')
+
+    back_norm = (np.ones([esr_full.shape[1], 1]) * np.array([np.mean(counts_background, axis=1)])).T
+
+    corrected = np.mean(esr_full / back_norm, axis=0)
+    original = np.mean(esr_full, axis=0)
+
+    if show_plot:
+        plt.figure()
+
+        plt.plot(frequencies, original/np.mean(original), 'o', label='original')
+        plt.plot(frequencies, corrected/np.mean(corrected), 'o', label='corrected')
+
+        plt.xlabel('time')
+        plt.ylabel('counts (kCounts/s)')
+        plt.legend()
+
+    return corrected
