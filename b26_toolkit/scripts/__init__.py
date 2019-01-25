@@ -33,15 +33,15 @@ from .atto_scan import AttoStep
 # # from .pulse_sequences import XY8_k, T1, Rabi, PDD, XY4, T1SingleInit, PulsedESR, \
 # #     HahnEcho, XY4, XYXY, ReadoutStartTimeWithoutMW, ReadoutStartTime, ReadoutDuration, CPMG, \
 # #     HahnEchoManyNVs, RabiPowerSweepSingleTau
-# from .pulse_sequences.rabi import Rabi
-# from .esr_and_rabi import ESRAndRabi
-# # from .spec_analyzer_get_spectrum import KeysightGetSpectrum
-# from .light_control import ApplyLightControlSettings, CameraOn
-# from .correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
+from .pulse_sequences.rabi import Rabi
+from .esr_and_rabi import ESRAndRabi
+# from .spec_analyzer_get_spectrum import KeysightGetSpectrum
+from .light_control import ApplyLightControlSettings, CameraOn
+from .correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC
-# from .record_pressures import RecordPressures
-# from .set_magnetic_coils import SetMagneticCoils
-# from .align_magnetic_field_to_NV import AlignFieldToNV
-# from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
-# from .stability_with_microwaves import Stability_With_Microwaves
-# from .read_temperature_lakeshore import ReadTemperatureLakeshore
+from .record_pressures import RecordPressures
+from .set_magnetic_coils import SetMagneticCoils
+from .align_magnetic_field_to_NV import AlignFieldToNV
+from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
+from .stability_with_microwaves import Stability_With_Microwaves
+from .read_temperature_lakeshore import ReadTemperatureLakeshore
