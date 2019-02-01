@@ -93,12 +93,12 @@ def fit_gaussian2D(x, y, starting_params=None, bounds=None):
 
     try:
         if bounds:
-            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params, bounds=bounds, max_nfev=2000)
+            fit_params, pcov = optimize.curve_fit(gaussian2D, x, y, p0=starting_params, bounds=bounds, max_nfev=2000)
         else:
-            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params)
+            fit_params, pcov = optimize.curve_fit(gaussian2D, x, y, p0=starting_params)
     except RuntimeError:
         return [0, 0, 0, 0, 0]
-    return fit_params
+    return fit_params, np.sqrt(np.diag(pcov))
 
 def gaussian2D(x, constant_offset, amplitude, center_x, center_y, width):
     return constant_offset + amplitude * np.exp(-(np.square(x[0, :] - center_x) + np.square(x[1, :] - center_y)) / (2 * width ** 2))
