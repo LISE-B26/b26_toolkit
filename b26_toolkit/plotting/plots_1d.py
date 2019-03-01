@@ -70,7 +70,8 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #  ======== plot data =========
     axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
-    axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
+    if np.shape(frequency) == np.shape(counts): # ER 20190129
+        axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
     #axes.hold(True) #ER 20181012
 
     title = 'ESR'

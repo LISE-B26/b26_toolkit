@@ -269,8 +269,6 @@ Future: plot also the PSD
 
             update_counts(axes_list[0], self.data['counts'])
 
-
-
 ## work in progress (JG) write generic timetrace class
 class Daq_TimeTrace_NI9402_NI9219(Script):
     """
@@ -407,13 +405,15 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         if data is None:
             data = self.data
 
-        for signal in [data['counts'], data['ai']]:
+        for signal in [data['counts']]: #, data['ai']]: ER 20190130
             if len(signal) > 0:
-                print('sadadsaffffff, ', len(signal), np.mean(signal))
-
                 plot_counts(axes_list[0], signal/np.mean(signal))
-                freq, psd = power_spectral_density( signal/np.mean(signal), self.settings['integration_time'])
-                plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+                freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
+                print('freqs: ', freq)  # ER 20190129
+                print('psd: ', psd) # ER 20190129
+                print('freq[-1:]: ', freq[-1:])
+               # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+                plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
 
 
     # def _update_plot(self, axes_list):

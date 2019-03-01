@@ -17,7 +17,8 @@
 """
 
 import serial
-
+import numpy as np
+import time as time
 from pylabcontrol.core import Instrument, Parameter
 
 
@@ -157,6 +158,46 @@ class PiezoController(Instrument):
         elif successCheck[0] == '!':
             message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
             raise ValueError(message)
+
+class PiezoControllerCold(PiezoController):
+    """
+    Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
+    interacts with the controller using PySerial and sending commands as defined in the controller documentation.
+
+    This particular class is used for scanning the piezo connected to the z stage of the objective on the cold setup.
+    There is a difference between this one and PiezoController because we have to be careful to scan this piezo voltage only in
+    ~1 um steps, so that the stage never slams into the piezo (e.g. if you were to quickly go from 140 V to 0 V)
+
+    """
+
+    def set_voltage(self, voltage):
+        """
+        Sets the voltage on the piezo.
+        Args:
+            voltage: voltage (in V) to set
+
+        """
+
+        current_voltage = self.voltage
+
+        voltage_list = np.linspace(current_voltage, voltage, np.floor(np.abs(voltage-current_voltage)))
+
+        print('voltage_list ', voltage_list)
+
+        t_start = time.time()
+
+        for volts in voltage_list:
+            next_time = time.time()
+            self.ser.write((self.settings['axis'] + 'voltage=' + str(volts) + '\r').encode())
+            successCheck = self.ser.readlines()
+            time.sleep(0.25)
+            print('time elapsed: ', time.time()-next_time)
+            if len(successCheck) == 0:
+                message = 'Something went wrong --- check that you are using the right port!'
+                raise ValueError(message)
+            elif successCheck[0] == '!':
+                message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
+                raise ValueError(message)
 
 class MDT693A(Instrument):
     """

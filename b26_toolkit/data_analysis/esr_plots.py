@@ -31,11 +31,11 @@ import datetime
 
 from pylabcontrol.core.helper_functions import datetime_from_str
 from pylabcontrol.core.script import Script
+from b26_toolkit.data_analysis.esr_2d_plots import return_times
 
 freq_to_mag = 1. / (2 * 2.8e6)
 
 # THIS IS A TEST JG
-print('THIS IS A TEST JG sadsada')
 def get_select_points(folder):
     """
     Finds the filepath to the data from the select_points script taken immediately previous to the data in folder.
@@ -260,13 +260,7 @@ def plot_esr_fit_vs_time(ESR_FOLDER):  # ER 20181211
             if len(fit_params) == 4:
                 # single peak
                 fit_freqs.append(fit_params[2])
-                split_path = f.split('-')
-                time = split_path.pop(-1)
-                day = split_path.pop(-1)
-                day = day.split('18')[-1]  # will need to change 18 to 19 when it becomes 2019
-                time = time.split('_')
-                time = float(time[0]) + float(time[1]) / 60 + float(time[2]) / 3600 + float(day) * 24
-                times.append(time)
+                times.append(return_times(f, with_power_sweep=True))
             elif len(fit_params) == 6:
                 # double peak, don't update the frequency - the fit may be bad
                 continue
@@ -276,10 +270,120 @@ def plot_esr_fit_vs_time(ESR_FOLDER):  # ER 20181211
     times = times[1:]
     fit_freqs = np.array(fit_freqs) / 1.e6
     plt.figure()
-    plt.plot(times, fit_freqs[1:])
+
+    # ER 20190130 temporary
+    tmp_freqs = fit_freqs[1:]
+    tmp_freqs = [tmp_freqs[i] for i in [0, 1, 2, 5, 7, 8]]
+    tmp_times = [times[i] for i in [0, 1, 2, 5, 7, 8]]
+    plt.plot(tmp_times, tmp_freqs, linestyle='', marker='o')
+
+   # plt.plot(times, fit_freqs[1:], linestyle='', marker='o')
     plt.xlabel('time (hours)')
     plt.ylabel('fit frequency (MHz)')
-    plt.title('ESR fit frequency vs. time')
+    plt.title('ESR center fit frequency vs. time')
+
+def plot_esr_widths_vs_power(ESR_FOLDER):  # ER 20190130
+    '''
+
+    Plots the fit width found for each ESR spectrum on the y axis, and the SRS power on the x axis.
+
+
+    Args:
+        ESR_FOLDER: the folder corresponding to the data you want to plot.
+        in_expt_file: whether or not the ESR data to plot is within the subscript of a 'higher level' experiment folder / data
+        exp_str: string to search for when finding the ESR data. For example, for hahn echo this could be 'hahn_echo' or 'he'
+            depending on what the user put as the 'tag' for the hahn echo data. The script then finds all esr data WITHIN
+            the data folders / data_subscripts with the tag 'hahn_echo' or 'he'.
+
+    '''
+
+    fit_widths = []
+    powers = []
+    paths = []
+    paths = glob.glob('{:s}/data_subscripts/*'.format(ESR_FOLDER))
+    paths += glob.glob('{:s}/data_subscripts/*/data_subscripts/*esr*'.format(ESR_FOLDER))
+    for f in sorted(paths):
+        data = Script.load_data(f)
+        if data is None or 'esr_data' not in data:  # not an ESR folder (e.g., find_nv instead)
+            continue
+        fit_params = data['fit_params']
+        if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+            if len(fit_params) == 4:
+                # single peak
+                fit_widths.append(fit_params[3])
+             #   times.append(return_times(f, with_power_sweep=True))
+                powers.append(float(f[-9:]))
+
+            elif len(fit_params) == 6:
+                # double peak, don't update the frequency - the fit may be bad
+                continue
+
+    print('powers: ', powers)
+    powers = -np.array(powers)
+    fit_widths = np.array(fit_widths) / 1.e6
+    plt.figure()
+
+    # ER 20190130 temporary
+    #tmp_widths = fit_widths[1:]
+    tmp_widths = [fit_widths[i+1] for i in [0, 1, 2, 5, 7, 8]]
+    tmp_powers = [powers[i+1] for i in [0, 1, 2, 5, 7, 8]]
+    plt.plot(tmp_powers, tmp_widths, linestyle='', marker='o')
+
+    #plt.plot(powers, fit_widths, linestyle='', marker='o')
+    plt.xlabel('SRS power (dBm)')
+    plt.ylabel('ESR width (MHz)')
+    plt.title('ESR width vs. SRS power')
+
+def plot_esr_contrast_vs_power(ESR_FOLDER):  # ER 20190130
+    '''
+
+    Plots the fit contrast found for each ESR spectrum on the y axis, and the SRS power on the x axis.
+
+    Args:
+        ESR_FOLDER: the folder corresponding to the data you want to plot.
+        in_expt_file: whether or not the ESR data to plot is within the subscript of a 'higher level' experiment folder / data
+        exp_str: string to search for when finding the ESR data. For example, for hahn echo this could be 'hahn_echo' or 'he'
+            depending on what the user put as the 'tag' for the hahn echo data. The script then finds all esr data WITHIN
+            the data folders / data_subscripts with the tag 'hahn_echo' or 'he'.
+
+    '''
+
+    fit_contrast = []
+    powers = []
+    paths = []
+    paths = glob.glob('{:s}/data_subscripts/*'.format(ESR_FOLDER))
+    paths += glob.glob('{:s}/data_subscripts/*/data_subscripts/*esr*'.format(ESR_FOLDER))
+    for f in sorted(paths):
+        data = Script.load_data(f)
+        if data is None or 'esr_data' not in data:  # not an ESR folder (e.g., find_nv instead)
+            continue
+        fit_params = data['fit_params']
+        if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+            if len(fit_params) == 4:
+                # single peak
+                fit_contrast.append(100*np.abs(fit_params[1]/fit_params[0]))
+             #   times.append(return_times(f, with_power_sweep=True))
+                powers.append(float(f[-9:]))
+
+            elif len(fit_params) == 6:
+                # double peak, don't update the frequency - the fit may be bad
+                continue
+
+    print('powers: ', powers)
+    powers = -np.array(powers)
+    fit_contrast = np.array(fit_contrast)
+    plt.figure()
+
+    # ER 20190130 temporary
+    #tmp_widths = fit_widths[1:]
+    tmp_widths = [fit_contrast[i+1] for i in [0, 1, 2, 5, 7, 8]]
+    tmp_powers = [powers[i+1] for i in [0, 1, 2, 5, 7, 8]]
+    plt.plot(tmp_powers, tmp_widths, linestyle='', marker='o')
+
+    #plt.plot(powers, fit_contrast, linestyle='', marker='o')
+    plt.xlabel('SRS power (dBm)')
+    plt.ylabel('ESR contrast (%)')
+    plt.title('ESR contrast vs. SRS power')
 
 def visualize_magnetic_fields_comparison(folders, labels, manual=True, legend_location = 'upper right', bbox_to_anchor = (1,1), scatter_plot_axis = 'x', line_points_array = None, transformation_matrix = None):
     """

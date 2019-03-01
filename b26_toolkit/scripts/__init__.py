@@ -38,7 +38,7 @@ from .esr_and_rabi import ESRAndRabi
 # from .spec_analyzer_get_spectrum import KeysightGetSpectrum
 from .light_control import ApplyLightControlSettings, CameraOn
 from .correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
-from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC
+from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC, AutoFocusDAQCold
 from .record_pressures import RecordPressures
 from .set_magnetic_coils import SetMagneticCoils
 from .align_magnetic_field_to_NV import AlignFieldToNV

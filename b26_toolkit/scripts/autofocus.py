@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
-from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens
+from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold
 
 try:
     from b26_toolkit.instruments import SMC100
@@ -507,6 +507,15 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
+class AutoFocusDAQCold(AutoFocusDAQ):
+    '''
+
+    Same as AutoFocusDAQ but uses the z_piezo for the cold setup (moves the z focus slowly)
+
+    '''
+    _INSTRUMENTS = {
+        'z_piezo': PiezoControllerCold
+    }
 class AutoFocusDaqSMC(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_driver': SMC100
