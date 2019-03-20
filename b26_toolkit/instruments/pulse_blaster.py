@@ -53,12 +53,20 @@ class Pulse(object):
 
         """
 
-        return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns, amplitude = {:0.1f}V)'.format(
-            self.channel_id,
-            self.start_time,
-            self.end_time,
-            self.duration,
-            self.amplitude)
+        if('amplitude' in vars(self)):
+            return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns, amplitude = {:0.1f}V)'.format(
+                self.channel_id,
+                self.start_time,
+                self.end_time,
+                self.duration,
+                self.amplitude)
+        else:
+            return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns)'.format(
+                self.channel_id,
+                self.start_time,
+                self.end_time,
+                self.duration)
+
 
     def __repr__(self):
         """
@@ -160,7 +168,6 @@ class PulseBlaster(Instrument):
 
     PULSE_PROGRAM = ctypes.c_int(0)
     LONG_DELAY_THRESHOLD = 640
-    MIN_DURATION = 15
 
     PB_INSTRUCTIONS = {
         'CONTINUE': ctypes.c_int(0),
@@ -192,6 +199,7 @@ class PulseBlaster(Instrument):
         super(PulseBlaster, self).__init__(name, settings)
         self.estimated_runtime = None
         self.sequence_start_time = None
+
 
 
     def prepare_function_calls(self):
@@ -485,7 +493,7 @@ class PulseBlaster(Instrument):
 
         # If the remaining time after filling with LONG_DELAYs is smaller than the minimum instruction duration,
         # split one LONG_DELAY command into one 'CONTINUE' command and one command of the type passed in
-        if remainder < self.MIN_DURATION and num_long_delays > 2:
+        if remainder < self.settings['min_pulse_dur'] and num_long_delays > 2:
             num_long_delays -= 1
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD,
@@ -499,7 +507,7 @@ class PulseBlaster(Instrument):
             return instruction_list
 
         # if there aren't any more LONG_DELAYs after doing this, just send in two commands
-        elif remainder < self.MIN_DURATION and num_long_delays == 2:
+        elif remainder < self.settings['min_pulse_dur'] and num_long_delays == 2:
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD / 2,
                                command='CONTINUE', command_arg=0))
@@ -515,7 +523,7 @@ class PulseBlaster(Instrument):
             return instruction_list
 
         # if there aren't any more LONG_DELAYs after doing this, just send in two commands
-        elif remainder < self.MIN_DURATION and num_long_delays == 1:
+        elif remainder < self.settings['min_pulse_dur'] and num_long_delays == 1:
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD / 2,
                                command='CONTINUE', command_arg=0))
@@ -706,8 +714,6 @@ class PulseBlaster(Instrument):
         raise AttributeError(
             'channel id must be either an integer or a string. Instead, this was passed in: {0}'.format(channel_id))
 
-
-
 class B26PulseBlaster(PulseBlaster):
     # COMMENT_ME
     _DEFAULT_SETTINGS = Parameter([
@@ -771,7 +777,7 @@ class B26PulseBlaster(PulseBlaster):
 
 
 if __name__ == '__main__':
-
+    print('hello')
     # for i in range(5):
     #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
     #                         Pulse(channel_id=1, start_time=2000, duration=2000),
@@ -783,13 +789,13 @@ if __name__ == '__main__':
     #     pb.wait()
     #     print('finished #{0}!'.format(i))
 
-    import time
-
-    pb = B26PulseBlaster()
-    pb.update({'off_channel': {'channel': 6}})
-    for i in [0 if i % 2 == 0 else 1 for i in range(5)]:
-        pb.update({'off_channel': {'status': bool(i)}})
-        time.sleep(.5)
+    # import time
+    #
+    # pb = B26PulseBlaster()
+    # pb.update({'off_channel': {'channel': 6}})
+    # for i in [0 if i % 2 == 0 else 1 for i in range(5)]:
+    #     pb.update({'off_channel': {'status': bool(i)}})
+    #     time.sleep(.5)
 
 
 

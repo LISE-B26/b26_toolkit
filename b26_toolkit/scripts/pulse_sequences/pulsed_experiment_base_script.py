@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.scripts import FindNV, ESR
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, Pulse, MicrowaveGenerator
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random
@@ -57,9 +57,10 @@ for a given experiment
             Parameter('extra_time', 50, int, 'extra time that is added before and after the time of the i/q pulses in ns'),
             Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source '),
             Parameter('no_iq_overlap', True, bool,'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
-        ])
+        ]),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'),
     ]
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
     _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
@@ -326,24 +327,31 @@ for a given experiment
         counts, the second is the number of
 
         '''
+        if self.settings['daq_type'] == 'PCI':
+            daq = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            daq = self.instruments['NI9402']['instance']
+
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
         # TODO(AK): figure out if timeout is actually needed
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
 
         if num_daq_reads != 0:
-            task = self.instruments['daq']['instance'].setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
-            self.instruments['daq']['instance'].run(task)
+            task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+            daq.run(task)
 
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            result_array, _ = self.instruments['daq']['instance'].read(task)  # thread waits on DAQ getting the right number of gates
+            result_array, temp = daq.read(task)  # thread waits on DAQ getting the right number of gates
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
         # clean up APD tasks
         if num_daq_reads != 0:
-            self.instruments['daq']['instance'].stop(task)
+            daq.stop(task)
 
+        if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+            self.instruments['PB']['instance'].stop_pulse_seq()
         return result
 
     # MUST BE IMPLEMENTED IN INHERITING SCRIPT
@@ -460,7 +468,7 @@ for a given experiment
 
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
-        short_pulses = [command for command in pb_commands if command.duration < 15]
+        short_pulses = [command for command in pb_commands if command.duration < pulse_blaster.settings['min_pulse_dur']]
 
         if verbose and short_pulses:
             print('Found short pulses: ', short_pulses)

@@ -1260,6 +1260,8 @@ class NI9402(DAQ):
             channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')  # initial / required only here, see NIDAQ documentation
         gate_PFI_str = ('/' + self.settings['device'] + self.settings['module'] + '/PFI' + str(
             channel_settings['gate_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
+        counter_PFI_channel_str = ('/' + self.settings['device'] + self.settings['module'] + '/PFI' + str(
+            channel_settings['counter_PFI_channel'])).encode('ascii')
 
         #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
         task['sample_num'] = num_samples
@@ -1286,6 +1288,8 @@ class NI9402(DAQ):
         # in B26, this is the ctr0 source PFI8, but this will vary from daq to daq
         self._check_error(self.nidaq.DAQmxSetCICtrTimebaseSrc(task['task_handle'], input_channel_str_gated,
                                                               counter_out_PFI_str_gated))
+        self._check_error(self.nidaq.DAQmxSetCICtrTimebaseSrc(task['task_handle'], input_channel_str_gated,
+                                                              counter_PFI_channel_str))
 
         # set the terminal for the gate to the pulseblaster source
         # in B26, due to crosstalk issues when we use the default PFI9 which is adjacent to the ctr0 source, we set this
