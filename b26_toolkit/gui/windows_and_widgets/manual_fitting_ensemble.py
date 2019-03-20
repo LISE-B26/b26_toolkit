@@ -13,6 +13,8 @@ import glob
 import time
 import queue
 import pandas as pd
+
+import h5py
 from scipy.interpolate import UnivariateSpline
 
 try:
@@ -92,6 +94,7 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
 
         def __init__(self, filepath, plotwidget, queue, peak_vals, interps):
             QObject.__init__(self)
+            print('_____', filepath)
             self.filepath = filepath
             self.plotwidget = plotwidget
             self.queue = queue
@@ -113,18 +116,61 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
             df = pd.DataFrame(data)
             df = df.transpose()
             df.to_csv(save_path)
-            self.plotwidget.figure.savefig(self.filepath + './lines.jpg')
+            self.plotwidget.figure.savefig(self.filepath + 'lines.jpg')
 
         def run(self):
-            data_esr = []
-            for f in sorted(glob.glob(os.path.join(self.filepath, './data_subscripts/*'))):
-                data = Script.load_data(f)
-                data_esr.append(data['data'])
-            self.frequencies = data['frequency']
 
-            data_esr_norm = []
-            for d in data_esr:
-                data_esr_norm.append(d / np.mean(d))
+            print('_____>>>', self.filepath)
+            if str(self.filepath).endswith('.h5'):
+                print('loading from .h5')
+                file = h5py.File(self.filepath, 'r')
+                print('UUUU', file.keys())
+                data_esr_norm = file['esr_map']
+                self.frequencies = file['frequency']
+                # print('loading freq from data_subscripts')
+
+                #
+                # sub_fs = glob.glob(os.path.join(os.path.dirname(self.filepath), 'data_subscripts/*'))
+                # print('sssss', sub_fs)
+                #
+                # print('ASAAAA', sub_fs[0])
+                #
+                #
+                # f = glob.glob(os.path.join(os.path.dirname(self.filepath), 'data_subscripts/*'))[0]
+                # data = Script.load_data(f)
+                # self.frequencies = data['frequency']
+
+            else:
+                print('loading from data_subscripts')
+                data_esr = []
+                for f in sorted(glob.glob(os.path.join(self.filepath, './data_subscripts/*'))):
+                    data = Script.load_data(f)
+                    data_esr.append(data['data'])
+                self.frequencies = data['frequency']
+
+                # normalize
+                norm = 'quantile'
+                norm_parameter = 0.75
+                if norm == 'mean':
+                    norm_value = [np.mean(d) for d in data_esr]
+                elif norm == 'border':
+                    if norm_parameter > 0:
+                        norm_value = [np.mean(d[0:norm_parameter]) for d in data_esr]
+                    elif norm_parameter < 0:
+                        norm_value = [np.mean(d[norm_parameter:]) for d in data_esr]
+                elif norm == 'quantile':
+                    norm_value = [np.quantile(d, norm_parameter) for d in data_esr]
+
+                data_esr_norm = np.array([d / n for d, n in zip(data_esr, norm_value)])  # normalize and convert to numpy array
+
+
+            # data_esr_norm = []
+            # for d in data_esr:
+            #     data_esr_norm.append(d / np.mean(d))
+
+            angle = np.arange(len(data_esr_norm))
+            print('<<<<<<<', self.frequencies.shape, angle.shape, data_esr_norm.shape)
+
 
             self.x_range = list(range(0, len(data_esr_norm)))
 
@@ -135,7 +181,8 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                 #this must be after the draw command, otherwise plot doesn't display for some reason
                 self.status.emit('executing manual fitting NV #' + str(index))
                 self.plotwidget.axes.clear()
-                self.plotwidget.axes.imshow(data_esr_norm, aspect = 'auto', origin = 'lower')
+                self.plotwidget.axes.pcolor(self.frequencies, angle, data_esr_norm)
+                # self.plotwidget.axes.imshow(data_esr_norm, aspect = 'auto', origin = 'lower')
                 if self.interps:
                     for f in self.interps:
                         self.plotwidget.axes.plot(f(self.x_range), self.x_range)
@@ -165,9 +212,23 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                                     self.plotwidget.axes.plot(f(self.x_range), self.x_range)
                             self.plotwidget.draw()
                         elif value == 'fit':
-                            peak_vals = sorted(self.peak_vals, key = lambda tup: tup[1])
-                            y,x = list(zip(*peak_vals))
-                            f = UnivariateSpline(np.array(x),np.array(y))
+                            # peak_vals = sorted(self.peak_vals, key=lambda tup: tup[1])
+                            peak_vals = np.array(self.peak_vals)
+                            print('ggggg', peak_vals.shape)
+                            y, x = peak_vals[:,0], peak_vals[:, 1]
+
+
+                            # y,x = list(zip(*peak_vals))
+                            #
+                            # print('sdasda', x)
+                            #
+                            # # sort the list such that points are in creasing (in case we accidently clicked below a point)
+                            # y = [elem for _, elem in sorted(zip(x, y))]
+
+                            y = y[x.argsort()]
+                            x = sorted(x)
+
+                            f = UnivariateSpline(x, y)
                             x_range = list(range(0,len(data_esr_norm)))
                             self.plotwidget.axes.plot(f(x_range), x_range)
                             self.plotwidget.draw()
@@ -184,7 +245,12 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
             self.finished.emit()
             self.status.emit('saving')
             self.plotwidget.axes.clear()
-            self.plotwidget.axes.imshow(data_esr_norm, aspect='auto', origin = 'lower')
+
+            angle = np.arange(len(data_esr_norm))
+            # print('asdadf', self.frequencies)
+            self.plotwidget.axes.pcolor(self.frequencies, angle, data_esr_norm)
+
+            # self.plotwidget.axes.imshow(data_esr_norm, aspect='auto', origin = 'lower')
             if self.interps:
                 for f in self.interps:
                     self.plotwidget.axes.plot(f(self.x_range), self.x_range)
@@ -212,7 +278,9 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
         opens a file dialog to get the path to a file and
         """
         dialog = QtWidgets.QFileDialog
-        filename = dialog.getExistingDirectory(self, 'Select a file:', self.data_filepath.text())
+        # filename = dialog.getExistingDirectory(self, 'Select a file:', self.data_filepath.text())
+        filename, _ = dialog.getOpenFileName(self, 'Select a file:', self.data_filepath.text())
+        print('asdsada', filename)
         if str(filename)!='':
             self.data_filepath.setText(filename)
 
