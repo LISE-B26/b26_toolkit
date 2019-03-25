@@ -93,12 +93,12 @@ def fit_gaussian2D(x, y, starting_params=None, bounds=None):
 
     try:
         if bounds:
-            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params, bounds=bounds, max_nfev=2000)
+            fit_params, pcov = optimize.curve_fit(gaussian2D, x, y, p0=starting_params, bounds=bounds, max_nfev=2000)
         else:
-            fit_params, _ = optimize.curve_fit(gaussian2D, x, y, p0=starting_params)
+            fit_params, pcov = optimize.curve_fit(gaussian2D, x, y, p0=starting_params)
     except RuntimeError:
         return [0, 0, 0, 0, 0]
-    return fit_params
+    return fit_params, np.sqrt(np.diag(pcov))
 
 def gaussian2D(x, constant_offset, amplitude, center_x, center_y, width):
     return constant_offset + amplitude * np.exp(-(np.square(x[0, :] - center_x) + np.square(x[1, :] - center_y)) / (2 * width ** 2))
@@ -520,3 +520,32 @@ def fit_rabi_decay(t, y, variable_phase=False, verbose=False, return_guess = Fal
         return opt.x, initial_parameter
     else:
         return opt.x
+
+def fit_opt_sat_curve(x_values, y_values, starting_params=None, bounds=None):
+    """
+
+    Args:
+        x_values: domain of fit function
+        y_values: y-values to fit
+        starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
+        length 4 list of the form [constant_offset, amplitude, center, width].
+        bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
+                ([offset_lb, amplitude_lb, center_lb, width_lb],[offset_ub, amplitude_ub, center_ub, width_ub])
+
+    Returns:
+        a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, width].
+        If fitting fails, returns list of zeros
+
+    """
+
+    try:
+        if bounds:
+            fit_params = optimize.curve_fit(opt_sat_curve, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+        else:
+            fit_params = optimize.curve_fit(opt_sat_curve, x_values, y_values, p0=starting_params)[0]
+    except RuntimeError:
+        return [0]
+    return fit_params
+
+def opt_sat_curve(x, amp, laser_power_prop, gamma, offset):
+    return amp * np.divide(2 * laser_power_prop * x, gamma ** 2 + 4 * laser_power_prop * x) + offset
