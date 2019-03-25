@@ -628,7 +628,6 @@ class DAQ(Instrument):
         channel_list = ''
        # channel_list += self.settings['device'] + '/' + channel + ','
 
-        print('asdasdf', self.settings['device'] , channel)
         channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
      #   print('channel_list')
      #   print(channel_list)
@@ -736,7 +735,7 @@ class DAQ(Instrument):
                                                         DAQmx_Val_GroupByChannel, ctypes.byref(data), #data.ctypes.data, ER 20180626
                                                         task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
-        return np.array(data), samples_per_channel_read
+        return data, samples_per_channel_read
 
 
     # run the task specified by task_name
