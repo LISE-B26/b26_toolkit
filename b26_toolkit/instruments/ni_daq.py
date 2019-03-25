@@ -511,6 +511,7 @@ class DAQ(Instrument):
         data = (float64 * task['sample_num'])()
         samplesPerChanRead = int32()
 
+
         self._check_error(self.nidaq.DAQmxReadCounterF64(task_handle_ctr,
                                                          int32(task['num_samples_per_channel']), float64(-1),
                                                          ctypes.byref(data),
@@ -627,8 +628,6 @@ class DAQ(Instrument):
 
         channel_list = ''
        # channel_list += self.settings['device'] + '/' + channel + ','
-
-        print('asdasdf', self.settings['device'] , channel)
         channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
      #   print('channel_list')
      #   print(channel_list)
@@ -736,7 +735,7 @@ class DAQ(Instrument):
                                                         DAQmx_Val_GroupByChannel, ctypes.byref(data), #data.ctypes.data, ER 20180626
                                                         task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
-        return np.array(data), samples_per_channel_read
+        return data, samples_per_channel_read
 
 
     # run the task specified by task_name
@@ -1308,7 +1307,7 @@ class NI9219(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ1Mod4', ['cDAQ1Mod3', 'cDAQ1Mod4'],
+        Parameter('device', 'cDAQ1Mod3', ['cDAQ1Mod3'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
@@ -1386,7 +1385,7 @@ if __name__ == '__main__':
 if __name__ == '__main__':
     # pass
     # daq, failed = Instrument.load_and_append({'daq': NI9263, 'daq_in': NI6259})
-    NI9402.get_connected_devices()
+    NI6259.get_connected_devices()
     # print('FAILED', failed)
     # print(daq['daq'].settings)
     #
