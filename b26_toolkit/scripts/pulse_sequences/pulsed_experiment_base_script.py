@@ -108,6 +108,12 @@ for a given experiment
 
         """
 
+        # Set DAQ
+        if self.settings['daq_type'] == 'PCI':
+            self._daq = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self._daq = self.instruments['NI9402']['instance']
+
         # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
         self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
 
@@ -327,28 +333,25 @@ for a given experiment
         counts, the second is the number of
 
         '''
-        if self.settings['daq_type'] == 'PCI':
-            daq = self.instruments['NI6259']['instance']
-        elif self.settings['daq_type'] == 'cDAQ':
-            daq = self.instruments['NI9402']['instance']
+
 
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
         # TODO(AK): figure out if timeout is actually needed
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
 
         if num_daq_reads != 0:
-            task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
-            daq.run(task)
+            task = self._daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+            self._daq.run(task)
 
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            result_array, temp = daq.read(task)  # thread waits on DAQ getting the right number of gates
+            result_array, temp = self._daq.read(task)  # thread waits on DAQ getting the right number of gates
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
         # clean up APD tasks
         if num_daq_reads != 0:
-            daq.stop(task)
+            self._daq.stop(task)
 
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
             self.instruments['PB']['instance'].stop_pulse_seq()
