@@ -22,11 +22,12 @@ from copy import deepcopy
 import numpy as np
 
 from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random
-
+import time as t
 MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
 
@@ -51,6 +52,10 @@ for a given experiment
             Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
             Parameter('allowed_delta_freq', 2., float, 'do not change the mw carrier frequency if the new ESR is different by more than this amount (MHz) (protects against bad fits)')
         ]),
+        Parameter('Autofocus_Tracking', [
+            Parameter('on/off', False, bool, 'turn on to autofocus z piezo'),
+            Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
+        ]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
             Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 2*extra-time'),
@@ -62,7 +67,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDAQ}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -162,6 +167,14 @@ for a given experiment
                 self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 self.log('aborted pulseblaster script during loop')
                 break
+
+            #MM 20190621
+            if self.settings['Autofocus_Tracking']['on/off'] and average_loop % self.settings['Autofocus_Tracking']['track_every_N'] == 0:
+                self.scripts['autofocus'].run()
+                #Retrack NV afterwards.
+                self.scripts['find_nv'].run()
+                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+
 
             # ER 20181028
             if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking']['track_every_N']==0:
@@ -296,6 +309,7 @@ for a given experiment
             if self._abort:
                 self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
                 break
+            print('starting sequence')
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
 
@@ -313,6 +327,8 @@ for a given experiment
                         print('TRACKING TO NV...')
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+                    #MM 20190621
+                    self.scripts['autofocus'].scripts['take_image'].settings['point_a'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
 
     def _run_single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
@@ -335,15 +351,14 @@ for a given experiment
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
         # TODO(AK): figure out if timeout is actually needed
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
-
         if num_daq_reads != 0:
             task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
             daq.run(task)
-
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            result_array, temp = daq.read(task)  # thread waits on DAQ getting the right number of gates
+            result_array, temp = daq.read(task)   # thread waits on DAQ getting the right number of gates
+            t4 = t.perf_counter()
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
         # clean up APD tasks
@@ -494,6 +509,10 @@ for a given experiment
                 return True
 
             if np.mod(pulse.start_time, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
+                print("hello!")
+                print(pulse.start_time)
+                print(self.instruments['PB']['instance'].settings['clock_speed'])
+                print(1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed']))
                 return True
             if np.mod(pulse.start_time + pulse.duration, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
                 return True
@@ -525,7 +544,7 @@ for a given experiment
                 print('Unfortunately compiled a pulse_sequence into too many pulse blaser commands, cannot program it')
             return True
 
-    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=False):
+    def _is_bad_pulse_sequence(self, pulse_sequence, verbose=True):
         """
 
         validates the pulse sequences, i.e. checks if the pulse sequences are compatible with all the constrains of the pulseblaster,
