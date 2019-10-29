@@ -140,7 +140,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                     break
 
                 self.init_image()
-
                 # set the voltage on the piezo
                 self._step_piezo(voltage, self.settings['wait_time'])
                 self.log('take scan, position {:0.2f}'.format(voltage))
@@ -172,10 +171,13 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         else:
             self.filename_image = None
 
-        # daq_pt = self._get_galvo_location()
 
-        # if self.settings['center_on_current_location']:
-        #     self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
+        # ER uncommented 20191016
+
+        daq_pt = self._get_galvo_location()
+
+        if self.settings['center_on_current_location']:
+             self.scripts['take_image'].settings['point_a'].update({'x': daq_pt[0], 'y': daq_pt[1]})
 
         min_voltage = self.settings['z_axis_center_position'] - self.settings['scan_width']/2.0
         max_voltage = self.settings['z_axis_center_position'] + self.settings['scan_width']/2.0
@@ -206,8 +208,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         # self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
-        # if self.settings['galvo_return_to_initial']:
-        #     self._set_galvo_location(daq_pt)
+        if self.settings['galvo_return_to_initial']:
+            self._set_galvo_location(daq_pt)
 
     def init_image(self):
         """
@@ -282,7 +284,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     def _plot(self, axes_list, data = None):
         # fit the data and set piezo to focus spot
         if data is None:
-            data  = self.data
+            data = self.data
         axis_focus, axis_image = axes_list
 
         # if take image is running we take the data from there otherwise we use the scripts own image data
@@ -457,7 +459,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             import sys
             import traceback
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print("*** print_exception:")
             traceback.print_exception(exc_type, exc_value, exc_traceback,
                                       limit=2, file=sys.stdout)
 
@@ -477,12 +478,17 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         returns the current position of the galvo
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
-        galvo_position = self.scripts['take_image'].get_galvo_location()
+        # ER 20191016 only works on alice / computer with NI6259
+        daq_pt = self.scripts['take_image'].instruments['NI6259']['instance'].get_analog_voltages(
+            [self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
+             self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
+
+       # galvo_position = self.scripts['take_image'].get_galvo_location()
         # galvo_position = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([
         #     self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
         #     self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']]
         # )
-        return galvo_position
+        return daq_pt #galvo_position
 
     def _set_galvo_location(self, galvo_position):
         """

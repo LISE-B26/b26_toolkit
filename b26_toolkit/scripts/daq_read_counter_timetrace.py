@@ -19,6 +19,7 @@
 import time
 from collections import deque
 import numpy as np
+import time
 from copy import deepcopy
 
 from b26_toolkit.instruments import NI6259, NI9402, NI9219
@@ -384,13 +385,17 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         daq_tasks = self.setup_daq_tasks(number_of_samples)
 
+        # DS20191016 Record start time
+        # print('Start time: {}'.format(time.time()))
+        start_time = time.time() # in seconds
+
         for daq, task in daq_tasks:
             # start task
             daq.run(task)
 
         self.data = self.read_daq_data(daq_tasks, sample_rate)
+        self.data['start_time'] = start_time
 
-        print('lsdlfjas;fhas', self.data)
         # clean up
         for daq, task in daq_tasks:
             # start task
@@ -409,9 +414,6 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             if len(signal) > 0:
                 plot_counts(axes_list[0], signal/np.mean(signal))
                 freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
-                print('freqs: ', freq)  # ER 20190129
-                print('psd: ', psd) # ER 20190129
-                print('freq[-1:]: ', freq[-1:])
                # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
                 plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
 

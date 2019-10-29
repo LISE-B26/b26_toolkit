@@ -92,8 +92,6 @@ class GalvoScan(GalvoScanGeneric):
         :return:
         """
 
-
-
         # defines which daqs contain the input and output based on user selection of daq interface
         if self.settings['daq_type'] == 'PCI':
             self.daq_in = self.instruments['NI6259']['instance']

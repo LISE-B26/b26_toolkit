@@ -191,7 +191,6 @@ class PiezoControllerCold(PiezoController):
             self.ser.write((self.settings['axis'] + 'voltage=' + str(volts) + '\r').encode())
             successCheck = self.ser.readlines()
             time.sleep(0.25)
-            print('time elapsed: ', time.time()-next_time)
             if len(successCheck) == 0:
                 message = 'Something went wrong --- check that you are using the right port!'
                 raise ValueError(message)

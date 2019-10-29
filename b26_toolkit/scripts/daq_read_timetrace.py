@@ -148,6 +148,7 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
         self.data['times'] = np.linspace(0, self.settings['acquisition_time']*1e9, self.settings['acquisition_time']*self.settings['sample_rate'])
         self.data['voltages'] = []
 

@@ -311,6 +311,7 @@ for a given experiment
 
             self.sequence_index = index
             counts_temp = counts_to_check[0]
+            print(counts_temp)
             # track to the NV if necessary ER 5/31/17
             if self.settings['Tracking']['on/off']:
                 if (1+(1-self.settings['Tracking']['threshold']))*self.settings['Tracking']['init_fluor'] < counts_temp or \

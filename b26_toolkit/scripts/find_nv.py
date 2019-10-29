@@ -47,7 +47,13 @@ Known issues:
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
         Parameter('min_mass', 180, int, 'TEMP: brightness of nv - need to be refined!!'),
         Parameter('number_of_attempts', 1, int, 'Number of times to decrease min_mass if an NV is not found'),
-        Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than ')
+        Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than '),
+        # ER 20191018 added to allow for tracking to an NV over a long measurement, but to avoid putting the laser over the
+        #       levitating bead if tracking fails and a random walk of the laser position begins
+        Parameter('safety_min_x', 0.0, float, 'minimum x value to set the laser to if center_on_current_location is on'),
+        Parameter('safety_min_y', 0.0, float, 'minimum y value to set the laser to if center_on_current_location is on'),
+        Parameter('safety_max_x', 1.0, float, 'maximum x value to set the laser to if center_on_current_location is on'),
+        Parameter('safety_max_y', 1.0, float, 'maximum y value to set the laser to if center_on_current_location is on')
     ]
 
     _INSTRUMENTS = {}
@@ -70,8 +76,16 @@ Known issues:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
             daq_pt = self.scripts['take_image'].instruments['NI6259']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
+
             self.settings['initial_point'].update({'x': daq_pt[0], 'y': daq_pt[1]})
+
         initial_point = self.settings['initial_point']
+
+        if not (self.settings['safety_min_x'] < initial_point['x'] < self.settings['safety_max_x'] and
+                self.settings['safety_min_y'] < initial_point['y'] < self.settings['safety_max_y']):
+            self.log('initial point is outside the safe zone for the laser. Please select a reasonable initial point.')
+            return
+
         nv_size = self.settings['nv_size']
         min_mass = self.settings['min_mass']
 
@@ -153,14 +167,19 @@ Known issues:
                 self.data['fluorescence'] = 0.0
                 break
 
-        self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
+        # ER 20191018 added to avoid putting the laser over the levitating bead
+        if (self.settings['safety_min_x'] < self.data['maximum_point']['x'] < self.settings['safety_max_x'] and
+                self.settings['safety_min_y'] < self.data['maximum_point']['y'] < self.settings['safety_max_y']):
+            self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
+        else:
+            self.log('maximum point in find_nv was outside safety bounds. Not updating the laser point.')
+            self.scripts['set_laser'].settings['point'].update(initial_point)
         self.scripts['set_laser'].run()
 
 
     @staticmethod
     def plot_data(axes_list, data):
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
-
         initial_point = data['initial_point']
         patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none', ls='dashed')
         axes_list[0].add_patch(patch)

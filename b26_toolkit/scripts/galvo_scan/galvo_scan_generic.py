@@ -84,14 +84,10 @@ class GalvoScanGeneric(Script):
         """
         pass
 
-
     def _function(self):
         """
         Executes threaded galvo scan
         """
-
-
-
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])

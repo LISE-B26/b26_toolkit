@@ -255,7 +255,6 @@ def fit_esr(freq, ampl, min_counts = .5, contrast_factor = 1.5, strain_filtering
     MAX_WIDTH = 100e6  # set the max width 100MHz
     freq_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
 
-
     if verbose:
         print(('found peaks at ', freq_peaks))
 
