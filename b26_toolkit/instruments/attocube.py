@@ -39,6 +39,13 @@ NCB_DeviceLocked = 7
 NCB_NotSpecifiedParam = 8
 
 # converts x,y,z to axis number in controller
+
+axis_ctypes = {
+                'x': int32(1),
+                'y': int32(2),
+                'z': int32(0)
+                }
+
 axis_x = int32(1)
 axis_y = int32(2)
 axis_z = int32(0)
@@ -85,6 +92,8 @@ class Attocube(Instrument):
                   )
     ])
 
+    _AXES = ['x', 'y', 'z']
+
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
         # and all future calls will fail. If a DLL but no instrument connected, throw an error.
@@ -120,7 +129,7 @@ class Attocube(Instrument):
         '''
         super(Attocube, self).update(settings)
         for key, value in settings.items():
-            if isinstance(value, dict) and key in ['x', 'y', 'z']:
+            if isinstance(value, dict) and key in self._AXES:
                 for sub_key, sub_value in sorted(value.items()):
                     if sub_key == 'on':
                         self._toggle_axis(self._convert_axis(key), sub_value)
@@ -157,13 +166,13 @@ class Attocube(Instrument):
         assert key in list(self._PROBES.keys())
         assert isinstance(key, str)
 
-        if key in ['x_pos', 'y_pos', 'z_pos']:
+        if key in [el + '_pos' for el in self._AXES]:#['x_pos', 'y_pos', 'z_pos']:
             return self._get_position(self._convert_axis(key[0]))
-        elif key in ['x_voltage', 'y_voltage', 'z_voltage']:
+        elif key in [el + '_voltage' for el in self._AXES]:
             return self._get_amplitude(self._convert_axis(key[0]))
-        elif key in ['x_freq', 'y_freq', 'z_freq']:
+        elif key in [el + '_freq' for el in self._AXES]:
             return self._get_frequency(self._convert_axis(key[0]))
-        elif key in ['x_cap', 'y_cap', 'z_cap']:
+        elif key in [el + '_cap' for el in self._AXES]:
             return self._cap_measure(self._convert_axis(key[0]))
 
     @property
@@ -267,7 +276,7 @@ class Attocube(Instrument):
         self._check_error(self.attocube.PositionerClose(device_handle))
         return capacitance.value
 
-    def _move_absolute(self, axis, position):
+    def move_absolute(self, axis, position):
         '''
         Precondition: Must set voltage and frequency sufficiently low that ANC's internal feedback will be able to
         settle on the appropriate position (ex. 7V, 100Hz). Otherwise, fluctuates around target position and never stops
@@ -276,7 +285,7 @@ class Attocube(Instrument):
         '''
         device_handle = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
-        self._check_error(self.attocube.PositionerMoveAbsolute(device_handle, axis, int32(int(position * 1000.0))))
+        self._check_error(self.attocube.PositionerMoveAbsolute(device_handle, self._convert_axis(axis), int32(int(position * 1000.0))))
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def step(self, axis, dir):
@@ -294,14 +303,11 @@ class Attocube(Instrument):
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def _convert_axis(self, axis):
-        if axis == 'x':
-            return axis_x
-        elif axis == 'y':
-            return axis_y
-        elif axis == 'z':
-            return axis_z
-        else:
-            raise ValueError('No such axis')
+
+        if axis not in self._AXES:
+            raise ValueError('No such axis available')
+
+        return axis_ctypes[axis]
 
     @staticmethod
     def _check_error(code):
@@ -342,6 +348,41 @@ class Attocube(Instrument):
         else:
             print( "Error: unknown\n" )
             raise Exception
+
+class AttocubeXY(Attocube):
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('x',
+                  [
+                      Parameter('on', False, [True, False], 'x axis on'),
+                      Parameter('pos', 0.0, float, 'x axis position in um'),
+                      Parameter('voltage', 30, float, 'voltage on x axis'),
+                      Parameter('freq', 1000, float, 'x frequency in Hz')
+                  ]
+                  ),
+        Parameter('y',
+                  [
+                      Parameter('on', False, [True, False], 'y axis on'),
+                      Parameter('pos', 0, float, 'y axis position in um'),
+                      Parameter('voltage', 30, float, 'voltage on y axis'),
+                      Parameter('freq', 1000, float, 'y frequency in Hz')
+                  ]
+                  )
+    ])
+
+    _AXES = ['x', 'y']
+
+    @property
+    def _PROBES(self):
+        return{
+            'x_pos': 'the position the x direction (with respect to the camera) in um',
+            'x_voltage': 'the voltage of the x direction (with respect to the camera)',
+            'x_freq': 'the frequency of the x direction (with respect to the camera)',
+            'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
+            'y_pos': 'the position the y direction (with respect to the camera) in um',
+            'y_voltage': 'the voltage of the y direction (with respect to the camera)',
+            'y_freq': 'the frequency of the y direction (with respect to the camera)',
+            'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
+        }
 
 if __name__ == '__main__':
     print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
