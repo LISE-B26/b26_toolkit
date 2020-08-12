@@ -26,9 +26,17 @@ from pylabcontrol.core import Parameter, Script
 
 class AttoStep(Script):
     # COMMENT_ME
+    # _DEFAULT_SETTINGS = [
+    #     Parameter('axis', 'z', ['x', 'y', 'z'], 'Axis to step on'),
+    #     Parameter('direction', 'Up', ['Up', 'Down'], 'step direction, up or down in voltage (or on physical switch)')
+    # ]
+
     _DEFAULT_SETTINGS = [
-        Parameter('axis', 'z', ['x', 'y', 'z'], 'Axis to step on'),
-        Parameter('direction', 'Up', ['Up', 'Down'], 'step direction, up or down in voltage (or on physical switch)')
+        Parameter('num_steps', [
+            Parameter('x', 0, int, 'num steps along x-axis'),
+            Parameter('y', 0, int, 'num steps along y-axis'),
+            Parameter('z', 0, int, 'num steps along z-axis')
+        ])
     ]
 
     _INSTRUMENTS = {'attocube': Attocube}
@@ -39,26 +47,38 @@ class AttoStep(Script):
         Default script initialization
         """
         Script.__init__(self, name, settings = settings, instruments = instruments, log_function= log_function, data_path = data_path)
-
+        
     def _function(self):
         """
         Performs a single attocube step with the voltage and frequency, and in the direction, specified in settings
         """
-        attocube = self.instruments['attocube']['instance']
-        attocube_voltage = self.instruments['attocube']['settings'][self.settings['axis']]['voltage']
-        attocube.update({self.settings['axis']: {'voltage': attocube_voltage}})
-        attocube_freq = self.instruments['attocube']['settings'][self.settings['axis']]['freq']
-        attocube.update({self.settings['axis']: {'freq': attocube_freq}})
-        if self.settings['direction'] == 'Up':
-            dir = 0
-        elif self.settings['direction'] == 'Down':
-            dir = 1
-        self.instruments['attocube']['instance'].step(self.settings['axis'], dir)
+        for axis in self.settings['num_steps']:
+
+            direction = 0
+            if self.settings['num_steps'][axis] < 0:
+                direction = 1
+
+            for _ in range(np.abs(self.settings['num_steps'][axis])):
+                self._attocube.step(axis, direction)
+            
+
+        # attocube = self.instruments['attocube']['instance']
+        # attocube_voltage = self.instruments['attocube']['settings'][self.settings['axis']]['voltage']
+        # attocube.update({self.settings['axis']: {'voltage': attocube_voltage}})
+        # attocube_freq = self.instruments['attocube']['settings'][self.settings['axis']]['freq']
+        # attocube.update({self.settings['axis']: {'freq': attocube_freq}})
+        # if self.settings['direction'] == 'Up':
+        #     dir = 0
+        # elif self.settings['direction'] == 'Down':
+        #     dir = 1
+        # self.instruments['attocube']['instance'].step(self.settings['axis'], dir)
 
 class AttoStepXY(AttoStep):
     _DEFAULT_SETTINGS = [
-        Parameter('axis', 'x', ['x', 'y'], 'Axis to step on'),
-        Parameter('direction', 'Up', ['Up', 'Down'], 'step direction, up or down in voltage (or on physical switch)')
+        Parameter('num_steps', [
+            Parameter('x', 0, int, 'num steps along x-axis'),
+            Parameter('y', 0, int, 'num steps along y-axis'),
+        ])
     ]
 
     _INSTRUMENTS = {'attocube': AttocubeXY}
