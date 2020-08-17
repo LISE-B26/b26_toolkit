@@ -141,6 +141,7 @@ class ANC300(Attocube):
     _WRITE_TIMEOUT = 0.03 # seconds
 
     def __init__(self, name=None, settings=None):
+
         super().__init__(name, settings)
         self._is_connected = False
         try:

@@ -44,6 +44,7 @@ class AttoStep(Script):
         """
         Default script initialization
         """
+
         Script.__init__(self, name, settings = settings, instruments = instruments, log_function= log_function, data_path = data_path)
         
     def _function(self):
