@@ -17,7 +17,7 @@
 """
 import numpy as np
 import time
-from b26_toolkit.instruments import Attocube, AttocubeXY
+from b26_toolkit.instruments import ANC300, ANC350
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence
@@ -31,21 +31,20 @@ class AttoStep(Script):
     #     Parameter('direction', 'Up', ['Up', 'Down'], 'step direction, up or down in voltage (or on physical switch)')
     # ]
 
-    _DEFAULT_SETTINGS = [
-        Parameter('num_steps', [
-            Parameter('x', 0, int, 'num steps along x-axis'),
-            Parameter('y', 0, int, 'num steps along y-axis'),
-            Parameter('z', 0, int, 'num steps along z-axis')
-        ])
-    ]
+    _DEFAULT_SETTINGS = [Parameter('num_steps', [
+        Parameter('x', 0, int, 'num steps along x-axis'),
+        Parameter('y', 0, int, 'num steps along y-axis'),
+        Parameter('z', 0, int, 'num steps along z-axis')
+    ])]
 
-    _INSTRUMENTS = {'attocube': Attocube}
+    _INSTRUMENTS = {'attocube': ANC300}
     _SCRIPTS = {}
 
     def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
         """
         Default script initialization
         """
+
         Script.__init__(self, name, settings = settings, instruments = instruments, log_function= log_function, data_path = data_path)
         
     def _function(self):
@@ -53,13 +52,7 @@ class AttoStep(Script):
         Performs a single attocube step with the voltage and frequency, and in the direction, specified in settings
         """
         for axis in self.settings['num_steps']:
-
-            direction = 0
-            if self.settings['num_steps'][axis] < 0:
-                direction = 1
-
-            for _ in range(np.abs(self.settings['num_steps'][axis])):
-                self._attocube.step(axis, direction)
+            self.instruments['attocube']['instance'].multistep(axis, self.settings['num_steps'][axis])
             
 
         # attocube = self.instruments['attocube']['instance']
@@ -74,66 +67,56 @@ class AttoStep(Script):
         # self.instruments['attocube']['instance'].step(self.settings['axis'], dir)
 
 class AttoStepXY(AttoStep):
-    _DEFAULT_SETTINGS = [
-        Parameter('num_steps', [
-            Parameter('x', 0, int, 'num steps along x-axis'),
-            Parameter('y', 0, int, 'num steps along y-axis'),
-        ])
-    ]
+    _DEFAULT_SETTINGS = [Parameter('num_steps', [
+        Parameter('x', 0, int, 'num steps along x-axis'),
+        Parameter('y', 0, int, 'num steps along y-axis'),
+    ])]
 
-    _INSTRUMENTS = {'attocube': AttocubeXY}
+    _INSTRUMENTS = {'attocube': ANC300}
 
 class AttoScanOpenLoop(Script):
 
     _DEFAULT_SETTINGS = [
         Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
-        Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
+        # Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
         Parameter('num_steps', 100, int, 'number of points in the scan'),
         Parameter('num_points', 10, int, 'number of DAQ counter measurements'),
-        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
     ]
 
-    _SCRIPTS = {'daq_read_counter': Daq_Read_Counter, 'attocube': AttocubeXY}
-
-    def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
-        """
-        Default script initialization
-        """
-        self.attocube = self.instruments['attocube']['instance']
-        super().__init__(name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None)
+    _SCRIPTS = {'daq_read_counter': Daq_Read_Counter}
+    _INSTRUMENTS = {'attocube': ANC300}
 
     def _function(self):
+        self.attocube = self.instruments['attocube']['instance']
+
         scan_axis = self.settings['scan_axis']
+        steps_per_meas = self.settings['num_steps'] // self.settings['num_points']
+
         
         self.data = {
             'counts': [],
-            'position': np.linspace(0, self.settings['num_steps'], self.settings['num_points'])
+            'positions': np.arange(0, self.settings['num_steps'], steps_per_meas)
         }
 
-        if self.settings['direction'] == 'negative':
-            self.data['position'] = -self.data['position']
-
-        for i in range(self.settings['num_steps']):
+        for i in range(len(self.data['positions'])):
             if self._abort:
                 break
 
             # run daq_read_counter or the relevant script to get fluorescence
-            if i % (self.settings['num_steps'] // self.settings['num_points']) == 0:
-                self.scripts['daq_read_counter'].run()
-                time.sleep(self.settings['time_per_pt'])
-                self.scripts['daq_read_counter'].stop()
+            self.scripts['daq_read_counter'].run()
 
-                # add to output structures which will be plotted
-                data = self.scripts['daq_read_counter'].data['counts']
-                self.data['counts'].append(np.mean(data))
+            # add to output structures which will be plotted
+            data = self.scripts['daq_read_counter'].data['counts']
+            self.data['counts'].append(np.mean(data))
 
-            self.attocube.step(scan_axis, self.settings['direction'] == 'negative')
+            self.attocube.multistep(scan_axis, steps_per_meas)
 
             self.progress = i * 100. / self.settings['num_points']
             self.updateProgress.emit(int(self.progress))
         
         # clean up data, as in daq_read_counter
         self.data['counts'] = list(self.data['counts'])
+        self.data['positions'] = list(self.data['positions'])
 
     def _plot(self, axes_list, data=None):
         if data is None:
@@ -143,10 +126,10 @@ class AttoScanOpenLoop(Script):
             axes_list[0].set_xlabel('steps')
             axes_list[0].set_ylabel('kCounts/sec')
 
-            axes_list[0].plot(self.positions, data['counts'], linewidth=2.0)
+            axes_list[0].plot(data['positions'][:len(data['counts'])], data['counts'], linewidth=2.0)
 
     def _update_plot(self, axes_list):
-        update_counts_vs_pos(axes_list[0], self.data['counts'], self.positions)
+        update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
 
 class AttoScanClosedLoop(Script):
 
@@ -159,7 +142,7 @@ class AttoScanClosedLoop(Script):
         Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
     ]
 
-    _SCRIPTS = {'daq_read_counter': Daq_Read_Counter, "attocube": AttocubeXY}
+    _SCRIPTS = {'daq_read_counter': Daq_Read_Counter, "attocube": ANC300}
 
     def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
         """
@@ -218,81 +201,54 @@ class AttoScanClosedLoop(Script):
 
 class AttoScanOpenLoop_2D(Script):
     
-    _DEFAULT_SETTINGS = [
-        Parameter('outer_loop',
-                [
-                    Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
-                    Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
-                    Parameter('num_points', 10, int, 'number of points in the scan'),
-                    Parameter('num_steps', 100, int, 'minimum position of scan (um)'),
-                    Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
-                ]),
-        Parameter('inner_loop',
-                [
-                    Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
-                    Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
-                    Parameter('num_points', 10, int, 'number of points in the scan'),
-                    Parameter('num_steps', 100, int, 'minimum position of scan (um)'),
-                    Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
-                ]),
-        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
-    ]
+    _DEFAULT_SETTINGS = [Parameter('outer_loop', [
+        Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
+        Parameter('num_steps', 100, int, 'number of points in the scan'),
+        Parameter('num_points', 10, int, 'number of DAQ counter measurements')
+    ])]
 
-    _SCRIPTS = {'attoscan': AttoScanOpenLoop}
-
-    def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
-        """
-        Default script initialization
-        """
-        self.attocube = self.scripts['attoscan']['instruments']['instance']
-
-        self.inner_scan = self.scripts['attoscan']
-        self.inner_scan.settings = self.settings['inner_loop']
-
-        super().__init__(name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None)
-
-    def _switch_direction(self, direction):
-        if direction == 'positive':
-            return 'negative'
-        return 'positive'
-            
+    _SCRIPTS = {'inner_scan': AttoScanOpenLoop}
+    _INSTRUMENTS = {}
 
     def _function(self):
+        self.inner_scan = self.scripts['inner_scan']
+        self.attocube = self.inner_scan.instruments['attocube']['instance']
+
+
         outer_settings = self.settings['outer_loop']
-        inner_settings = self.settings['inner_loop']
+        inner_settings = self.inner_scan.settings
 
         if outer_settings['scan_axis'] == inner_settings['scan_axis']:
             raise ValueError('scan axes cannot be the same')
 
-        self.outer_pos = np.linspace(0, outer_settings['num_steps'], outer_settings['num_points'])
+
+        steps_per_outermeas = outer_settings['num_steps'] // outer_settings['num_points']
+        outer_pos = np.arange(0, outer_settings['num_steps'], steps_per_outermeas)
         
 
         self.data = {
             'counts': np.zeros((outer_settings['num_points'], inner_settings['num_points'])),
             'positions': {
-                'outer': np.linspace(0, outer_settings['num_steps'], outer_settings['num_points']),
-                'inner': np.linspace(0, inner_settings['num_steps'], inner_settings['num_points'])
+                'inner': np.arange(0, inner_settings['num_steps'], inner_settings['num_steps'] // inner_settings['num_points']),
+                'outer': outer_pos
             }
         }
 
-        if outer_settings['direction'] == 'negative':
-            self.data['positions']['outer'] = -self.data['positions']['outer']
-
-        if inner_settings['direction'] == 'negative':
-            self.data['positions']['inner'] = -self.data['positions']['inner']
-
-
-        for i_out in range(outer_settings['num_points']):
+        for i_out in range(len(outer_pos)):
 
             if self._abort:
                 break
 
-            if i_out % (outer_settings['num_steps'] // outer_settings['num_points']) == 0:
-                self.inner_scan.run()
-                self.data['counts'][i_out, :] = self.inner_scan.data['counts']                
-                self.inner_scan['direction'] = self._switch_direction(self.inner_scan['direction'])
+            self.inner_scan.run()
+            if i_out % 2 == 0:
+                self.data['counts'][i_out, :] = self.inner_scan.data['counts']
+            else:
+                self.data['counts'][i_out, :] = np.flip(self.inner_scan.data['counts'], 0)
 
-            self.attocube.step(outer_settings['scan_axis'], outer_settings['direction'])
+            self.inner_scan.settings['num_steps'] = -self.inner_scan.settings['num_steps']
+
+
+            self.attocube.multistep(outer_settings['scan_axis'], steps_per_outermeas)
 
             self.progress = i_out * 100. / self.settings['outer_loop']['num_points']
             self.updateProgress.emit(int(self.progress))
@@ -302,10 +258,12 @@ class AttoScanOpenLoop_2D(Script):
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
 
-        extent = [0, self.data['positions']['inner'][-1], 0, self.data['positions']['outer'][-1]]
 
         if data is None:
             data = self.data
+
+        extent = [0, self.data['positions']['inner'][-1],
+                  0, self.data['positions']['outer'][-1]]
 
         if data:
             plot_fluorescence_pos(data['counts'], extent, axes_list[0])
@@ -313,8 +271,6 @@ class AttoScanOpenLoop_2D(Script):
             axes_list[0].set_ylabel(r'pos$_{inner}$ [steps]')
 
     def _update_plot(self, axes_list):
-        extent = [0, self.data['positions']['inner'][-1], 0, self.data['positions']['outer'][-1]]
-
         update_fluorescence(self.data['counts'], axes_list[0])
 
 class AttoScanClosedLoop_2D(Script):
