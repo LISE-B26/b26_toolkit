@@ -2,7 +2,7 @@
 
 NIDAQ_DLL_PATH: C:\Windows\System32\nicaiu.dll
 PULSEBLASTER_DLL_PATH: C:\Windows\System32\spinapi64.dll
-ATTOCUBE_DLL_PATH: C:/Users/Experiment/Downloads/attocube/Software/ANC350_Software_v1.5.15/ANC350_DLL/Win_64Bit/src/anc350v2.dll
+ATTOCUBE_DLL_PATH: C:\attocube\attocube\Software\ANC350_Software_v1.5.15\ANC350_DLL\Win_64Bit\src\anc350v2.dll
 KINESIS_DLL_PATH: C:\Program Files\Thorlabs\Kinesis\
 NIFPGA_DLL_PATH: C:\Users\Experiment\PycharmProjects\b26_toolkit\src\instruments\labview_fpga_lib\
 SMC100_DLL_PATH: C:\Windows\Microsoft.NET\assembly\GAC_64\Newport.SMC100.CommandInterface\v4.0_2.0.0.3__d9d722840772240b

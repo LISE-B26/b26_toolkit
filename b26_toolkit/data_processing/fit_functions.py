@@ -278,6 +278,7 @@ def get_ampfreqphase_FFT(qx, dt, n0 = 0, f_range = None, return_Spectra = False)
         return [ax, 2*np.pi*fx, phi], [Fx, Ax]
     else:
         return [ax, 2*np.pi*fx, phi]
+
 def A_fun(qx, w, dt):
     '''
     Ak = A_fun(qx, w, fs)
@@ -320,7 +321,6 @@ def guess_cose_parameter(t, y):
         ax = np.mean([ax, np.std(y)])# take an average off std and FFT amplitude
 
     return [ax, wx, phi, offset]
-
 
 def cose(t, a0, w0, phi0, offset):
     """
