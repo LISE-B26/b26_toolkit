@@ -116,27 +116,15 @@ class Attocube(Instrument):
 class ANC300(Attocube):
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM3', str, 'serial port on which to connect'),
+        Parameter('port', 'COM23', str, 'serial port on which to connect'),
         Parameter('baudrate', 9600, int, 'baudrate of connection'),
         Parameter('timeout', 1., float, 'connection timeout in seconds'),
-        Parameter('x',
-                  [
-                      Parameter('voltage', 30, float, 'voltage on x axis'),
-                      Parameter('freq', 100, float, 'x frequency in Hz')
-                  ]
-                  ),
-        Parameter('y',
-                  [
-                      Parameter('voltage', 30, float, 'voltage on y axis'),
-                      Parameter('freq', 100, float, 'y frequency in Hz')
-                  ]
-                  ),
-        Parameter('z',
-                  [
-                      Parameter('voltage', 30, float, 'voltage on x axis'),
-                      Parameter('freq', 100, float, 'x frequency in Hz')
-                  ]
-                  )
+        Parameter('x_voltage', 30, float, 'voltage on x axis'),
+        Parameter('x_freq', 100, float, 'x frequency in Hz'),
+        Parameter('y_voltage', 30, float, 'voltage on y axis'),
+        Parameter('y_freq', 100, float, 'y frequency in Hz'),
+        Parameter('z_voltage', 30, float, 'voltage on x axis'),
+        Parameter('z_freq', 100, float, 'x frequency in Hz')
     ])
     _WRITE_TIMEOUT = 0.03 # seconds
 
@@ -162,16 +150,14 @@ class ANC300(Attocube):
         '''
         super().update(settings)
         for key, value in settings.items():
-            if isinstance(value, dict) and key in self._AXES:
-                for sub_key, sub_value in sorted(value.items()):
-                    if sub_key == 'on':
-                        self._toggle_axis(self._convert_axis(key), sub_value)
-                    elif sub_key == 'voltage':
-                        self._set_amplitude(self._convert_axis(key), sub_value)
-                    elif sub_key == 'freq':
-                        self._set_frequency(self._convert_axis(key), sub_value)
-                    else:
-                        raise ValueError('No such key')
+            split_key = key.split('_')
+            if split_key[0] in self._AXES:
+                if split_key[1] == 'voltage':
+                    self._set_amplitude(self._convert_axis(split_key[0]), value)
+                elif split_key[1] == 'freq':
+                    self._set_frequency(self._convert_axis(split_key[0]), value)
+                else:
+                    raise ValueError('No such key')
 
     def _connect(self, port, baudrate=9600, timeout=1.):
         self.ser = serial.Serial(port=port,
@@ -287,33 +273,16 @@ class ANC300(Attocube):
     @property
     def _PROBES(self):
         return {
-            'x': {
-                'voltage': 'the voltage of the x direction (with respect to the camera)',
-                'freq': 'the frequency of the x direction (with respect to the camera)',
-                'cap': 'the capacitance of the piezo in the x direction (with respect to the camera)'
-            },
-            'y': {
-                'voltage': 'the voltage of the y direction (with respect to the camera)',
-                'freq': 'the frequency of the y direction (with respect to the camera)',
-                'cap': 'the capacitance of the piezo in the y direction (with respect to the camera)'
-            },
-            'z': {
-                'voltage': 'the voltage of the z direction (with respect to the camera)',
-                'freq': 'the frequency of the z direction (with respect to the camera)',
-                'cap': 'the capacitance of the piezo in the z direction (with respect to the camera)'
-            }
+            'x_voltage': 'the voltage of the x direction (with respect to the camera)',
+            'x_freq': 'the frequency of the x direction (with respect to the camera)',
+            'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
+            'y_voltage': 'the voltage of the y direction (with respect to the camera)',
+            'y_freq': 'the frequency of the y direction (with respect to the camera)',
+            'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
+            'z_voltage': 'the voltage of the z direction (with respect to the camera)',
+            'z_freq': 'the frequency of the z direction (with respect to the camera)',
+            'z_cap': 'the capacitance of the piezo in the z direction (with respect to the camera)'
         }
-        # return {
-        #     'x_voltage': 'the voltage of the x direction (with respect to the camera)',
-        #     'x_freq': 'the frequency of the x direction (with respect to the camera)',
-        #     'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
-        #     'y_voltage': 'the voltage of the y direction (with respect to the camera)',
-        #     'y_freq': 'the frequency of the y direction (with respect to the camera)',
-        #     'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
-        #     'z_voltage': 'the voltage of the z direction (with respect to the camera)',
-        #     'z_freq': 'the frequency of the z direction (with respect to the camera)',
-        #     'z_cap': 'the capacitance of the piezo in the z direction (with respect to the camera)'
-        # }
 
     def read_probes(self, key):
         assert key in list(self._PROBES.keys())
@@ -321,11 +290,11 @@ class ANC300(Attocube):
 
 
         if key in [el + '_voltage' for el in self._AXES]:
-            return self._get_amplitude(self._convert_axis(key[0]))
+            return self._get_amplitude(self._convert_axis(key.split('_')[0]))
         elif key in [el + '_freq' for el in self._AXES]:
-            return self._get_frequency(self._convert_axis(key[0]))
+            return self._get_frequency(self._convert_axis(key.split('_')[0]))
         elif key in [el + '_cap' for el in self._AXES]:
-            return self._cap_measure(self._convert_axis(key[0]))
+            return self._cap_measure(self._convert_axis(key.split('_')[0]))
 
 # class ANC300XY(ANC300):
 #     _DEFAULT_SETTINGS = Parameter([
@@ -400,8 +369,6 @@ class ANC350(Attocube):
     # ])
 
     # _AXES = ['x', 'y', 'z']
-
-    _AXES = ['x', 'y', 'z']
 
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
@@ -507,7 +474,6 @@ class ANC350(Attocube):
     #         return self._get_frequency(self._convert_axis(key[0]))
     #     elif key in [el + '_cap' for el in self._AXES]:
     #         return self._cap_measure(self._convert_axis(key[0]))
-
 
     @property
     def is_connected(self):
@@ -653,7 +619,6 @@ class ANC350(Attocube):
 
         return ANC350_axes[axis]
 
-
     @staticmethod
     def _check_error(code):
         '''
@@ -769,4 +734,3 @@ if __name__ == '__main__':
         print('yike')
     # a.update({'x': {'voltage': 20}})
     print((a, a.is_connected))
-
