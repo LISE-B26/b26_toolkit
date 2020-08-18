@@ -152,17 +152,17 @@ class PulseBlaster(Instrument):
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave p trigger [ns]')
         ]),
         Parameter('output_3', [
-            Parameter('channel', 3, int, 'channel to which the the microwave q trigger is connected to'),
+            Parameter('channel', 100, int, 'channel to which the the microwave q trigger is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
         ]),
         Parameter('output_4', [
-            Parameter('channel', 4, int, 'channel to which the microwave switch is connected to'),
+            Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
-        Parameter('clock_speed', 400.0, [100.0, 400.0], 'Clock speed of the pulse blaster [MHz]'),
-        Parameter('min_pulse_dur', 15, [15, 50], 'Minimum allowed pulse duration (ns)'),
+        Parameter('clock_speed', 500.0, [100.0, 400.0, 500.], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
@@ -252,16 +252,43 @@ class PulseBlaster(Instrument):
             ctypes.c_double,  # length
         )
 
+    def test_new(self):
+        #Added by MM on 060419 to debug new pb
+        print('Starting test')
+        self.pb.pb_reset()
+        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
+        self.pb.pb_core_clock(500)
+        self.pb.pb_start_programming(self.PULSE_PROGRAM)
+        #0b111000000000000000000000
+        start = self.pb.pb_inst_pbonly(0x00, self.PB_INSTRUCTIONS['CONTINUE'], 0, ctypes.c_double(200e06))
+        #start= self.pb.pb_inst_pbonly(ctypes.c_int((settings|0xE00000)),
+                                      # self.PB_INSTRUCTIONS['CONTINUE'], 0, ctypes.c_double(200e06))
+        self.pb.pb_inst_pbonly(0x00, self.PB_INSTRUCTIONS['BRANCH'], start, ctypes.c_double(200e06))
+        self.pb.pb_stop_programming()
+        self.pb.pb_start()
+       #time.sleep(10)
+       #assert(self.pb.pb_stop() == 0)
+        self.pb.pb_close()
+
+    def test_stop(self):
+        self.pb.pb_init()
+        assert(self.pb.pb_stop() == 0)
+        self.pb.pb_close()
+
     def update(self, settings):
         # call the update_parameter_list to update the parameter list
         super(PulseBlaster, self).update(settings)
         assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
-       # self.pb.pb_reset()
+        #self.pb.pb_reset()
+       # print("Clock: {}".format(self.settings['clock_speed']))
         self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
         self.pb.pb_start_programming(self.PULSE_PROGRAM)
-        start = self.pb.pb_inst_pbonly(ctypes.c_int((self.settings2bits()| 0xE00000)), self.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(5.0e8))
-        address = self.pb.pb_inst_pbonly(ctypes.c_int(self.settings2bits() | 0xE00000), self.PB_INSTRUCTIONS['BRANCH'],
-                                        ctypes.c_int(start), ctypes.c_double(5.0e8))
+       # print("settings: {}".format(self.settings2bits()))
+       # print(self.settings)
+        start = self.pb.pb_inst_pbonly(ctypes.c_int((self.settings2bits() | 0xE00000)), self.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(5.0e8))
+       # print("start: {}".format(start))
+        address = self.pb.pb_inst_pbonly(ctypes.c_int(self.settings2bits() | 0xE00000), self.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(start), ctypes.c_double(5.0e8))
+       # print("address: {}".format(address))
 
         # need three 1's (0xE00000) at the start of the bitstring sent to the PB card to get the card to work
 
@@ -270,8 +297,10 @@ class PulseBlaster(Instrument):
         self.pb.pb_stop_programming()
         self.pb.pb_start()
 
+      #  print("status: {}".format(self.pb.pb_read_status()))
         assert (self.pb.pb_read_status() & 0b100) == 0b100, 'pulseblaster did not begin running after start() called.'
-        self.pb.pb_stop()
+        #time.sleep(2)
+        #self.pb.pb_stop()
         self.pb.pb_close()
 
     def settings2bits(self):
@@ -645,9 +674,14 @@ class PulseBlaster(Instrument):
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
 
+        #MM: Updated 061719 to switch 15 ns to min_pulse_dur
         for command in pb_commands:
-            if command.duration < 15:
-                raise RuntimeError("Detected command with duration <15ns.")
+            if command.duration < self.settings['min_pulse_dur']:# 15:
+                print('less than min pulse duration!!')
+                print(command)
+                print(command.duration)
+                print(pb_commands)
+                raise RuntimeError("Detected command with duration < min_pulse_dur.")
 
         # begin programming the pulseblaster
         assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'
@@ -661,7 +695,11 @@ class PulseBlaster(Instrument):
                                                   self.PB_INSTRUCTIONS[pb_instruction.command],
                                                   ctypes.c_int(int(pb_instruction.command_arg)),
                                                   ctypes.c_double(pb_instruction.duration))
-
+            if return_value < 0:
+                print('error!!!')
+                print(pb_commands)
+                print(pb_instruction.duration)
+                print(pb_instruction)
             assert return_value >=0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 
@@ -747,8 +785,8 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
         ]),
-        Parameter('clock_speed', 400, [100, 400], 'Clock speed of the pulse blaster [MHz]'),
-        Parameter('min_pulse_dur', 15, [15, 50], 'Minimum allowed pulse duration (ns)'),
+        Parameter('clock_speed', 500, [100, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
@@ -777,17 +815,31 @@ class B26PulseBlaster(PulseBlaster):
 
 
 if __name__ == '__main__':
-    print('hello')
     # for i in range(5):
     #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
     #                         Pulse(channel_id=1, start_time=2000, duration=2000),
     #                         Pulse(channel_id=1, start_time=4000, duration=2000),
     #                         Pulse(channel_id=0, start_time=6000, duration=2000)]
-    #     # pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
+    #     pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
     #     pb.program_pb(pulse_collection, num_loops=5E5)
     #     pb.start_pulse_seq()
     #     pb.wait()
     #     print('finished #{0}!'.format(i))
+
+    import time
+    pb = B26PulseBlaster()
+    '''
+    pb.test_new()
+    time.sleep(5)
+    pb.test_stop()
+    '''
+
+    for i in range(0,4):
+        pb.update({'laser': {'channel': i}})
+        pb.update({'laser': {'status': bool(1)}})
+
+        time.sleep(1)
+
 
     # import time
     #

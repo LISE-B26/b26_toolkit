@@ -18,6 +18,25 @@ V_to_dist = 60 # convert galvo voltages to distances 1 V is about 60um
 #%load_ext autoreload
 #%autoreload 2
 
+def return_times(f, with_power_sweep=False):
+    '''
+
+
+    :param f: folder path
+    :param with_power_sweep: true if the 2d esr plot is a power sweep, in which case there's an extra '-' sign in the path
+    :return: the time start of the script, in seconds
+    '''
+
+    split_path = f.split('-')
+    if with_power_sweep:
+        split_path.pop(-1)
+    time = split_path.pop(-1)
+    day = split_path.pop(-1)
+    day = day.split('19')[-1]  # will need to change 18 to 19 when it becomes 2019
+    time = time.split('_')
+    time = float(time[0]) + float(time[1]) / 60 + float(time[2]) / 3600 + float(day) * 24
+    return time
+
 def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=False, get_freqs=False):
     '''
     Get the frequencies of the ESR sweep as well as ESR contrast.
@@ -30,7 +49,7 @@ def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=Fa
 
     get_times: record and return the time duration of each ESR experiment.
 
-    get_piezo_freqs: record and return the piezo frequency drive of each ESR experiment (see OneNotes from early Dec. 2018)
+    get_freqs: record and return the piezo frequency drive of each ESR experiment (see OneNotes from early Dec. 2018)
 
     '''
     data_esr = []
@@ -40,50 +59,49 @@ def get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed=False, get_times=Fa
     paths = []
     paths = glob.glob('{:s}/data_subscripts/*esr*'.format(ESR_FOLDER))
     paths += glob.glob('{:s}/data_subscripts/*/data_subscripts/*esr*/'.format(ESR_FOLDER))
-    if plot_with_norm:
-        for f in sorted(paths):
-            data = Script.load_data(f)
-            if 'esr_data' not in data or data is None: # not an ESR folder (e.g., find_nv instead)
-                continue
-            if not esr_fixed:
-                full_data = np.divide(data['esr_data'], data['full_laser_data'])
-            else:
-                full_data = np.divide(data['esr_data'], data['laser_data'])
+
+    # if plot_with_norm:
+    #     for f in sorted(paths):
+    #         data = Script.load_data(f)
+    #         if 'esr_data' not in data or data is None: # not an ESR folder (e.g., find_nv instead)
+    #             continue
+    #         if not esr_fixed:
+    #             full_data = np.divide(data['esr_data'], data['full_laser_data'])
+    #         else:
+    #             full_data = np.divide(data['esr_data'], data['laser_data'])
+    #         data_esr.append(np.mean(full_data, axis=0))
+    #         counter = counter + 1
+    #
+    #         if get_times:
+    #             time = return_times(f, with_power_sweep=True)
+    #             times.append(time)
+    #
+    #         if get_freqs:
+    #             freqs.append(float(f[-9:]))
+
+    for f in sorted(paths):
+        data = Script.load_data(f)
+        if data is None or 'esr_data' not in data: # not an ESR folder (e.g., find_nv instead)
+            continue
+        if plot_with_norm and not esr_fixed:
+            full_data = np.divide(data['esr_data'], data['full_laser_data'])
             data_esr.append(np.mean(full_data, axis=0))
-            counter = counter + 1
 
-            if get_times:
-                split_path = f.split('-')
-                time = split_path.pop(-1)
-                day = split_path.pop(-1)
-                day = day.split('18')[-1] # will need to change 18 to 19 when it becomes 2019
-                time = time.split('_')
-                time = float(time[0]) + float(time[1])/60 + float(time[2])/3600 + float(day)*24
-                times.append(time)
+        elif plot_with_norm and esr_fixed:
+            full_data = np.divide(data['esr_data'], data['laser_data'])
+            data_esr.append(np.mean(full_data, axis=0))
 
-            if get_freqs:
-                freqs.append(float(f[-9:]))
-
-    else:
-        for f in sorted(paths):
-            data = Script.load_data(f)
-            if data is None or 'esr_data' not in data: # not an ESR folder (e.g., find_nv instead)
-                continue
-            data = Script.load_data(f)
+        elif not plot_with_norm:
             data_esr.append(data['data'])
-            counter = counter + 1
 
-            if get_times:
-                split_path = f.split('-')
-                time = split_path.pop(-1)
-                day = split_path.pop(-1)
-                day = day.split('18')[-1] # will need to change 18 to 19 when it becomes 2019
-                time = time.split('_')
-                time = float(time[0]) + float(time[1])/60 + float(time[2])/3600 + float(day)*24
-                times.append(time)
+        counter = counter + 1
 
-            if get_freqs:
-                freqs.append(float(f[-9:]))
+        if get_times:
+            time = return_times(f, with_power_sweep=True)
+            times.append(time)
+
+        if get_freqs:
+            freqs.append(float(f[-9:]))
 
     f = data['frequency']
     if not get_times and not get_freqs:
@@ -180,7 +198,8 @@ def plot_2d_esr_vs_time(ESR_FOLDER, plot_with_norm=False, esr_fixed=False, get_t
     print('size of data_esr_norm: ', np.size(data_esr_norm))
     print('size of times: ', np.size(times))
     plt.figure()
-    fig = plt.pcolormesh(f, times, data_esr_norm, vmin=1-(1-min_contrast)/2, vmax=(max_contrast-1)/2+1)  # np.max(data_esr_norm))
+    fig = plt.pcolormesh(f, times, data_esr_norm) #, vmin=1-(1-min_contrast)/2, vmax=(max_contrast-1)/2+1)  # np.max(data_esr_norm))
+    plt.colorbar()
     plt.axis([f.min(), f.max(), times.min(), times.max()])
     plt.xlim(min(f), max(f))
     plt.xlabel('frequency (Hz)')
@@ -241,6 +260,49 @@ def plot_2d_esr_vs_piezo_freq(ESR_FOLDER, plot_with_norm=False, esr_fixed=False,
         plt.ylabel('piezo frequency (MHz)')
     plt.ylim([freqs.min(), freqs.max()])
     plt.title('ESR contrast versus piezo drive frequency (MHz)')
+    plt.show()
+
+    return fig
+
+def plot_2d_esr_vs_power(ESR_FOLDER, plot_with_norm=False, esr_fixed=False): # ER 20190130
+
+    '''
+
+    Plots NV ESR spectrum with SRS drive amplitude on the y axis.
+
+    Args:
+        ESR_FOLDER: folder with the data you'd like to extract the ESRs out of
+        plot_with_norm: normalize to the laser intensity as measured on a photodiode in the setup
+        esr_fixed: whether or not 'data' in the esr scripts contain laser_data (for the photodiode intensity measurements).
+            This is called esr_fixed since originally the full esr and laser data was not saved.
+        get_freqs: whether or not to return the piezo drive frequencies
+
+    Returns: the figure object of the 2D plot
+
+    '''
+
+    f, data_esr, counter, powers = get_freqs_and_data(ESR_FOLDER, plot_with_norm, esr_fixed, get_freqs=True)
+    powers = -np.array(powers)
+    print('number of ESRs found: ', counter)
+    data_esr_norm = []
+    counter = 0
+    for d in data_esr:
+        data_esr_norm.append(d/np.mean(d))
+        counter += 1
+
+    min_contrast = np.min(data_esr_norm)
+    max_contrast = np.max(data_esr_norm)
+    print('size of data_esr_norm: ', np.size(data_esr_norm))
+    data_array_to_plot = np.array(data_esr_norm)[np.argsort(powers)]
+    power_array_to_plot = np.sort(powers)
+    fig = plt.pcolormesh(f, power_array_to_plot, data_array_to_plot) #, vmin=1-(1-min_contrast)/2, vmax=(max_contrast-1)/2+1)  # np.max(data_esr_norm))
+    plt.axis([f.min(), f.max(), powers.min(), powers.max()])
+    plt.xlim(min(f), max(f))
+    plt.xlabel('frequency (Hz)')
+    plt.ylabel('SRS amplitude (dBm)')
+    plt.ylim([powers.min(), powers.max()])
+    plt.title('ESR contrast versus SRS drive amplitude (MHz)')
+    plt.colorbar()
     plt.show()
 
     return fig

@@ -52,10 +52,11 @@ for a given experiment
             Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
             Parameter('allowed_delta_freq', 2., float, 'do not change the mw carrier frequency if the new ESR is different by more than this amount (MHz) (protects against bad fits)')
         ]),
-        Parameter('Autofocus_Tracking', [
-            Parameter('on/off', False, bool, 'turn on to autofocus z piezo'),
-            Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
-        ]),
+        #FF: commented out because we have script iterators
+        #Parameter('Autofocus_Tracking', [
+        #    Parameter('on/off', False, bool, 'turn on to autofocus z piezo'),
+        #    Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
+        #]),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
             Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 2*extra-time'),
@@ -67,7 +68,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR} #, 'autofocus': AutoFocusDAQ}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -169,11 +170,11 @@ for a given experiment
                 break
 
             #MM 20190621
-            if self.settings['Autofocus_Tracking']['on/off'] and average_loop % self.settings['Autofocus_Tracking']['track_every_N'] == 0:
-                self.scripts['autofocus'].run()
-                #Retrack NV afterwards.
-                self.scripts['find_nv'].run()
-                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+            #if self.settings['Autofocus_Tracking']['on/off'] and average_loop % self.settings['Autofocus_Tracking']['track_every_N'] == 0:
+            #    self.scripts['autofocus'].run()
+                #Retrack NV afterwards. 
+            #    self.scripts['find_nv'].run()
+            #    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
 
 
             # ER 20181028
@@ -214,9 +215,6 @@ for a given experiment
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
         #    print('tau sequences running: ', self.tau_list)
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
-
-
-
 
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
@@ -291,8 +289,6 @@ for a given experiment
         Poststate: self.data['counts'] is updated with the acquired data
 
         """
-        # ER 20180731 set init_fluor to zero
-     #   self.data['init_fluor'] = 0.
 
         rand_indexes = list(range(len(pulse_sequences)))
 
@@ -328,7 +324,7 @@ for a given experiment
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
                     #MM 20190621
-                    self.scripts['autofocus'].scripts['take_image'].settings['point_a'] = self.scripts['find_nv'].data['maximum_point']
+#                    self.scripts['autofocus'].scripts['take_image'].settings['point_a'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
 
     def _run_single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
@@ -430,12 +426,12 @@ for a given experiment
         """
 
         # make sure that we have the pulse sequences that correspond to the current settings
-
         if pulse_sequences is None:
             pulse_sequences, __, __ = self.create_pulse_sequences()
 
         for pulse_sequence in pulse_sequences:
             if self._is_bad_pulse_sequence(pulse_sequence):
+                print('bad pulse sequence is: ', pulse_sequence)
                 return False
 
         return True
@@ -477,6 +473,7 @@ for a given experiment
             (list) A list of pulseblaster commands resulting from pulse_sequence that are too short
 
         """
+        verbose=True
         pulse_blaster = self.instruments['PB']['instance']
 
         delayed_pulse_collection = pulse_blaster.create_physical_pulse_seq(pulse_sequence)
@@ -484,7 +481,7 @@ for a given experiment
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
         short_pulses = [command for command in pb_commands if command.duration < pulse_blaster.settings['min_pulse_dur']]
-
+        print('short pulses: ', short_pulses)
         if verbose and short_pulses:
             print('Found short pulses: ', short_pulses)
 
@@ -509,12 +506,16 @@ for a given experiment
                 return True
 
             if np.mod(pulse.start_time, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
-                print("hello!")
-                print(pulse.start_time)
-                print(self.instruments['PB']['instance'].settings['clock_speed'])
-                print(1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed']))
+                # print("hello!")
+                # print(pulse.start_time)
+                # print(self.instruments['PB']['instance'].settings['clock_speed'])
+                # print(1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed']))
                 return True
             if np.mod(pulse.start_time + pulse.duration, 1.e9/(1.0e6*self.instruments['PB']['instance'].settings['clock_speed'])) != 0:
+                # print("???")
+                # print(pulse.start_time + pulse.duration)
+                # print(self.instruments['PB']['instance'].settings['clock_speed'])
+                # print(1.e9 / (1.0e6 * self.instruments['PB']['instance'].settings['clock_speed']))
                 return True
 
         return False
@@ -561,13 +562,19 @@ for a given experiment
         Returns:
             (bool) True if the pulse sequence contains one of the above issues, else False
         """
+
+        verbose=True
         if self._get_overlapping_pulses(pulse_sequence, verbose=verbose):
+            print('overlapping')
             return True
         elif self._get_commands_that_are_too_short(pulse_sequence, verbose=verbose):
+            print('too short')
             return True
         elif self._has_pulses_with_bad_start_time(pulse_sequence, verbose=verbose):
+            print('bad start')
             return True
         elif self._compiles_to_too_many_commands_for_pb(pulse_sequence, verbose=verbose):
+            print('too many')
             return True
         else:
             return False

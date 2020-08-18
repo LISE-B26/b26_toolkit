@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
-from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens
+from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold, MDT693A
 
 try:
     from b26_toolkit.instruments import SMC100
@@ -32,7 +32,7 @@ except:
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage
+from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage, GalvoScanPhotodiode
 # from pylabcontrol.scripts import FPGA_GalvoScan
 
 
@@ -507,6 +507,15 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
+class AutoFocusDAQCold(AutoFocusDAQ):
+    '''
+
+    Same as AutoFocusDAQ but uses the z_piezo for the cold setup (moves the z focus slowly)
+
+    '''
+    _INSTRUMENTS = {
+        'z_piezo': PiezoControllerCold
+    }
 class AutoFocusDaqSMC(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_driver': SMC100
@@ -555,6 +564,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         'z_piezo': PiezoController
     }
 
+class AutoFocusPhotodiode(AutoFocusDAQ):
+    _SCRIPTS = {
+        'take_image': GalvoScanPhotodiode
+    }
+
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """
     Adds NV finding to autofocus to compensate for z-xy coupling
@@ -587,6 +601,11 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         """
         self.scripts['find_NV'].run()
         self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
+
+class AutoFocusDaqMDT693A(AutoFocusDAQ):
+    _INSTRUMENTS = {
+        'z_piezo': MDT693A
+    }
 
 class AutoFocusTwoPoints(AutoFocusDAQ):
     _SCRIPTS = {

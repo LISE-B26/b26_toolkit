@@ -18,12 +18,14 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.scripts import SelectPoints
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 from b26_toolkit.scripts import ESR
+from b26_toolkit.scripts.esr import ESR_tracking
 from .rabi import Rabi
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 
 class HahnEcho(PulsedExperimentBaseScript): # ER 5.25.2017
     """
@@ -41,7 +43,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('tau_times', [
             Parameter('min_time', 500, float, 'minimum time between pi pulses'),
             Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
-            Parameter('time_step', 5, [2.5, 5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+            Parameter('time_step', 5, [2.5, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 100000, 500000],
                   'time step increment of time between pi pulses (in ns)')
         ]),
         Parameter('read_out', [
@@ -55,7 +57,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    #041619 MM added cDAQ
+    _INSTRUMENTS = {'daq': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
@@ -97,7 +100,9 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         tau_list = np.ndarray.tolist(tau_list) # 20180731 ER convert to list
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
-        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+        # MM: updated to min_pulse_dur
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
 
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
@@ -254,6 +259,7 @@ We do this to check if we can extend T2 with something like this, which may help
         tau_list = np.ndarray.tolist(tau_list) # 20180731 ER convert to list
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
 
         nv_reset_time = self.settings['read_out']['nv_reset_time']
@@ -309,28 +315,54 @@ We do this to check if we can extend T2 with something like this, which may help
         return pulse_sequences, tau_list, meas_time
 
 class HahnEchoManyNVs(Script):
+    '''
+    Assumes tracking in all subscripts.
+    '''
+    #Updated 072919 MM: for various clockspeeds, using ESR w/ find_nv tracking.
     _DEFAULT_SETTINGS = [
-        Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
+        Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use'),
+        Parameter('default_mw_frequency', 2.87e9, float, 'microwave frequency in Hz to use if no peak found on ESR'),
+        Parameter('use_autofocus', False, bool, 'run autofocus in between every nv'),
+        Parameter('default_continuum', 15, float, 'continuum counts in kcounts/sec to use if esr fit fails'),
+        Parameter('rabi_attempts', 3, int, 'number of times to attempt Rabi fit before making rough guess.')
     ]
     _INSTRUMENTS = {}
-    _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi, 'HE': HahnEcho}
+    _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR_tracking, 'Rabi': Rabi, 'HE': HahnEcho, 'autofocus': AutoFocusDAQ}
 
     def _function(self):
+        #To keep track of overall shift in galvoscan position between nvs.
+        shift_x = 0
+        shift_y = 0
         for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
             if self._abort:
                 break
-            find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
-            find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
-            find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
-            find_NV_rabi.run()
+
+
+            #Update position to NV location + galvoscan shift; autofocus.
             self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
+            find_NV_ESR = self.scripts['ESR'].scripts['find_nv']
+            find_NV_ESR.settings['initial_point']['x'] = nv_loc[0] + shift_x
+            find_NV_ESR.settings['initial_point']['y'] = nv_loc[1] + shift_y
+            find_NV_ESR.run()
+            if self.settings['use_autofocus']:
+                autofocus = self.scripts['autofocus']
+                autofocus.scripts['take_image'].settings['point_a'] = find_NV_ESR.data['maximum_point']
+                autofocus.run()
+
+            #ESR section: run, and extract frequency peaks from fit params.
+            #Note: ESR starts by running find_nv, so no need to re-run before ESR called.
+            #Making sure mw switch is turned on:
+            self.scripts['Rabi'].instruments['PB']['instance'].update({'microwave_switch': {'status': True}})
             self.scripts['ESR'].run()
             fit_params = self.scripts['ESR'].data['fit_params']
             if fit_params is None:
-                continue
-            if len(fit_params) == 4:
+                freqs = [self.settings['default_mw_frequency']]
+                continuum = self.settings['default_continuum']
+            elif len(fit_params) == 4:
                 freqs = [fit_params[2]]
+                continuum = self.settings['default_continuum']
             elif len(fit_params == 6):
+                continuum = fit_params[0]
                 if self.settings['esr_peak'] == 'lower':
                     freqs = [fit_params[4]]
                 elif self.settings['esr_peak'] == 'upper':
@@ -340,30 +372,89 @@ class HahnEchoManyNVs(Script):
             for freq in freqs:
                 if self._abort:
                     break
-                print('running rabi')
-                rabi = self.scripts['Rabi']
-                rabi.settings['tag'] = 'rabi_NV' + str(num)
-                rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
-                print('about to run rabi')
-                rabi.run()
-                rabi_fit = rabi.data['fits']
-                if rabi_fit is None:
-                    continue
-                pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
-                pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
-                pi_half_time = min(max((np.pi / 2 - rabi_fit[2]) / rabi_fit[1], 15.), 300)
-                three_pi_half_time = min(max((3 * np.pi / 2 - rabi_fit[2]) / rabi_fit[1], 15.), 300)
-                find_NV_HE = self.scripts['HE'].scripts['find_nv']
-                find_NV_HE.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
-                find_NV_HE.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
-                HE = self.scripts['HE']
-                HE.settings['mw_pulses']['mw_frequency'] = float(freq)
-                HE.settings['mw_pulses']['pi_time'] = float(pi_time)
-                HE.settings['mw_pulses']['pi_half_time'] = float(pi_half_time)
-                HE.settings['mw_pulses']['3pi_half_time'] = float(three_pi_half_time)
-                HE.settings['tag'] = 'HE' + '_NV' + str(num)
-                HE.run()
 
+                #Rabi section:
+
+                #Update Rabi location and run findnv
+                good_rabi = False
+                tries_remaining = self.settings['rabi_attempts']
+                find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
+                find_NV_rabi.settings['initial_point'] = self.scripts['ESR'].scripts['find_nv'].data['maximum_point']
+
+                #Try rabi fit 3 times.
+                while (not good_rabi) and (tries_remaining > 0):
+                    find_NV_rabi.run()
+                    #Run Rabi and extract pulse durations:
+                    print('running rabi')
+                    rabi = self.scripts['Rabi']
+                    rabi.settings['tag'] = 'rabi_NV' + str(num)
+                    rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
+                    rabi.settings['Tracking']['init_fluor'] = continuum
+                    print('about to run rabi')
+                    rabi.run()
+                    fits = rabi.data['fits']
+                    tries_remaining -= 1
+                    if fits is not None:
+                        clockspeed = rabi.instruments['PB']['instance'].settings['clock_speed']
+                        pb_round = 1 / clockspeed * 1e3
+                        # Start w/ raw pi_time, pi/2 time, and round s.t. diff is divisible by 2 clock periods
+                        pi_time = round((np.pi - fits[2]) / fits[1] / pb_round) * pb_round
+                        pi_half_time = (np.pi / 2 - fits[2]) / fits[1]
+                        pi_half_diff = round((pi_time - pi_half_time) / (2 * pb_round)) * 2 * pb_round
+                        pi_half_time = pi_time - pi_half_diff
+                        # Rounding 3/2 pi time:
+                        three_pi_half_time = round((3 * np.pi / 2 - fits[2]) / fits[1] / pb_round) * pb_round
+                        if pi_half_time > 12:
+                            good_rabi = True
+                        elif tries_remaining == 0:
+                            norm_counts = rabi.data['counts'][:, 1] / rabi.data['counts'][:, 0]
+                            tau = rabi.data['tau']
+
+                            from scipy.signal import argrelmin
+                            from scipy.optimize import curve_fit
+
+                            #Find initial guess
+                            min_ix = argrelmin(norm_counts)[0][0]
+                            A_guess = (1 - norm_counts[min_ix]) / 2
+                            p0 = [A_guess, np.pi / tau[min_ix], 0, 1 - A_guess]
+
+                            #Fit
+                            cos_fxn = lambda t, A, w, phi, c: A * np.cos(w * t + phi) + c
+                            lb = [0, 0, 0, 0]
+                            ub = [1, np.inf, np.pi, 1]
+                            popt, pcov = curve_fit(cos_fxn, tau, norm_counts, p0=p0, bounds=(lb, ub))
+
+                            #Extract pi time info
+                            clockspeed = rabi.instruments['PB']['instance'].settings['clock_speed']
+                            pb_round = 1 / clockspeed * 1e3
+
+                            pi_time = round((np.pi - popt[2]) / popt[1] / pb_round)*pb_round
+                            pi_half_time = (np.pi - 2 * popt[2]) / (2 * popt[1])
+                            pi_half_diff = round((pi_time - pi_half_time) / (2 * pb_round)) * 2 * pb_round
+                            pi_half_time = pi_time - pi_half_diff
+                            three_pi_half_time = round((3 * np.pi - 2 * popt[2]) / (2 * popt[1])/pb_round)*pb_round
+
+                            if pi_half_time > 12:
+                                good_rabi = True
+
+                if good_rabi:
+                    #If successful Rabi fit, proceed to HE
+                    #HE section:
+                    find_NV_HE = self.scripts['HE'].scripts['find_nv']
+                    find_NV_HE.settings['initial_point'] = find_NV_rabi.data['maximum_point']
+                    find_NV_HE.run()
+                    HE = self.scripts['HE']
+                    HE.settings['mw_pulses']['mw_frequency'] = float(freq)
+                    HE.settings['mw_pulses']['pi_pulse_time'] = float(pi_time)
+                    HE.settings['mw_pulses']['pi_half_pulse_time'] = float(pi_half_time)
+                    HE.settings['mw_pulses']['3pi_half_pulse_time'] = float(three_pi_half_time)
+                    HE.settings['tag'] = 'HE' + '_NV' + str(num)
+                    HE.settings['Tracking']['init_fluor'] = continuum
+                    HE.run()
+
+                    #update shifts to track long-term galvo drift
+                    shift_x = find_NV_HE.data['maximum_point']['x'] - nv_loc[0]
+                    shift_y = find_NV_HE.data['maximum_point']['y'] - nv_loc[1]
     def plot(self, figure_list):
         if self._current_subscript_stage is not None:
             if self._current_subscript_stage['current_subscript'] is not None:

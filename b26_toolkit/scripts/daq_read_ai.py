@@ -20,7 +20,7 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
 
@@ -28,15 +28,19 @@ from pylabcontrol.core import Parameter, Script
 class Daq_Read_AI(Script):
     """
 This script reads the analog input from the DAQ and plots it. ER 20180626
+
+ER made changes to the daq 20190325 without testing it -- new code (commented with ER and the date) needs to be tested!!
+
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
         Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for counter'),
         Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
-        Parameter('max_len_to_plot', 10, int, 'maximum number of samples to plot')
+        Parameter('max_len_to_plot', 10, int, 'maximum number of samples to plot'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'), # ER 20190325
     ]
 
-    _INSTRUMENTS = {'daq': NI6259}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
     _SCRIPTS = {
 
@@ -64,12 +68,20 @@ This script reads the analog input from the DAQ and plots it. ER 20180626
 
       #  print(('settings in instrument', self.instruments['daq']['settings']))
 
+        # new ER 20190325
+        if self.settings['daq_type'] == 'PCI':
+            daq = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            daq = self.instruments['NI9402']['instance']
+
         self.data_to_plot = {'voltage': deque(maxlen = self.settings['max_len_to_plot'])}
         self.data['voltage'] = list()
 
         sample_rate = float(1) / self.settings['integration_time']
-        self.instruments['daq']['instance'].settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
-      #  print('setting sample rate')
+     #   self.instruments['daq']['instance'].settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
+        # ER 20190325
+        daq.settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
+        #  print('setting sample rate')
 
         self.last_value = 0
 
@@ -79,14 +91,17 @@ This script reads the analog input from the DAQ and plots it. ER 20180626
 
      #   print(('here', self.instruments['daq']))
 
-        task = self.instruments['daq']['instance'].setup_AI(self.settings['ai_channel'], sample_num, continuous =True)
+      #  task = self.instruments['daq']['instance'].setup_AI(self.settings['ai_channel'], sample_num, continuous =True)
+        task = daq.setup_AI(self.settings['ai_channel'], sample_num, continuous =True) # ER 20190325
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
             max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
 
         # start counter and scanning sequence
-        self.instruments['daq']['instance'].run(task)
+        #self.instruments['daq']['instance'].run(task)
+        # ER 20190325
+        daq.run(task)
 
         sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
@@ -96,7 +111,8 @@ This script reads the analog input from the DAQ and plots it. ER 20180626
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-            raw_data, num_read = self.instruments['daq']['instance'].read(task)
+          #  raw_data, num_read = self.instruments['daq']['instance'].read(task)
+            raw_data, num_read = daq.read(task) # ER 20190325
             for value in raw_data:
                 self.data_to_plot['voltage'].append(float(value))
                 self.data['voltage'].append(float(value))
@@ -112,7 +128,9 @@ This script reads the analog input from the DAQ and plots it. ER 20180626
                 self._abort = True # tell the script to abort
 
         # clean up APD tasks
-        self.instruments['daq']['instance'].stop(task)
+        #self.instruments['daq']['instance'].stop(task)
+        daq.stop(task) # ER 20190325
+
         self.data_to_plot['voltage'] = list(self.data_to_plot['voltage'])
 
     def plot(self, figure_list):

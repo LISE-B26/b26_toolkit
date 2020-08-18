@@ -23,6 +23,7 @@ from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 
+
 class Rabi(PulsedExperimentBaseScript): # ER 5.25.2017
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi oscillations.
@@ -37,7 +38,7 @@ Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
             Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
-            Parameter('time_step', 5., [2.5, 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
+            Parameter('time_step', 5., [2.5, 4., 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
                   'time step increment of rabi pulse duration (in ns)')
         ]),
         Parameter('read_out', [
@@ -98,7 +99,13 @@ Uses a double_init scheme
         tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
-        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+
+        #MM: update 15 to min_pulse_duration
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
 
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']

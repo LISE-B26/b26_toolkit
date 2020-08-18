@@ -38,8 +38,8 @@ class GalvoScan(GalvoScanGeneric):
                                                            corner: pta and ptb are diagonal corners of rectangle.\n \
                                                            center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
-                  [Parameter('x', 126, int, 'number of x points to scan'),
-                   Parameter('y', 126, int, 'number of y points to scan')
+                  [Parameter('x', 64, int, 'number of x points to scan'),
+                   Parameter('y', 64, int, 'number of y points to scan')
                    ]),
         Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
         Parameter('settle_time', .0002, [.0002], 'wait time between points to allow galvo to settle'),

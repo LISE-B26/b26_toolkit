@@ -17,7 +17,8 @@
 """
 
 import serial
-
+import numpy as np
+import time as time
 from pylabcontrol.core import Instrument, Parameter
 
 
@@ -29,7 +30,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM9', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM11', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -158,6 +159,46 @@ class PiezoController(Instrument):
             message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
             raise ValueError(message)
 
+class PiezoControllerCold(PiezoController):
+    """
+    Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
+    interacts with the controller using PySerial and sending commands as defined in the controller documentation.
+
+    This particular class is used for scanning the piezo connected to the z stage of the objective on the cold setup.
+    There is a difference between this one and PiezoController because we have to be careful to scan this piezo voltage only in
+    ~1 um steps, so that the stage never slams into the piezo (e.g. if you were to quickly go from 140 V to 0 V)
+
+    """
+
+    def set_voltage(self, voltage):
+        """
+        Sets the voltage on the piezo.
+        Args:
+            voltage: voltage (in V) to set
+
+        """
+
+        current_voltage = self.voltage
+
+        voltage_list = np.linspace(current_voltage, voltage, np.floor(np.abs(voltage-current_voltage)))
+
+        print('voltage_list ', voltage_list)
+
+        t_start = time.time()
+
+        for volts in voltage_list:
+            next_time = time.time()
+            self.ser.write((self.settings['axis'] + 'voltage=' + str(volts) + '\r').encode())
+            successCheck = self.ser.readlines()
+            time.sleep(0.25)
+            print('time elapsed: ', time.time()-next_time)
+            if len(successCheck) == 0:
+                message = 'Something went wrong --- check that you are using the right port!'
+                raise ValueError(message)
+            elif successCheck[0] == '!':
+                message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
+                raise ValueError(message)
+
 class MDT693A(Instrument):
     """
     Code for a Thorlabs MDT693B piezo controller. This is connected to the computer via USB, and the Instrument
@@ -166,7 +207,7 @@ class MDT693A(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM2', str, 'serial port on which to connect'),
+        Parameter('port', 'COM7', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -179,7 +220,7 @@ class MDT693A(Instrument):
             name: instrument name
             settings: dictionary of settings to override defaults
         '''
-        super(PiezoController, self).__init__(name, settings)
+        super(MDT693A, self).__init__(name, settings)
         self._is_connected = False
         try:
             self.connect(port = self.settings['port'], baudrate = self.settings['baudrate'], timeout = self.settings['timeout'])
@@ -212,12 +253,13 @@ class MDT693A(Instrument):
         Poststate: changes voltage on piezo controller if it is updated
 
         '''
-        super(PiezoController, self).update(settings)
+        super(MDT693A, self).update(settings)
         for key, value in settings.items():
-            if key == 'voltage':
-                self.set_voltage(value)
-            elif key == 'voltage_limit':
-                raise EnvironmentError('Voltage limit cannot be set in software. Change physical switch on back of device')
+            if self._settings_initialized:
+                if key == 'voltage':
+                    self.set_voltage(value)
+                elif key == 'voltage_limit':
+                    raise EnvironmentError('Voltage limit cannot be set in software. Change physical switch on back of device')
 
     @property
     def _PROBES(self):
@@ -245,9 +287,12 @@ class MDT693A(Instrument):
         assert isinstance(key, str)
 
         if key in ['voltage']:
-            self.ser.write((self.settings['axis'] + 'voltage?\r').encode())
+            self.ser.write((self.settings['axis'] + 'R?\r').encode())
             xVoltage = self.ser.readline()
-            return(float(xVoltage[2:-2].strip()))
+            v2 = self.ser.readline()
+            # return(float(xVoltage[2:-2].strip()))
+            print(str(xVoltage)[-8:-4])
+            return(float(str(xVoltage)[-8:-4]))
         elif key in ['voltage_limit']:
             self.ser.write('vlimit?\r')
             vlimit = self.ser.readline()
@@ -281,13 +326,17 @@ class MDT693A(Instrument):
             voltage: voltage (in V) to set
 
         '''
-        self.ser.write((self.settings['axis'] + 'voltage=' + str(voltage) + '\r').encode())
+        self.ser.write((self.settings['axis'] + 'V' + str(voltage) + '\r').encode())
         successCheck = self.ser.readlines()
         if successCheck[0] == '!':
             message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
             raise ValueError(message)
 
 if __name__ == '__main__':
-    a = PiezoController('hi', settings={'port':'COM4'})
- #   a.axis = 'y'
-    a.voltage = 45.5
+     a = PiezoController('hi', settings={'port':'COM11'})
+     a.axis = 'x'
+     a.voltage = 45.5
+     print(a.read_probes('voltage'))
+     #print(a.voltage)
+    # a = MDT693A('hi', settings = {'port':'COM3'})
+    # print(a.voltage)

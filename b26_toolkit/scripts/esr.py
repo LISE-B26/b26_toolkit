@@ -16,13 +16,16 @@
 #     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 # """
 
+
 from pylabcontrol.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, SpectrumAnalyzer
+from b26_toolkit.scripts import FindNV
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster
 from b26_toolkit.scripts.spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from b26_toolkit.plotting.plots_1d import plot_esr
+
 
 # from b26_toolkit.plotting.plots_1d import plot_diff_freq_vs_freq
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
@@ -339,6 +342,676 @@ class ESR_DAQ_FM(Script):
         new_figure_list = [figure_list[1]]
         return super(ESR_DAQ_FM, self).get_axes_layout(new_figure_list)
 
+class ESR_tracking(Script):
+    """
+    This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
+    a DAQ. Each frequency is set explicitly on the SRS, instead of using FM.
+
+    This script includes an option to track using findnv
+
+    MM 072619
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('power_out', -25.0, float, 'output power (dBm)'),
+        Parameter('esr_avg', 20, int, 'number of esr averages'),
+        Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
+        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('freq_points', 100, int, 'number of frequencies in scan'),
+        Parameter('integration_time', 0.05, float,
+                  'The TOTAL integration time. The integration time per daq bins is integration_time / num_samps_per_pt'),
+        Parameter('num_samps_per_pt', 100, int,
+                  'Number of samples within one DAQ buffer, for each frequency. This should be large because the first measurement is thrown away (may start in the middle of a clock tick)'),
+        Parameter('mw_generator_switching_time', .01, float,
+                  'time wait after switching center frequencies on generator (s)'),
+        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
+        Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('fit_constants',
+                  [
+                      Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
+                      Parameter('contrast_factor', 1.5, float, 'minimum contrast for an ESR to not be considered noise')
+                  ]),
+        Parameter('randomize', True, bool, 'check to randomize esr frequencies'),
+        Parameter('save_timetrace', True, bool,
+                  'check to save the measured fluorescence over time. This is identical to the full esr when the freq. are not randomized'),
+        Parameter('Tracking', [
+            Parameter('on/off', True, bool, 'used to turn on tracking'),
+            Parameter('n_loops', 0.85, float, 'track once per n loops')
+        ])
+    ]
+
+    _INSTRUMENTS = {
+        'microwave_generator': MicrowaveGenerator,
+        'NI6259': NI6259,  # PCI
+        'NI9402': NI9402,  # cDAQ
+    }
+
+    _SCRIPTS = {'find_nv': FindNV}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+
+    def setup_microwave_gen(self):
+        '''
+
+        set relevant parameters on the MW generator.
+
+        '''
+        self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
+        self.instruments['microwave_generator']['instance'].update({'enable_modulation': False})
+        self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+
+    def setup_daq(self):
+        '''
+
+        Initialize the relevant DAQ and set the sample rate.
+
+        '''
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+
+        sample_rate = float(1) / (self.settings['integration_time'] / self.settings[
+            'num_samps_per_pt'])  # DAQ minimum buffer size is 2
+        self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
+
+    def get_freq_array(self):
+        '''
+
+        Construct the frequency array based on the setting parameters.
+
+        Returns:
+            freq_values: array of the frequencies to be tested
+            freq_range: the range of the frequency to be tested, i.e. maximum frequency - minumum frequency
+        '''
+
+        # contruct the frequency array
+        if self.settings['range_type'] == 'start_stop':
+            if self.settings['freq_start'] > self.settings['freq_stop']:
+                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self._abort = True
+
+            if self.settings['freq_start'] < 950E3 or self.settings['freq_stop'] > 4.05E9:  # freq range of the SRS
+                self.log('start or stop frequency out of bounds')
+                self._abort = True
+
+            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
+                                      self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+        elif self.settings['range_type'] == 'center_range':
+            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
+                self.log(
+                    'end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self._abort = True
+            freq_values = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
+                                      self.settings['freq_start'] + self.settings['freq_stop'] / 2,
+                                      self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+            if self.settings['freq_stop'] > 1e9:
+                self.log('freq_stop (range) is quite large --- did you mean to set \'range_type\' to \'start_stop\'? ')
+        else:
+            self.log('unknown range parameter. Abort script')
+            self._abort = True
+
+        return freq_values, freq_range
+
+    def run_sweep(self, freq_values, time_tracking=False):
+        '''
+
+        Actually runs the ESR sweep, for a single average.
+
+        Returns:
+            esr_data
+            laser_data
+            normalized_data
+
+        '''
+
+        if time_tracking:
+            start_run_sweep = time.time()
+        num_samps = self.settings[
+                        'num_samps_per_pt'] + 1  # acquire this many samples per point. The counter starts in the middle of a
+        # clock tick, so throw out the first sample and take num_samps_per_pt + 1 samples
+
+        # initialize data arrays
+        single_sweep_data = np.zeros(len(freq_values))
+
+        indeces = list(range(len(freq_values)))
+        if self.settings['randomize']:
+            random.shuffle(indeces)
+
+        for freq_index in indeces:
+
+            single_freq_start_t = time.time()
+
+            if self._abort:
+                break
+
+            freq = freq_values[freq_index]
+
+            # change MW frequency
+            self.instruments['microwave_generator']['instance'].update({'frequency': float(freq)})
+            time.sleep(self.settings['mw_generator_switching_time'])
+
+            if time_tracking:
+                print('time for a single SRS frequency change: ' + str(time.time() - single_freq_start_t) + ' s')
+
+            single_sweep_data[freq_index] = self.measure_signal(num_samps)
+
+            if time_tracking:
+                print('time for a single frequency data point: ' + str(time.time() - single_freq_start_t) + ' s')
+
+        # normalize  single sweep data to kcounts/sec
+        single_sweep_data = single_sweep_data * (.001 / self.settings['integration_time'])
+
+        end_run_sweep = time.time()
+
+        if time_tracking:
+            print('run sweep took: ' + str(end_run_sweep - start_run_sweep) + ' s')
+
+        return single_sweep_data, indeces
+
+    def measure_signal(self, num_samps, time_tracking=False):
+        """
+
+        measure the signal with the APD
+
+        Args:
+            num_samps:
+
+        Returns:
+
+        """
+        if time_tracking:
+            start_meas = time.time()
+
+        # setup the tasks
+        ctrtask = self.daq_in.setup_counter("ctr0", num_samps)
+
+        if time_tracking:
+            t2 = time.time() - start_meas
+            print('time to setup the task: ' + str(t2) + ' s')
+
+        self.daq_in.run(ctrtask)  # the counter clock turns on and starts the AI task
+
+        time.sleep(self.settings['integration_time'])
+
+        if time_tracking:
+            t4 = time.time() - start_meas
+            print('time elapsed up to sleep: ' + str(t4) + ' s')
+
+        # read the data
+        raw_data, _ = self.daq_in.read_counter(ctrtask)
+
+        signal = np.sum(np.diff(raw_data))  # take the total counts, neglecting the first element
+
+        self.daq_in.stop(ctrtask)  # stop the clock task last
+
+        if time_tracking:
+            t6 = time.time() - start_meas
+            print('time elapsed up to stopping the task: ' + str(t6) + ' s')
+            print('diff-ing all times: ')
+            print('setup: ', t2)
+            print('running: ', t4 - t2)
+            print('stopping: ', t6 - t4)
+            print('total time: ', time.time() - start_meas)
+
+        return signal
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        self.lines = []
+
+        start_time = time.time()
+
+        # setup the daq
+        self.setup_daq()
+
+        # setup the microwave generator
+        self.setup_microwave_gen()
+
+        # intialize some of the fields in self.data
+        self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts': []}
+
+        # get the frequencices of the sweep
+        freq_values, freq_range = self.get_freq_array()
+        self.data.update({'frequency': freq_values})
+        # initialize data arrays
+        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))  # for the raw esr data
+
+        # to get the timetrace we keep track of the indecies
+        if self.settings['save_timetrace']:
+            index_data = np.zeros((self.settings['esr_avg'], len(freq_values))).astype(int)  # for the raw esr data
+
+        # run sweeps
+        for scan_num in range(0, self.settings['esr_avg']):
+
+            if self._abort:
+                break
+
+            if self.settings['Tracking']['on/off'] and scan_num % self.settings['Tracking']['n_loops'] == 0:
+                self.scripts['find_nv'].run()
+                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+                self.setup_daq()
+
+
+            self.log('starting average ' + str(scan_num) + ', time elapsed: ' + str(
+                np.round(time.time() - start_time, 1)) + 's')
+
+            # get the data for a single sweep. These are raw data.
+            single_sweep_data, indeces = self.run_sweep(freq_values)
+
+            # save the single sweep data
+            esr_data[scan_num] = single_sweep_data
+
+            if self.settings['save_timetrace']:
+                index_data[scan_num] = indeces
+
+            # current non-normalized averaged data to plot and fit to if laser power tracking is off
+            esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
+
+            # fit to the data
+            fit_params = fit_esr(freq_values, esr_avg, min_counts=self.settings['fit_constants']['minimum_counts'],
+                                 contrast_factor=self.settings['fit_constants']['contrast_factor'])
+
+            self.data.update({'data': esr_avg, 'fit_params': fit_params})
+
+            progress = self._calc_progress(scan_num)
+            self.updateProgress.emit(progress)
+
+        if self.settings['save_full_esr']:
+            self.data.update({'esr_data': esr_data})
+
+        if self.settings['save_timetrace']:
+            # using the indeces, we retrieve the right time ordering for the esr data and save it as the timetrace data
+            self.data.update({'index_data': index_data})
+            # self.data.update({'time_trace':[esr[idx] for esr, idx in zip(esr_data, index_data)]})
+
+        if self.settings['turn_off_after']:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+
+    def _calc_progress(self, scan_num):
+        # COMMENT_ME
+
+        progress = float(scan_num) / self.settings['esr_avg'] * 100.
+        self.progress = progress
+        return int(progress)
+
+    def _plot(self, axes_list, data=None):
+        """
+        plotting function for esr
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys frequency, data and fit_params) if not provided use self.data
+        Returns:
+
+        """
+
+        if data is None:
+            data = self.data
+
+        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+
+    def get_axes_layout(self, figure_list):
+        """
+        returns the axes objects the script needs to plot its data
+        the default creates a single axes object on each figure
+        This can/should be overwritten in a child script if more axes objects are needed
+        Args:
+            figure_list: a list of figure objects
+        Returns:
+            axes_list: a list of axes objects
+
+        """
+        new_figure_list = [figure_list[1]]
+        return super(ESR_tracking, self).get_axes_layout(new_figure_list)
+
+
+class ESR_simple(Script):
+    """
+    This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
+    a DAQ. Each frequency is set explicitly on the SRS, instead of using FM.
+
+    This is the simple, i.e. minimal version of it
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('power_out', -45.0, float, 'output power (dBm)'),
+        Parameter('esr_avg', 50, int, 'number of esr averages'),
+        Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
+        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('freq_points', 100, int, 'number of frequencies in scan'),
+        Parameter('integration_time', 0.05, float,
+                  'The TOTAL integration time. The integration time per daq bins is integration_time / num_samps_per_pt'),
+        Parameter('num_samps_per_pt', 100, int,
+                  'Number of samples within one DAQ buffer, for each frequency. This should be large because the first measurement is thrown away (may start in the middle of a clock tick)'),
+        Parameter('mw_generator_switching_time', .01, float,
+                  'time wait after switching center frequencies on generator (s)'),
+        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
+        Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('fit_constants',
+                  [
+                      Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
+                      Parameter('contrast_factor', 1.5, float, 'minimum contrast for an ESR to not be considered noise')
+                  ]),
+        Parameter('randomize', True, bool, 'check to randomize esr frequencies'),
+        Parameter('save_timetrace', True, bool,
+                  'check to save the measured fluorescence over time. This is identical to the full esr when the freq. are not randomized')
+    ]
+
+    _INSTRUMENTS = {
+        'microwave_generator': MicrowaveGenerator,
+        'NI6259': NI6259,  # PCI
+        'NI9402': NI9402,  # cDAQ
+    }
+
+    _SCRIPTS = {}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+
+    def setup_microwave_gen(self):
+        '''
+
+        set relevant parameters on the MW generator.
+
+        '''
+        self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
+        self.instruments['microwave_generator']['instance'].update({'enable_modulation': False})
+        self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+
+    def setup_daq(self):
+        '''
+
+        Initialize the relevant DAQ and set the sample rate.
+
+        '''
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+
+        sample_rate = float(1) / (self.settings['integration_time'] / self.settings[
+            'num_samps_per_pt'])  # DAQ minimum buffer size is 2
+        self.daq_in.settings['digital_input']['ctr0']['sample_rate'] = sample_rate
+
+    def get_freq_array(self):
+        '''
+
+        Construct the frequency array based on the setting parameters.
+
+        Returns:
+            freq_values: array of the frequencies to be tested
+            freq_range: the range of the frequency to be tested, i.e. maximum frequency - minumum frequency
+        '''
+
+        # contruct the frequency array
+        if self.settings['range_type'] == 'start_stop':
+            if self.settings['freq_start'] > self.settings['freq_stop']:
+                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self._abort = True
+
+            if self.settings['freq_start'] < 950E3 or self.settings['freq_stop'] > 4.05E9:  # freq range of the SRS
+                self.log('start or stop frequency out of bounds')
+                self._abort = True
+
+            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
+                                      self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+        elif self.settings['range_type'] == 'center_range':
+            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
+                self.log(
+                    'end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self._abort = True
+            freq_values = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
+                                      self.settings['freq_start'] + self.settings['freq_stop'] / 2,
+                                      self.settings['freq_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+            if self.settings['freq_stop'] > 1e9:
+                self.log('freq_stop (range) is quite large --- did you mean to set \'range_type\' to \'start_stop\'? ')
+        else:
+            self.log('unknown range parameter. Abort script')
+            self._abort = True
+
+        return freq_values, freq_range
+
+    def run_sweep(self, freq_values, time_tracking=False):
+        '''
+
+        Actually runs the ESR sweep, for a single average.
+
+        Returns:
+            esr_data
+            laser_data
+            normalized_data
+
+        '''
+
+        if time_tracking:
+            start_run_sweep = time.time()
+
+        num_samps = self.settings[
+                        'num_samps_per_pt'] + 1  # acquire this many samples per point. The counter starts in the middle of a
+        # clock tick, so throw out the first sample and take num_samps_per_pt + 1 samples
+
+        # initialize data arrays
+        single_sweep_data = np.zeros(len(freq_values))
+
+        indeces = list(range(len(freq_values)))
+        if self.settings['randomize']:
+            random.shuffle(indeces)
+
+        for freq_index in indeces:
+
+            single_freq_start_t = time.time()
+
+            if self._abort:
+                break
+
+            freq = freq_values[freq_index]
+
+            # change MW frequency
+            self.instruments['microwave_generator']['instance'].update({'frequency': float(freq)})
+            time.sleep(self.settings['mw_generator_switching_time'])
+
+            if time_tracking:
+                print('time for a single SRS frequency change: ' + str(time.time() - single_freq_start_t) + ' s')
+
+            single_sweep_data[freq_index] = self.measure_signal(num_samps)
+
+            if time_tracking:
+                print('time for a single frequency data point: ' + str(time.time() - single_freq_start_t) + ' s')
+
+        # normalize  single sweep data to kcounts/sec
+        single_sweep_data = single_sweep_data * (.001 / self.settings['integration_time'])
+
+        end_run_sweep = time.time()
+
+        if time_tracking:
+            print('run sweep took: ' + str(end_run_sweep - start_run_sweep) + ' s')
+
+        return single_sweep_data, indeces
+
+    def measure_signal(self, num_samps, time_tracking=False):
+        """
+
+        measure the signal with the APD
+
+        Args:
+            num_samps:
+
+        Returns:
+
+        """
+        if time_tracking:
+            start_meas = time.time()
+
+        # setup the tasks
+        ctrtask = self.daq_in.setup_counter("ctr0", num_samps)
+
+        if time_tracking:
+            t2 = time.time() - start_meas
+            print('time to setup the task: ' + str(t2) + ' s')
+
+        self.daq_in.run(ctrtask)  # the counter clock turns on and starts the AI task
+
+        time.sleep(self.settings['integration_time'])
+
+        if time_tracking:
+            t4 = time.time() - start_meas
+            print('time elapsed up to sleep: ' + str(t4) + ' s')
+
+        # read the data
+        raw_data, _ = self.daq_in.read_counter(ctrtask)
+
+        signal = np.sum(np.diff(raw_data))  # take the total counts, neglecting the first element
+
+        self.daq_in.stop(ctrtask)  # stop the clock task last
+
+        if time_tracking:
+            t6 = time.time() - start_meas
+            print('time elapsed up to stopping the task: ' + str(t6) + ' s')
+            print('diff-ing all times: ')
+            print('setup: ', t2)
+            print('running: ', t4 - t2)
+            print('stopping: ', t6 - t4)
+            print('total time: ', time.time() - start_meas)
+
+        return signal
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        self.lines = []
+
+        start_time = time.time()
+
+        # setup the daq
+        self.setup_daq()
+
+        # setup the microwave generator
+        self.setup_microwave_gen()
+
+        # intialize some of the fields in self.data
+        self.data = {'frequency': [], 'data': [], 'fit_params': [], 'avrg_counts': []}
+
+        # get the frequencices of the sweep
+        freq_values, freq_range = self.get_freq_array()
+        self.data.update({'frequency': freq_values})
+        # initialize data arrays
+        esr_data = np.zeros((self.settings['esr_avg'], len(freq_values)))  # for the raw esr data
+
+        # to get the timetrace we keep track of the indecies
+        if self.settings['save_timetrace']:
+            index_data = np.zeros((self.settings['esr_avg'], len(freq_values))).astype(int)  # for the raw esr data
+
+        # run sweeps
+        for scan_num in range(0, self.settings['esr_avg']):
+
+            if self._abort:
+                break
+
+            self.log('starting average ' + str(scan_num) + ', time elapsed: ' + str(
+                np.round(time.time() - start_time, 1)) + 's')
+
+            # get the data for a single sweep. These are raw data.
+            single_sweep_data, indeces = self.run_sweep(freq_values)
+
+            # save the single sweep data
+            esr_data[scan_num] = single_sweep_data
+
+            if self.settings['save_timetrace']:
+                index_data[scan_num] = indeces
+
+            # current non-normalized averaged data to plot and fit to if laser power tracking is off
+            esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
+
+            # fit to the data
+            fit_params = fit_esr(freq_values, esr_avg, min_counts=self.settings['fit_constants']['minimum_counts'],
+                                 contrast_factor=self.settings['fit_constants']['contrast_factor'])
+
+            self.data.update({'data': esr_avg, 'fit_params': fit_params})
+
+            progress = self._calc_progress(scan_num)
+            self.updateProgress.emit(progress)
+
+        if self.settings['save_full_esr']:
+            self.data.update({'esr_data': esr_data})
+
+        if self.settings['save_timetrace']:
+            # using the indeces, we retrieve the right time ordering for the esr data and save it as the timetrace data
+            self.data.update({'index_data': index_data})
+            # self.data.update({'time_trace':[esr[idx] for esr, idx in zip(esr_data, index_data)]})
+
+        if self.settings['turn_off_after']:
+            self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+
+    def _calc_progress(self, scan_num):
+        # COMMENT_ME
+
+        progress = float(scan_num) / self.settings['esr_avg'] * 100.
+        self.progress = progress
+        return int(progress)
+
+    def _plot(self, axes_list, data=None):
+        """
+        plotting function for esr
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys frequency, data and fit_params) if not provided use self.data
+        Returns:
+
+        """
+
+        if data is None:
+            data = self.data
+
+        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
+
+    def get_axes_layout(self, figure_list):
+        """
+        returns the axes objects the script needs to plot its data
+        the default creates a single axes object on each figure
+        This can/should be overwritten in a child script if more axes objects are needed
+        Args:
+            figure_list: a list of figure objects
+        Returns:
+            axes_list: a list of axes objects
+
+        """
+        new_figure_list = [figure_list[1]]
+        return super(ESR_simple, self).get_axes_layout(new_figure_list)
+
 # re-written by ER 20180831 to enable esr without frequency modulation
 class ESR(Script):
     """
@@ -488,6 +1161,7 @@ class ESR(Script):
         if self.settings['randomize']:
             random.shuffle(indeces)
 
+        print("executing run_sweep!")
         for freq_index in indeces:
 
             if self._abort:
@@ -534,6 +1208,8 @@ class ESR(Script):
         will be overwritten in the __init__
         """
 
+        start_time = time.time()
+
         # if tracking laser power drifts, check for PCI daq
         if self.settings['track_laser_power']['on/off'] and not self.settings['daq_type'] == 'PCI':
             print("tracking laser power drifts only enabled for PCI daq")
@@ -571,6 +1247,7 @@ class ESR(Script):
                 break
 
             # get the data for a single sweep. These are raw data.
+            self.log('starting average number: ' + str(scan_num) + ' time elapsed: ' + str(time.time()-start_time))
             single_sweep_data, single_sweep_laser_data = self.run_sweep(freq_values)
 
             # save the single sweep data and normalize to kcounts/sec
@@ -808,18 +1485,15 @@ class ESR_simple(Script):
             self.instruments['microwave_generator']['instance'].update({'frequency': float(freq)})
             time.sleep(self.settings['mw_generator_switching_time'])
 
-            print('time for a single SRS frequency change: ' + str(time.time() - single_freq_start_t) + ' s')
 
             single_sweep_data[freq_index] = self.measure_signal(num_samps)
 
-            print('time for a single frequency data point: ' + str(time.time() - single_freq_start_t) + ' s')
 
         # normalize  single sweep data to kcounts/sec
         single_sweep_data = single_sweep_data * (.001 / self.settings['integration_time'])
 
         end_run_sweep = time.time()
 
-        print('run sweep took: ' + str(end_run_sweep-start_run_sweep) + ' s')
 
         return single_sweep_data, indeces
 
@@ -841,36 +1515,22 @@ class ESR_simple(Script):
         ctrtask = self.daq_in.setup_counter("ctr0", num_samps)
 
         t2 = time.time()-start_meas
-        print('time to setup the task: ' + str(t2) + ' s')
 
         self.daq_in.run(ctrtask)  # the counter clock turns on and starts the AI task
 
-     #   t3 = time.time()-t2
-     #   print('time to run the task: ' + str(t3) + ' s')
 
         time.sleep(self.settings['integration_time'])
 
         t4 = time.time()-start_meas
-        print('time elapsed up to sleep: ' + str(t4) + ' s')
 
         # read the data
         raw_data, _ = self.daq_in.read_counter(ctrtask)
-
-      #  t5 = time.time()-t4
-     #   print('time taken to read the signal: ' + str(t5) + ' s')
 
         signal = np.sum(np.diff(raw_data))  # take the total counts, neglecting the first element
 
         self.daq_in.stop(ctrtask)  # stop the clock task last
 
         t6 = time.time() - start_meas
-        print('time elapsed up to stopping the task: ' + str(t6) + ' s')
-
-        print('diff-ing all times: ')
-        print('setup: ', t2)
-        print('running: ', t4-t2)
-        print('stopping: ', t6-t4)
-        print('total time: ', time.time() - start_meas)
 
         return signal
 
@@ -1330,7 +1990,6 @@ class ESR_Spec_Ana(Script):
         progress = float(scan_num) / self.settings['esr_avg'] * 100.
         self.progress = progress
 
-        print('JG ESR progress', progress)
         return int(progress)
 
     def _plot(self, axes_list, data = None):

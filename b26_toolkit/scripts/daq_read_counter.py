@@ -53,10 +53,9 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
     ]
 
     _INSTRUMENTS = {'daq': NI9402}
-    # _INSTRUMENTS = {'daq': NI6259}
+
 
     _SCRIPTS = {
-
     }
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
@@ -131,7 +130,6 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 raw_data_laser2, num_read_laser2 = self.instruments['daq']['instance'].read(aitask2)
 
             raw_data, num_read = self.instruments['daq']['instance'].read(task)
-            print('HERE', raw_data, num_read)
             #skip first read, which gives an anomolous value
             if num_read.value == 1:
                 self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
@@ -204,6 +202,10 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 array_to_plot = np.delete(data['counts'], 0)
 
             update_counts_vs_pos(axes_list[0], array_to_plot, np.linspace(0, len(array_to_plot), len(array_to_plot)))
+
+
+class Daq_Read_Counter_NI6259(Daq_Read_Counter):
+    _INSTRUMENTS = {'daq': NI6259}
 
 if __name__ == '__main__':
     script = {}

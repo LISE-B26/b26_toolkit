@@ -11,8 +11,6 @@ from pylabcontrol.core import Parameter, Instrument
 
 # import dll for SMC100
 
-
-
 ########################################################################################################################
 ## INSTRUCTIONS ON USING THIS DLL AND PYTHON FOR .NET
 # Most of the functions in this DLL take three arguments. The first is the controller number (hardcoded as 1 for now),
@@ -40,7 +38,6 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
                                 os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
 
     print(dll_path)
-
     if dll_path:
 
         sys.path.insert(0, dll_path)
@@ -60,7 +57,7 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
         Parameter('port', 'COM6', ['COM'+ str(i) for i in range(10)], 'serial number written on device'),
         Parameter('position', 25000.0, float, 'servo position (from 0 to 25000 in um)'),
         Parameter('velocity', 1000, float, 'servo velocity (from 0 to 1000 in um/s)'),
-        Parameter('height_lower_limit', 9, float, 'lowest position servo can move to (in mm)')
+        Parameter('height_lower_limit', 22., float, 'lowest position servo can move to (in mm)')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -150,6 +147,8 @@ Class to control the Newport SMC100 stepper motor driver. Class controlled over 
 
         """
         if pos < self.settings['height_lower_limit']:
+            print('lower limit: ', self.settings['height_lower_limit'])
+            print('pos to go to: ', pos)
             raise ValueError('cannot set position below height_lower_limit')
 
         s_ref = ''

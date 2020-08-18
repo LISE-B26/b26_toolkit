@@ -1,6 +1,8 @@
 from pylabcontrol.core import Parameter, Instrument
 import ctypes
 import time
+import clr
+import os
 
 class TLI_DeviceInfo(ctypes.Structure):
     _fields_ = [("typeID", ctypes.c_ulong),
@@ -34,7 +36,13 @@ class KDC001(Instrument):
     def __init__(self, name=None, settings=None):
 
         super(KDC001, self).__init__(name, settings)
+        import sys
+        sys.path.insert(0, 'C:\\Program Files\\Thorlabs\\Kinesis\\')
+        clr.AddReference('ThorLabs.MotionControl.KCube.DCServoCLI')
         self._servo_library = ctypes.cdll.LoadLibrary('C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.KCube.DCServo.dll')
+        #os.environ['PATH'] = '' + os.pathsep + os.environ['PATH']
+       # self._servo_library = ctypes.cdll.LoadLibrary(r"C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.KCube.DCServo.dll")
+
 
         # conversion from mm to device units at
         # https://www.thorlabs.com/software/apt/APT_Communications_Protocol_Rev_15.pdf, page 16
@@ -382,7 +390,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 16.7 #16.0
+        self.max_pos =  21.51 # for mal/warm1, MM 20190813
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 
@@ -404,5 +412,9 @@ if __name__ == '__main__':
     a = B26KDC001x()
     b = B26KDC001y()
     c = B26KDC001z()
+    a.home()
+    b.home()
+    c.home()
+
   #  a.set_velocity()
  #   a.set_position()

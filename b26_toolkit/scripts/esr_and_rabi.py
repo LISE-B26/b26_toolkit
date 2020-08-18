@@ -35,7 +35,6 @@ class ESRAndRabi(Script):
 
         Script.__init__(self, name, scripts = scripts, settings=settings, log_function=log_function, data_path = data_path)
 
-
     def _function(self):
 
         self.scripts['esr'].run()

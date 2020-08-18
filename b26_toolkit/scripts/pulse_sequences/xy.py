@@ -55,6 +55,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
+#    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator} #ER 20181218
+  #  _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
@@ -188,7 +190,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
-
 
         return pulse_sequences, tau_list, meas_time
 
