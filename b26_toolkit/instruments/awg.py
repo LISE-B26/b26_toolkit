@@ -22,7 +22,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pylabcontrol.core import Parameter, Instrument
-from instruments.pulse_blaster import Pulse
+from pulse_blaster import Pulse
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = -0.500 # V, minimum voltage for the SRS IQ
@@ -52,6 +52,7 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
                   'Function CH2'),
 
         # if a non-arb function is selected, program properties of the waveform
+        # NOTE: needed for pulses too
         Parameter('default_waveform_ch1', [
             Parameter('frequency', 1e6, float, 'frequency in Hz'),
             Parameter('amplitude', 0.5, float, 'output amplitude peak to peak in volts'),
@@ -142,25 +143,27 @@ class AWG(Instrument): # Emma Rosenfeld 20170822
         Args:
             settings: a dictionary in the standard settings format
         """
+        print(self.settings)
         super(AWG, self).update(settings)
         # ===========================================
         for key, value in settings.items():
             if key != 'USB_num' and type(value) is not dict:
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
-                    value = int(value)                #the integers used internally in the SRS
+                    arg = int(value)                #the integers used internally in the SRS
                 elif (key == 'function_ch1' or key == 'function_ch2'):
                     if value == 'Arb':
                         self._waveform_to_memory(int(key[-1]))
-                    value = self._func_type_to_internal(value, key)
+                    arg = self._func_type_to_internal(value, key)
                 elif (key == 'run_mode_ch1' or key == 'run_mode_ch2'):
-                    value = self._run_mode_type_to_internal(key)
+                    arg = self._run_mode_type_to_internal(key)
                 elif key == 'amplitude':
                     if value > RANGE_MAX or value < RANGE_MIN:
                         raise ValueError("Invalid amplitude. All amplitudes must be between -0.5 and +0.5V.")
-                key = self._param_to_internal(key)
+                cmd = self._param_to_internal(key)
                 # only send update to instrument if connection to instrument has been established
                 if self._settings_initialized:
-                    self.awg.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
+                    self.settings[key] = value
+                    self.awg.write(cmd + ' ' + str(arg)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
             elif type(value) is dict: # if nested dictionary keep iterating
                 for key2, value2 in value.items():

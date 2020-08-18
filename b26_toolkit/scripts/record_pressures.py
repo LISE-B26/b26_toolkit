@@ -33,9 +33,9 @@ class RecordPressures(Script):
 
     _INSTRUMENTS = {
         'chamber_pressure_gauge' : ChamberPressureGauge,
-        'pump_line_pressure_gauge': PumpLinePressureGauge,
-        'temp_controller': TemperatureController,
-        'cryo_station': CryoStation
+        # 'pump_line_pressure_gauge': PumpLinePressureGauge,
+        # 'temp_controller': TemperatureController,
+        # 'cryo_station': CryoStation
     }
 
     _SCRIPTS = {}
@@ -56,13 +56,13 @@ class RecordPressures(Script):
         """
 
         chamber_gauge = self.instruments['chamber_pressure_gauge']['instance']
-        pump_line_gauge = self.instruments['pump_line_pressure_gauge']['instance']
-        temp_controller = self.instruments['temp_controller']['instance']
-        cryo_station = self.instruments['cryo_station']['instance']
+        # pump_line_gauge = self.instruments['pump_line_pressure_gauge']['instance']
+        # temp_controller = self.instruments['temp_controller']['instance']
+        # cryo_station = self.instruments['cryo_station']['instance']
 
         self.data['time'] = []
         self.data['chamber_pressures'] = []
-        self.data['pump_line_pressures'] = []
+        # self.data['pump_line_pressures'] = []
         self.data['temperatures'] = []
         self.data['temperatures_raw'] = []
         self.data['Platform_Temp'] = []
@@ -73,14 +73,14 @@ class RecordPressures(Script):
 
         while not self._abort:
             self.data['chamber_pressures'].append(chamber_gauge.pressure)
-            self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
-            temp, raw = temp_controller.temperature
-            self.data['temperatures'].append(temp)
-            self.data['temperatures_raw'].append(raw)
+            # self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
+            # temp, raw = temp_controller.temperature
+            # self.data['temperatures'].append(temp)
+            # self.data['temperatures_raw'].append(raw)
 
-            self.data['Platform_Temp'].append(cryo_station.Platform_Temp)
-            self.data['Stage_1_Temp'].append(cryo_station.stage_1_temp)
-            self.data['Stage_2_Temp'].append(cryo_station.stage_2_temp)
+            # self.data['Platform_Temp'].append(cryo_station.Platform_Temp)
+            # self.data['Stage_1_Temp'].append(cryo_station.stage_1_temp)
+            # self.data['Stage_2_Temp'].append(cryo_station.stage_2_temp)
 
 
             self.data['time'].append(time_index * self.settings['time_interval'])
@@ -111,27 +111,29 @@ class RecordPressures(Script):
             time_label = 'time (s)'
 
 
-        axes_list[1].plot(time, self.data['Platform_Temp'],
-                          time, self.data['Stage_1_Temp'],
-                          time, self.data['Stage_2_Temp']
-                          )
-        axes_list[1].set_xlabel(time_label)
-        axes_list[1].set_ylabel('temparatures (K)')
-
-        axes_list[1].legend(labels=('Platform', 'Stage 1', 'Stage 2'), fontsize=8)
+        # axes_list[1].plot(time, self.data['Platform_Temp'],
+        #                   time, self.data['Stage_1_Temp'],
+        #                   time, self.data['Stage_2_Temp']
+        #                   )
+        # axes_list[1].set_xlabel(time_label)
+        # axes_list[1].set_ylabel('temparatures (K)')
+        #
+        # axes_list[1].legend(labels=('Platform', 'Stage 1', 'Stage 2'), fontsize=8)
 
 
         #10/13/16 AK: pump line connection was broken, temporarily comment out
-        axes_list[0].plot(time, self.data['chamber_pressures'],
-                          time, self.data['pump_line_pressures']
+        axes_list[0].plot(time, self.data['chamber_pressures']
+                          # time, self.data['pump_line_pressures']
                           )
+
+        # axes_list[0].set_yscale('log')
         # axes_list[0].plot(time, self.data['chamber_pressures'])
         axes_list[0].set_xlabel(time_label)
         axes_list[0].set_ylabel('pressure (Torr)')
-
-        ax2 = axes_list[0].twinx()
-        ax2.plot(time, self.data['temperatures'], 'r')
-        ax2.set_ylabel('Temperature (K)', color='r')
-        axes_list[0].legend(labels=('chamber', 'pump line'), fontsize=8)
+        #
+        # ax2 = axes_list[0].twinx()
+        # ax2.plot(time, self.data['temperatures'], 'r')
+        # ax2.set_ylabel('Temperature (K)', color='r')
+        # axes_list[0].legend(labels='chamber', fontsize=8)
 
 

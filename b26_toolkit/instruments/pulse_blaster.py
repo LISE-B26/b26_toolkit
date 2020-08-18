@@ -35,6 +35,7 @@ class Pulse(object):
 
         self.channel_id = channel_id
         self.start_time = start_time
+        self.amplitude = amplitude
 
         if duration is None:
             assert end_time is not None
@@ -42,8 +43,6 @@ class Pulse(object):
         if end_time is None:
             assert duration is not None
             self.duration = duration
-        if amplitude is not None:
-            self.amplitude = amplitude
 
     def __str__(self):
         """
@@ -66,7 +65,6 @@ class Pulse(object):
                 self.start_time,
                 self.end_time,
                 self.duration)
-
 
     def __repr__(self):
         """
@@ -100,6 +98,14 @@ class Pulse(object):
 
         self._end_time = end_time
         self._duration = end_time - self.start_time
+
+    @property
+    def amplitude(self):
+        return self._amplitude
+
+    @amplitude.setter
+    def amplitude(self, amplitude):
+        self._amplitude = amplitude
 
     @staticmethod
     def is_overlapping(pulse1, pulse2, dead_time = 0):
@@ -299,8 +305,7 @@ class PulseBlaster(Instrument):
 
       #  print("status: {}".format(self.pb.pb_read_status()))
         assert (self.pb.pb_read_status() & 0b100) == 0b100, 'pulseblaster did not begin running after start() called.'
-        #time.sleep(2)
-        #self.pb.pb_stop()
+
         self.pb.pb_close()
 
     def settings2bits(self):
@@ -682,6 +687,7 @@ class PulseBlaster(Instrument):
                 print(command.duration)
                 print(pb_commands)
                 raise RuntimeError("Detected command with duration < min_pulse_dur.")
+
 
         # begin programming the pulseblaster
         assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'

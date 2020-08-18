@@ -643,6 +643,7 @@ class ESR_tracking(Script):
             self.data.update({'index_data': index_data})
             # self.data.update({'time_trace':[esr[idx] for esr, idx in zip(esr_data, index_data)]})
 
+
         if self.settings['turn_off_after']:
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
 

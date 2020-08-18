@@ -24,6 +24,7 @@ import scipy as sp
 from PyQt5.QtCore import pyqtSlot
 from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold, MDT693A
 
+
 try:
     from b26_toolkit.instruments import SMC100
 except:

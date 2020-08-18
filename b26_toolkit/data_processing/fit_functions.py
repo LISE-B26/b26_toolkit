@@ -144,52 +144,77 @@ def get_lorentzian_fit_starting_values(x_values, y_values, negative_peak=True):
     return [constant_offset, amplitude, center, fwhm]
 
 
-def fit_lorentzian(x_values, y_values, starting_params=None, bounds=None):
-    """
-    fits to lorenzian or two lorenzians: future fit to arbitrarily many lorenzians
-    Args:
-        x_values: domain of fit function
-        y_values: y-values to fit
-        starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
-        length 4 list of the form [constant_offset, amplitude, center, full_width_half_max] or list of list of length 4
-        which are the estimates for each peak.
-        bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
-                [(offset_lb, amplitude_lb, center_lb, fwhm_lb), (offset_ub, amplitude_ub, center_ub, fwhm_ub)]
+def fit_lorentzian(x_values, y_values, starting_params=None, bounds=None, errors=False):
+    def fit_give_errors():
+        """
+        fits to lorenzian or two lorenzians: future fit to arbitrarily many lorenzians
+        Args:
+            x_values: domain of fit function
+            y_values: y-values to fit
+            starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
+            length 4 list of the form [constant_offset, amplitude, center, full_width_half_max] or list of list of length 4
+            which are the estimates for each peak.
+            bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
+                    [(offset_lb, amplitude_lb, center_lb, fwhm_lb), (offset_ub, amplitude_ub, center_ub, fwhm_ub)]
 
-    Returns:
-        a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, fwhm]
+        Returns:
+            a length-4 list of [fit_parameters] in the form [constant_offset, amplitude, center, fwhm]
 
-    """
+        """
 
-    # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
-    if bounds:
-        return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+        # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
+        if bounds:
+            return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)
+        else:
+            return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params)
+
+    if errors:
+        fit_params, pcov = fit_give_errors()
+        return fit_params, np.sqrt(np.diag(pcov))
     else:
-        return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params)[0]
+        return fit_give_errors()[0]
+
+# def fit_lorentzian(x_values, y_values, starting_params=None, bounds=None, errors=False):
+#     if errors:
+#         if bounds:
+#             fit_params, pcov = optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)
+#         else:
+#             fit_params, pcov = optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params)
+#
+#         return fit_params, np.sqrt(np.diag(pcov))
+#     else:
+#         return fit_lorentzian(x_values, y_values, starting_params, bounds)
 
 
-def fit_double_lorentzian(x_values, y_values, starting_params=None, bounds=None):
-    """
-    fits to lorenzian or two lorenzians: future fit to arbitrarily many lorenzians
-    Args:
-        x_values: domain of fit function
-        y_values: y-values to fit
-        starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
-        length 6 list of the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
-        bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
-                [(offset_lb, fwhm_lb, amplitude1_lb, amplitude2_lb, center1_lb, center2_lb),
-                (offset_ub, fwhm_ub, amplitude1_ub, amplitude2_ub, center1_ub, center2_ub)]
+def fit_double_lorentzian(x_values, y_values, starting_params=None, bounds=None, errors=False):
+    def fit_give_errors():
+        """
+        fits to lorenzian or two lorenzians: future fit to arbitrarily many lorenzians
+        Args:
+            x_values: domain of fit function
+            y_values: y-values to fit
+            starting_params: reasonable guesses for where to start the fitting optimization of the parameters. This is a
+            length 6 list of the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
+            bounds: Optionally, include bounds for the parameters in the gaussian fitting, in the following form:
+                    [(offset_lb, fwhm_lb, amplitude1_lb, amplitude2_lb, center1_lb, center2_lb),
+                    (offset_ub, fwhm_ub, amplitude1_ub, amplitude2_ub, center1_ub, center2_ub)]
+    
+        Returns:
+            a length-6 list of [fit_parameters] in the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
+    
+        """
 
-    Returns:
-        a length-6 list of [fit_parameters] in the form [constant_offset, fwhm, amplitude_1, amplitude_2, center_1, center_2]
+        # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
+        if bounds:
+            return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)
+        else:
+            return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params)
 
-    """
-
-    # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
-    if bounds:
-        return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)[0]
+    if errors:
+        fit_params, pcov = fit_give_errors()
+        return fit_params, np.sqrt(np.diag(pcov))
     else:
-        return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params)[0]
+        return fit_give_errors()[0]
 
 
 def lorentzian(x, constant_offset, amplitude, center, fwhm):

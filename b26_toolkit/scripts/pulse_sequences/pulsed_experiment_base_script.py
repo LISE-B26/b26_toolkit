@@ -481,7 +481,7 @@ for a given experiment
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
         short_pulses = [command for command in pb_commands if command.duration < pulse_blaster.settings['min_pulse_dur']]
-        print('short pulses: ', short_pulses)
+
         if verbose and short_pulses:
             print('Found short pulses: ', short_pulses)
 

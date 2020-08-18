@@ -340,3 +340,4 @@ if __name__ == '__main__':
      #print(a.voltage)
     # a = MDT693A('hi', settings = {'port':'COM3'})
     # print(a.voltage)
+
