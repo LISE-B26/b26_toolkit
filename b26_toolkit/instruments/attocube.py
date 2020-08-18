@@ -401,6 +401,8 @@ class ANC350(Attocube):
 
     # _AXES = ['x', 'y', 'z']
 
+    _AXES = ['x', 'y', 'z']
+
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
         # and all future calls will fail. If a DLL but no instrument connected, throw an error.
@@ -505,6 +507,7 @@ class ANC350(Attocube):
     #         return self._get_frequency(self._convert_axis(key[0]))
     #     elif key in [el + '_cap' for el in self._AXES]:
     #         return self._cap_measure(self._convert_axis(key[0]))
+
 
     @property
     def is_connected(self):
@@ -650,6 +653,7 @@ class ANC350(Attocube):
 
         return ANC350_axes[axis]
 
+
     @staticmethod
     def _check_error(code):
         '''
@@ -765,3 +769,4 @@ if __name__ == '__main__':
         print('yike')
     # a.update({'x': {'voltage': 20}})
     print((a, a.is_connected))
+

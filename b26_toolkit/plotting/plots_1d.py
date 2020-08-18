@@ -22,7 +22,7 @@ from matplotlib.collections import PatchCollection
 
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
-def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
+def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin', color='b'):
     '''
     plots the power spectral density on to the canvas axes
     :param freq: x-values array of length N
@@ -42,13 +42,13 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
 
 
     if y_scaling == 'log' and x_scaling == 'log':
-        axes.loglog(c_unit*freq, psd, 'b')
+        axes.loglog(c_unit*freq, psd, color=color)
     elif y_scaling == 'log' and x_scaling == 'lin':
-        axes.semilogy(c_unit*freq, psd, 'b')
+        axes.semilogy(c_unit*freq, psd, color=color)
     elif y_scaling == 'lin' and x_scaling == 'log':
-        axes.semilogx(c_unit*freq, psd, 'b')
+        axes.semilogx(c_unit*freq, psd, color=color)
     elif y_scaling == 'lin' and x_scaling == 'lin':
-        axes.plot(c_unit*freq, psd, 'b')
+        axes.plot(c_unit*freq, psd, color=color)
 
     axes.set_xlabel('frequency ({:s})'.format(unit))
 

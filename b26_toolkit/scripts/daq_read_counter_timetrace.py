@@ -407,11 +407,12 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         for signal in [data['counts']]: #, data['ai']]: ER 20190130
             if len(signal) > 0:
-                plot_counts(axes_list[0], signal/np.mean(signal))
-                freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
-                print('freqs: ', freq)  # ER 20190129
-                print('psd: ', psd) # ER 20190129
-                print('freq[-1:]: ', freq[-1:])
+                # 20191105 ER get rid of normalization
+                #plot_counts(axes_list[0], signal/np.mean(signal))
+                plot_counts(axes_list[0], signal)
+                #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
+                freq, psd = power_spectral_density(signal, self.settings['integration_time'])
+
                # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
                 plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
 
@@ -425,6 +426,43 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
 class Daq_TimeTrace_NI6259(Daq_TimeTrace_NI9402_NI9219):
     _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
+
+class Daq_TimeTrace_NI6259_PD(Daq_TimeTrace_NI9402_NI9219): # ER 20200731
+
+    '''
+
+
+    Daq timetrace for NI6259 - plots both the counter APD data and the photodiode AI data.
+
+    '''
+
+    _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
+
+    def _plot(self, axes_list, data=None):
+        # COMMENT_ME
+
+        if data is None:
+            data = self.data
+
+        for signal in [data['counts']]: #, data['ai']]: ER 20190130
+            if len(signal) > 0:
+                # 20191105 ER get rid of normalization
+                #plot_counts(axes_list[0], signal/np.mean(signal))
+                plot_counts(axes_list[0], signal)
+                #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
+                freq, psd = power_spectral_density(signal, self.settings['integration_time'])
+               # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+                plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
+
+        for signal in [data['ai']]:
+            if len(signal) > 0:
+                # 20191105 ER get rid of normalization
+                #plot_counts(axes_list[0], signal/np.mean(signal))
+                plot_counts(axes_list[0], signal)
+                #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
+                freq, psd = power_spectral_density(signal, self.settings['integration_time'])
+               # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
+                plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin', color='r') # remove dc component ER 20190129
 
 # if __name__ == '__main__':
 #     script = {}

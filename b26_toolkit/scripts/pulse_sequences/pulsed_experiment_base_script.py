@@ -28,8 +28,11 @@ from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_puls
 from pylabcontrol.core import Script, Parameter
 import random
 import time as t
-MAX_AVERAGES_PER_SCAN = 100000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
+
+MAX_AVERAGES_PER_SCAN = 1000000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
+                                # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
+                                # if too large
 
 
 class PulsedExperimentBaseScript(Script):
@@ -142,12 +145,8 @@ for a given experiment
         for pulse in self.pulse_sequences[0]:
             if pulse.channel_id == 'apd_readout':
                 num_daq_reads += 1
-        signal = [0.0]
-        norms = np.repeat([0.0], (num_daq_reads - 1))
-        self.count_data = np.repeat([np.append(signal, norms)], len(self.pulse_sequences), axis=0)
-        self.data = in_data
-        self.data['tau'] = np.array(self.tau_list)
-        self.data['counts'] = deepcopy(self.count_data)
+        self._initialize_data(num_daq_reads, in_data)
+
 
         # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
         # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
@@ -229,6 +228,14 @@ for a given experiment
             self.save_data()
         #     self.save_log()
         #     self.save_image_to_disk()
+
+    def _initialize_data(self, num_daq_reads, in_data):
+        signal = [0.0]
+        norms = np.repeat([0.0], (num_daq_reads - 1))
+        self.count_data = np.repeat([np.append(signal, norms)], len(self.pulse_sequences), axis=0)
+        self.data = in_data
+        self.data['tau'] = np.array(self.tau_list)
+        self.data['counts'] = deepcopy(self.count_data)
 
     def _plot(self, axes_list, data=None):
         """
@@ -357,6 +364,7 @@ for a given experiment
             t4 = t.perf_counter()
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
+
         # clean up APD tasks
         if num_daq_reads != 0:
             daq.stop(task)
@@ -364,6 +372,12 @@ for a given experiment
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
             self.instruments['PB']['instance'].stop_pulse_seq()
         return result
+
+    def _sum_measurements(self, daq_results, num_daq_reads):
+        summed_results = []
+        for i in range(num_daq_reads):
+            summed_results.append(sum(itertools.islice(daq_results, i, None, num_daq_reads)))
+        return summed_results
 
     # MUST BE IMPLEMENTED IN INHERITING SCRIPT
     def _create_pulse_sequences(self):

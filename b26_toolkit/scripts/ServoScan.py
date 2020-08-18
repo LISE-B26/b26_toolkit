@@ -36,8 +36,8 @@ class ServoScan(Script):
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
-  #  _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+    #_SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
 
     def _get_instr(self):
         """
@@ -603,8 +603,6 @@ class ServoScan_voltage(ServoScan_2D):
 
 
                 tot_index = tot_index + 1
-
-
 
 if __name__ == '__main__':
     succeeded, failed, _ = Script.load_and_append({'ServoScan': ServoScan})
