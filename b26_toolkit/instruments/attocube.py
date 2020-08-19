@@ -41,10 +41,10 @@ NCB_NotSpecifiedParam = 8
 # converts x,y,z to axis number in controller
 
 ANC350_axes = {
-                'x': int32(1),
-                'y': int32(2),
-                'z': int32(0)
-                }
+    'x': int32(1),
+    'y': int32(2),
+    'z': int32(0)
+}
 
 ANC300_axes = {
     'x': 1,
@@ -58,36 +58,15 @@ class PositionerInfo(ctypes.Structure):
 
 class Attocube(Instrument):
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('x',
-                  [
-                      Parameter('on', False, [True, False], 'x axis on'),
-                      Parameter('pos', 0.0, float, 'x axis position in um'),
-                      Parameter('voltage', 30, float, 'voltage on x axis'),
-                      Parameter('freq', 100, float, 'x frequency in Hz')
-                  ]
-                  ),
-        Parameter('y',
-                  [
-                      Parameter('on', False, [True, False], 'y axis on'),
-                      Parameter('pos', 0, float, 'y axis position in um'),
-                      Parameter('voltage', 30, float, 'voltage on y axis'),
-                      Parameter('freq', 100, float, 'y frequency in Hz')
-                  ]
-                  ),
-        Parameter('z',
-                  [
-                      Parameter('on', False, [True, False], 'z axis on'),
-                      Parameter('pos', 0, float, 'x axis position in um'),
-                      Parameter('voltage', 30, float, 'voltage on x axis'),
-                      Parameter('freq', 100, float, 'x frequency in Hz')
-                  ]
-                  )
+        Parameter('x_voltage', 30, float, 'voltage on x axis'),
+        Parameter('x_freq', 100, float, 'x frequency in Hz'),
+        Parameter('y_voltage', 30, float, 'voltage on y axis'),
+        Parameter('y_freq', 100, float, 'y frequency in Hz'),
+        Parameter('z_voltage', 30, float, 'voltage on x axis'),
+        Parameter('z_freq', 100, float, 'x frequency in Hz')
     ])
 
     _AXES = ['x', 'y', 'z']
-
-    def _toggle_axis(self, axis, on):
-        raise NotImplementedError
 
     def _set_frequency(self, axis, freq):
         raise NotImplementedError
@@ -120,46 +99,66 @@ class ANC300(Attocube):
         Parameter('baudrate', 9600, int, 'baudrate of connection'),
         Parameter('timeout', 1., float, 'connection timeout in seconds'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),
-        Parameter('x_freq', 100, float, 'x frequency in Hz'),
+        Parameter('x_freq', 100, int, 'x frequency in Hz'),
         Parameter('y_voltage', 30, float, 'voltage on y axis'),
-        Parameter('y_freq', 100, float, 'y frequency in Hz'),
+        Parameter('y_freq', 100, int, 'y frequency in Hz'),
         Parameter('z_voltage', 30, float, 'voltage on x axis'),
-        Parameter('z_freq', 100, float, 'x frequency in Hz')
+        Parameter('z_freq', 100, int, 'x frequency in Hz')
     ])
     _WRITE_TIMEOUT = 0.03 # seconds
 
     def __init__(self, name=None, settings=None):
-
+        '''
+        Connects to attocube controller ANC300 through USB using PySerial. Throws exception if unable to connect.
+        baudrate was not specified in manual but 9600 seems to work.
+        :param name: name of instruments
+        :param settings: settings to update instrument with
+        '''
         super().__init__(name, settings)
         self._is_connected = False
         try:
             self._connect(self.settings['port'],
                          self.settings['baudrate'],
                          self.settings['timeout'])
-            # self.update(self.settings)
         except Exception as e:
             print(('Attocube not detected. Check connection.', UserWarning))
             raise e
 
     def update(self, settings):
         '''
-        Updates the internal settings, as well as turning the attocube channel on or off, updating
-        voltage or frequency, or moving to the given position
+        Updates the internal settings, updating voltage or frequency
         Args:
             settings: a dictionary in the same form as settings with the new values
         '''
         super().update(settings)
         for key, value in settings.items():
             split_key = key.split('_')
+
+            # if axis setting
             if split_key[0] in self._AXES:
+                # updates axis parameters
                 if split_key[1] == 'voltage':
                     self._set_amplitude(self._convert_axis(split_key[0]), value)
                 elif split_key[1] == 'freq':
                     self._set_frequency(self._convert_axis(split_key[0]), value)
                 else:
                     raise ValueError('No such key')
+            elif key == 'port':
+                self.ser.port = value
+            elif key == 'baudrate':
+                self.ser.baudrate = value
+            elif key == 'timeout':
+                self.ser.timeout = value
+            else:
+                raise ValueError('No such key')
 
     def _connect(self, port, baudrate=9600, timeout=1.):
+        '''
+        Connects to ANC300 through USB serial connection. Throws exception if unable to connect
+        :param port: virtual port to connect to (usually COM)
+        :param baudrate: baudrate of connection
+        :param timeout: connection timeout in seconds
+        '''
         self.ser = serial.Serial(port=port,
                                  baudrate=baudrate,
                                  timeout=timeout,
@@ -167,30 +166,25 @@ class ANC300(Attocube):
         self._is_connected = True
 
     def __del__(self):
+        '''
+        close connection upon destruction of instance
+        :return:
+        '''
         if self._is_connected:
             self.ser.close()
 
-    def _toggle_axis(self, axis, on):
-        #TODO
-        return
-
     def _set_frequency(self, axis, freq):
+        '''
+        Sets frequency of attocube axis
+        :param axis: axis number to set (int)
+        :param freq: frequency to set axis to in Hz (int)
+        '''
         self.ser.write('setf {} {}\n'.format(axis, freq).encode())
         self._get_OK()
 
     def _get_frequency(self, axis):
         self.ser.write('getf {}\n'.format(axis).encode())
-        self.ser.readline()
-        reply = self.ser.readline().decode()
-        if 'frequency = ' not in reply:
-            self._get_OK()
-            raise Exception
-        elif reply == 'OK\r\n':
-            raise Exception
-
-        freq = float(reply.split(' ')[2])
-        self._get_OK()
-        return freq
+        return self._get_param(axis, 'frequency')
 
     def _set_amplitude(self, axis, amplitude):
         self.ser.write('setv {} {}\n'.format(axis, amplitude).encode())
@@ -198,36 +192,28 @@ class ANC300(Attocube):
 
     def _get_amplitude(self, axis):
         self.ser.write('getv {}\n'.format(axis).encode())
-        self.ser.readline()
-        reply = self.ser.readline().decode()
-        if 'voltage = ' not in reply:
-            self._get_OK()
-            raise Exception
-        elif reply == 'OK\r\n':
-            raise Exception
-
-        voltage = float(reply.split(' ')[2])
-        self._get_OK()
-        return voltage
+        return self._get_param(axis, 'voltage')
 
     def _cap_measure(self, axis):
         self.ser.write('getc {}\n'.format(axis).encode())
         # wait
         self.ser.write('capw {}\n'.format(axis).encode())
 
+        cap = self._get_param(axis, 'capacitance')
+        self._get_OK()
+        return cap
+
+    def _get_param(self, axis, command, param):
         self.ser.readline()
         reply = self.ser.readline().decode()
-        if 'capacitance = ' not in reply:
+        if param + ' = ' not in reply:
             self._get_OK()
             raise Exception
         elif reply == 'OK\r\n':
             raise Exception
 
-        cap = float(reply.split(' ')[2])
-
         self._get_OK()
-        self._get_OK()
-        return cap
+        return float(reply.split(' ')[2])
 
     def step(self, axis, dir):
         if dir == 0:
@@ -241,7 +227,7 @@ class ANC300(Attocube):
     def multistep(self, axis, num_steps):
         if num_steps == 0:
             return
-        
+
         axis = self._convert_axis(axis)
         self.ser.write('setm {} stp\n'.format(axis).encode())
         self._get_OK()
