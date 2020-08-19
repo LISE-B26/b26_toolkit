@@ -77,7 +77,7 @@ class AttoStepXY(AttoStep):
 class AttoScanOpenLoop(Script):
 
     _DEFAULT_SETTINGS = [
-        Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
+        Parameter('scan_axis', 'y', ['x', 'y'], 'axis to scan on'),
         # Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
         Parameter('num_steps', 100, int, 'number of points in the scan'),
         Parameter('num_points', 10, int, 'number of DAQ counter measurements'),
