@@ -239,6 +239,9 @@ class ANC300(Attocube):
             raise ValueError
 
     def multistep(self, axis, num_steps):
+        if num_steps == 0:
+            return
+        
         axis = self._convert_axis(axis)
         self.ser.write('setm {} stp\n'.format(axis).encode())
         self._get_OK()
