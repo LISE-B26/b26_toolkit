@@ -58,12 +58,18 @@ class PositionerInfo(ctypes.Structure):
 
 class Attocube(Instrument):
     _DEFAULT_SETTINGS = Parameter([
+        Parameter('x_on', False, [True, False], 'toggle axis on and off'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),
         Parameter('x_freq', 100, float, 'x frequency in Hz'),
+        Parameter('x_pos', 0., float, 'x position in um'),
+        Parameter('y_on', False, [True, False], 'toggle axis on and off'),
         Parameter('y_voltage', 30, float, 'voltage on y axis'),
         Parameter('y_freq', 100, float, 'y frequency in Hz'),
-        Parameter('z_voltage', 30, float, 'voltage on x axis'),
-        Parameter('z_freq', 100, float, 'x frequency in Hz')
+        Parameter('y_pos', 0., float, 'y position in um'),
+        Parameter('z_on', False, [True, False], 'toggle axis on and off'),
+        Parameter('z_voltage', 30, float, 'voltage on z axis'),
+        Parameter('z_freq', 100, float, 'z frequency in Hz'),
+        Parameter('z_pos', 0., float, 'z position in um')
     ])
 
     _AXES = ['x', 'y', 'z']
@@ -168,7 +174,6 @@ class ANC300(Attocube):
     def __del__(self):
         '''
         close connection upon destruction of instance
-        :return:
         '''
         if self._is_connected:
             self.ser.close()
@@ -183,41 +188,87 @@ class ANC300(Attocube):
         self._get_OK()
 
     def _get_frequency(self, axis):
-        self.ser.write('getf {}\n'.format(axis).encode())
-        return self._get_param(axis, 'frequency')
+        '''
+        Gets frequency of attocube axis
+        :param axis: axis number to set (int)
+        '''
+        return self._get_param(axis, 'getf', 'frequency')
 
     def _set_amplitude(self, axis, amplitude):
+        '''
+        Sets amplitude of attocube axis
+        :param axis: axis number to set (int)
+        :param amplitude: amplitude to set axis to in V (float)
+        '''
         self.ser.write('setv {} {}\n'.format(axis, amplitude).encode())
         self._get_OK()
 
     def _get_amplitude(self, axis):
-        self.ser.write('getv {}\n'.format(axis).encode())
-        return self._get_param(axis, 'voltage')
+        '''
+        Gets amplitude of attocube axis
+        :param axis: axis number to set (int)
+        '''
+        return self._get_param(axis, 'getv', 'voltage')
 
     def _cap_measure(self, axis):
-        self.ser.write('getc {}\n'.format(axis).encode())
-        # wait
+        '''
+        Measures capacitance for specified axis
+        :param axis: axis number to set (int)
+        '''
+
+        # Start capacitance measurement
+        self.ser.write('setm {} cap\n'.format(axis).encode())
+
+        # Wait for capacitance measurement to finish
         self.ser.write('capw {}\n'.format(axis).encode())
 
-        cap = self._get_param(axis, 'capacitance')
+        # Get OK for starting and waiting
         self._get_OK()
-        return cap
+        self._get_OK()
+
+        # Acquire capacitance value
+        return self._get_param(axis, 'getc', 'capacitance')
 
     def _get_param(self, axis, command, param):
+        '''
+        Get parameter (frequency, amplitude, etc) from attocube controller
+        :param axis: axis number to acquire parameter from (int)
+        :param command: command for getting parameter (i.e. getf, getc) (str)
+        :param param: name of paramter to be read (str)
+        :return: parameter value
+        '''
+        # Send command to get param
+        self.ser.write(command + ' {}\n'.format(axis).encode())
+
+        # read line containing command
         self.ser.readline()
+
+        # read line that should contain value
         reply = self.ser.readline().decode()
+
+        # If error or no value given, signal exception
         if param + ' = ' not in reply:
             self._get_OK()
             raise Exception
         elif reply == 'OK\r\n':
             raise Exception
 
+        # get OK from command
         self._get_OK()
+
+        # get value
         return float(reply.split(' ')[2])
 
     def step(self, axis, dir):
+        '''
+        Take single step
+        :param axis: axis to take step along (str: x, y, z)
+        :param dir: direction to take step in (int: 0 for positive, 1 for negative)
+        '''
+        # If positive direction
         if dir == 0:
             self.multistep(axis, 1)
+        # If negative direction
         elif dir == 1:
             self.multistep(axis, -1)
         else:
@@ -225,34 +276,59 @@ class ANC300(Attocube):
             raise ValueError
 
     def multistep(self, axis, num_steps):
+        '''
+        Take multiple steps
+        :param axis: axis to take step along (str: x, y, z)
+        :param num_steps: number of steps to take. num_steps < 0 for negative direction (int)
+        '''
+
+        # Do nothing if no steps
         if num_steps == 0:
             return
 
+        # Set to stepping mode and get OK
         axis = self._convert_axis(axis)
         self.ser.write('setm {} stp\n'.format(axis).encode())
         self._get_OK()
 
+        # Perform steps
         if num_steps > 0:
             self.ser.write('stepu {} {}\n'.format(axis, num_steps).encode())
         else:
             self.ser.write('stepd {} {}\n'.format(axis, -num_steps).encode())
 
-
+        # Wait until stepping is done
         self.ser.write('stepw {}\n'.format(axis).encode())
+
+        # Get OK for stepping and waiting
         self._get_OK()
         self._get_OK()
 
 
     def _convert_axis(self, axis):
+        '''
+        Convert axis name to number
+        :param axis: axis name (x, y, z) (str)
+        :return: axis number
+        '''
         if axis not in self._AXES:
             raise ValueError('No such axis available')
 
         return ANC300_axes[axis]
 
     def _get_OK(self):
+        '''
+        Read acknowledgment line after command.
+        '''
+
+        # Read command recently written and then what should be OK
         line1 = self.ser.readline().decode()
         line2 = self.ser.readline().decode()
+
+        # If OK not received, probably error
         if 'OK\r\n' not in [line1, line2]:
+
+            # Read line until OK received, then raise exception
             line1 = self.ser.readline().decode()
             while line1 != 'OK\r\n':
                 line1 = self.ser.readline().decode()
@@ -285,40 +361,6 @@ class ANC300(Attocube):
         elif key in [el + '_cap' for el in self._AXES]:
             return self._cap_measure(self._convert_axis(key.split('_')[0]))
 
-# class ANC300XY(ANC300):
-#     _DEFAULT_SETTINGS = Parameter([
-#         Parameter('port', 'COM3', str, 'serial port on which to connect'),
-#         Parameter('baudrate', 9600, int, 'baudrate of connection'),
-#         Parameter('timeout', 1., float, 'connection timeout in seconds'),
-#         Parameter('x',
-#                   [
-#                       Parameter('on', False, [True, False], 'x axis on'),
-#                       Parameter('voltage', 30, float, 'voltage on x axis'),
-#                       Parameter('freq', 1000, float, 'x frequency in Hz')
-#                   ]
-#                   ),
-#         Parameter('y',
-#                   [
-#                       Parameter('on', False, [True, False], 'y axis on'),
-#                       Parameter('voltage', 30, float, 'voltage on y axis'),
-#                       Parameter('freq', 1000, float, 'y frequency in Hz')
-#                   ]
-#                   ),
-#     ])
-#
-#     _AXES = ['x', 'y']
-#
-#     @property
-#     def _PROBES(self):
-#         return{
-#             'x_voltage': 'the voltage of the x direction (with respect to the camera)',
-#             'x_freq': 'the frequency of the x direction (with respect to the camera)',
-#             'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
-#             'y_voltage': 'the voltage of the y direction (with respect to the camera)',
-#             'y_freq': 'the frequency of the y direction (with respect to the camera)',
-#             'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
-#         }
-
 class ANC350(Attocube):
     '''
     Class to control an attocube using a supplied controller. Has been tested on an
@@ -329,35 +371,6 @@ class ANC350(Attocube):
     and may be written in a non-ctypes compatible language
     The class communicates with the device over USB.
     '''
-
-    # _DEFAULT_SETTINGS = Parameter([
-    #     Parameter('x',
-    #               [
-    #                   Parameter('on', False, [True, False], 'x axis on'),
-    #                   Parameter('pos', 0.0, float, 'x axis position in um'),
-    #                   Parameter('voltage', 30, float, 'voltage on x axis'),
-    #                   Parameter('freq', 1000, float, 'x frequency in Hz')
-    #               ]
-    #               ),
-    #     Parameter('y',
-    #               [
-    #                   Parameter('on', False, [True, False], 'y axis on'),
-    #                   Parameter('pos', 0, float, 'y axis position in um'),
-    #                   Parameter('voltage', 30, float, 'voltage on y axis'),
-    #                   Parameter('freq', 1000, float, 'y frequency in Hz')
-    #               ]
-    #               ),
-    #     Parameter('z',
-    #               [
-    #                   Parameter('on', False, [True, False], 'z axis on'),
-    #                   Parameter('pos', 0, float, 'x axis position in um'),
-    #                   Parameter('voltage', 30, float, 'voltage on x axis'),
-    #                   Parameter('freq', 1000, float, 'x frequency in Hz')
-    #               ]
-    #               )
-    # ])
-
-    # _AXES = ['x', 'y', 'z']
 
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
@@ -391,78 +404,22 @@ class ANC350(Attocube):
         Args:
             settings: a dictionary in the same form as settings with the new values
         '''
-        super(Attocube, self).update(settings)
+        super().update(settings)
         for key, value in settings.items():
-            if isinstance(value, dict) and key in self._AXES:
-                for sub_key, sub_value in sorted(value.items()):
-                    if sub_key == 'on':
-                        self._toggle_axis(self._convert_axis(key), sub_value)
-                    elif sub_key == 'pos':
-                        self.move_absolute(self._convert_axis(key), sub_value)
-                    elif sub_key == 'voltage':
-                        self._set_amplitude(self._convert_axis(key), sub_value)
-                    elif sub_key == 'freq':
-                        self._set_frequency(self._convert_axis(key), sub_value)
-                    else:
-                        raise ValueError('No such key')
+            split_key = key.split('_')
+            if split_key[0] in self._AXES:
+                if split_key[1] == 'on':
+                    self._toggle_axis(self._convert_axis(key), value)
+                elif split_key[1] == 'pos':
+                    self.move_absolute(self._convert_axis(key), value)
+                elif split_key[1] == 'voltage':
+                    self._set_amplitude(self._convert_axis(key), value)
+                elif split_key[1] == 'freq':
+                    self._set_frequency(self._convert_axis(key), value)
+                else:
+                    raise ValueError('No such key')
             else:
                 raise ValueError('No such key')
-
-
-    # def update(self, settings):
-    #     '''
-    #     Updates the internal settings, as well as turning the attocube channel on or off, updating
-    #     voltage or frequency, or moving to the given position
-    #     Args:
-    #         settings: a dictionary in the same form as settings with the new values
-    #     '''
-    #     super(Attocube, self).update(settings)
-    #     for key, value in settings.items():
-    #         if isinstance(value, dict) and key in self._AXES:
-    #             for sub_key, sub_value in sorted(value.items()):
-    #                 if sub_key == 'on':
-    #                     self._toggle_axis(self._convert_axis(key), sub_value)
-    #                 elif sub_key == 'pos':
-    #                     self._move_absolute(self._convert_axis(key), sub_value)
-    #                 elif sub_key == 'voltage':
-    #                     self._set_amplitude(self._convert_axis(key), sub_value)
-    #                 elif sub_key == 'freq':
-    #                     self._set_frequency(self._convert_axis(key), sub_value)
-    #                 else:
-    #                     raise ValueError('No such key')
-    #         else:
-    #             raise ValueError('No such key')
-
-
-    # @property
-    # def _PROBES(self):
-    #     return{
-    #         'x_pos': 'the position the x direction (with respect to the camera) in um',
-    #         'x_voltage': 'the voltage of the x direction (with respect to the camera)',
-    #         'x_freq': 'the frequency of the x direction (with respect to the camera)',
-    #         'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
-    #         'y_pos': 'the position the y direction (with respect to the camera) in um',
-    #         'y_voltage': 'the voltage of the y direction (with respect to the camera)',
-    #         'y_freq': 'the frequency of the y direction (with respect to the camera)',
-    #         'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
-    #         'z_pos': 'the position the z direction (with respect to the camera) in um',
-    #         'z_voltage': 'the voltage of the z direction (with respect to the camera)',
-    #         'z_freq': 'the frequency of the z direction (with respect to the camera)',
-    #         'z_cap': 'the capacitance of the piezo in the z direction (with respect to the camera)'
-    #     }
-
-    # def read_probes(self, key):
-    #     assert key in list(self._PROBES.keys())
-    #     assert isinstance(key, str)
-    #
-    #     if key in [el + '_pos' for el in self._AXES]:#['x_pos', 'y_pos', 'z_pos']:
-    #         return self._get_position(self._convert_axis(key[0]))
-    #     elif key in [el + '_voltage' for el in self._AXES]:
-    #         return self._get_amplitude(self._convert_axis(key[0]))
-    #     elif key in [el + '_freq' for el in self._AXES]:
-    #         return self._get_frequency(self._convert_axis(key[0]))
-    #     elif key in [el + '_cap' for el in self._AXES]:
-    #         return self._cap_measure(self._convert_axis(key[0]))
 
     @property
     def is_connected(self):
@@ -678,46 +635,11 @@ class ANC350(Attocube):
         elif key in [el + '_cap' for el in self._AXES]:
             return self._cap_measure(self._convert_axis(key[0]))
 
-# class ANC350XY(ANC350):
-#     _DEFAULT_SETTINGS = Parameter([
-#         Parameter('x',
-#                   [
-#                       Parameter('on', False, [True, False], 'x axis on'),
-#                       Parameter('pos', 0.0, float, 'x axis position in um'),
-#                       Parameter('voltage', 30, float, 'voltage on x axis'),
-#                       Parameter('freq', 1000, float, 'x frequency in Hz')
-#                   ]
-#                   ),
-#         Parameter('y',
-#                   [
-#                       Parameter('on', False, [True, False], 'y axis on'),
-#                       Parameter('pos', 0, float, 'y axis position in um'),
-#                       Parameter('voltage', 30, float, 'voltage on y axis'),
-#                       Parameter('freq', 1000, float, 'y frequency in Hz')
-#                   ]
-#                   )
-#     ])
-#
-#     _AXES = ['x', 'y']
-#
-#     @property
-#     def _PROBES(self):
-#         return{
-#             'x_pos': 'the position the x direction (with respect to the camera) in um',
-#             'x_voltage': 'the voltage of the x direction (with respect to the camera)',
-#             'x_freq': 'the frequency of the x direction (with respect to the camera)',
-#             'x_cap': 'the capacitance of the piezo in the x direction (with respect to the camera)',
-#             'y_pos': 'the position the y direction (with respect to the camera) in um',
-#             'y_voltage': 'the voltage of the y direction (with respect to the camera)',
-#             'y_freq': 'the frequency of the y direction (with respect to the camera)',
-#             'y_cap': 'the capacitance of the piezo in the y direction (with respect to the camera)',
-#         }
-
 if __name__ == '__main__':
     print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     try:
-        a = ANC300XY()
+        a = ANC300()
         a.multistep('x', 100)
     except Exception:
         print('yike')
