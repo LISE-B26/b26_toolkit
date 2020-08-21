@@ -192,7 +192,7 @@ class ANC300(Attocube):
         Gets frequency of attocube axis
         :param axis: axis number to set (int)
         '''
-        return self._get_param(axis, 'getf', 'frequency')
+        return int(self._get_param(axis, 'getf', 'frequency'))
 
     def _set_amplitude(self, axis, amplitude):
         '''
@@ -238,7 +238,7 @@ class ANC300(Attocube):
         :return: parameter value
         '''
         # Send command to get param
-        self.ser.write(command + ' {}\n'.format(axis).encode())
+        self.ser.write((command + ' {}\n').format(axis).encode())
 
         # read line containing command
         self.ser.readline()
