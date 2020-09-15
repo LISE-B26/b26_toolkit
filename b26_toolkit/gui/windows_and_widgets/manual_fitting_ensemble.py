@@ -90,7 +90,8 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
     class do_fit(QObject):
         finished = pyqtSignal()  # signals the end of the script
         status = pyqtSignal(str) # sends messages to update the statusbar
-        NUM_ESR_LINES = 8
+   #     NUM_ESR_LINES = 8
+        NUM_ESR_LINES = 2 # ER 20200911
 
         def __init__(self, filepath, plotwidget, queue, peak_vals, interps):
             QObject.__init__(self)
@@ -111,7 +112,11 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                 data.append(list())
             for i in range(0, self.NUM_ESR_LINES):
                 indices = self.interps[i](self.x_range)
+                print('self.x_range: ', self.x_range)
+                print('indices: ', indices)
+                print('self.interps[i]', self.interps[i])
                 data[i] = [freqs(indices[j]) for j in range(0,len(self.x_range))]
+                print('data[i]', data[i])
 
             df = pd.DataFrame(data)
             df = df.transpose()
@@ -127,23 +132,12 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                 print('UUUU', file.keys())
                 data_esr_norm = file['esr_map']
                 self.frequencies = file['frequency']
-                # print('loading freq from data_subscripts')
-
-                #
-                # sub_fs = glob.glob(os.path.join(os.path.dirname(self.filepath), 'data_subscripts/*'))
-                # print('sssss', sub_fs)
-                #
-                # print('ASAAAA', sub_fs[0])
-                #
-                #
-                # f = glob.glob(os.path.join(os.path.dirname(self.filepath), 'data_subscripts/*'))[0]
-                # data = Script.load_data(f)
-                # self.frequencies = data['frequency']
 
             else:
                 print('loading from data_subscripts')
                 data_esr = []
-                for f in sorted(glob.glob(os.path.join(self.filepath, './data_subscripts/*'))):
+                #for f in sorted(glob.glob(os.path.join(self.filepath, './data_subscripts/*'))):
+                for f in sorted(glob.glob(os.path.join(self.filepath, 'data_subscripts/*esr*'))):
                     data = Script.load_data(f)
                     data_esr.append(data['data'])
                 self.frequencies = data['frequency']

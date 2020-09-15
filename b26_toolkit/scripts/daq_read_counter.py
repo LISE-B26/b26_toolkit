@@ -54,7 +54,6 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
 
     _INSTRUMENTS = {'daq': NI9402}
 
-
     _SCRIPTS = {
     }
 

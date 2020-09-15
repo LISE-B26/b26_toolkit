@@ -18,11 +18,12 @@
 import numpy as np
 import time
 from b26_toolkit.instruments import ANC300, ANC350
-from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
+from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter, Daq_Read_Counter_NI6259
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-
+from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 
 class AttoStep(Script):
     _DEFAULT_SETTINGS = [Parameter('num_steps', [
@@ -104,6 +105,76 @@ class AttoScanOpenLoop(Script):
     def _update_plot(self, axes_list):
         update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
 
+class AttoScanOpenLoopTrackNI6259(Script):
+
+    ''''
+
+    ER 20200911
+
+    Same as AttoScanOpenLoop,
+    but adds findNV and AutofocusDAQ between the attoscan and DAQ read counter scripts,
+    in order to make sure we are on the NV
+
+    Takes the daq read counter script corresponding to NI6259 DAQ (Alice)
+
+    '''
+    _DEFAULT_SETTINGS = [
+        Parameter('scan_axis', 'y', ['x', 'y'], 'axis to scan on'),
+        Parameter('num_steps', 100, int, 'number of points in the scan'),
+        Parameter('num_points', 10, int, 'number of DAQ counter measurements'),
+    ]
+
+    _SCRIPTS = {'daq_read_counter': Daq_Read_Counter_NI6259, 'find_nv': FindNV, 'autofocus': AutoFocusDAQ}
+    _INSTRUMENTS = {'attocube': ANC300}
+
+    def _function(self):
+        self.attocube = self.instruments['attocube']['instance']
+
+        scan_axis = self.settings['scan_axis']
+        steps_per_meas = self.settings['num_steps'] // self.settings['num_points']
+
+        self.data = {
+            'counts': [],
+            'positions': np.arange(0, self.settings['num_steps'], steps_per_meas)
+        }
+
+        for i in range(len(self.data['positions'])):
+            if self._abort:
+                break
+
+            # track to the NV
+            # ER 20200911
+            self.scripts['autofocus'].run()
+            self.scripts['find_nv'].run()
+
+            # run daq_read_counter or the relevant script to get fluorescence
+            self.scripts['daq_read_counter'].run()
+
+            # add to output structures which will be plotted
+            data = self.scripts['daq_read_counter'].data['counts']
+            self.data['counts'].append(np.mean(data))
+
+            self.attocube.multistep(scan_axis, steps_per_meas)
+
+            self.progress = i * 100. / self.settings['num_points']
+            self.updateProgress.emit(int(self.progress))
+
+        # clean up data, as in daq_read_counter
+        self.data['counts'] = list(self.data['counts'])
+        self.data['positions'] = list(self.data['positions'])
+
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        if data:
+            axes_list[0].set_xlabel('steps')
+            axes_list[0].set_ylabel('kCounts/sec')
+
+            axes_list[0].plot(data['positions'][:len(data['counts'])], data['counts'], linewidth=2.0)
+
+    def _update_plot(self, axes_list):
+        update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
 
 class AttoScanOpenLoop2D(Script):
     _DEFAULT_SETTINGS = [Parameter('outer_loop', [
