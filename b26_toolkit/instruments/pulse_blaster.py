@@ -188,7 +188,7 @@ class PulseBlaster(Instrument):
         try:
             self.dll_path = get_config_value('PULSEBLASTER_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         except IOError:
-            warnings.warn("Pulseblaster DLL not found. If it should be present, check the path.")
+            warnings.warn(" ** Pulseblaster DLL not found. If it should be present, check the path.")
             dll_path = None
             print(('Expected dll_path: ', self.dll_path))
             self.is_conneted = False
@@ -199,7 +199,9 @@ class PulseBlaster(Instrument):
         except WindowsError:
             self.is_conneted = False
             warnings.warn("Pulseblaster DLL not found. If it should be present, check the path:")
-            print(('Expected dll_path: ', dll_path))
+            #print(('Expected dll_path: ', dll_path)) # ER 20201009
+            print(('Expected dll_path: ', self.dll_path)) # ER 20201009
+
         self.is_conneted = False
 
         super(PulseBlaster, self).__init__(name, settings)
