@@ -57,6 +57,11 @@ class PositionerInfo(ctypes.Structure):
     _fields_ = [(("id"), ctypes.c_int32), (("locked"), ctypes.c_bool)]
 
 class Attocube(Instrument):
+    '''
+    Generic class for implementing attocube controllers. Needs to be different since ANC300 communicates through serial
+    and ANC350 with DLL.
+    '''
+
     _DEFAULT_SETTINGS = Parameter([
         Parameter('x_on', False, [True, False], 'toggle axis on and off'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),
@@ -75,30 +80,74 @@ class Attocube(Instrument):
     _AXES = ['x', 'y', 'z']
 
     def _set_frequency(self, axis, freq):
+        '''
+        Sets frequency of attocube axis
+        :param axis: axis number to set (defined by controller)
+        :param freq: frequency to set axis to in Hz (int)
+        '''
         raise NotImplementedError
 
     def _get_frequency(self, axis):
+        '''
+        Gets frequency of attocube axis
+        :param axis: axis number to set (defined by controller)
+        '''
         raise NotImplementedError
 
     def _set_amplitude(self, axis, amplitude):
+        '''
+        Sets amplitude of attocube axis
+        :param axis: axis number to set (defined by controller)
+        :param amplitude: amplitude to set axis to in V (float)
+        '''
         raise NotImplementedError
 
     def _get_amplitude(self, axis):
+        '''
+        Gets amplitude of attocube axis
+        :param axis: axis number to set (defined by controller)
+        '''
         raise NotImplementedError
 
     def _cap_measure(self, axis):
+        '''
+        Measures capacitance for specified axis
+        :param axis: axis number to set (defined by controller)
+        '''
         raise NotImplementedError
 
     def step(self, axis, dir):
+        '''
+        Take single step
+        :param axis: axis to take step along (str: x, y, z)
+        :param dir: direction to take step in (int: 0 for positive, 1 for negative)
+        '''
         raise NotImplementedError
 
     def multistep(self, axis, num_steps):
+        '''
+        Take multiple steps
+        :param axis: axis to take step along (str: x, y, z)
+        :param num_steps: number of steps to take. num_steps < 0 for negative direction (int)
+        '''
         raise NotImplementedError
 
     def _convert_axis(self, axis):
+        '''
+        Convert axis name to number
+        :param axis: axis name (x, y, z) (str)
+        :return: axis number (defined by controller)
+        '''
         raise NotImplementedError
 
 class ANC300(Attocube):
+    '''
+    Class to control an attocube using a supplied ANC300 controller. Has been tested controlling a stack of two
+    ANPx101res and one ANPz101res, but it should work with any controllers supporting the same low level serial
+    commands. The commands can be found in the ANC300 manual. The class communicates with the device over the USB slave
+    port.
+    '''
+
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM23', str, 'serial port on which to connect'),
@@ -111,7 +160,7 @@ class ANC300(Attocube):
         Parameter('z_voltage', 30, float, 'voltage on x axis'),
         Parameter('z_freq', 100, int, 'x frequency in Hz')
     ])
-    _WRITE_TIMEOUT = 0.03 # seconds
+    _WRITE_TIMEOUT = 0.03  # in seconds
 
     def __init__(self, name=None, settings=None):
         '''
@@ -149,6 +198,8 @@ class ANC300(Attocube):
                     self._set_frequency(self._convert_axis(split_key[0]), value)
                 else:
                     raise ValueError('No such key')
+
+            # update connection parameters
             elif key == 'port':
                 self.ser.port = value
             elif key == 'baudrate':
@@ -426,7 +477,6 @@ class ANC350(Attocube):
         '''
         Check if attocube controller is connected
         Returns: True if controller is connected, false otherwise
-
         '''
         #connecting fails if device is not connected, so this catches that error
         try:
