@@ -167,8 +167,8 @@ class PulseBlaster(Instrument):
             Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
-        Parameter('clock_speed', 500.0, [100.0, 400.0, 500.], 'Clock speed of the pulse blaster [MHz]'),
-        Parameter('min_pulse_dur', 2, [15, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
+        Parameter('clock_speed', 500.0, [100.0, 250.0, 400.0, 500.], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
@@ -188,7 +188,7 @@ class PulseBlaster(Instrument):
         try:
             self.dll_path = get_config_value('PULSEBLASTER_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
         except IOError:
-            warnings.warn("Pulseblaster DLL not found. If it should be present, check the path.")
+            warnings.warn(" ** Pulseblaster DLL not found. If it should be present, check the path.")
             dll_path = None
             print(('Expected dll_path: ', self.dll_path))
             self.is_conneted = False
@@ -199,13 +199,14 @@ class PulseBlaster(Instrument):
         except WindowsError:
             self.is_conneted = False
             warnings.warn("Pulseblaster DLL not found. If it should be present, check the path:")
-            print(('Expected dll_path: ', dll_path))
+            #print(('Expected dll_path: ', dll_path)) # ER 20201009
+            print(('Expected dll_path: ', self.dll_path)) # ER 20201009
+
         self.is_conneted = False
 
         super(PulseBlaster, self).__init__(name, settings)
         self.estimated_runtime = None
         self.sequence_start_time = None
-
 
 
     def prepare_function_calls(self):
@@ -701,11 +702,11 @@ class PulseBlaster(Instrument):
                                                   self.PB_INSTRUCTIONS[pb_instruction.command],
                                                   ctypes.c_int(int(pb_instruction.command_arg)),
                                                   ctypes.c_double(pb_instruction.duration))
-            if return_value < 0:
-                print('error!!!')
-                print(pb_commands)
-                print(pb_instruction.duration)
-                print(pb_instruction)
+            #if return_value < 0:
+            #    print('error!!!')
+            #    print(pb_commands)
+            #    print(pb_instruction.duration)
+            #    print(pb_instruction)
             assert return_value >=0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 
@@ -719,10 +720,10 @@ class PulseBlaster(Instrument):
 
         self.pb.pb_start()
         assert self.pb.pb_read_status() & 0b100 == 0b100, 'pulseblaster did not begin running after start() called.'
+
         if(self.settings['PB_type'] == 'PCI'): #leave USB PB connection open to stop it later
             self.pb.pb_close()
         self.sequence_start_time = datetime.datetime.now()
-
     def stop_pulse_seq(self):
         """
         Stops pulse sequence. Only needs to be called for USB pulseblasters. Requires that the PB-computer connection
@@ -791,8 +792,8 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
         ]),
-        Parameter('clock_speed', 500, [100, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
-        Parameter('min_pulse_dur', 2, [15, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
+        Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 

@@ -278,7 +278,7 @@ def plot_voltage(axis, data):
     axis.set_ylabel('voltage (V)')
 
 
-def plot_temperature(axis, data, sample_rate):
+def plot_temperature(axis, data, sample_rate, update=False):
     """
     plots the temperature
 
@@ -293,14 +293,22 @@ def plot_temperature(axis, data, sample_rate):
     time = np.arange(len(data))/float(sample_rate)
 
     label = 'time (s)'
+
     if max(time)>60:
         time /= 60.
         label = 'time (min)'
     if max(time)>60:
         time /= 60.
         label = 'time (h)'
-    axis.plot(time, data)
-    # axis.hold(False)
+
+    if update:
+        axis.lines[0].set_ydata(data)
+        axis.lines[0].set_xdata(time)
+
+        axis.relim()
+        axis.autoscale_view()
+    else:
+        axis.plot(time, data)
 
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')

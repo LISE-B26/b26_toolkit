@@ -94,5 +94,10 @@ This script reads the temperature from the Lakeshore controller.
         if data:
             plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'])
 
+    def _update_plot(self, axes_list, data = None):
+        if data is None:
+            data = self.data
+        plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'], True)
+
 if __name__ == '__main__':
     pass
