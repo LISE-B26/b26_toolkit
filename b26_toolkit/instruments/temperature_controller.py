@@ -37,7 +37,7 @@ class TemperatureController(Instrument):
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM8', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM25', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
@@ -80,6 +80,7 @@ class TemperatureController(Instrument):
         """
 
         probe_name = probe_name.lower()  # making sure the probe is lowercase
+        assert probe_name in list(self._PROBES.keys())
 
         if probe_name == 'temperature':
             return self._get_temperature()
@@ -96,7 +97,7 @@ class TemperatureController(Instrument):
         """
         assert self.serial_connection.isOpen()
 
-        self.serial_connection.write('KRDG? A' + self.CR + self.LF)
+        self.serial_connection.write('KRDG? A\r\n'.encode())
 
         # response returns string with temperature values interspaced with \x characters
         response = self.serial_connection.readline()

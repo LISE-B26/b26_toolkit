@@ -118,7 +118,10 @@ for a given experiment
         """
 
         # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
+
+        print('turning off microwave switch')
         self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        print('successfully turned off microwave switch')
 
         # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
@@ -164,7 +167,14 @@ for a given experiment
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
             if self._abort:
+                print('aborting!!')
+                # ER 20200828 stop the pulseblaster
+                if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+                    print('stopping pulse seq: abort!! ')
+                    self.instruments['PB']['instance'].stop_pulse_seq()
+
                 self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
                 self.log('aborted pulseblaster script during loop')
                 break
 
@@ -213,6 +223,8 @@ for a given experiment
 
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
         #    print('tau sequences running: ', self.tau_list)
+
+            print('about to call run_sweep')
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
 
         if remainder != 0 and not self._abort:
@@ -310,9 +322,15 @@ for a given experiment
 
             rand_index = rand_indexes[index]
             if self._abort:
+                print('aborting in run sweep!!')
+
+                if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+                    print('stopping pulse seq in run sweep: abort!! ')
+                    self.instruments['PB']['instance'].stop_pulse_seq()
+
                 self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
                 break
-            print('starting sequence')
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
             self.count_data[rand_index] = self.count_data[rand_index] + result
 
@@ -360,7 +378,10 @@ for a given experiment
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
+            print('reading off the daq')
+            print('daq: ', daq)
             result_array, temp = daq.read(task)   # thread waits on DAQ getting the right number of gates
+            print('reading the result')
             t4 = t.perf_counter()
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
@@ -370,6 +391,7 @@ for a given experiment
             daq.stop(task)
 
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+            print('stopping pulse seq: ')
             self.instruments['PB']['instance'].stop_pulse_seq()
         return result
 
@@ -579,16 +601,12 @@ for a given experiment
 
         verbose=True
         if self._get_overlapping_pulses(pulse_sequence, verbose=verbose):
-            print('overlapping')
             return True
         elif self._get_commands_that_are_too_short(pulse_sequence, verbose=verbose):
-            print('too short')
             return True
         elif self._has_pulses_with_bad_start_time(pulse_sequence, verbose=verbose):
-            print('bad start')
             return True
         elif self._compiles_to_too_many_commands_for_pb(pulse_sequence, verbose=verbose):
-            print('too many')
             return True
         else:
             return False
