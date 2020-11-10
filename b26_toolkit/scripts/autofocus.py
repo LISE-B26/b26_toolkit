@@ -508,6 +508,26 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
+class AutoFocusDAQMax(AutoFocusDAQ):
+
+    '''
+
+    Runs an autofocus daq script but instead of going to the maximum point found by the fit, goes to the maximum point in the data
+
+    '''
+
+    def _function(self):
+        #update piezo settings
+        if self.settings['use_current_z_axis_position']:
+            self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
+        AutoFocusGeneric._function(self)
+        end_pt = np.max(self.data['focus_function_result'])
+        self.log('max counts: ' + str(end_pt))
+        best_voltage = self.data['sweep_voltages'][np.where(self.data['focus_function_result'] == end_pt)]
+        self.log('corresponding voltage: ' + str(best_voltage))
+        self._step_piezo(best_voltage, self.settings['wait_time'])
+
+
 class AutoFocusDAQCold(AutoFocusDAQ):
     '''
 

@@ -1,132 +1,610 @@
-# import numpy as np
-#
-# from pylabcontrol.core import Script, Parameter
-# from b26_toolkit.instruments import KDC001
-# from b26_toolkit.scripts import GalvoScan
-#
-#
-#
-# class ServoScan(Script):
-#     """
-#     Sweeps the three axis stage in a given pattern and runs the selected loop_script at each position
-#     """
-#
-#     _DEFAULT_SETTINGS = [
-#         Parameter('loop_script', 'GalvoScan', ['GalvoScan'], 'Script to execute at each servo position'),
-#         Parameter('channel1',
-#                   [Parameter('axis', 'z', ['None', 'x', 'y', 'z', 'xy', 'xz', 'yz'], 'axis to scan on'),
-#                    Parameter('min_value', 0.0, float, 'starting point of scan'),
-#                    Parameter('max_value', 1.0, float, 'ending point of scan'),
-#                    Parameter('num_points', 10, int, 'number of points for scan'),
-#                    Parameter('min_value2', 0.0, float, 'starting point of scan (second dimension)'),
-#                    Parameter('max_value2', 1.0, float, 'ending point of scan (second dimension)'),
-#                    Parameter('num_points2', 10, int, 'number of points for scan (second dimension)')
-#                   ]),
-#         Parameter('channel2',
-#                   [Parameter('axis', 'y', ['None', 'x', 'y', 'z', 'xy', 'xz', 'yz'], 'axis to scan on'),
-#                    Parameter('min_value', 0.0, float, 'starting point of scan'),
-#                    Parameter('max_value', 1.0, float, 'ending point of scan'),
-#                    Parameter('num_points', 10, int, 'number of points for scan'),
-#                    Parameter('min_value2', 0.0, float, 'starting point of scan (second dimension)'),
-#                    Parameter('max_value2', 1.0, float, 'ending point of scan (second dimension)'),
-#                    Parameter('num_points2', 10, int, 'number of points for scan (second dimension)')
-#                    ]),
-#         Parameter('channel3',
-#                   [Parameter('axis', 'x', ['None', 'x', 'y', 'z', 'xy', 'xz', 'yz'], 'axis to scan on'),
-#                    Parameter('min_value', 0.0, float, 'starting point of scan'),
-#                    Parameter('max_value', 1.0, float, 'ending point of scan'),
-#                    Parameter('num_points', 10, int, 'number of points for scan'),
-#                    Parameter('min_value2', 0.0, float, 'starting point of scan (second dimension)'),
-#                    Parameter('max_value2', 1.0, float, 'ending point of scan (second dimension)'),
-#                    Parameter('num_points2', 10, int, 'number of points for scan (second dimension)')
-#                    ])
-#     ]
-#
-#     _INSTRUMENTS = {'XServo': KDC001, 'YServo': KDC001, 'ZServo': KDC001}
-#
-#     _SCRIPTS = {'GalvoScan': GalvoScan}
-#
-#     def _function(self):
-#         """
-#         Runs the servo scan
-#         """
-#         #when instruments are initially loaded after script is imported, all will have the same serial number and two
-#         #will fail to connect. This instead pushes the serial numbers from the script dropdown and forces a reconnect
-#         #so after this step, all three should be connected properly.
-#         for key in list(self.instruments.keys()):
-#             self.instruments[key]['instance'].update({'serial_number': self.instruments[key]['settings']['serial_number']})
-#
-#         def _get_channel(channel_name):
-#             """
-#             Takes a channel name and returns the zero, one, or two servo instrument instances corresponding to the
-#             movement for that channel
-#             Args:
-#                 channel_name: 'channel1', 'channel2', or 'channel3'
-#
-#             Returns: two servo instrument instances (or None) correponding to the servo(s) used to move in the specified
-#             direction
-#             """
-#             if self.settings[channel_name]['axis'] == 'None':
-#                 return None, None
-#             elif self.settings[channel_name]['axis'] == 'x':
-#                 return self.instruments['XServo']['instance'], None
-#             elif self.settings[channel_name]['axis'] == 'y':
-#                 return self.instruments['YServo']['instance'], None
-#             elif self.settings[channel_name]['axis'] == 'z':
-#                 return self.instruments['ZServo']['instance'], None
-#             elif self.settings[channel_name]['axis'] == 'xy':
-#                 return self.instruments['XServo']['instance'], self.instruments['YServo']['instance']
-#             elif self.settings[channel_name]['axis'] == 'xz':
-#                 return self.instruments['XServo']['instance'], self.instruments['ZServo']['instance']
-#             elif self.settings[channel_name]['axis'] == 'yz':
-#                 return self.instruments['YServo']['instance'], self.instruments['ZServo']['instance']
-#
-#         def _get_channel_positions(channel_name):
-#             """
-#             Returns a list of the servo positions for the scan
-#             Args:
-#                 channel_name: 'channel1', 'channel2', or 'channel3'
-#
-#             Returns: Two values, either [0], None for an empty channel, [position list], None for a linear scan, or
-#             [position list], [position list2] for a diagonal scan
-#
-#             """
-#             if self.settings[channel_name]['axis'] == 'None':
-#                 return([0], None)
-#             elif self.settings[channel_name]['axis'] in ['x', 'y', 'z']:
-#                 return(np.linspace(self.settings[channel_name]['min_value'], self.settings[channel_name]['max_value'], self.settings[channel_name]['num_points']), None)
-#             elif self.settings[channel_name]['axis'] in ['xy', 'xz', 'yz']:
-#                 return(np.linspace(self.settings[channel_name]['min_value'], self.settings[channel_name]['max_value'], self.settings[channel_name]['num_points']),
-#                       np.linspace(self.settings[channel_name]['min_value2'], self.settings[channel_name]['max_value2'], self.settings[channel_name]['num_points2']))
-#
-#         channel1_servos = _get_channel('channel1')
-#         channel2_servos = _get_channel('channel2')
-#         channel3_servos = _get_channel('channel3')
-#
-#         channel1_pos, channel1_pos2 = _get_channel_positions('channel1')
-#         channel2_pos, channel2_pos2 = _get_channel_positions('channel2')
-#         channel3_pos, channel3_pos2 = _get_channel_positions('channel3')
-#
-#         for index, pos1 in enumerate(channel1_pos):
-#             if channel1_servos[0]:
-#                 channel1_servos[0].position = float(pos1)
-#                 if channel1_servos[1]:
-#                     channel1_servos[1].position = float(channel1_pos2[index])
-#             for index, pos2 in enumerate(channel2_pos):
-#                 if channel2_servos[0]:
-#                     channel2_servos[0].position = float(pos2)
-#                     if channel2_servos[1]:
-#                         channel2_servos[1].position = float(channel2_pos2[index])
-#                 for index, pos3 in enumerate(channel3_pos):
-#                     if self._abort:
-#                         return
-#                     if channel3_servos[0]:
-#                         channel3_servos[0].position = float(pos3)
-#                         if channel3_servos[1]:
-#                             channel3_servos[1].position = float(channel3_pos2[index])
-#                         self.settings['tag'] = self.settings['tag'] + '_' + str(pos1) + '_' + str(pos2) + '_' + str(pos3)
-#                         self.scripts[self.settings['loop_script']].run()
-#
-#     def plot(self, axes_list):
-#         if self.scripts[self.settings['loop_script']].is_running:
-#             self.scripts[self.settings['loop_script']].plot(axes_list)
+import numpy as np
+import time
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y, NI9219
+from b26_toolkit.scripts.find_nv import FindNV
+from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
+from b26_toolkit.scripts.daq_read_ai import Daq_Read_AI
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
+from b26_toolkit.scripts.esr import ESR_simple
+from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
+from collections import deque
+import scipy as sp
+from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence
+
+class ServoScan(Script):
+    """
+    ServoScan sweeps the position of the automatic translation stages, in 1D scans, and records NV fluorescence
+    using Daq_Read_Counter, at each point in the scan.
+
+    We use the NV fluorescence to align a magnetic bias field to the NV axis, generated by a permanent magnet.
+
+    ER 20180606
+
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('track_n_pts', 10, int, 'track every N points'),
+        Parameter('scan_axis', 'x', ['x', 'y', 'z'], 'axis to scan on'),
+        Parameter('num_points', 100, int, 'number of points in the scan'),
+        Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+        Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+        Parameter('use_autofocus', True, bool, 'check to enable autofocus during tracking'),
+        Parameter('track_to_nv', False, bool, 'check to use find_nv to track to the NV')
+        ]
+
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
+
+    #_SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+
+    def _get_instr(self):
+        """
+
+        Assigns an instrument relevant to the 1D scan axis.
+
+        """
+        if self.settings['scan_axis'] == 'x':
+            return self.instruments['XServo']['instance']
+        elif self.settings['scan_axis'] == 'y':
+            return self.instruments['YServo']['instance']
+        elif self.settings['scan_axis'] == 'z':
+            return self.instruments['ZServo']['instance']
+
+    def _get_scan_positions(self, verbose=True):
+        '''
+        Returns an array of points to go to in the 1D scan.
+        '''
+        if self.settings['scan_axis'] in ['x', 'y', 'z']:
+            scan_pos = [np.linspace(self.settings['min_pos'], self.settings['max_pos'], self.settings['num_points'])]
+
+            if verbose:
+                print('values for the scan are (in mm):', scan_pos)
+
+            return scan_pos
+        else:
+            NotImplementedError('multiple dimensional scans not yet implemented')
+
+    def gaussian(self, x, noise, amp, center, width):
+        return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
+
+    def fit_gaussian(self):
+        noise_guess = np.min(self.data['counts'])
+        amplitude_guess = np.max(self.data['counts']) - noise_guess
+        center_guess = np.mean(self.data['positions'])
+        width_guess = np.std(self.data['positions'])
+
+        p2 = [noise_guess, amplitude_guess, center_guess, width_guess]
+
+        pos_of_max = None
+
+        print('trying to fit the gaussian!')
+
+        try:
+            p2, success = sp.optimize.curve_fit(self.gaussian, self.data['positions'],
+                                                self.data['counts'], p0=p2,
+                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
+
+            print('p2', p2)
+            print('success', success)
+
+            pos_of_max = p2[2]
+
+            self.log('Found fit parameters: ' + str(p2))
+        except(ValueError, RuntimeError):
+            self.log('Could not converge to fit parameters')
+
+        return pos_of_max, p2
+
+    def _function(self):
+
+        # get the relevant instrument.
+        scan_instr = self._get_instr()
+
+        # get positions for the scan.
+        scan_pos = self._get_scan_positions()
+
+        # data structure
+        self.data = {'counts': deque()}
+        self.positions = {'positions': deque()}
+
+        # place for fit parameters
+        self.data['fit_parameters'] = [0, 0, 0, 0]
+        self.data['positions'] = scan_pos
+
+        # loop over scan positions and call the scripts
+        for index in range(0, self.settings['num_points']):
+            if self._abort:
+                break
+
+            new_pos = float(scan_pos[0][index])
+            scan_instr.settings['position'] = new_pos # update the position setting of the instrument
+            scan_instr.set_position() # actually move the instrument to that location. If this is not within the safety
+                                      # limits of the instruments, it will not actually move and say so in the log
+
+            # track to the NV if it's time to
+            if index > 0 and index % self.settings['track_n_pts'] == 0:
+                if self.settings['use_autofocus']:
+                  #  raise (NotImplementedError)
+                    self.scripts['autofocus'].run()
+                if self.settings['track_to_nv']:
+                    self.scripts['find_nv'].run()
+
+            # run daq_read_counter or the relevant script to get fluorescence
+            self.scripts['daq_read_counter'].run()
+            time.sleep(self.settings['time_per_pt'])
+            self.scripts['daq_read_counter'].stop()
+
+            # add to output structures which will be plotted
+            data = self.scripts['daq_read_counter'].data['counts']
+            self.data['counts'].append(np.mean(data))
+            self.positions['positions'].append(new_pos)
+
+            self.progress = index*100./self.settings['num_points']
+            self.updateProgress.emit(int(self.progress))
+
+        # clean up data, as in daq_read_counter
+        self.data['counts'] = list(self.data['counts'])
+
+        # attempt to fit
+        pos_of_max, self.data['fit_parameters'] = self.fit_gaussian()
+        if pos_of_max:
+            print('found maximum fluorescence position at: ', pos_of_max, ' mm')
+
+
+
+    def plot(self, figure_list):
+        super(ServoScan, self).plot([figure_list[0]])
+
+    def _plot(self, axes_list, data = None):
+        # COMMENT_ME
+
+        if data is None:
+            data = self.data
+
+        if data:
+            plot_counts_vs_pos(axes_list[0], data['counts'], self.positions['positions'])
+
+        # if the fit has finished plot the result
+        if not (np.array_equal(data['fit_parameters'], [0, 0, 0, 0])):
+            axes_list[0].plot(data['positions'],
+                            self.gaussian(data['positions'], *self.data['fit_parameters']), 'k')
+
+    def _update_plot(self, axes_list):
+        update_counts_vs_pos(axes_list[0], self.data['counts'], self.positions['positions'])
+
+class ServoScan_2D(Script):
+    """
+    ServoScan_2D sweeps the position of the automatic translation stages, in 2D scans, and records NV fluorescence
+    using Daq_Read_Counter, at each point in the scan.
+
+    We use the NV fluorescence to align a magnetic bias field to the NV axis, generated by a permanent magnet.
+
+    ER 20180618
+
+    """
+
+    _DEFAULT_SETTINGS = [
+        Parameter('track_n_pts', 10, int, 'track every N points'),
+        Parameter('outer_loop',
+                  [
+                      Parameter('scan_axis', 'x', ['x', 'y', 'z'], 'outer loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the outer loop')
+                  ]),
+        Parameter('inner_loop',
+                  [
+                      Parameter('scan_axis', 'y', ['x', 'y', 'z'], 'inner loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the inner loop')
+                  ]),
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+        Parameter('use_autofocus', True, bool, 'check to enable autofocus during tracking'),
+        Parameter('track_to_nv', False, bool, 'check to use find_nv to track to the NV')
+    ]
+
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
+
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+#    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
+
+
+    def _get_instr(self):
+        """
+
+        Assigns an instrument relevant to the 1D scan axis.
+
+        """
+        if self.settings['outer_loop']['scan_axis'] == 'x':
+            outer_instr = self.instruments['XServo']['instance']
+        elif self.settings['outer_loop']['scan_axis'] == 'y':
+            outer_instr = self.instruments['YServo']['instance']
+        elif self.settings['outer_loop']['scan_axis'] == 'z':
+            outer_instr = self.instruments['ZServo']['instance']
+
+        if self.settings['inner_loop']['scan_axis'] == 'x':
+            inner_instr = self.instruments['XServo']['instance']
+        elif self.settings['inner_loop']['scan_axis'] == 'y':
+            inner_instr = self.instruments['YServo']['instance']
+        elif self.settings['inner_loop']['scan_axis'] == 'z':
+            inner_instr = self.instruments['ZServo']['instance']
+
+        if outer_instr == inner_instr:
+            AttributeError('pick two different axis for the scan please!')
+
+        return outer_instr, inner_instr
+
+    def _get_scan_positions(self, verbose=True):
+        '''
+        Returns an array of points to go to in the 2D scan.
+        '''
+
+        min_out = self.settings['outer_loop']['min_pos']
+        max_out = self.settings['outer_loop']['max_pos']
+        num_out = self.settings['outer_loop']['num_points']
+
+        min_in = self.settings['inner_loop']['min_pos']
+        max_in = self.settings['inner_loop']['max_pos']
+        num_in = self.settings['inner_loop']['num_points']
+
+        scan_pos_outer = np.linspace(min_out, max_out, num_out)
+        scan_pos_inner = np.linspace(min_in, max_in, num_in)
+
+        return scan_pos_outer, scan_pos_inner
+
+    def gaussian(self, x, noise, amp, center, width):
+        return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
+
+    def fit_gaussian(self):
+        noise_guess = np.min(self.data['counts'])
+        amplitude_guess = np.max(self.data['counts']) - noise_guess
+        center_guess = np.mean(self.data['positions'])
+        width_guess = np.std(self.data['positions'])
+
+        p2 = [noise_guess, amplitude_guess, center_guess, width_guess]
+
+        pos_of_max = None
+
+        print('trying to fit the gaussian!')
+
+        try:
+            p2, success = sp.optimize.curve_fit(self.gaussian, self.data['positions'],
+                                                self.data['counts'], p0=p2,
+                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
+
+            print('p2', p2)
+            print('success', success)
+
+            pos_of_max = p2[2]
+
+            self.log('Found fit parameters: ' + str(p2))
+        except(ValueError, RuntimeError):
+            self.log('Could not converge to fit parameters')
+
+        return pos_of_max, p2
+
+    def _function(self):
+
+        # get the relevant instrument.
+        outer_instr, inner_instr = self._get_instr()
+
+        # get positions for the scan.
+        scan_pos_outer, scan_pos_inner = self._get_scan_positions()
+
+        # data structure
+       # self.data = {'counts': deque()}
+        self.data['counts'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+
+        # place for positions
+        self.data['positions_outer'] = scan_pos_outer
+        self.data['positions_inner'] = scan_pos_inner
+
+        tot_index = 0
+
+        # loop over scan positions and call the scripts
+        for index_out in range(0, self.settings['outer_loop']['num_points']):
+            for index_in in range(0, self.settings['inner_loop']['num_points']):
+
+                if self._abort:
+                    break
+
+                new_pos = [float(scan_pos_outer[int(index_out)]), float(scan_pos_inner[int(index_in)])]
+                self.log('new pos: ' + str(new_pos) + ' mm')
+                self.log('set outer instr: '+ str(outer_instr) + ' to ' + str(new_pos[0]) + ' mm')
+                self.log('set inner instr: '+ str(inner_instr) + ' to ' + str(new_pos[1]) + ' mm')
+
+                outer_instr.settings['position'] = new_pos[0]  # update the position setting of the instrument
+                inner_instr.settings['position'] = new_pos[1]
+                outer_instr.set_position()  # actually move the instrument to that location. If this is not within the safety
+                inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
+
+                # track to the NV
+                if tot_index > 0 and tot_index % self.settings['track_n_pts'] == 0:
+                    if self.settings['use_autofocus']:
+                      #  raise(NotImplementedError)
+                        self.scripts['autofocus'].run()
+                    if self.settings['track_to_nv']:
+                        self.scripts['find_nv'].run()
+
+                # run daq_read_counter or the relevant script to get fluorescence
+                self.scripts['daq_read_counter'].run()
+                time.sleep(self.settings['time_per_pt'])
+                self.scripts['daq_read_counter'].stop()
+
+                # add to output structures which will be plotted
+                if self.scripts['daq_read_counter'].settings['track_laser_power_photodiode1']['on/off'] == True:
+                    data = self.scripts['daq_read_counter'].data['normalized_counts']
+                else:
+                    data = self.scripts['daq_read_counter'].data['counts']
+                self.data['counts'][index_in][index_out] = np.mean(data)
+
+                self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
+                self.updateProgress.emit(int(self.progress))
+
+
+
+                tot_index = tot_index + 1
+
+    def plot(self, figure_list):
+        super(ServoScan_2D, self).plot([figure_list[0]])
+
+    def _plot(self, axes_list, data=None):
+        # COMMENT_ME
+
+        extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
+
+        if data is None:
+            data = self.data
+
+        if data:
+            plot_fluorescence_pos(data['counts'], extent, axes_list[0])
+
+    def _update_plot(self, axes_list):
+        extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
+        update_fluorescence(self.data['counts'], axes_list[0])
+
+class ServoScan_2D_ESR(Script):
+    """
+    ServoScan_2D_ESR sweeps the position of the automatic translation stages, in 2D scans, and takes an ESR spectrum at each servo location
+
+    We use the B values extracted from ESRs to align a magnetic bias field to the NV axis, generated by a permanent magnet.
+
+    MM 20190723
+
+    """
+
+    _DEFAULT_SETTINGS = [
+
+        Parameter('outer_loop',
+                  [
+                      Parameter('scan_axis', 'x', ['x', 'y', 'z'], 'outer loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 10, int, 'number of points in the outer loop')
+                  ]),
+        Parameter('inner_loop',
+                  [
+                      Parameter('scan_axis', 'y', ['x', 'y', 'z'], 'inner loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 10, int, 'number of points in the inner loop')
+                  ]),
+    ]
+
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
+
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR_simple}
+
+
+    def _get_instr(self):
+        """
+
+        Assigns an instrument relevant to the 1D scan axis.
+
+        """
+        if self.settings['outer_loop']['scan_axis'] == 'x':
+            outer_instr = self.instruments['XServo']['instance']
+        elif self.settings['outer_loop']['scan_axis'] == 'y':
+            outer_instr = self.instruments['YServo']['instance']
+        elif self.settings['outer_loop']['scan_axis'] == 'z':
+            outer_instr = self.instruments['ZServo']['instance']
+
+        if self.settings['inner_loop']['scan_axis'] == 'x':
+            inner_instr = self.instruments['XServo']['instance']
+        elif self.settings['inner_loop']['scan_axis'] == 'y':
+            inner_instr = self.instruments['YServo']['instance']
+        elif self.settings['inner_loop']['scan_axis'] == 'z':
+            inner_instr = self.instruments['ZServo']['instance']
+
+        if outer_instr == inner_instr:
+            AttributeError('pick two different axis for the scan please!')
+
+        return outer_instr, inner_instr
+
+    def _get_scan_positions(self, verbose=True):
+        '''
+        Returns an array of points to go to in the 2D scan.
+        '''
+
+        min_out = self.settings['outer_loop']['min_pos']
+        max_out = self.settings['outer_loop']['max_pos']
+        num_out = self.settings['outer_loop']['num_points']
+
+        min_in = self.settings['inner_loop']['min_pos']
+        max_in = self.settings['inner_loop']['max_pos']
+        num_in = self.settings['inner_loop']['num_points']
+
+        scan_pos_outer = np.linspace(min_out, max_out, num_out)
+        scan_pos_inner = np.linspace(min_in, max_in, num_in)
+
+        return scan_pos_outer, scan_pos_inner
+
+
+    def _function(self):
+
+        # get the relevant instrument.
+        outer_instr, inner_instr = self._get_instr()
+
+        # get positions for the scan.
+        scan_pos_outer, scan_pos_inner = self._get_scan_positions()
+
+        # data structure
+        # self.data = {'counts': deque()}
+        # NOTE: tricking servoscan structure-- let counts = theta.
+        self.data['counts'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+        self.data['Bz'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+        self.data['Bp'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+
+        # place for positions
+        self.data['positions_outer'] = scan_pos_outer
+        self.data['positions_inner'] = scan_pos_inner
+
+        tot_index = 0
+
+        # loop over scan positions and call the scripts
+        for index_out in range(0, self.settings['outer_loop']['num_points']):
+            for index_in in range(0, self.settings['inner_loop']['num_points']):
+
+                if self._abort:
+                    break
+
+                new_pos = [float(scan_pos_outer[int(index_out)]), float(scan_pos_inner[int(index_in)])]
+                self.log('new pos: ' + str(new_pos) + ' mm')
+                self.log('set outer instr: '+ str(outer_instr) + ' to ' + str(new_pos[0]) + ' mm')
+                self.log('set inner instr: '+ str(inner_instr) + ' to ' + str(new_pos[1]) + ' mm')
+
+                outer_instr.settings['position'] = new_pos[0]  # update the position setting of the instrument
+                inner_instr.settings['position'] = new_pos[1]
+                outer_instr.set_position()  # actually move the instrument to that location. If this is not within the safety
+                inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
+
+                # track to the NV
+                self.scripts['find_nv'].run()
+                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+
+                #run esr
+                self.scripts['esr'].settings['tag'] = "esr_x_{}_y_{}.".format(index_out, index_in)
+                self.scripts['esr'].run()
+                fit_params = self.scripts['esr'].data['fit_params']
+
+                #Update data values if fit to 2 peaks successful.
+                if (fit_params is not None) and (len(fit_params) == 6):
+                    # Extract B field values (from Jan's fitting code)
+                    wn = fit_params[4]/(1e9)
+                    wp = fit_params[5]/(1e9)
+                    gamma = .0027969 #GHz/G
+                    D = 2.87
+                    Bz = np.sqrt(-(D + wp - 2 * wn) * (D + wn - 2 * wp) * (D + wn + wp)) / (3 * gamma * np.sqrt(3 * D))
+                    Bp = np.sqrt(-(2 * D - wp - wn) * (2 * D + 2 * wn - wp) * (2 * D - wn + 2 * wp)) / (3 * gamma * np.sqrt(3 * D))
+                    self.data['counts'][index_in][index_out] = np.arctan(Bp / Bz) / np.pi * 180
+                    self.data['Bz'][index_in][index_out] = Bz
+                    self.data['Bp'][index_in][index_out] = Bp
+
+                self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
+                self.updateProgress.emit(int(self.progress))
+
+                tot_index = tot_index + 1
+
+    def plot(self, figure_list):
+        super(ServoScan_2D_ESR, self).plot([figure_list[0]])
+
+    def _plot(self, axes_list, data=None):
+        # COMMENT_ME
+
+        extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
+
+        if data is None:
+            data = self.data
+
+        if data:
+            plot_fluorescence_pos(data['counts'], extent, axes_list[0])
+
+    def _update_plot(self, axes_list):
+        extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
+        update_fluorescence(self.data['counts'], axes_list[0])
+
+class ServoScan_voltage(ServoScan_2D):
+    _DEFAULT_SETTINGS = [
+        Parameter('outer_loop',
+                  [
+                      Parameter('scan_axis', 'x', ['x', 'y', 'z'], 'outer loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the outer loop')
+                  ]),
+        Parameter('inner_loop',
+                  [
+                      Parameter('scan_axis', 'y', ['x', 'y', 'z'], 'inner loop axis to scan on'),
+                      Parameter('min_pos', 0., float, 'minimum position of scan (mm)'),
+                      Parameter('max_pos', 5., float, 'maximum position of scan (mm)'),
+                      Parameter('num_points', 100, int, 'number of points in the inner loop')
+                  ]),
+        Parameter('time_per_pt', 0.5, float, 'time to wait at each point (s)'),
+    ]
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z, 'DAQ_voltage': NI9219}
+    _SCRIPTS = {'daq_read_ai': Daq_Read_AI}
+
+    def _function(self):
+        self.scripts['daq_read_ai'].settings['integration_time'] = self.settings['time_per_pt']/10
+        self.scripts['daq_read_ai'].settings['total_int_time'] = self.settings['time_per_pt']
+
+
+        # get the relevant instrument.
+        outer_instr, inner_instr = self._get_instr()
+        print('outer_instr', outer_instr)
+        print('inner_instr', inner_instr)
+
+        # get positions for the scan.
+        scan_pos_outer, scan_pos_inner = self._get_scan_positions()
+
+        print('scan_pos_outer', scan_pos_outer)
+        print('scan_pos_inner', scan_pos_inner)
+        # data structure
+       # self.data = {'counts': deque()}
+        self.data['counts'] = [[0. for x in range(self.settings['outer_loop']['num_points'])] for y in range(self.settings['inner_loop']['num_points'])]
+
+        # place for positions
+        self.data['positions_outer'] = scan_pos_outer
+        self.data['positions_inner'] = scan_pos_inner
+
+        tot_index = 0
+
+        # loop over scan positions and call the scripts
+        for index_out in range(0, self.settings['outer_loop']['num_points']):
+            for index_in in range(0, self.settings['inner_loop']['num_points']):
+
+                if self._abort:
+                    break
+
+                new_pos = [float(scan_pos_outer[int(index_out)]), float(scan_pos_inner[int(index_in)])]
+                self.log('new pos: ' + str(new_pos) + ' mm')
+                self.log('set outer instr: '+ str(outer_instr) + ' to ' + str(new_pos[0]) + ' mm')
+                self.log('set inner instr: '+ str(inner_instr) + ' to ' + str(new_pos[1]) + ' mm')
+
+                outer_instr.settings['position'] = new_pos[0]  # update the position setting of the instrument
+                inner_instr.settings['position'] = new_pos[1]
+                outer_instr.set_position()  # actually move the instrument to that location. If this is not within the safety
+                inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
+
+                # run daq_read_counter or the relevant script to get fluorescence
+                self.scripts['daq_read_ai'].run()
+                time.sleep(self.settings['time_per_pt'])
+                self.scripts['daq_read_ai'].stop()
+
+                data = self.scripts['daq_read_ai'].data['voltage']
+                self.data['counts'][index_in][index_out] = np.mean(data)
+
+                self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
+                self.updateProgress.emit(int(self.progress))
+
+
+
+                tot_index = tot_index + 1
+
+if __name__ == '__main__':
+    succeeded, failed, _ = Script.load_and_append({'ServoScan': ServoScan})
+
+    print(succeeded)
