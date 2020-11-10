@@ -58,7 +58,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
     ]
 
     #041619 MM added cDAQ
-    _INSTRUMENTS = {'daq': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
@@ -217,7 +217,7 @@ We do this to check if we can extend T2 with something like this, which may help
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
