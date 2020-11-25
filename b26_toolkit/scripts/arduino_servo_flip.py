@@ -17,5 +17,14 @@
 """
 
 from pylabcontrol.core import Script
+from instruments import ArduinoUno
 
 class ArduinoServoFlip(Script):
+    _DEFAULT_SETTINGS = [Parameter('servo_num', 0, int, 'servo id'),
+                         Parameter('position', True, bool, 'checked for up, unchecked for down')]
+    
+    _INSTRUMENTS = {'arduino': ArduinoUno}
+    _SCRIPTS = {}
+
+    def _function(self):
+        self.instruments['arduino']['instance'].flip(self.settings['servo_num'], self.settings['position'])
