@@ -1,28 +1,28 @@
 #include "Servo.h"
 
-Servo servo1;
-
-int pos = 0;
+int num_servos = 2;
+Servo servos[2];
+int servo_ports[] = {9, 10};
 
 void setup() {
   Serial.begin(9600);
   Serial.setTimeout(1000);
   
-  servo1.attach(9);
-
-  
+  for (int i = 0; i < num_servos; ++i) {
+    servos[i].attach(servo_ports[i]);  
+  }  
 }
 
 void loop() {
   if (Serial.available() > 0) {
-    int servoNum = Serial.read();
+    int servo_num = Serial.read();
     while (Serial.available() <= 0) {}
     int pos = Serial.read();
     if (pos) {
-      servo1.write(0);
+      servos[servo_num].write(0);
     }
     else {
-      servo1.write(90);
+      servos[servo_num].write(90);
     }
   }
 
