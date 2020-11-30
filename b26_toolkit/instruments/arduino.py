@@ -30,7 +30,7 @@ class ArduinoUno(Instrument):
         self._is_connected = False
 
         try:
-            self._connected(self.settings['port'],
+            self._connect(self.settings['port'],
                             self.settings['baudrate'],
                             self.settings['timeout'])
         except Exception as e:
@@ -49,7 +49,7 @@ class ArduinoUno(Instrument):
         self._is_connected = True
 
     def flip(self, servoNumber, up):
-        ser.write('{} {} \n'.format(servoNumber, int(up).encode()))
+        self.ser.write(bytearray([servoNumber, int(up)]))
 
     @property
     def _PROBES(self):
