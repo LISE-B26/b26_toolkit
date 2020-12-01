@@ -1,8 +1,8 @@
 #include "Servo.h"
 
-int num_servos = 2;
-Servo servos[2];
-int servo_ports[] = {9, 10};
+int num_servos = 4;
+Servo servos[4];
+int servo_ports[] = {5  , 9, 10, 11};
 
 void setup() {
   Serial.begin(9600);
