@@ -46,6 +46,7 @@ Uses double_init scheme.
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
+
     def _function(self):
         #COMMENT_ME
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
@@ -53,15 +54,16 @@ Uses double_init scheme.
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
         assert self.settings['freq_start'] < self.settings['freq_stop']
-
-        self.data = {'mw_frequencies': np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
-                                                   self.settings['freq_points']), 'esr_counts': []}
+        freq_list = np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
+                                                   self.settings['freq_points'])
+        self.data = {'mw_frequencies': freq_list , 'esr_counts': np.zeros(len(freq_list))}
 
         for i, mw_frequency in enumerate(self.data['mw_frequencies']):
             self._loop_count = i
             self.instruments['mw_gen']['instance'].update({'frequency': float(mw_frequency)})
             super(PulsedESR, self)._function(self.data)
-            self.data['esr_counts'].append(self.data['counts'])
+            #print(self.data['counts'])
+            self.data['esr_counts'][i] = self.data['counts'][:, 1] / self.data['counts'][:, 0]
 
     # def _calc_progress(self):
     #     #COMMENT_ME
@@ -88,7 +90,10 @@ Uses double_init scheme.
         axis1 = axes_list[0]
         if not esr_counts == []:
             counts = esr_counts
-            plot_esr(axis1, mw_frequencies[0:len(counts)], counts)
+            #plot_esr(axis1, mw_frequencies[0:len(counts)], counts)
+
+            plot_esr(axis1, mw_frequencies, esr_counts[0:len(mw_frequencies)])
+
             axis1.hold(False)
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[0])
@@ -130,9 +135,11 @@ Uses double_init scheme.
         meas_time = self.settings['read_out']['meas_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
 
-        for tau in tau_list:
+        for mw_frequency in self.data['mw_frequencies']:
             pulse_sequence = \
-                [Pulse('laser', laser_off_time + tau + 2 * 40, nv_reset_time)]
+                [Pulse('laser', laser_off_time + tau + 2 * 40, nv_reset_time),
+                 Pulse('apd_readout',
+                       laser_off_time + tau + 2 * 40 + delay_readout, meas_time)]
                #  Pulse('apd_readout', laser_off_time + tau + 2 * 40 + delay_readout, meas_time),
                #  ]
             # if tau is 0 there is actually no mw pulse
