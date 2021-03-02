@@ -23,7 +23,7 @@ from .set_laser import SetLaser
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
 from .find_nv import FindNV
-from .esr import ESR, ESR_tracking
+from .esr import ESR, ESR_tracking, ESR_simple_lowerupper, ESR_simple
 from .esr_dithering import ESR_FM_Dither
 from .esr_two_freq_continuous import ESRTwoFreqContinuous
 from .spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum

@@ -2,6 +2,7 @@ import numpy as np
 import scipy.optimize as opt
 import itertools
 from itertools import permutations
+import uncertainties as uc
 # spin 1 matrices
 Sx = np.matrix([
     [0, -1j, -1j],
@@ -433,6 +434,50 @@ def B_field_from_esr(fp, fn, D=2.8707e9, gamma=27.969e9, angular_freq=False, ver
             print(('fp/fn', fp, fn))
 
     if np.isnan(Bz):
+        Bz = 0
+        if verbose:
+            print(('is nan Bz', Bz))
+            print(('fp/fn', fp, fn))
+
+    return Bz, Bp
+
+
+def B_field_from_esr_nanopillar(fp, fn, D=2.8707e9, gamma=27.969e9, angular_freq=False, verbose=False):
+    """
+    wp, wn: upper and lower esr frequency
+    gamma: Gyromagnetic ratio (in GHz/Tesla)
+    D: NV zero field splitting (in GHz)
+    angular_freq: frequencies are the angular frequencies (default = False)
+    returns:
+        the field along and perpendicular to the NV axis
+    """
+
+    if angular_freq:
+        print('WARNING CHECK CODE TO MAKE SURE THAT ALL FREQ. ARE ANGULAR FREQs')
+
+    wp = fp
+    wn = fn
+
+    # check that wp>wn if not flip them
+    if wp < wn:
+        wp, wn = wn, wp
+
+    Bz = (-(D + wp - 2 * wn) * (D + wn - 2 * wp) * (D + wn + wp))**(1/2) / (3 * gamma * np.sqrt(3 * D))
+
+    if type(wp) != float and (-(2 * D - wp - wn) * (2 * D + 2 * wn - wp) * (2 * D - wn + 2 * wp)) < 0:
+        print('is nan Bp')
+        Bp = uc.ufloat(0, 0)
+
+    else:
+        Bp = (-(2 * D - wp - wn) * (2 * D + 2 * wn - wp) * (2 * D - wn + 2 * wp))**(1/2) / (3 * gamma * np.sqrt(3 * D))
+
+    if type(Bp) == float and np.isnan(Bp):
+        Bp = 0
+        if verbose:
+            print(('is nan Bp', Bp))
+            print(('fp/fn', fp, fn))
+
+    if type(Bz) == float and np.isnan(Bz):
         Bz = 0
         if verbose:
             print(('is nan Bz', Bz))

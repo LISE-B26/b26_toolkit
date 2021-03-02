@@ -35,3 +35,4 @@ from .thorlabs_kcube import KDC001, TLI_DeviceInfo, B26KDC001x, B26KDC001y, B26K
 from .magnet_coils import MagnetCoils
 from .ueye_camera import UEyeCamera
 from .optotune_lens import OptotuneLens
+from .arduino import ArduinoUno

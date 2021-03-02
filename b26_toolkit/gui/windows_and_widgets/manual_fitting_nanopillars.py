@@ -1,10 +1,10 @@
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.uic import loadUiType
-from pylabcontrol.core import Script
 
+from pylabcontrol.core import Script
 import os.path
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.uic import loadUiType
 
 from matplotlib.backends.backend_qt4agg import (NavigationToolbar2QT as NavigationToolbar)
 from pylabcontrol.gui.windows_and_widgets.main_window import MatplotlibWidget
@@ -112,11 +112,7 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                 data.append(list())
             for i in range(0, self.NUM_ESR_LINES):
                 indices = self.interps[i](self.x_range)
-                print('self.x_range: ', self.x_range)
-                print('indices: ', indices)
-                print('self.interps[i]', self.interps[i])
-                data[i] = [freqs(indices[j]) for j in range(0,len(self.x_range))]
-                print('data[i]', data[i])
+                data[i] = indices
 
             df = pd.DataFrame(data)
             df = df.transpose()
@@ -127,9 +123,7 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
 
             print('_____>>>', self.filepath)
             if str(self.filepath).endswith('.h5'):
-                print('loading from .h5')
                 file = h5py.File(self.filepath, 'r')
-                print('UUUU', file.keys())
                 data_esr_norm = file['esr_map']
                 self.frequencies = file['frequency']
 
@@ -178,6 +172,7 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                 self.plotwidget.axes.pcolor(self.frequencies, angle, data_esr_norm)
                 # self.plotwidget.axes.imshow(data_esr_norm, aspect = 'auto', origin = 'lower')
                 if self.interps:
+                    print('self.interps: ', self.interps)
                     for f in self.interps:
                         self.plotwidget.axes.plot(f(self.x_range), self.x_range)
 
@@ -208,7 +203,6 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
                         elif value == 'fit':
                             # peak_vals = sorted(self.peak_vals, key=lambda tup: tup[1])
                             peak_vals = np.array(self.peak_vals)
-                            print('ggggg', peak_vals.shape)
                             y, x = peak_vals[:,0], peak_vals[:, 1]
 
 
@@ -241,7 +235,6 @@ class FittingWindow(QMainWindow, Ui_MainWindow):
             self.plotwidget.axes.clear()
 
             angle = np.arange(len(data_esr_norm))
-            # print('asdadf', self.frequencies)
             self.plotwidget.axes.pcolor(self.frequencies, angle, data_esr_norm)
 
             # self.plotwidget.axes.imshow(data_esr_norm, aspect='auto', origin = 'lower')
