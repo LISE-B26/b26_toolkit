@@ -150,7 +150,7 @@ class ANC300(Attocube):
 
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM23', str, 'serial port on which to connect'),
+        Parameter('port', 'COM3', str, 'serial port on which to connect'),
         Parameter('baudrate', 9600, int, 'baudrate of connection'),
         Parameter('timeout', 1., float, 'connection timeout in seconds'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),

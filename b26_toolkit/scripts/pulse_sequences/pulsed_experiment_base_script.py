@@ -46,7 +46,7 @@ for a given experiment
     """
     _DEFAULT_SETTINGS = [
         Parameter('Tracking', [
-            Parameter('on/off', True, bool, 'used to turn on tracking'),
+            Parameter('on/off', False, bool, 'used to turn on tracking'),
             Parameter('threshold', 0.85, float, 'threshold for tracking'),
             Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps')
         ]),
@@ -332,8 +332,9 @@ for a given experiment
 
                 break
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
+            print(np.shape(self.count_data[rand_index]))
             self.count_data[rand_index] = self.count_data[rand_index] + result
-
+            print(np.shape(self.count_data[rand_index]))
             counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
                                                                     self.current_averages)

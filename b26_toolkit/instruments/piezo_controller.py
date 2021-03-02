@@ -30,7 +30,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM11', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM7', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -208,7 +208,7 @@ class MDT693A(Instrument):
         Parameter('port', 'COM7', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
-        Parameter('voltage', 0.0, float, 'current voltage')
+        Parameter('voltage', 1.0, float, 'current voltage')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -331,7 +331,7 @@ class MDT693A(Instrument):
             raise ValueError(message)
 
 if __name__ == '__main__':
-     a = PiezoController('hi', settings={'port':'COM11'})
+     a = PiezoController('hi', settings={'port':'COM7'})
      a.axis = 'x'
      a.voltage = 45.5
      print(a.read_probes('voltage'))

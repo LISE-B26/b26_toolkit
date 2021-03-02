@@ -702,11 +702,11 @@ class PulseBlaster(Instrument):
                                                   self.PB_INSTRUCTIONS[pb_instruction.command],
                                                   ctypes.c_int(int(pb_instruction.command_arg)),
                                                   ctypes.c_double(pb_instruction.duration))
-            #if return_value < 0:
-            #    print('error!!!')
-            #    print(pb_commands)
-            #    print(pb_instruction.duration)
-            #    print(pb_instruction)
+            if return_value < 0:
+                print('error!!!')
+                print(pb_commands)
+                print(pb_instruction.duration)
+                print(pb_instruction)
             assert return_value >=0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 

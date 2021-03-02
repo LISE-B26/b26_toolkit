@@ -66,6 +66,8 @@ Uses a double_init scheme
 
         if 'counts' in self.data.keys() and 'tau' in self.data.keys():
             counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
+            print('shape')
+            print(np.shape(self.count_data))
             tau = self.data['tau']
 
             try:
