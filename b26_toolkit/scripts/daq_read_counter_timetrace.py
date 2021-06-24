@@ -279,6 +279,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
         Parameter('acquisition_time', 3.0, float, 'Total acquisition time (s)'),
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for analog in'),
+        Parameter('counter_only', True, bool, 'use counter input only')
     ]
 
     _INSTRUMENTS = {'daq_ai': NI9219, 'daq_counter': NI9402}
@@ -320,10 +321,14 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             continuous_acquisition=False
         )
 
-        daq_ai = self.instruments['daq_ai']['instance']
-        aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
-                                      continuous=False, # continuous sampling still reads every clock tick, here set to the clock of the counter
-                                      clk_source=ctrtask)
+        daq_ai = None
+        aitask = None
+        if not self.settings['counter_only']:
+            daq_ai = self.instruments['daq_ai']['instance']
+            aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
+                                          continuous=False, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                          clk_source=ctrtask)
+
         return [[daq_ai, aitask], [daq_counter, ctrtask]]
 
     def setup_daq(self, sample_rate):
@@ -334,7 +339,9 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         """
         daq_counter = self.instruments['daq_counter']['instance']
-        daq_ai = self.instruments['daq_ai']['instance']
+
+        if not self.settings['counter_only']:
+            daq_ai = self.instruments['daq_ai']['instance']
 
         counter_channel = self.settings['counter_channel']
 
@@ -345,16 +352,17 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         data = {}
         for daq, task in reversed(daq_tasks):
-            task_data, samples_per_channel_read = daq.read(task)
+            if daq is not None:
+                task_data, samples_per_channel_read = daq.read(task)
 
-            if daq == self.instruments['daq_counter']['instance']:
-                counts = np.diff(task_data)  # counter gives the accumulated counts, thus the diff gives the counts per interval
-                data['counts'] = counts * sample_rate / 1000  # multiply by the sample rate to get kcounts /second
-            elif daq == self.instruments['daq_ai']['instance']:
-                data['ai'] = np.array(task_data)
+                if daq == self.instruments['daq_counter']['instance']:
+                    counts = np.diff(task_data)  # counter gives the accumulated counts, thus the diff gives the counts per interval
+                    data['counts'] = counts * sample_rate / 1000  # multiply by the sample rate to get kcounts /second
+                elif daq == self.instruments['daq_ai']['instance']:
+                    data['ai'] = np.array(task_data)
 
-            else:
-                raise KeyError('unknown daq type in read_daq_data()')
+                else:
+                    raise KeyError('unknown daq type in read_daq_data()')
 
         return data
     def _function(self):
@@ -386,15 +394,16 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         for daq, task in daq_tasks:
             # start task
-            daq.run(task)
+            if daq is not None:
+                daq.run(task)
 
         self.data = self.read_daq_data(daq_tasks, sample_rate)
 
-        print('lsdlfjas;fhas', self.data)
         # clean up
         for daq, task in daq_tasks:
             # start task
-            daq.stop(task)
+            if daq is not None:
+                daq.stop(task)
 
     def plot(self, figure_list):
         super(Daq_TimeTrace_NI9402_NI9219, self).plot(figure_list)

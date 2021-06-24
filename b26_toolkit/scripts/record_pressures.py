@@ -122,7 +122,7 @@ class RecordPressures(Script):
 
 
         #10/13/16 AK: pump line connection was broken, temporarily comment out
-        axes_list[0].plot(time, self.data['chamber_pressures']
+        axes_list[0].semilogy(time, self.data['chamber_pressures']
                           # time, self.data['pump_line_pressures']
                           )
 

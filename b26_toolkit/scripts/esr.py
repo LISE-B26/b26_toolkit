@@ -941,14 +941,15 @@ class ESR_simple(Script):
         # run sweeps
         for scan_num in range(0, self.settings['esr_avg']):
 
-            if self._abort:
-                break
 
             self.log('starting average ' + str(scan_num) + ', time elapsed: ' + str(
                 np.round(time.time() - start_time, 1)) + 's')
 
             # get the data for a single sweep. These are raw data.
             single_sweep_data, indeces = self.run_sweep(freq_values)
+
+            if self._abort:
+                break
 
             # save the single sweep data
             esr_data[scan_num] = single_sweep_data
