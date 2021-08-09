@@ -2,7 +2,7 @@ scipy==1.0.0
 ipywidgets==7.1.1
 numpy==1.14.0
 PIMS==0.4.1
-pywin32==222
+pywin32==301
 PyVISA==1.9.0
 trackpy==0.4
 pythonnet==2.3.0
