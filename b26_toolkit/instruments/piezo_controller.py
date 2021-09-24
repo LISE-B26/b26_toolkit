@@ -209,7 +209,7 @@ class MDT693A(Instrument):
         Parameter('port', 'COM18', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
-        Parameter('voltage', 0.0, float, 'current voltage')
+        Parameter('voltage', 1.0, float, 'current voltage')
     ])
 
     def __init__(self, name = None, settings = None):

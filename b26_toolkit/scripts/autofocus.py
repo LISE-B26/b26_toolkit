@@ -509,7 +509,9 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         AutoFocusGeneric._function(self)
 
 class AutoFocusDAQMax(AutoFocusDAQ):
-
+    _INSTRUMENTS = {
+        'z_piezo': MDT693A
+    }
     '''
 
     Runs an autofocus daq script but instead of going to the maximum point found by the fit, goes to the maximum point in the data

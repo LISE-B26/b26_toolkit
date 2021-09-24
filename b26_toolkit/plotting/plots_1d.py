@@ -82,12 +82,14 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
         if len(fit_params) == 4:
             # single peak
             fit_data = lorentzian(frequency, *fit_params)
-            title = 'ESR fo = {:0.4e}, wo = {:0.2e}'.format(fit_params[2], fit_params[3])
+            title = 'ESR fo = {:0.4e}, wo = {:0.2e}, contrast0 = {:.2%}'.format(fit_params[2], fit_params[3],
+                                                                                np.abs(fit_params[1]) / fit_params[0])
         elif len(fit_params) == 6:
             # double peak
             fit_data = double_lorentzian(frequency, *fit_params)
-            title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e}'.format(fit_params[4], fit_params[5],
-                                                                                fit_params[1])
+            title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e},\n contrast1 = {:.2%}, contrast2 = {:.2%}'.format(fit_params[4], fit_params[5],
+                                                                                fit_params[1],
+                                                                                np.abs(fit_params[2]) / fit_params[0], np.abs(fit_params[3]) / fit_params[0])
 
     if fit_data is not None:
         axes.plot(frequency, fit_data, plot_marker_fit)

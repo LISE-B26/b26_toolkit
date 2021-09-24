@@ -31,7 +31,7 @@ This script reads the temperature from the Lakeshore controller.
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('sample_rate', 1, float, 'Rate at which temperature is recorded in seconds'),
+        Parameter('sample_rate', 1., float, 'Rate at which temperature is recorded in Hz'),
         Parameter('max_samples', 10, int, 'Number of samples'),
     ]
 

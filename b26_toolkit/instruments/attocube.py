@@ -41,9 +41,9 @@ NCB_NotSpecifiedParam = 8
 # converts x,y,z to axis number in controller
 
 ANC350_axes = {
-    'x': int32(1),
-    'y': int32(2),
-    'z': int32(0)
+    'x': int32(0),
+    'y': int32(1),
+    'z': int32(2)
 }
 
 ANC300_axes = {
@@ -63,15 +63,15 @@ class Attocube(Instrument):
     '''
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('x_on', False, [True, False], 'toggle axis on and off'),
+        Parameter('x_on', True, [True, False], 'toggle axis on and off'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),
         Parameter('x_freq', 100, float, 'x frequency in Hz'),
         Parameter('x_pos', 0., float, 'x position in um'),
-        Parameter('y_on', False, [True, False], 'toggle axis on and off'),
+        Parameter('y_on', True, [True, False], 'toggle axis on and off'),
         Parameter('y_voltage', 30, float, 'voltage on y axis'),
         Parameter('y_freq', 100, float, 'y frequency in Hz'),
         Parameter('y_pos', 0., float, 'y position in um'),
-        Parameter('z_on', False, [True, False], 'toggle axis on and off'),
+        Parameter('z_on', True, [True, False], 'toggle axis on and off'),
         Parameter('z_voltage', 30, float, 'voltage on z axis'),
         Parameter('z_freq', 100, float, 'z frequency in Hz'),
         Parameter('z_pos', 0., float, 'z position in um')
@@ -150,7 +150,7 @@ class ANC300(Attocube):
 
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('port', 'COM15', str, 'serial port on which to connect'),
+        Parameter('port', 'COM3', str, 'serial port on which to connect'),
         Parameter('baudrate', 9600, int, 'baudrate of connection'),
         Parameter('timeout', 1., float, 'connection timeout in seconds'),
         Parameter('x_voltage', 30, float, 'voltage on x axis'),
@@ -689,7 +689,7 @@ if __name__ == '__main__':
     print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     try:
-        a = ANC300()
+        a = ANC350()
         a.multistep('x', 100)
     except Exception:
         print('yike')
