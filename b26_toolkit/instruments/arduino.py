@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 import serial
-from pylabcontrol.core import Instrument
+from pylabcontrol.core import Instrument, Parameter
 
 class ArduinoUno(Instrument):
     _DEFAULT_SETTINGS = Parameter([
