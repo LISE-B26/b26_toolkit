@@ -29,7 +29,8 @@ from pylabcontrol.core import Script, Parameter
 import random
 import time as t
 
-MAX_AVERAGES_PER_SCAN = 1000000  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
+#ER 20210302 CHANGE HERE TO 1e4 if you want
+MAX_AVERAGES_PER_SCAN = 5e4  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
                                 # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
                                 # if too large
@@ -60,6 +61,7 @@ for a given experiment
         #    Parameter('on/off', False, bool, 'turn on to autofocus z piezo'),
         #    Parameter('track_every_N', 10, int, 'track every N averages of the relevant sequence'),
         #]),
+        Parameter('normalize_block', True, bool, 'normalize each block with initialization counts before averaging, instead of the other way around'),
         Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
         Parameter('mw_switch', [
             Parameter('add', True, bool,  'check to add mw switch to every i and q pulse and to use switch to carve out pulses. note that iq pulses become longer by 2*extra-time'),
@@ -68,6 +70,7 @@ for a given experiment
             Parameter('no_iq_overlap', True, bool,'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
         ]),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'),
+        Parameter('save_full', False, bool, 'save every average')
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
@@ -224,7 +227,6 @@ for a given experiment
             self.current_averages = (average_loop + 1) * MAX_AVERAGES_PER_SCAN
         #    print('tau sequences running: ', self.tau_list)
 
-            print('about to call run_sweep')
             self._run_sweep(self.pulse_sequences, MAX_AVERAGES_PER_SCAN, num_daq_reads)
 
         if remainder != 0 and not self._abort:
@@ -248,6 +250,9 @@ for a given experiment
         self.data = in_data
         self.data['tau'] = np.array(self.tau_list)
         self.data['counts'] = deepcopy(self.count_data)
+        if self.settings['save_full']: # ER 20210331
+            print('num avgs in initialize ', self.num_averages)
+            self.data['full_contrast'] = np.zeros((int(self.num_averages/MAX_AVERAGES_PER_SCAN), len(self.pulse_sequences)))
 
     def _plot(self, axes_list, data=None):
         """
@@ -272,7 +277,7 @@ for a given experiment
         if 'counts' in data.keys():
             # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
             # if counts != []:
-            #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts'])
+            #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['cousants'])
           #  print('plotting with tau values: ', data['tau'])
             plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts']])
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
@@ -332,12 +337,29 @@ for a given experiment
 
                 break
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
-            print(np.shape(self.count_data[rand_index]))
-            self.count_data[rand_index] = self.count_data[rand_index] + result
-            print(np.shape(self.count_data[rand_index]))
-            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
-            self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
-                                                                    self.current_averages)
+
+            # for tracking ER 20210331
+            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width,
+                                                         num_loops_sweep)
+            # ER 20210331
+            if self.settings['save_full']:
+                self.data['full_contrast'][int(self.current_averages/MAX_AVERAGES_PER_SCAN)-1][rand_index] = \
+                    (counts_to_check[1]-counts_to_check[0])/np.mean(counts_to_check)
+
+            if self.settings['normalize_block']:
+
+                result = [1,result[1]/result[0]]
+
+                # do the averaging with existing data
+                self.count_data[rand_index] = (self.count_data[rand_index] * self.current_averages + np.array(result) * num_loops_sweep)\
+                                              /(self.current_averages + num_loops_sweep)
+                self.data['counts'][rand_index] = self.count_data[rand_index]
+
+            else:
+                self.count_data[rand_index] = self.count_data[rand_index] + result
+                self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
+                                                                        self.current_averages)
+
 
             self.sequence_index = index
             counts_temp = counts_to_check[0]
@@ -379,10 +401,7 @@ for a given experiment
         self.instruments['PB']['instance'].start_pulse_seq()
         result = []
         if num_daq_reads != 0:
-            print('reading off the daq')
-            print('daq: ', daq)
             result_array, temp = daq.read(task)   # thread waits on DAQ getting the right number of gates
-            print('reading the result')
             t4 = t.perf_counter()
             for i in range(num_daq_reads):
                 result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
@@ -397,6 +416,8 @@ for a given experiment
         return result
 
     def _sum_measurements(self, daq_results, num_daq_reads):
+        print('no of daq reads')
+        print(num_daq_reads)
         summed_results = []
         for i in range(num_daq_reads):
             summed_results.append(sum(itertools.islice(daq_results, i, None, num_daq_reads)))
