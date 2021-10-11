@@ -684,6 +684,7 @@ class ESR_tracking(Script):
         return super(ESR_tracking, self).get_axes_layout(new_figure_list)
 
 class ESR_simple(Script):
+
     """
     This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
     a DAQ. Each frequency is set explicitly on the SRS, instead of using FM.
@@ -1370,6 +1371,64 @@ class ESR(Script):
         """
         new_figure_list = [figure_list[1]]
         return super(ESR, self).get_axes_layout(new_figure_list)
+
+
+class ESR_simple_lowerupper(Script):
+
+    _DEFAULT_SETTINGS = [
+        Parameter('frequency_1', 2.8e9, float, 'first center frequency (Hz)'),
+        Parameter('frequency_2', 3.1e9, float, 'second center frequency (Hz)'),
+        Parameter('frequency_width', 100.0e6, float, 'frequency width of ESR scan')
+    ]
+
+    _INSTRUMENTS = {}
+
+    _SCRIPTS = {'esr_simple': ESR_simple}
+
+
+    def _function(self):
+
+        freqs = [self.settings['frequency_1'], self.settings['frequency_2']]
+        width = self.settings['frequency_width']
+
+        for freq in freqs:
+            self.data = copy(self.scripts['esr_simple'].data)
+
+            self.scripts['esr_simple'].settings['freq_start'] = freq
+            self.scripts['esr_simple'].settings['freq_stop'] = width
+            self.scripts['esr_simple'].settings['range_type'] = 'center_range'
+            self.scripts['esr_simple'].run()
+            self.data = copy(self.scripts['esr_simple'].data)
+
+    def _plot(self, axes_list, data = None):
+        """
+        plotting function for find_nv
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys image_data, extent, initial_point, maximum_point) if not provided use self.data
+        """
+
+        print('inside _plot!')
+        if data is None:
+            data = self.data
+      #  print(self._current_subscript_stage['current_subscript'])
+
+        if self._current_subscript_stage['current_subscript'] == self.scripts['esr_simple']:
+            print('got to here!! ')
+            self.scripts['esr_simple']._plot(axes_list)
+
+
+    def _update_plot(self, axes_list):
+        """
+        update plotting function for find_nv
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+        """
+        print('inside _update_plot!')
+    #    print(self._current_subscript_stage['current_subscript'])
+        if self._current_subscript_stage['current_subscript'] == self.scripts['esr_simple']:
+            print('got to update plot!! ')
+            self.scripts['esr_simple']._update_plot(axes_list)
 
 
 # new version of ESR (JG)

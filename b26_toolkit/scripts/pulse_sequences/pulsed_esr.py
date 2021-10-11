@@ -85,7 +85,7 @@ Uses double_init scheme.
         if data is None:
             data = self.data
 
-        mw_frequencies = data['mw_frequencies']
+        mw_frequencies = self.data['mw_frequencies']
         esr_counts = data['esr_counts']
         axis1 = axes_list[0]
         if not esr_counts == []:
