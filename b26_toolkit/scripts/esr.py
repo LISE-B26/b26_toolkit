@@ -1245,6 +1245,7 @@ class ESR(Script):
         # run sweeps
         for scan_num in range(0, self.settings['esr_avg']):
 
+
             esr_data_pos = 0
 
             if self._abort:
@@ -1253,6 +1254,7 @@ class ESR(Script):
             # get the data for a single sweep. These are raw data.
             self.log('starting average number: ' + str(scan_num) + ' time elapsed: ' + str(time.time()-start_time))
             single_sweep_data, single_sweep_laser_data = self.run_sweep(freq_values)
+
 
             # save the single sweep data and normalize to kcounts/sec
             esr_data[scan_num, esr_data_pos:(esr_data_pos + len(single_sweep_data))] = single_sweep_data * (.001 / self.settings['integration_time'])
@@ -1571,13 +1573,13 @@ class ESR_simple(Script):
         # run sweeps
         for scan_num in range(0, self.settings['esr_avg']):
 
-            if self._abort:
-                break
-
             self.log('starting average ' + str(scan_num) + ', time elapsed: ' + str(np.round(time.time()-start_time, 1)) + 's')
 
             # get the data for a single sweep. These are raw data.
             single_sweep_data, indeces = self.run_sweep(freq_values)
+
+            if self._abort:
+                break
 
             # save the single sweep data
             esr_data[scan_num] = single_sweep_data

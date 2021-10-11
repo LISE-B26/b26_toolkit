@@ -26,13 +26,16 @@ from b26_toolkit.scripts import FindNV, ESR
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 
 class AttoStep(Script):
-    _DEFAULT_SETTINGS = [Parameter('num_steps', [
-        Parameter('x', 0, int, 'num steps along x-axis'),
-        Parameter('y', 0, int, 'num steps along y-axis'),
-        Parameter('z', 0, int, 'num steps along z-axis')
-    ])]
+    _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
+        Parameter('num_steps', [
+            Parameter('x', 0, int, 'num steps along x-axis'),
+            Parameter('y', 0, int, 'num steps along y-axis'),
+            Parameter('z', 0, int, 'num steps along z-axis')
+        ]
+    )]
 
-    _INSTRUMENTS = {'attocube': ANC300}
+    _INSTRUMENTS = {'ANC300': ANC300, 'ANC350': ANC350}
     _SCRIPTS = {}
 
     def _function(self):
@@ -40,29 +43,34 @@ class AttoStep(Script):
         Performs a multiple attocube step with the voltage and frequency specified in instrument,
         and the direction and number specified in settings
         """
+        attocube = self.instruments[self.settings['controller_type']]['instance']
         for axis in self.settings['num_steps']:
-            self.instruments['attocube']['instance'].multistep(axis, self.settings['num_steps'][axis])
+            attocube.multistep(axis, self.settings['num_steps'][axis])
 
 
 class AttoStepXY(AttoStep):
-    _DEFAULT_SETTINGS = [Parameter('num_steps', [
-        Parameter('x', 0, int, 'num steps along x-axis'),
-        Parameter('y', 0, int, 'num steps along y-axis'),
-    ])]
+    _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
+        Parameter('num_steps', [
+            Parameter('x', 0, int, 'num steps along x-axis'),
+            Parameter('y', 0, int, 'num steps along y-axis'),
+        ]
+    )]
 
 
 class AttoScanOpenLoop(Script):
     _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
         Parameter('scan_axis', 'y', ['x', 'y'], 'axis to scan on'),
         Parameter('num_steps', 100, int, 'number of points in the scan'),
         Parameter('num_points', 10, int, 'number of DAQ counter measurements'),
     ]
 
     _SCRIPTS = {'daq_read_counter': Daq_Read_Counter}
-    _INSTRUMENTS = {'attocube': ANC300}
+    _INSTRUMENTS = {'ANC300': ANC300, 'ANC350': ANC350}
 
     def _function(self):
-        self.attocube = self.instruments['attocube']['instance']
+        self.attocube = self.instruments[self.settings['controller_type']]['instance']
 
         scan_axis = self.settings['scan_axis']
         steps_per_meas = self.settings['num_steps'] // self.settings['num_points']
@@ -119,6 +127,7 @@ class AttoScanOpenLoopTrackNI6259(Script):
 
     '''
     _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
         Parameter('scan_axis', 'y', ['x', 'y'], 'axis to scan on'),
         Parameter('num_steps', 100, int, 'number of points in the scan'),
         Parameter('num_points', 10, int, 'number of DAQ counter measurements'),
@@ -128,7 +137,7 @@ class AttoScanOpenLoopTrackNI6259(Script):
     _INSTRUMENTS = {'attocube': ANC300}
 
     def _function(self):
-        self.attocube = self.instruments['attocube']['instance']
+        self.attocube = self.instruments[self.settings['controller_type']]['instance']
 
         scan_axis = self.settings['scan_axis']
         steps_per_meas = self.settings['num_steps'] // self.settings['num_points']
@@ -177,18 +186,21 @@ class AttoScanOpenLoopTrackNI6259(Script):
         update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
 
 class AttoScanOpenLoop2D(Script):
-    _DEFAULT_SETTINGS = [Parameter('outer_loop', [
-        Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
-        Parameter('num_steps', 100, int, 'number of points in the scan'),
-        Parameter('num_points', 10, int, 'number of DAQ counter measurements')
-    ])]
+    _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
+        Parameter('outer_loop', [
+            Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
+            Parameter('num_steps', 100, int, 'number of points in the scan'),
+            Parameter('num_points', 10, int, 'number of DAQ counter measurements')
+        ]
+    )]
 
     _SCRIPTS = {'inner_scan': AttoScanOpenLoop}
     _INSTRUMENTS = {}
 
     def _function(self):
         self.inner_scan = self.scripts['inner_scan']
-        self.attocube = self.inner_scan.instruments['attocube']['instance']
+        self.attocube = self.instruments[self.settings['controller_type']]['instance']
 
         outer_settings = self.settings['outer_loop']
         inner_settings = self.inner_scan.settings
