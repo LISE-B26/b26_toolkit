@@ -9,7 +9,7 @@ pythonnet==2.3.0
 scikit_image==0.13.1
 pandas==0.22.0
 matplotlib==2.1.2
-ipython==6.3.1
+ipython==7.16.3
 Pillow==5.1.0
 PyQt4==4.11.4
 pyqt
