@@ -15,7 +15,7 @@ PyQt4==4.11.4
 pyqt
 System==v0.1
 clr==1.0.3
-joblib==0.11
+joblib==1.2.0
 peakutils==1.1.1
 pyserial==3.4
 skimage==0.0
