@@ -60,6 +60,9 @@ class GalvoScanGeneric(Script):
 
     _ACQ_TYPE = 'line' #this defines if the galvo acquisition is line by line or point by point, the default is line
 
+    # Only for line scans. If true, scans each line twice, but with different conditions (e.g. second scan
+    # has laser off or MW off)
+
     def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
         '''
         Initializes GalvoScan script for use in gui
@@ -84,26 +87,65 @@ class GalvoScanGeneric(Script):
         """
         pass
 
+    def check_bounds(self):
+        """
+        Checks that the scan positions are legal
+        Returns:
+
+        """
+        pass
+
+    def scale(self):
+        """
+        Custom scaling for voltages
+        For galvo scans, this should be left as 1
+        For Attocube scans, this should be 7.5/10/15, depending on the voltage limit of the piezo controller
+        Returns:
+        1 as default
+        """
+        return 1
+
+    def before_scan(self):
+        """
+        Runs something before starting the scan.
+        This can be something like moving the laser to a certain position, running findNV, or turning on MW
+        Returns:
+
+        """
+        pass
+
+
+    def after_scan(self):
+        """
+        Runs something after finishing the scan.
+        This can be something like moving the laser to a certain position, running findNV, or turning off MW
+        Returns:
+
+        """
+        pass
+
 
     def _function(self):
         """
         Executes threaded galvo scan
         """
-
-
-
+        self.before_scan()
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
-        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
-        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
+        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)/self.scale()
+        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)/self.scale()
+        try:
+            self.check_bounds()
+        except AttributeError:
+            return
 
         if self._ACQ_TYPE == 'point':
             self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
 
-        #error is raised in setup_scan if requested daq is not connected. This then ends the script.
+        # error is raised in setup_scan if requested daq is not connected. This then ends the script.
         try:
             self.setup_scan()
         except AttributeError:
@@ -122,8 +164,12 @@ class GalvoScanGeneric(Script):
             if self._ACQ_TYPE == 'line':
                 if self._abort:
                     break
-                line_data = self.read_line(self.y_array[yNum])
+
+                line_data = self.read_line_wrapper(self.y_array[yNum])
+                #line_data = self.read_line(self.y_array[yNum])
+
                 self.data['image_data'][yNum] = line_data
+
                 self.progress = float(yNum + 1) / Ny * 100
                 self.updateProgress.emit(int(self.progress))
 
@@ -143,11 +189,14 @@ class GalvoScanGeneric(Script):
 
                     self.updateProgress.emit(int(self.progress))
 
-                # fill the rest of the array with the mean of the data up to now (otherwise it's zero and the data is not visible in the plot)
+                # fill the rest of the array with the mean of the data up to now
+                # (otherwise it's zero and the data is not visible in the plot)
                 if yNum<Ny:
                     self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :].flatten())
 
-        #set point after scan based on ending_behavior setting
+        self.after_scan()
+
+        # set point after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':
             return
         elif self.settings['ending_behavior'] == 'return_to_start':
@@ -169,6 +218,20 @@ class GalvoScanGeneric(Script):
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
         raise NotImplementedError
+
+
+    def read_line_wrapper(self, y_pos):
+        """
+                In the simplest scenario this just runs read_line
+                However, you can rewrite this to call read_line twice with different conditions, e.g. read_line with MW
+                on and off and extract the difference
+                Args:
+                    y_pos: y position of the scan
+
+                Returns:
+
+                """
+        return self.read_line(y_pos)
 
     def read_line(self, y_pos):
         """

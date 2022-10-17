@@ -22,11 +22,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pylabcontrol.core import Parameter, Instrument
-from pulse_blaster import Pulse
+#from pulse_blaster import Pulse
+from b26_toolkit.instruments import Pulse
+
 
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = -0.500 # V, minimum voltage for the SRS IQ
-RANGE_MAX = 0.500 #V, maximum power for the SRS IQ
+RANGE_MAX = 0.500 #V, maximum voltage for the SRS IQ
 
 class AWG(Instrument): # Emma Rosenfeld 20170822
     """

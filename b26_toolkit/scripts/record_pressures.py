@@ -23,6 +23,7 @@ from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
 from b26_toolkit.instruments import CryoStation
+from datetime import datetime
 
 """
     This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
@@ -172,19 +173,17 @@ class RecordPressuresTemperature(Script):
         temp_controller = self.instruments['temp_controller']['instance']
 
         self.data['time'] = []
-        self.data['chamber_pressures'] = []
-        # self.data['pump_line_pressures'] = []
-        self.data['temperatures'] = []
+        self.data['time_index'] = []
         self.data['temperaturesA'] = []
         self.data['temperaturesB'] = []
-        self.data['temperatures_raw'] = []
-        self.data['Platform_Temp'] = []
-        self.data['Stage_1_Temp'] = []
-        self.data['Stage_2_Temp'] = []
+        self.data['chamber_pressures'] = []
 
         time_index = 0
 
         while not self._abort:
+            if len(self.data['time']) == 0:
+                time_start = datetime.now()
+
             self.data['chamber_pressures'].append(chamber_gauge.pressure)
             # self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
             # temp, raw = temp_controller.temperature
@@ -192,8 +191,12 @@ class RecordPressuresTemperature(Script):
             self.data['temperaturesA'].append(tempA)
             self.data['temperaturesB'].append(tempB)
 
-            self.data['time'].append(time_index * self.settings['time_interval'])
+            self.data['time_index'].append(time_index * self.settings['time_interval'])
             time_index += 1
+
+            time_elapsed  = (datetime.now()-time_start).total_seconds()
+            self.data['time'].append(time_elapsed)
+
             self.force_update()
             self.progress = 50
             self.updateProgress.emit(int(self.progress))
@@ -207,34 +210,39 @@ class RecordPressuresTemperature(Script):
             data: data (dictionary that contains keys amplitudes, frequencies) if not provided use self.data
         '''
 
-        time = self.data['time']
+        time_index = self.data['time_index']
 
-        if max(time)>3600:
-            time = np.array(self.data['time'])/3600
+        if max(time_index)>3600:
+            time_index = np.array(self.data['time_index'])/3600
             time_label = 'time (h)'
-        elif max(time)>60:
-            time = np.array(self.data['time'])/60
+        elif max(time_index)>60:
+            time_index = np.array(self.data['time_index'])/60
             time_label = 'time (min)'
         else:
-            time = np.array(self.data['time'])
+            time_index = np.array(self.data['time_index'])
             time_label = 'time (s)'
 
-        lns1 = axes_list[0].plot(time, self.data['chamber_pressures'], color='black',label='Chamber pressure')
+        lns1 = axes_list[0].plot(time_index, self.data['chamber_pressures'], color='black',label='Chamber pressure')
 
         axes_list[0].set_yscale('log')
         axes_list[0].set_xlabel(time_label)
         axes_list[0].set_ylabel('Pressure (Torr)')
         #
         ax2 = axes_list[0].twinx()
-        lns2 = ax2.plot(time, self.data['temperaturesA'], color ='red',label='Temp A')
-        lns3 = ax2.plot(time, self.data['temperaturesB'], color = 'blue',label='Temp B')
+        lns2 = ax2.plot(time_index, self.data['temperaturesA'], color ='red',label='Temp A')
+        lns3 = ax2.plot(time_index, self.data['temperaturesB'], color = 'blue',label='Temp B')
         ax2.set_ylabel('Temperature (K)')
 
         lns = lns1 + lns2 + lns3
         labs = [l.get_label() for l in lns]
         ax2.legend(lns, labs, loc=0)
 
-        ax2.text(0.5, 0.0, 'Temp A: %.2f Temp B: %.2f Pressure: %.2e'%(self.data['temperaturesA'][-1], self.data['temperaturesB'][-1], self.data['chamber_pressures'][-1]),
+        ax2.text(0.5, 0.05, 'Temp A: %.3f Temp B: %.3f Pressure: %.3e'%(self.data['temperaturesA'][-1], self.data['temperaturesB'][-1], self.data['chamber_pressures'][-1]),
              horizontalalignment='center',
              verticalalignment='bottom',
              transform=ax2.transAxes)
+        ax2.text(0.5, 0.0, 'Temp A std: %.3f Temp B std: %.3f Pressure std: %.3e' % (
+        np.std(self.data['temperaturesA'][-10:-1]), np.std(self.data['temperaturesB'][-10:-1]), np.std(self.data['chamber_pressures'][-10:-1])),
+                 horizontalalignment='center',
+                 verticalalignment='bottom',
+                 transform=ax2.transAxes)

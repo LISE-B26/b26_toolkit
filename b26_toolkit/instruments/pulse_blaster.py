@@ -773,22 +773,42 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and daq acknowledgement [ns]')
         ]),
         Parameter('microwave_i', [
-            Parameter('channel', 2, int, 'channel to which the the microwave p trigger is connected to'),
+            Parameter('channel', 2, int, 'channel to which the microwave p trigger is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the microwave p trigger, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave p trigger [ns]')
         ]),
         Parameter('microwave_q', [
-            Parameter('channel', 3, int, 'channel to which the the microwave q trigger is connected to'),
+            Parameter('channel', 8, int, 'channel to which the microwave q trigger is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
         ]),
         Parameter('microwave_switch', [
-            Parameter('channel', 4, int, 'channel to which the microwave switch is connected to'),
+            Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
             Parameter('status', True, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
-        Parameter('off_channel', [
-            Parameter('channel', 6, int, 'off-channel - nothing is connected here'),
+        Parameter('atto_trig', [
+            Parameter('channel', 4, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 250, float, 'delay time between pulse sending time and atto_trig on [ns]')
+        ]),
+        Parameter('rf_i', [
+            Parameter('channel', 5, int, 'channel to which the rf p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('rf_switch', [
+            Parameter('channel', 6, int, 'channel to which the rf switch is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_i_2', [
+            Parameter('channel', 7, int, 'channel to which the microwave p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_q_2', [
+            Parameter('channel', 9, int, 'channel to which the microwave q trigger is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
         ]),

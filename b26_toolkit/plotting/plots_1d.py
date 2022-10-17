@@ -70,8 +70,14 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #  ======== plot data =========
     axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
-    if np.shape(frequency) == np.shape(counts): # ER 20190129
-        axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
+    if len(np.array(counts).shape) == 1:
+        if np.shape(frequency) == np.shape(counts): # ER 20190129
+            axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
+    elif len(np.array(counts).shape) == 2:
+        for count_row in counts:
+            if np.shape(frequency) == np.shape(count_row):  # ER 20190129
+                axes.plot(frequency, count_row, plot_marker_data, linestyle=linestyle, marker=marker)
+
     #axes.hold(True) #ER 20181012
 
     title = 'ESR'
@@ -102,10 +108,40 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     axes.set_title(title)
     axes.set_xlabel('Frequency (Hz)')
     axes.set_ylabel('Kcounts/s')
-  #  axes.hold(False) ER 20181012: in matplotlib 3.0.0, axes.hold is removed
 
-    # return lines
+def plot_pulsedesr(axes, frequency, fit_params=None, plot_marker_fit = 'r'):
+    """
+    plots the esr (simplified for pulsedESR)
+    Args:
+        axes: axes object
+        fit_params: array with fitparameters either length 4 for single peak or length 6 for double peak
+        frequency: mw frequency (array)
+        counts: counts (array)
+        plot_marker:  (str) plot marker
 
+    Returns:
+
+    """
+
+    fit_data = None
+
+    #  ======== plot fit =========
+    if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+        if len(fit_params) == 4:
+            # single peak
+            fit_data = lorentzian(frequency, *fit_params)
+            #title = 'ESR fo = {:0.4e}, wo = {:0.2e}, contrast0 = {:.2%}'.format(fit_params[2], fit_params[3],
+            #                                                                    np.abs(fit_params[1]) / fit_params[0])
+        elif len(fit_params) == 6:
+            # double peak
+            fit_data = double_lorentzian(frequency, *fit_params)
+            print(fit_data)
+            #title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e},\n contrast1 = {:.2%}, contrast2 = {:.2%}'.format(fit_params[4], fit_params[5],
+            #                                                                    fit_params[1],
+            #                                                                    np.abs(fit_params[2]) / fit_params[0], np.abs(fit_params[3]) / fit_params[0])
+
+    if fit_data is not None:
+        axes.plot(frequency, fit_data, plot_marker_fit)
 
 def plot_pulses(axis, pulse_collection, pulse_colors=None):
     """
@@ -137,6 +173,9 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     # label y axis with pulse names
     axis.set_yticks(list(range(len(instrument_names))))
     axis.set_yticklabels(instrument_names)
+
+    # remove all previous pulses
+    [child.remove() for child in axis.get_children() if isinstance(child, PatchCollection)]
 
     # create horizontal lines for each pulse
     for pulse_plot_y_position in range(0, len(instrument_names)):
@@ -246,19 +285,27 @@ def plot_counts(axis, data):
 
     Returns: (none)
     """
-
-    axis.plot(data, linewidth=2.0)
+    if len(np.shape(data)) > 1:
+        for datum in data:
+            axis.plot(datum, linewidth=1.25)
+    else:
+        axis.plot(data, linewidth=1.25)
     # axis.hold(False)
 
-    axis.set_xlabel('time')
-    axis.set_ylabel('kCounts/sec')
+    axis.set_xlabel('sample number')
+    axis.set_ylabel('[kCounts/s]')
 
-def update_counts(axis, data):
-    if data == None:
+def update_counts(axis, data, data_size=1):
+    if data is None:
         return
+    if len(np.shape(data)) > 1:
+        for i, datum in enumerate(data):
+            axis.lines[i].set_ydata(datum)
+            axis.lines[i].set_xdata(range(0, len(datum)))
 
-    axis.lines[0].set_ydata(data)
-    axis.lines[0].set_xdata(range(0,len(data)))
+    else:
+        axis.lines[0].set_ydata(data)
+        axis.lines[0].set_xdata(range(0, len(data)))
     axis.relim()
     axis.autoscale_view()
 
@@ -349,9 +396,46 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
 
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
+    axis.grid(True, alpha=.15)
     if title:
         axis.set_title(title)
     axis.set_xlim([min(times), max(times)])
+
+def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=None):
+    """
+    plots a time trace for a list of data assuming that the times are give in ns
+    Args:
+        axis: axis object on which to plot
+        times: times in ns (list or array of length N)
+        data_list: list of data (size MxN)
+        y_label: (optional) label for y axis
+        title:  (optional) title
+
+    """
+
+    freqs = 1.*np.array(freqs) # cast onto numpy in case we got a list, which breaks some of the commands below
+
+    if max(freqs) < 1e3:
+        x_label = 'freq [Hz]'
+    elif max(freqs) < 1e6:
+        x_label = 'freq [kHz]'
+        freqs *= 1e-3
+    elif max(freqs) < 1e9:
+        x_label = 'freq [MHz]'
+        freqs *= 1e-6
+    elif max(freqs) < 1e12:
+        x_label = 'freq [GHz]'
+        freqs *= 1e-9
+
+    for counts in data_list:
+        axis.plot(freqs, counts)
+
+    axis.set_xlabel(x_label)
+    axis.set_ylabel(y_label)
+    axis.grid(True, alpha=.1)
+    if title:
+        axis.set_title(title)
+    axis.set_xlim([min(freqs), max(freqs)])
 
 
 def update_1d_simple(axis, times, counts_list):
@@ -379,10 +463,10 @@ def update_1d_simple(axis, times, counts_list):
 
     #assert len(axis.lines) == len(counts_list)
     if len(axis.lines) != len(counts_list): # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
-        print('number of lines to plot is not equal to number of counts lists!!!')
+        print('Number of lines to plot is not equal to number of counts lists!!!')
         print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
               ' (they should be the same!!)')
-        print('counts_list: ', counts_list)
+        #print('counts_list: ', counts_list)
         return
 
     else:

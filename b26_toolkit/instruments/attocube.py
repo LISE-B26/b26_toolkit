@@ -17,6 +17,7 @@
 """
 import ctypes, serial
 import time, os
+import numpy as np
 import warnings
 from pylabcontrol.core.read_write_functions import get_config_value
 from pylabcontrol.core import Instrument, Parameter
@@ -260,6 +261,80 @@ class ANC300(Attocube):
         :param axis: axis number to set (int)
         '''
         return self._get_param(axis, 'getv', 'voltage')
+
+    def get_pattern(self, axis, dir):
+        '''
+        Get step pattern from attocube controller
+        :param axis: axis number to acquire parameter from (int)
+        :param dir: direction of up or down pattern; up = 0, down = 1
+        :return: list of 256 values
+
+        A signal is generated from 256 sequential values, with the values ranging from 0 to 255. The voltage for each
+        step is V = value/256*voltage_per_step. Time for each individual step is t= 1/256 * 1/step_freq.
+        '''
+
+        # Send command to get param
+        if dir in [0,1]:
+            if dir == 0:
+                self.ser.write(('getpu' + ' {}\n').format(axis).encode())
+            elif dir == 1:
+                self.ser.write(('getpd' + ' {}\n').format(axis).encode())
+        else:
+            raise ValueError('No such direction')
+
+        self.ser.readline().decode()
+        pattern = []
+        # read line containing command
+        for i in range(256):
+            # read line that should contain value
+            reply = self.ser.readline().decode()
+            reply = int(reply[:-2])
+            pattern.append(reply)
+
+        # get OK from command
+        self._get_OK()
+
+        # get pattern
+        return pattern
+
+    def set_pattern(self, axis, dir, pattern):
+        '''
+        Write step pattern to attocube controller
+        :param axis: axis number to acquire parameter from (int)
+        :param dir: direction of up or down pattern; up = 0, down = 1
+        :param pattern: list of 256 values forming the pattern
+        :return: list of 256 values
+
+        A signal is generated from 256 sequential values, with the values ranging from 0 to 255. The voltage for each
+        step is V = value/256*voltage_per_step. Time for each individual step is t= 1/256 * 1/step_freq.
+        '''
+
+        # Send command to get param
+        if dir in [0, 1]:
+            if dir == 0:
+                command = 'setpu'
+            elif dir == 1:
+                command = 'setpd'
+        else:
+            raise ValueError('No such direction')
+
+        if len(pattern) == 256:
+            if all(element >= 0 and element <= 255 for element in pattern):
+                if all(isinstance(element, int) for element in pattern):
+                    pattern = (str(element) for element in pattern)
+                else:
+                    raise TypeError('Pattern values must be integers')
+                pattern_str = " ".join(tuple(pattern))
+            else:
+                raise ValueError('Pattern values must be between 0 and 255 (inclusive)')
+        else:
+            raise AssertionError('Length of pattern must be 256')
+
+        self.ser.write(('{} {} {}\n').format(command, axis, pattern_str).encode())
+
+        # get OK from command
+        self._get_OK()
+
 
     def _cap_measure(self, axis):
         '''
@@ -689,9 +764,38 @@ if __name__ == '__main__':
     print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     try:
-        a = ANC350()
-        a.multistep('x', 100)
+        a = ANC300()
+
+        def triangle(t,a):
+            if t < a:
+                result = t/a
+            elif t > 255 - a:
+                result = 1 + (t - (255 - a)) * (-1 / a)
+            else:
+                result = 1
+        def triangle(t,a):
+            if np.abs(t) < np.abs(a):
+                result = 1 - np.abs(t/a)
+            else:
+                result = 0
+            return result
+
+        pattern = [triangle(t-128, 128) for t in range(256)]
+        pattern = [(element-np.min(pattern))/(np.max(pattern)-np.min(pattern)) for element in pattern]
+        pattern = [int(element*255) for element in pattern]
+
+        a.set_pattern(axis=1, dir=0, pattern=pattern)
+        #a.set_pattern(axis=1, dir=0, pattern = range(256))
+        pattern = a.get_pattern(axis=1, dir=0)
+        print(pattern)
+        #a.multistep('x', 1)
+
+        #a.multistep('x', -20)
+
+
     except Exception:
         print('yike')
     # a.update({'x': {'voltage': 20}})
-    print((a, a.is_connected))
+    #print((a, a.is_connected))
+
+

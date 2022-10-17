@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.instruments import NI6259, NI9263
+from b26_toolkit.instruments import NI6259, NI9263, PiezoController
 from pylabcontrol.core import Script, Parameter
 
 
@@ -45,6 +45,8 @@ This script points the laser to a point
     _SCRIPTS = {}
 
 
+
+
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """
         Example of a script that emits a QT signal for the gui
@@ -54,13 +56,18 @@ This script points the laser to a point
         """
         Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
 
+        self._save_fig = False
 
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
-        pt = (self.settings['point']['x'], self.settings['point']['y'])
+        pt = (self.settings['point']['x']/self.scale(), self.settings['point']['y']/self.scale())
+        try:
+            self.check_bounds(pt[0],pt[1])
+        except AttributeError:
+            return
 
         # daq API only accepts either one point and one channel or multiple points and multiple channels
         pt = np.transpose(np.column_stack((pt[0],pt[1])))
@@ -79,6 +86,12 @@ This script points the laser to a point
             self.daq_out = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             self.daq_out = self.instruments['NI9263']['instance']
+
+    def scale(self):
+        return 1
+
+    def check_bounds(self, x, y):
+        pass
 
     def _setup_daq(self):
         # defines which daqs contain the input and output based on user selection of daq interface
@@ -136,6 +149,7 @@ This script points the laser to a point
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
         pt = (self.settings['point']['x'], self.settings['point']['y'])
 
         # daq API only accepts either one point and one channel or multiple points and multiple channels
@@ -147,6 +161,41 @@ This script points the laser to a point
         self.instruments['daq_out']['instance'].waitToFinish(task)
         self.instruments['daq_out']['instance'].stop(task)
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
+
+
+
+class SetAtto(SetLaser):
+    _DEFAULT_SETTINGS = [
+        Parameter('point',
+                  [Parameter('x', 0., float, 'x-coordinate'),
+                   Parameter('y', 0., float, 'y-coordinate')
+                   ]),
+        Parameter('DAQ_channels',
+                  [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for y voltage analog output')
+                   ]),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+    ]
+
+    _INSTRUMENTS = {'piezo_controller': PiezoController, 'NI6259':  NI6259, 'NI9263': NI9263}
+
+    def check_bounds(self, x, y):
+        if x < 0 or y < 0:
+            self.log('Attocube cannot accept negative voltages!')
+            raise AttributeError
+
+    def scale(self):
+        voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
+        #print(voltage_limit)
+        if voltage_limit == 75:
+            scale = 7.5
+        elif voltage_limit == 100:
+            scale = 10
+        elif voltage_limit == 150:
+            scale = 15
+        return scale
 
 if __name__ == '__main__':
     from pylabcontrol.core import Instrument

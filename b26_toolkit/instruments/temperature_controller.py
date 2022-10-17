@@ -38,7 +38,7 @@ class TemperatureController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
             Parameter('port', 'COM5', _possible_com_ports, 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
+            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
         ])
@@ -130,14 +130,16 @@ class TemperatureController(Instrument):
         temperatureB = float(response[1:7])
 
         #self.serial_connection.write('RANGE 1,2 \r\n'.encode())
-        #self.serial_connection.write('SETP 1,280 \r\n'.encode())
+        #self.serial_connection.write('SETP 1,285 \r\n'.encode())
 
         # QUERY heater range (0,1,2,3 = off,low,med,high)
         self.serial_connection.write('RANGE? 1 \r\n'.encode())
+        #self.serial_connection.write('RAMP 1,1,0.85 \r\n'.encode())
+        self.serial_connection.write('RAMP? 1 \r\n'.encode())
 
         response = self.serial_connection.readline()
         heater_status = self.serial_connection.readline()
-        #print(response)
+        print(response)
 
 
         return temperatureA, temperatureB, response, heater_status
