@@ -18,7 +18,7 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, RFGenerator, MicrowaveGenerator2
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, RFGenerator, MicrowaveGenerator2, AFG3022C
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
@@ -3672,6 +3672,9 @@ class TransportDqma(RabiPolarized):
 
                     start_time = current_time
 
+            # Get the length of the whole sequence. This basically determines the frequency of the flexure stage momvement. We'd then put in this total duration
+            # into the FieldProfile script to measure what the profile is under the same timing.
+            self.log('Total length of pulse sequence: %i' % current_time)
             pulse_sequences.append(pulse_sequence)
 
         return pulse_sequences, tau_list, meas_time
@@ -4020,3 +4023,564 @@ class TransportDqmaCphase(TransportDqma):
 
         return pulse_sequences, tau_list, meas_time
 
+
+class TransportDqmaDetuningFringes(TransportDqma):
+    """
+    With a finite detuning of the RF from the nuclear spin frequency, we expect to see oscillations for long movmement times
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_1_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_1_frequency', 2.82e9, float,
+                      'frequency of hyperfine transition 1, also the transition to be depopulated for initialization'),
+            Parameter('mw_1_pi_time', 80, float, 'the time duration of the microwaves in ns'),
+            Parameter('mw_2_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_2_frequency', 2.82e9, float,
+                      'frequency of hyperfine transition 2, also the transition to be populated for initialization'),
+            Parameter('mw_2_pi_time', 80, float, 'the time duration of the microwaves in ns'),
+        ]),
+        Parameter('rf_pulses', [
+            Parameter('rf_power', -10, float, 'RF power in dBm'),
+            Parameter('rf_frequency', 3e6, float, 'frequency of hyperfine interaction in Hz'),
+            Parameter('rf_pi_time', 5000, float, 'time for RF pulse to drive nuclear spin in ns'),
+            Parameter('rf_pi_half_time', 5000, float, 'time for RF pulse to drive nuclear spin in ns'),
+            Parameter('rf_settle', 2000, float, 'settling time before and after RF pulse in ns')
+        ]),
+        Parameter('polarization_iterations', 2, int,
+                  'number of times to repeat the nuclear spin initialization sequence'),
+        Parameter('num_averages', 5000000, int, 'number of averages'),
+        Parameter('tau_times', [
+            Parameter('min_time', 100, float, 'minimum time for rabi oscillations (in ns)'),
+            Parameter('max_time', 2000, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 500., float, 'time step increment of rabi pulse duration (in ns)'),
+            Parameter('cooldown', [
+                Parameter('timing', 'duty_cycle', ['constant', 'duty_cycle'],
+                          'use a constant cooldown time or set it based on length of entire sequence'),
+                Parameter('cooldown_time', 1, float,
+                          'if timing=constant, the same cooldown time in ns will be added to each sequence; '
+                          'if timing=duty_cycle, cooldown_time/tau = 1-duty_cycle')])
+        ]),
+        Parameter('t_sense', 0, float, 'momvement/wait time in ns before reading state of the nuclear spin'),
+        Parameter('dynamic_decoupling', [
+            Parameter('sequence', 'none', ['none', 'echo', 'cpmg', 'xy'], 'dynamic decoupling sequence'),
+            Parameter('k', 1, int, 'number of pulses in the decoupling sequence; this only applies for CPMG-k and XY-k')
+            ]),
+        Parameter('initialization_laser', [
+            Parameter('pulse_duration', 6, float, 'duration of each chopped laser pulse'),
+            Parameter('wait_duration', 30, float, 'spacing between each chopped laser pulse'),
+            Parameter('n', 1, int, 'num of initialization laser pulses, set n=1 and wait_duration=0 if you want to use one long laser pulse'),
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 300, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time_long', 5000, int, 'duration of long laser pulse to reset both electronic and nuclear spin'),
+            Parameter('laser_off_time', 500, int, 'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 250, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 100, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('repetitive_readout', [
+                Parameter('m', 8, int, 'number of repetitions'),
+                Parameter('nv_reset_time_short', 400, float, 'short laser pulse to reset NV'),
+                Parameter('laser_off_time_short', 250, float, 'short wait time between each readout laser pulse')
+            ])
+        ])
+    ]
+
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
+                    'rf_gen': RFGenerator, 'mw_gen_2': MicrowaveGenerator2, 'afg': AFG3022C}
+
+    def _create_pulse_sequences(self):
+        """
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        """
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
+
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+        microwave_channel, microwave_channel_2, microwave_channel_q, microwave_channel_2_q, rf_channel = \
+            'microwave_i', 'microwave_i_2', 'microwave_q', 'microwave_q_2', 'rf_i'
+
+        mw_1_pi_time, mw_2_pi_time = [self.settings['mw_pulses'][key] for key in ['mw_1_pi_time', 'mw_2_pi_time']]
+
+        meas_time, nv_reset_time_long, laser_off_time, delay_mw_readout, delay_readout = \
+            [self.settings['read_out'][key] for key in
+             ['meas_time', 'nv_reset_time_long', 'laser_off_time', 'delay_mw_readout', 'delay_readout']]
+
+        nv_reset_time_pulsed = self.settings['initialization_laser']['pulse_duration']
+        nv_reset_time_wait = self.settings['initialization_laser']['wait_duration']
+
+        laser_off_time_short = self.settings['read_out']['repetitive_readout']['laser_off_time_short']
+        nv_reset_time_short = self.settings['read_out']['repetitive_readout']['nv_reset_time_short']
+
+        rf_pi_time, rf_pi_half_time, rf_settle = [self.settings['rf_pulses'][key] for key in ['rf_pi_time', 'rf_pi_half_time', 'rf_settle']]
+
+        t_sense = self.settings['t_sense']
+
+        pulse_sequences = []
+        for tau in tau_list:
+            t_movement = tau
+
+            if self.settings['tau_times']['cooldown']['timing'] == 'constant':
+                cooldown_time = self.settings['tau_times']['cooldown']['cooldown_time']
+            elif self.settings['tau_times']['cooldown']['timing'] == 'duty_cycle':
+                duty_cycle = self.settings['tau_times']['cooldown']['cooldown_time']
+                cooldown_time = (rf_pi_time*self.settings['polarization_iterations']+rf_pi_half_time*2)*(1/duty_cycle - 1)
+                cooldown_time = int(int(cooldown_time/100)*100)
+
+            pulse_sequence = []
+            start_time = 0
+
+            for part in range(2):
+                # Initialize nuclear and electronic spin at the beginning of each sequence
+                pulse_sequence.append(Pulse('laser', start_time + laser_off_time + cooldown_time, nv_reset_time_long))
+                current_time = start_time + laser_off_time + cooldown_time + nv_reset_time_long + laser_off_time  # Begin building the pulse sequence at a given offset, which acts as a cooldown time between each sequence
+                for iteration in range(self.settings['polarization_iterations']):
+                    pulse_sequence.append(Pulse(microwave_channel, current_time, mw_1_pi_time))
+                    if rf_pi_time > 0:
+                        pulse_sequence.append(Pulse('rf_switch', current_time + mw_1_pi_time, rf_pi_time))
+                        current_time = current_time + mw_1_pi_time + rf_pi_time + rf_settle
+                    for i in range(self.settings['initialization_laser']['n']):
+                        pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed))
+                        current_time = current_time + nv_reset_time_pulsed + nv_reset_time_wait
+
+                # Flip e-spin to m_s=1 state so that we can drive RF
+                pulse_sequence.append(Pulse(microwave_channel_2, current_time + laser_off_time, mw_2_pi_time))
+
+                # Prepare nuclear spin in superposition
+                pulse_sequence.append(Pulse('rf_switch', current_time + laser_off_time + mw_2_pi_time + delay_mw_readout, rf_pi_half_time))
+                current_time += laser_off_time + mw_2_pi_time + delay_mw_readout + rf_pi_half_time + rf_settle
+                # Access nuclear memory; choose to accumulate conditional on which nuclear state
+
+                channel_odd, channel_even = microwave_channel_2_q, microwave_channel_q
+                pi_time_odd, pi_time_even = mw_2_pi_time, mw_1_pi_time
+
+                if self.settings['dynamic_decoupling']['sequence'] == 'none':
+
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time,
+                                                pi_time_odd))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time + pi_time_odd + t_sense,
+                                                pi_time_odd))
+
+                    current_time += pi_time_odd + t_sense + pi_time_odd + delay_mw_readout
+
+                elif self.settings['dynamic_decoupling']['sequence'] == 'echo':
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time,
+                                                pi_time_odd))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time + pi_time_odd + t_sense,
+                                                pi_time_odd))
+
+                    current_time += pi_time_odd + t_sense + pi_time_odd + delay_mw_readout
+
+                    pulse_sequence.append(Pulse(channel_even,
+                                                current_time,
+                                                pi_time_even))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_even,
+                                                current_time + pi_time_even + t_sense,
+                                                pi_time_even))
+
+                    current_time += pi_time_even + t_sense + pi_time_even + delay_mw_readout
+
+                # Wait for t_movement and rotate nuclear spin to Z axis for readout
+                if part == 1:
+                    pulse_sequence.append(
+                        Pulse(rf_channel,
+                              current_time + t_movement - rf_settle,
+                              rf_pi_half_time + 2*rf_settle))
+                pulse_sequence.append(
+                    Pulse('rf_switch',
+                          current_time + t_movement,
+                          rf_pi_half_time))
+
+                current_time += t_movement + rf_pi_half_time + rf_settle
+
+                for m in range(self.settings['read_out']['repetitive_readout']['m']):
+                    if m == 0:
+                        pulse_sequence.append(Pulse(microwave_channel,
+                                                    current_time,
+                                                    mw_1_pi_time))
+                        pulse_sequence.append(Pulse('laser', current_time + mw_1_pi_time + delay_mw_readout,
+                                                    nv_reset_time_short))
+                        pulse_sequence.append(
+                            Pulse('apd_readout', current_time + mw_1_pi_time + delay_mw_readout + delay_readout,
+                                  meas_time))
+                        current_time = current_time + mw_1_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+                    else:
+                        pulse_sequence.append(Pulse(microwave_channel_2,
+                                                    current_time,
+                                                    mw_2_pi_time))
+                        pulse_sequence.append(Pulse('laser', current_time + mw_2_pi_time + delay_mw_readout,
+                                                    nv_reset_time_short))
+                        pulse_sequence.append(
+                            Pulse('apd_readout', current_time + mw_2_pi_time + delay_mw_readout + delay_readout,
+                                  meas_time))
+                        current_time = current_time + mw_2_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+
+                start_time = current_time
+
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+    def _function(self):
+        #print(self.instruments)
+        #self.instruments['afg']['instance'].update({'default_waveform_ch2': {'frequency': self.settings['rf_pulses']['rf_frequency']}})
+        #self.instruments['afg']['instance'].update({'default_waveform_ch1': {'frequency': self.settings['rf_pulses']['rf_frequency']}})
+        #self.instruments['afg']['instance'].settings['default_waveform_ch2']['frequency'] = self.settings['rf_pulses']['rf_frequency']
+        super(TransportDqmaDetuningFringes, self)._function()
+
+
+class TransportDqmaMovement(RabiPolarized):
+    """
+    More careful timing of the whole pulse sequence to match the timing of FieldProfile
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_1_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_1_frequency', 2.82e9, float,
+                      'frequency of hyperfine transition 1, also the transition to be depopulated for initialization'),
+            Parameter('mw_1_pi_time', 80, float, 'the time duration of the microwaves in ns'),
+            Parameter('mw_2_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_2_frequency', 2.82e9, float,
+                      'frequency of hyperfine transition 2, also the transition to be populated for initialization'),
+            Parameter('mw_2_pi_time', 80, float, 'the time duration of the microwaves in ns'),
+        ]),
+        Parameter('rf_pulses', [
+            Parameter('rf_power', -10, float, 'RF power in dBm'),
+            Parameter('rf_frequency', 3e6, float, 'frequency of hyperfine interaction in Hz'),
+            Parameter('rf_pi_time', 5000, float, 'time for RF pulse to drive nuclear spin in ns'),
+            Parameter('rf_pi_half_time', 5000, float, 'time for RF pulse to drive nuclear spin in ns'),
+            Parameter('rf_settle', 2000, float, 'settling time before and after RF pulse in ns')
+        ]),
+        Parameter('polarization_iterations', 2, int,
+                  'number of times to repeat the nuclear spin initialization sequence'),
+        Parameter('num_averages', 5000000, int, 'number of averages'),
+        Parameter('tau_times', [
+            Parameter('min_time', 100, float, 'minimum time for rabi oscillations (in ns)'),
+            Parameter('max_time', 2000, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 500., float, 'time step increment of rabi pulse duration (in ns)'),
+            Parameter('cooldown', [
+                Parameter('timing', 'duty_cycle', ['constant', 'duty_cycle'],
+                          'use a constant cooldown time or set it based on length of entire sequence'),
+                Parameter('cooldown_time', 1, float,
+                          'if timing=constant, the same cooldown time in ns will be added to each sequence; '
+                          'if timing=duty_cycle, cooldown_time/tau = 1-duty_cycle')])
+        ]),
+        Parameter('movement_timing', [
+            Parameter('total_time', 600000, float, 'length of entire pulse sequence, the flexure stage movement is triggered at the beginning (after settle time)'),
+            Parameter('settle_time', 2000, float, 'time in ns to wait between each pulse sequence'),
+            Parameter('movement_end', 500000, float, 'time in ns of the end of the movement, as determined from FieldProfile script; '
+                                                     'the pulse sequence will be timed such that the readout pulses happen after this time'),
+            Parameter('rf_echo',[
+                Parameter('enable', False, bool, 'apply RF pi pulse to echo out phase accumulation on nucleus from field changes during movement'),
+                Parameter('echo_time', 250000, float, 'middle of pi pulse will be at this time')
+            ])
+        ]),
+        Parameter('dynamic_decoupling', [
+            Parameter('sequence', 'none', ['none', 'echo', 'cpmg', 'xy'], 'dynamic decoupling sequence'),
+            Parameter('k', 1, int, 'number of pulses in the decoupling sequence; this only applies for CPMG-k and XY-k')
+            ]),
+        Parameter('initialization_laser', [
+            Parameter('pulse_duration', 6, float, 'duration of each chopped laser pulse'),
+            Parameter('wait_duration', 30, float, 'spacing between each chopped laser pulse'),
+            Parameter('n', 1, int, 'num of initialization laser pulses, set n=1 and wait_duration=0 if you want to use one long laser pulse'),
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 300, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time_long', 5000, int, 'duration of long laser pulse to reset both electronic and nuclear spin'),
+            Parameter('laser_off_time', 500, int, 'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 250, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 100, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('repetitive_readout', [
+                Parameter('m', 8, int, 'number of repetitions'),
+                Parameter('nv_reset_time_short', 400, float, 'short laser pulse to reset NV'),
+                Parameter('laser_off_time_short', 250, float, 'short wait time between each readout laser pulse')
+            ])
+        ])
+    ]
+
+    def _create_pulse_sequences(self):
+        """
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        """
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
+
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+        microwave_channel, microwave_channel_2, microwave_channel_q, microwave_channel_2_q, rf_channel = \
+            'microwave_i', 'microwave_i_2', 'microwave_q', 'microwave_q_2', 'rf_i'
+
+        mw_1_pi_time, mw_2_pi_time = [self.settings['mw_pulses'][key] for key in ['mw_1_pi_time', 'mw_2_pi_time']]
+
+        meas_time, nv_reset_time_long, laser_off_time, delay_mw_readout, delay_readout = \
+            [self.settings['read_out'][key] for key in
+             ['meas_time', 'nv_reset_time_long', 'laser_off_time', 'delay_mw_readout', 'delay_readout']]
+
+        nv_reset_time_pulsed = self.settings['initialization_laser']['pulse_duration']
+        nv_reset_time_wait = self.settings['initialization_laser']['wait_duration']
+
+        laser_off_time_short = self.settings['read_out']['repetitive_readout']['laser_off_time_short']
+        nv_reset_time_short = self.settings['read_out']['repetitive_readout']['nv_reset_time_short']
+
+        rf_pi_time, rf_pi_half_time, rf_settle = [self.settings['rf_pulses'][key] for key in ['rf_pi_time', 'rf_pi_half_time', 'rf_settle']]
+
+        #t_movement = self.settings['t_movement']
+        t_movement_end = self.settings['movement_timing']['movement_end']
+
+        pulse_sequences = []
+        for tau in tau_list:
+            t_sense = tau
+
+            if self.settings['tau_times']['cooldown']['timing'] == 'constant':
+                cooldown_time = self.settings['tau_times']['cooldown']['cooldown_time']
+            elif self.settings['tau_times']['cooldown']['timing'] == 'duty_cycle':
+                duty_cycle = self.settings['tau_times']['cooldown']['cooldown_time']
+                cooldown_time = (rf_pi_time*self.settings['polarization_iterations']+rf_pi_half_time*2)*(1/duty_cycle - 1)
+                cooldown_time = int(int(cooldown_time/100)*100)
+
+            pulse_sequence = []
+            #start_time = 0
+            start_time = self.settings['movement_timing']['settle_time']
+            pulse_sequence.append(Pulse('atto_trig', start_time, self.settings['movement_timing']['total_time']-self.settings['movement_timing']['settle_time']))
+
+            for part in range(1):  # Only include part 1 for now
+                # Initialize nuclear and electronic spin at the beginning of each sequence
+                pulse_sequence.append(Pulse('laser', start_time + laser_off_time + cooldown_time, nv_reset_time_long))
+                current_time = start_time + laser_off_time + cooldown_time + nv_reset_time_long + laser_off_time  # Begin building the pulse sequence at a given offset, which acts as a cooldown time between each sequence
+                for iteration in range(self.settings['polarization_iterations']):
+                    pulse_sequence.append(Pulse(microwave_channel, current_time, mw_1_pi_time))
+                    if rf_pi_time > 0:
+                        pulse_sequence.append(Pulse('rf_switch', current_time + mw_1_pi_time, rf_pi_time))
+                        current_time = current_time + mw_1_pi_time + rf_pi_time + rf_settle
+                    for i in range(self.settings['initialization_laser']['n']):
+                        pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed))
+                        current_time = current_time + nv_reset_time_pulsed + nv_reset_time_wait
+
+                # Flip e-spin to m_s=1 state so that we can drive RF
+                pulse_sequence.append(Pulse(microwave_channel_2, current_time + laser_off_time, mw_2_pi_time))
+
+                # Prepare nuclear spin in superposition
+                pulse_sequence.append(Pulse('rf_switch', current_time + laser_off_time + mw_2_pi_time + delay_mw_readout, rf_pi_half_time))
+                current_time += laser_off_time + mw_2_pi_time + delay_mw_readout + rf_pi_half_time + rf_settle
+                # Access nuclear memory; choose to accumulate conditional on which nuclear state
+
+                channel_odd, channel_even = microwave_channel_2_q, microwave_channel_q
+                pi_time_odd, pi_time_even = mw_2_pi_time, mw_1_pi_time
+
+                if self.settings['dynamic_decoupling']['sequence'] == 'none':
+
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time,
+                                                pi_time_odd))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time + pi_time_odd + t_sense,
+                                                pi_time_odd))
+
+                    current_time += pi_time_odd + t_sense + pi_time_odd + delay_mw_readout
+
+                elif self.settings['dynamic_decoupling']['sequence'] == 'echo':
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time,
+                                                pi_time_odd))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_odd,
+                                                current_time + pi_time_odd + t_sense,
+                                                pi_time_odd))
+
+                    current_time += pi_time_odd + t_sense + pi_time_odd + delay_mw_readout
+
+                    pulse_sequence.append(Pulse(channel_even,
+                                                current_time,
+                                                pi_time_even))
+
+                    # Wait for t_sense and disentangle from memory
+                    pulse_sequence.append(Pulse(channel_even,
+                                                current_time + pi_time_even + t_sense,
+                                                pi_time_even))
+
+                    current_time += pi_time_even + t_sense + pi_time_even + delay_mw_readout
+
+                if self.settings['movement_timing']['rf_echo']['enable']:
+                    pulse_sequence.append(
+                        Pulse('rf_switch',
+                              self.settings['movement_timing']['rf_echo']['echo_time'] - rf_pi_half_time,
+                              rf_pi_time))
+
+                # Wait for t_movement and rotate nuclear spin to Z axis for readout
+                if part == 1:
+                    pulse_sequence.append(
+                        Pulse(rf_channel,
+                              t_movement_end - (rf_pi_half_time + rf_settle) - rf_settle,
+                              rf_pi_half_time + 2*rf_settle))
+                pulse_sequence.append(
+                    Pulse('rf_switch',
+                          t_movement_end - (rf_pi_half_time + rf_settle),
+                          rf_pi_half_time))
+
+                current_time = t_movement_end
+
+                if part == 10:
+
+                    for m in range(self.settings['read_out']['repetitive_readout']['m']):
+                        if m == 0:
+                            pulse_sequence.append(Pulse(microwave_channel_2,
+                                                        current_time,
+                                                        mw_2_pi_time))
+                            pulse_sequence.append(Pulse('laser', current_time + mw_2_pi_time + delay_mw_readout,
+                                                        nv_reset_time_short))
+                            pulse_sequence.append(
+                                Pulse('apd_readout', current_time + mw_2_pi_time + delay_mw_readout + delay_readout,
+                                      meas_time))
+                            current_time = current_time + mw_2_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+                        else:
+                            pulse_sequence.append(Pulse(microwave_channel,
+                                                        current_time,
+                                                        mw_1_pi_time))
+                            pulse_sequence.append(Pulse('laser', current_time + mw_1_pi_time + delay_mw_readout,
+                                                        nv_reset_time_short))
+                            pulse_sequence.append(
+                                Pulse('apd_readout', current_time + mw_1_pi_time + delay_mw_readout + delay_readout,
+                                      meas_time))
+                            current_time = current_time + mw_1_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+
+                    # Update start time for the part 2 of the sequence (where we look at the other nuclear spin population)
+                    start_time = current_time
+
+                else:
+                    for m in range(self.settings['read_out']['repetitive_readout']['m']):
+                        if m == 0:
+                            pulse_sequence.append(Pulse(microwave_channel,
+                                                        current_time,
+                                                        mw_1_pi_time))
+                            pulse_sequence.append(Pulse('laser', current_time + mw_1_pi_time + delay_mw_readout,
+                                                        nv_reset_time_short))
+                            pulse_sequence.append(
+                                Pulse('apd_readout', current_time + mw_1_pi_time + delay_mw_readout + delay_readout,
+                                      meas_time))
+                            current_time = current_time + mw_1_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+                        else:
+                            pulse_sequence.append(Pulse(microwave_channel_2,
+                                                        current_time,
+                                                        mw_2_pi_time))
+                            pulse_sequence.append(Pulse('laser', current_time + mw_2_pi_time + delay_mw_readout,
+                                                        nv_reset_time_short))
+                            pulse_sequence.append(
+                                Pulse('apd_readout', current_time + mw_2_pi_time + delay_mw_readout + delay_readout,
+                                      meas_time))
+                            current_time = current_time + mw_2_pi_time + delay_mw_readout + nv_reset_time_short + laser_off_time_short
+
+                    start_time = current_time
+
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+    def _add_rf_switch_to_sequences(self, pulse_sequences):
+        return pulse_sequences
+
+    def _plot(self, axislist, data=None):
+        '''
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
+        '''
+
+        if data is None:
+            data = self.data
+
+        if 'fits' in data.keys() and data['fits'] is not None and 1 == 2:
+            counts = data['counts'][:, 1] / data['counts'][:, 0]
+            tau = data['tau']
+            fits = data['fits'] # amplitude, frequency, phase, offset
+
+            axislist[0].plot(tau, counts, 'b')
+            #axislist[0].hold(True) ER 20181012
+
+            axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
+            #pi_time = 2*np.pi / fits[1] / 2
+            pi_time = (np.pi - fits[2])/fits[1]
+            pi_half_time = (np.pi/2 - fits[2])/fits[1]
+            three_pi_half_time = (3*np.pi/2 - fits[2])/fits[1]
+            rabi_freq = 1000*fits[1]/(2*np.pi)
+            axislist[0].set_title('Rabi: {:0.1f}MHz, pi-half time: {:2.1f}ns, pi-time: {:2.1f}ns, 3pi-half time: {:2.1f}ns'.format(rabi_freq, pi_half_time, pi_time, three_pi_half_time))
+        else:
+            if 'counts' in data.keys():
+                num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
+                avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][:, 0:num_daq_reads], axis=1)]))
+                first_counts_1 = np.transpose(np.array([np.average(self.data['counts'][:, 0:1], axis=1)]))
+                avg_counts_2 = np.transpose(np.array([np.average(self.data['counts'][:, num_daq_reads:], axis=1)]))
+                first_counts_2 = np.transpose(np.array([np.average(self.data['counts'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
+
+                #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1, avg_counts_2])
+                plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
+            axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
+            #[0].legend(labels=('Nuclear State 0 (first readout)', 'Nuclear State 1 (first readout)', 'Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
+            axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
+
+    def _update_plot(self, axes_list):
+        '''
+        Updates plots specified in _plot above
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+
+        '''
+        #        if self.scripts['find_nv'].is_running:
+        #            self.scripts['find_nv']._update_plot(axes_list)
+        #        else:
+
+        x_data = self.data['tau']
+
+
+        num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
+        avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][:, 0:num_daq_reads], axis=1)]))
+        first_counts_1 = np.transpose(np.array([np.average(self.data['counts'][:, 0:1], axis=1)]))
+        avg_counts_2 = np.transpose(np.array([np.average(self.data['counts'][:, num_daq_reads:], axis=1)]))
+        first_counts_2 = np.transpose(np.array([np.average(self.data['counts'][:, num_daq_reads:num_daq_reads + 1], axis=1)]))
+
+        axis1 = axes_list[0]
+        if not self.data['counts'] == []:
+            update_1d_simple(axis1, x_data, [avg_counts_1, avg_counts_2])
+        axis2 = axes_list[1]
+        update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])

@@ -23,6 +23,8 @@ from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, Micr
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq, plot_pulsedesr
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr, fit_double_lorentzian, double_lorentzian
+import time as t
+import datetime
 
 
 #MAX_AVERAGES_PER_SCAN = 5e4
@@ -39,6 +41,8 @@ Uses double_init scheme.
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
         Parameter('read_out', [
             Parameter('meas_time', 250, float, 'measurement time (in ns)'),
@@ -53,19 +57,49 @@ Uses double_init scheme.
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
+    def _configure_instruments_start_of_script(self):
+        """
+        Configure instruments at the beginning of a script. For example, enable IQ modulation
+        :return: None
+        """
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        # print('successfully turned off microwave switch')
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+
+    def _configure_instruments_start_of_sweep(self):
+        """
+        Configure instruments before running a sweep. For example, change MW frequency
+        :return: None
+        """
+        self.instruments['mw_gen']['instance'].update({'frequency': float(self.mw_frequency_current)})
 
     def _function(self, in_data=None):
         self.data['fits'] = None
 
-        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-        # print('successfully turned off microwave switch')
-        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
-        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
-        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+        self._configure_instruments_start_of_script()
 
-        assert self.settings['freq_start'] < self.settings['freq_stop']
-        self.mw_frequencies = np.linspace(self.settings['freq_start'], self.settings['freq_stop'],
-                                                   self.settings['freq_points'])
+        # contruct the frequency array
+        if self.settings['range_type'] == 'start_stop':
+            if self.settings['freq_start'] > self.settings['freq_stop']:
+                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self._abort = True
+
+            if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
+                self.log('start or stop frequency out of bounds')
+                self._abort = True
+
+            self.mw_frequencies = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
+
+        elif self.settings['range_type'] == 'center_range':
+            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
+                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self._abort = True
+            self.mw_frequencies = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
+                                              self.settings['freq_start'] + self.settings['freq_stop'] / 2, self.settings['freq_points'])
+
 
         # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
         # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
@@ -77,6 +111,8 @@ Uses double_init scheme.
         # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
         pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
+
+        self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
 
         # ER 20181214 retrieve modulation on or off for main experiment
         mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
@@ -106,22 +142,20 @@ Uses double_init scheme.
                 self._abort = True
                 return  # exit function in case no NV is found
 
-        self.log("Averaging over %i blocks of %.1e" % (self.num_1E5_avg_pb_programs, self.settings['averaging_block_size']))
+        #self.log("Averaging over %i blocks of %.1e" % (self.num_1E5_avg_pb_programs, self.settings['averaging_block_size']))
 
         breaker = 0
         for average_loop in range(int(self.num_1E5_avg_pb_programs)):
+            time_start = t.time()
             if breaker:
                 break
-            self.log("Running average block {0} of {1}".format(average_loop + 1, int(self.num_1E5_avg_pb_programs)))
+            #self.log("Running average block {0} of {1}".format(average_loop + 1, int(self.num_1E5_avg_pb_programs)))
 
             mw_freq_indices = list(range(len(self.mw_frequencies)))
             if self.settings['randomize']:
                 np.random.shuffle(mw_freq_indices)
 
             for i in mw_freq_indices:
-                time.sleep(self.settings['mw_generator_switching_time'])
-                self.instruments['mw_gen']['instance'].update({'frequency': float(self.mw_frequencies[i])})
-
                 if self._abort:
                     print('aborting!!')
                     # ER 20200828 stop the pulseblaster
@@ -141,6 +175,10 @@ Uses double_init scheme.
                 # Retrack NV afterwards.
                 #    self.scripts['find_nv'].run()
                 #    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+
+                time.sleep(self.settings['mw_generator_switching_time'])
+                self.mw_frequency_current = self.mw_frequencies[i]
+                self._configure_instruments_start_of_sweep()
 
                 # ER 20181028
                 if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking'][
@@ -198,6 +236,10 @@ Uses double_init scheme.
                 if self.settings['save']:
                     self.save_data()
 
+            time_elapsed = t.time() - time_start
+            self.log("Completed average block %i of %i in %s" %
+                     (average_loop + 1, int(self.num_1E5_avg_pb_programs), str(datetime.timedelta(seconds=time_elapsed))[:-7]))
+
             if 'esr_counts' in self.data.keys() and 'mw_frequencies' in self.data.keys():
                 try:
                     freq = self.data['mw_frequencies']
@@ -242,23 +284,17 @@ Uses double_init scheme.
             data = self.data
 
         if 'esr_counts' in data.keys():
-            # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
-            # if counts != []:
-            #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['cousants'])
-          #  print('plotting with tau values: ', data['tau'])
             plot_1d_simple_freq(axes_list[0], data['mw_frequencies'], [data['esr_counts']])
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
+        if 'fits' in data.keys() and data['fits'] is not None:
+            title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}' \
+                .format(data['fits'][4], data['fits'][5], data['fits'][1],
+                        np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
+            axes_list[0].set_title(title)
 
-        #if 'fits' in data.keys() and data['fits'] is not None:
-        #    print('plotting ESR fit')
-        #    #plot_pulsedesr(axes_list[0], data['mw_frequencies'], data['fits'])
-        #    plot_1d_simple_freq(axes_list[0], data['mw_frequencies'], [data['esr_counts']])
-            #print(double_lorentzian(data['mw_frequencies'], *data['fits']))
-            #print(np.shape(data['mw_frequencies']))
-            #print(np.shape(data['esr_counts']))
-            #axes_list[0].plot(np.array(data['mw_frequencies']), np.array(double_lorentzian(data['mw_frequencies'], *data['fits'])))
-
-
+            x_data = data['mw_frequencies']
+            x_data_fine = np.linspace(np.min(x_data), np.max(x_data), len(x_data) * 2)
+            plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5, title=title)
 
     def _update_plot(self, axes_list):
         '''
@@ -274,11 +310,25 @@ Uses double_init scheme.
         data = self.data
         counts = data['esr_counts']
         x_data = data['mw_frequencies']
-        axis1 = axes_list[0]
-        if not counts == []:
-            update_1d_simple(axis1, x_data, [counts])
-        axis2 = axes_list[1]
-        update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
+        x_data_fine = np.linspace(np.min(x_data), np.max(x_data), len(x_data)*2)
+
+        # If fit is found and fit has not been plotted, plot both data and fit
+        fit_in_plot = len(axes_list[0].lines) == len(np.transpose(counts)) + 1
+        update_1d_simple(axes_list[0], x_data, counts, fit_in_plot=fit_in_plot)
+        if 'fits' in data.keys() and data['fits'] is not None:
+            title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}'\
+                .format(data['fits'][4], data['fits'][5], data['fits'][1],
+                        np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
+            axes_list[0].set_title(title)
+            if fit_in_plot:
+                for index, counts in enumerate([double_lorentzian(x_data_fine, *data['fits'])]):
+                    axes_list[0].lines[-1 - index].set_ydata(counts)
+
+            else:
+                plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5)
+
+        update_pulse_plot(axes_list[1], self.pulse_sequences[self.sequence_index])
+
 
     def _create_pulse_sequences(self):
 
@@ -863,7 +913,30 @@ class PulsedESRPolarized(PulsedESR):
             pulse_sequences.append(pulse_sequence)
         return pulse_sequences, tau_list, self.settings['read_out']['meas_time']
 
-    def _function(self, in_data=None):
+    def _configure_instruments_start_of_script(self):
+        self.instruments['PB']['instance'].update({'rf_switch': {'status': False}})
+        # print('successfully turned off microwave switch')
+        #self.instruments['rf_gen']['instance'].update({'modulation_type': 'IQ'})
+        #self.instruments['rf_gen']['instance'].update({'enable_modulation': True})
+        #self.instruments['rf_gen']['instance'].update({'amplitude_rf': self.settings['rf_pulses']['rf_power']})
+
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        # print('successfully turned off microwave switch')
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power_1']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency_1']})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+
+        self.instruments['mw_gen_2']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power_2']})
+        self.instruments['mw_gen_2']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency_1']})
+        self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
+
+    def _configure_instruments_start_of_sweep(self):
+        self.instruments['mw_gen_2']['instance'].update({'frequency': float(self.mw_frequency_current)})
+
+    def _function_GARBAGE(self, in_data=None):
+
         self.instruments['PB']['instance'].update({'rf_switch': {'status': False}})
         # print('successfully turned off microwave switch')
         self.instruments['rf_gen']['instance'].update({'modulation_type': 'IQ'})

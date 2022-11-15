@@ -564,13 +564,13 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
             Parameter('meas_time', 1000, float, 'measurement time after rabi sequence (in ns)'),
         ]),
         Parameter('atto_trig', [
-            Parameter('trig_duration', 200, float,
+            Parameter('trig_duration', 250, float,
                       'length of trigger pulse in ns to send to function generator controlling attocube'),
+            Parameter('trig_delay', 5000, float, 'trigger motion after this delay; if 0 trigger motion at the beginning of each pulse sequence'),
             Parameter('settle_time', 200000, float,
-                      'time in ns to wait before moving Attocube again')
+                      'time in ns to wait between each pulse sequence')
         ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('averaging_block', 8000, int, 'size of averaging block (plot will be updated after each block')
+        Parameter('num_averages', 100000, int, 'number of averages')
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B26PulseBlaster,
@@ -593,7 +593,7 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
              normalization)
 
         """
-        self.MAX_AVERAGES_PER_SCAN = self.settings['averaging_block']
+        self.MAX_AVERAGES_PER_SCAN = self.settings['averaging_block_size']
         # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
         pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
@@ -629,17 +629,21 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
         # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, self.MAX_AVERAGES_PER_SCAN)
-        # run find_nv if tracking is on ER 5/30/2017
-        if self.settings['Tracking']['on/off']:
-            self.scripts['find_nv'].run()
-            if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
-                self.log('Could not find an NV in FindNV.')
-                self._abort = True
-                return  # exit function in case no NV is found
+
 
         self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
         for average_loop in range(int(num_1E5_avg_pb_programs)):
             self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
+
+            # run find_nv if tracking is on, at the beginning of each averaging block
+            if self.settings['Tracking']['on/off']:
+                self.scripts['find_nv'].run()
+                if self.scripts['find_nv'].data['fluorescence'] == 0.0:  # if it doesn't find an NV, abort the experiment
+                    self.log('Could not find an NV in FindNV.')
+                    self._abort = True
+                    return  # exit function in case no NV is found
+
+
             if self._abort:
                 print('aborting!!')
                 # ER 20200828 stop the pulseblaster
@@ -703,6 +707,10 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
             self.save_data()
         #     self.save_log()
         #     self.save_image_to_disk()
+
+    def _initialize_data(self, num_daq_reads, in_data):
+        super(FieldProfile_CW, self)._initialize_data(num_daq_reads, in_data)
+        self.data['mw_frequencies'] = self.freq_values
 
     def get_freq_array(self):
         return ESR.get_freq_array(self)
@@ -786,6 +794,8 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
 
             self.sequence_index = rand_index
             counts_temp = counts_to_check[0]
+
+            """
             # track to the NV if necessary ER 5/31/17
             if self.settings['Tracking']['on/off']:
                 if (1 + (1 - self.settings['Tracking']['threshold'])) * self.settings['Tracking'][
@@ -796,6 +806,8 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
                     self.scripts['find_nv'].run()
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data[
                         'maximum_point']
+            """
+
                     # MM 20190621
             #                    self.scripts['autofocus'].scripts['take_image'].settings['point_a'] = self.scripts['find_nv'].data['maximum_point']
             self.updateProgress.emit(self._calc_progress(index))
@@ -823,18 +835,20 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         meas_time = self.settings['read_out']['meas_time']
 
         atto_trig_duration = self.settings['atto_trig']['trig_duration']
-        atto_movement_time = self.settings['atto_trig']['settle_time']
+        atto_settle_time = self.settings['atto_trig']['settle_time']
+        atto_trig_delay = self.settings['atto_trig']['trig_delay']
 
-        pulse_sequence = [Pulse('atto_trig', atto_movement_time, atto_trig_duration)]
-        pulse_sequence += [Pulse('laser', 0, atto_movement_time + tau_list[-1] + meas_time)]
-        pulse_sequence += [Pulse('microwave_switch', 0, atto_movement_time + tau_list[-1] + meas_time)]
+        pulse_sequence = [Pulse('atto_trig', atto_settle_time + atto_trig_delay, atto_trig_duration)]
+        pulse_sequence += [Pulse('laser', 0, atto_settle_time + tau_list[-1] + meas_time)]
+        pulse_sequence += [Pulse('microwave_switch', 0, atto_settle_time + tau_list[-1] + meas_time)]
 
 
         for tau in tau_list:
             # if tau is 0 there is actually no mw pulse
             if tau > 0:
-                pulse_sequence += [Pulse('apd_readout', atto_movement_time + tau, meas_time)]
+                pulse_sequence += [Pulse('apd_readout', atto_settle_time + tau, meas_time)]
 
+        self.log('Total length of pulse sequence (including settling time): %i' % (atto_settle_time + tau + meas_time))
         self.tau_list = tau_list
 
         pulse_sequences = []
@@ -948,84 +962,6 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-class CoilProfile_CW(FieldProfile_CW):
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB')]),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 10, int, 'number of frequencies in scan'),
-        Parameter('tau_times', [
-            Parameter('min_time', 500, float, 'beginning of first readout window'),
-            Parameter('max_time', 10000, float, 'beginning of last readout window'),
-            Parameter('time_step', 1000,
-                      [20, 50, 80, 100, 200, 1000, 2000, 5000, 10000, 20000, 40000, 50000, 100000, 200000],
-                      'time step between beginning of readout windows')
-        ]),
-        Parameter('read_out', [
-            Parameter('meas_time', 1000, float, 'measurement time after rabi sequence (in ns)'),
-        ]),
-        Parameter('atto_trig', [
-            Parameter('trig_duration', 200, float,
-                      'length of trigger pulse in ns to send to function generator controlling attocube'),
-            Parameter('settle_time', 200000, float,
-                      'time in ns to wait before moving Attocube again')
-        ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('averaging_block', 8000, int, 'size of averaging block (plot will be updated after each block')
-    ]
-
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B26PulseBlaster,
-                    'mw_gen': MicrowaveGenerator}
-
-    def _create_pulse_sequences(self):
-        '''
-
-        Returns: pulse_sequence, num_averages, tau_list, meas_time
-            pulse_sequences: a single pulse sequences, with daq reads at specified taus
-            num_averages: the number of times to repeat each pulse sequence
-
-        '''
-
-        if self.settings['read_out']['meas_time'] > self.settings['tau_times']['time_step']:
-            self.log('Readout window must be shorter between spacing between beginning of readout windows!')
-            raise AttributeError
-
-        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],
-                             self.settings['tau_times']['time_step'])
-        tau_list = np.ndarray.tolist(tau_list)  # 20180731 ER convert to list
-
-        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
-        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
-
-        meas_time = self.settings['read_out']['meas_time']
-
-        atto_trig_duration = self.settings['atto_trig']['trig_duration']
-        atto_movement_time = self.settings['atto_trig']['settle_time']
-
-        pulse_sequence = [Pulse('rf_i', atto_movement_time - 60, atto_trig_duration + 60*2)]
-        pulse_sequence += [Pulse('rf_switch', atto_movement_time, atto_trig_duration)]
-        pulse_sequence += [Pulse('laser', 0, atto_movement_time + tau_list[-1] + meas_time)]
-        pulse_sequence += [Pulse('microwave_switch', 0, atto_movement_time + tau_list[-1] + meas_time)]
-
-
-        for tau in tau_list:
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [Pulse('apd_readout', atto_movement_time + tau, meas_time)]
-
-        self.tau_list = tau_list
-
-        pulse_sequences = []
-
-        self.freq_values, self.freq_range = self.get_freq_array()
-        for freq in self.freq_values:
-            pulse_sequences.append(pulse_sequence)
-
-        return pulse_sequences, tau_list, meas_time
-
 class FieldProfile_Pulsed(FieldProfile_CW):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -1054,15 +990,15 @@ class FieldProfile_Pulsed(FieldProfile_CW):
         Parameter('atto_trig', [
             Parameter('trig_duration', 200, float,
                       'length of trigger pulse in ns to send to function generator controlling attocube'),
+            Parameter('trig_delay', 5000, float, 'trigger motion after this delay; if 0 trigger motion at the beginning of each pulse sequence'),
             Parameter('settle_time', 200000, float,
-                      'time in ns to wait before moving Attocube again')
+                      'time in ns to wait between each pulse sequence')
         ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
-        Parameter('averaging_block', 8000, int, 'size of averaging block (plot will be updated after each block')
+        Parameter('num_averages', 100000, int, 'number of averages')
     ]
 
 
-    def _function(self, in_data=None):
+    def _function_GARBAGE(self, in_data=None):
         """
         This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
         is performed.
@@ -1219,19 +1155,24 @@ class FieldProfile_Pulsed(FieldProfile_CW):
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
 
         atto_trig_duration = self.settings['atto_trig']['trig_duration']
-        atto_movement_time = self.settings['atto_trig']['settle_time']
+        atto_settle_time = self.settings['atto_trig']['settle_time']
+        atto_trig_delay = self.settings['atto_trig']['trig_delay']
 
-        pulse_sequence = [Pulse('atto_trig', atto_movement_time, atto_trig_duration)]
+
+        pulse_sequence = [Pulse('atto_trig', atto_settle_time + atto_trig_delay, atto_trig_duration)]
+        #pulse_sequence += [Pulse('laser', 0, atto_settle_time + tau_list[-1] + meas_time)]
+        #pulse_sequence += [Pulse('microwave_switch', 0, atto_settle_time + tau_list[-1] + meas_time)]
 
         for tau in tau_list:
+            # if tau is 0 there is actually no mw pulse
             if tau > 0:
-                block_beginning = atto_movement_time + tau
-                pulse_sequence += [Pulse(microwave_channel, block_beginning-30, pi_time + 30*2)]
+                block_beginning = atto_settle_time + tau
+                pulse_sequence += [Pulse(microwave_channel, block_beginning - 30, pi_time + 30 * 2)]
                 pulse_sequence += [Pulse('microwave_switch', block_beginning, pi_time)]
                 pulse_sequence += [Pulse('laser', block_beginning + pi_time + delay_mw_readout, meas_time + nv_reset_time)]
                 pulse_sequence += [Pulse('apd_readout', block_beginning + pi_time + delay_mw_readout + delay_readout, meas_time)]
 
-
+        self.log('Total length of pulse sequence (including settling time): %i' % (block_beginning + pi_time + delay_mw_readout + delay_readout + meas_time))
         self.tau_list = tau_list
 
         pulse_sequences = []

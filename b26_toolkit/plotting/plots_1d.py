@@ -197,7 +197,7 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
 
     # label the axis
     axis.set_title('Pulse Visualization')
-    axis.set_ylabel('pulse destination')
+    #axis.set_ylabel('pulse destination')
     axis.set_xlabel('time [ns]')
 
     xticks = np.array(axis.get_xticks())
@@ -401,7 +401,7 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
         axis.set_title(title)
     axis.set_xlim([min(times), max(times)])
 
-def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=None):
+def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=None,alpha=1):
     """
     plots a time trace for a list of data assuming that the times are give in ns
     Args:
@@ -428,7 +428,7 @@ def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=Non
         freqs *= 1e-9
 
     for counts in data_list:
-        axis.plot(freqs, counts)
+        axis.plot(freqs, counts, alpha=alpha)
 
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
@@ -438,13 +438,14 @@ def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=Non
     axis.set_xlim([min(freqs), max(freqs)])
 
 
-def update_1d_simple(axis, times, counts_list):
+def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
     """
 
     Args:
         axis: axes object
         times: JG: THIS IS NOT USED! WHAT IS IT? => add comment, e.g. for future purpose or delete!
         counts_list: list of
+        fitting: if fitting is True, then account for the fact that the number of lines in the existing plot will be more than the length of the counts list
 
     Returns:
 
@@ -462,7 +463,7 @@ def update_1d_simple(axis, times, counts_list):
     #     print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))
 
     #assert len(axis.lines) == len(counts_list)
-    if len(axis.lines) != len(counts_list): # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
+    if len(axis.lines) != len(counts_list) and fit_in_plot is False: # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
         print('Number of lines to plot is not equal to number of counts lists!!!')
         print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
               ' (they should be the same!!)')
