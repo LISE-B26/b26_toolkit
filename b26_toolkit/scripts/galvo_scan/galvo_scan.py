@@ -22,7 +22,7 @@ import time
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
-from b26_toolkit.scripts.set_laser import SetAtto
+#from b26_toolkit.scripts.set_laser import SetAtto
 
 
 class GalvoScan(GalvoScanGeneric):

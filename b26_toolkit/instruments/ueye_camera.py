@@ -1,6 +1,6 @@
 # # from https://stackoverflow.com/questions/40563139/ueye-camera-with-python-on-windows
 from pylabcontrol.core import Parameter, Instrument
-import cv2
+#import cv2
 import numpy as np
 
 
