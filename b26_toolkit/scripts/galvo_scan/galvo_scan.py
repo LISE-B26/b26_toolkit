@@ -19,7 +19,7 @@
 import numpy as np
 import time
 
-from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator
+from b26_toolkit.instruments import NI6259, NI9263, NI9402, NI6229, PiezoController, MicrowaveGenerator
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 #from b26_toolkit.scripts.set_laser import SetAtto
@@ -52,10 +52,10 @@ class GalvoScan(GalvoScanGeneric):
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'], 'Daq channel used for counter')
                   ]),
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn'),
-        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'NI6229', ['NI6229', 'NI6259', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402}
+    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402, 'NI6229' : NI6229}
 
     _SCRIPTS = {}
 
@@ -74,9 +74,12 @@ class GalvoScan(GalvoScanGeneric):
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
                         data_path=data_path)
 
-        device_list = NI6259.get_connected_devices()
-        if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
-            self.settings['daq_type'] = 'cDAQ'
+        # device_list = NI6259.get_connected_devices()
+        # if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
+        #     self.settings['daq_type'] = 'cDAQ'
+
+
+
         # # defines which daqs contain the input and output based on user selection of daq interface
         # if self.settings['daq_type'] == 'PCI':
         #     self.daq_in = self.instruments['NI6259']['instance']
@@ -94,12 +97,18 @@ class GalvoScan(GalvoScanGeneric):
         :return:
         """
         # defines which daqs contain the input and output based on user selection of daq interface
-        if self.settings['daq_type'] == 'PCI':
+        if self.settings['daq_type'] == 'NI6259':
             self.daq_in = self.instruments['NI6259']['instance']
             self.daq_out = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             self.daq_in = self.instruments['NI9402']['instance']
             self.daq_out = self.instruments['NI9263']['instance']
+        elif self.settings['daq_type'] == 'NI6229':
+            self.daq_in = self.instruments['NI6229']['instance']
+            self.daq_out = self.instruments['NI6229']['instance']
+        else:
+            self.log('proper daq not specified')
+            raise Exception
 
         # checks that requested daqs are actually physically present in the system
         device_list = NI6259.get_connected_devices()
@@ -165,7 +174,7 @@ class GalvoScan(GalvoScanGeneric):
         outputs (ex. NI6259. Note that the cDAQ does not have this capability).
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
-        if self.settings['daq_type'] == 'PCI':
+        if self.settings['daq_type'] in ['NI6229', 'NI6259']:
             initial_position = self.daq_out.get_analog_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
         else:
             initial_position = []

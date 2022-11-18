@@ -18,7 +18,7 @@
 
 from .gauge_controller import PressureGauge, PumpLinePressureGauge, ChamberPressureGauge
 from .spectrum_analyzer import SpectrumAnalyzer
-from .ni_daq import NI6259, NI9263, NI9402, NI9219, NI9263_02
+from .ni_daq import NI6259, NI9263, NI9402, NI9219, NI9263_02, NI6229
 from .piezo_controller import PiezoController, PiezoControllerCold, MDT693A
 from .zurich_instruments import ZIHF2
 from .pulse_blaster import B26PulseBlaster, Pulse
