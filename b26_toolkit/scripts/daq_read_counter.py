@@ -21,7 +21,7 @@ from collections import deque
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 import matplotlib.pyplot as plt
-from b26_toolkit.instruments import NI6259, NI9402, NI9219, MicrowaveGenerator, PiezoController
+from b26_toolkit.instruments import NI6259, NI9402,NI6229, NI9219, MicrowaveGenerator, PiezoController
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos, update_counts
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import FindNV
@@ -529,6 +529,9 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
 
 class Daq_Read_Counter_NI6259(Daq_Read_Counter):
     _INSTRUMENTS = {'daq': NI6259}
+
+class Daq_Read_Counter_NI6229(Daq_Read_Counter):
+    _INSTRUMENTS = {'daq': NI6229}
 
 if __name__ == '__main__':
     script = {}

@@ -88,7 +88,6 @@ class GalvoScan(GalvoScanGeneric):
         #     self.daq_in = self.instruments['NI9402']['instance']
         #     self.daq_out = self.instruments['NI9263']['instance']
 
-
     def setup_scan(self):
         """
         setup the scan, i.e. identify the instruments and set up sample rate and such
@@ -180,7 +179,6 @@ class GalvoScan(GalvoScanGeneric):
             initial_position = []
         return initial_position
 
-
     def set_galvo_location(self, galvo_position):
         """
         sets the current position of the galvo
@@ -200,6 +198,10 @@ class GalvoScan(GalvoScanGeneric):
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
 
+    def check_bounds(self):
+        if np.any(np.abs(self.x_array)  > 2) or np.any(np.abs(self.y_array) > 2):
+            self.log('Galvo limited to +-2V!')
+            raise AttributeError
 
 class AttoScanAO(GalvoScan):
 
@@ -306,10 +308,64 @@ class AttoScanAO(GalvoScan):
             line_data = self.read_line(y_pos)
         return line_data
 
+class StageScan(AttoScanAO):
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate [V]'),
+                   Parameter('y', 0, float, 'y-coordinate [V]')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate [V]'),
+                   Parameter('y', 1.0, float, 'y-coordinate [V]')
+                   ]),
+        Parameter('RoI_mode', 'center', ['corner', 'center'], 'mode to calculate region of interest.\n \
+                                                               corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                               center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 64, int, 'number of x points to scan'),
+                   Parameter('y', 64, int, 'number of y points to scan')
+                   ]),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .1],
+                  'time in s to measure at each point'),
+        Parameter('settle_time', .0002, [.0002, .0005], 'wait time between points to allow galvo to settle'),
+        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('DAQ_channels',
+                  [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for y voltage analog output'),
+                   Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'],
+                             'Daq channel used for counter')
+                   ]),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn'),
+        Parameter('daq_type', 'NI6229', ['NI6229', 'NI6259', 'cDAQ'], 'Type of daq to use for scan')
+    ]
+    _INSTRUMENTS = {'NI6229':  NI6229}
     #def set_galvo_location(self, galvo_position):
     #    self.scripts['set_atto'].settings['initial_point'] = galvo_position
     #    self.scripts['set_atto'].run()
 
+    def scale(self):
+        """sets the limit according to the limits of the thorlabs piezo controller hardware
+        this can be either 75, 100 or 150V"""
+        voltage_limit = int(75)
+        print(voltage_limit)
+        if voltage_limit == 75:
+            scale = 7.5
+        elif voltage_limit == 100:
+            scale = 10
+        elif voltage_limit == 150:
+            scale = 15
+        return scale
+    def before_scan(self):
+        pass
+    def after_scan(self):
+        pass
+
+    def read_line_wrapper(self, y_pos):
+        line_data = self.read_line(y_pos)
+        return line_data
 
 if __name__ == '__main__':
     script, failed, instruments = Script.load_and_append(script_dict={'GalvoScan': 'GalvoScan'})
