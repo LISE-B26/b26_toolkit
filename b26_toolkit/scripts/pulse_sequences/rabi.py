@@ -52,7 +52,7 @@ Uses a double_init scheme
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI9402': NI9402, 'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229, 'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
@@ -263,7 +263,7 @@ todo(emma): (write as a double_init scheme)
         Parameter('reset_time', 10000, int, 'time with laser on at the beginning to reset state'),
     ]
 
-    _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'daq': NI6229, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # COMMENT_ME

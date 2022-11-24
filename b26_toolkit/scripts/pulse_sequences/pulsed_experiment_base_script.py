@@ -23,7 +23,7 @@ import numpy as np
 
 from b26_toolkit.scripts import FindNV, ESR
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
+from b26_toolkit.instruments import NI6229,NI6259, NI9402, B22PulseBlaster,B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random, datetime
@@ -74,7 +74,7 @@ for a given experiment
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'),
         Parameter('save_full', False, bool, 'save every average')
     ]
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster}
 
     _SCRIPTS = {'find_nv': FindNV, 'esr': ESR} #, 'autofocus': AutoFocusDAQ}
 
@@ -442,7 +442,8 @@ for a given experiment
         '''
 
         if self.settings['daq_type'] == 'PCI':
-            daq = self.instruments['NI6259']['instance']
+            #daq = self.instruments['NI6259']['instance']
+            daq = self.instruments['NI6229']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             daq = self.instruments['NI9402']['instance']
         time_before_program = t.time()
@@ -575,11 +576,11 @@ for a given experiment
 
         """
         if self.settings['mw_switch']['no_iq_overlap']:
-            overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence,
+            overlapping_pulses = B22PulseBlaster.find_overlapping_pulses(pulse_sequence,
                                                                          combine_channels=['microwave_i',
                                                                                            'microwave_q'])
         else:
-            overlapping_pulses = B26PulseBlaster.find_overlapping_pulses(pulse_sequence)
+            overlapping_pulses = B22PulseBlaster.find_overlapping_pulses(pulse_sequence)
 
         if verbose and overlapping_pulses:
                 print('Found overlapping pulses:', overlapping_pulses)

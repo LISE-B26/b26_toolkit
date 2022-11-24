@@ -840,7 +840,7 @@ class B26PulseBlaster(PulseBlaster):
 
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
 
-class B22PulseBlaster(PulseBlaster):
+class B22PulseBlaster(B26PulseBlaster):
     # COMMENT_ME
     _DEFAULT_SETTINGS = Parameter([
         Parameter('laser', [
@@ -898,27 +898,6 @@ class B22PulseBlaster(PulseBlaster):
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
-    _PROBES = {}
-
-    def __init__(self, name=None, settings=None):
-        #COMMENT_ME
-        super(B22PulseBlaster, self).__init__(name, settings)
-
-    def update(self, settings):
-        # call the update_parameter_list to update the parameter list
-        # oh god this is confusing
-        super(B22PulseBlaster, self).update(settings)
-
-    def read_probes(self, key):
-        pass
-
-    def get_name(self, channel):
-        #COMMENT_ME
-        for key, value in self.settings:
-            if 'channel' in list(value.keys()) and value['channel'] == channel:
-                return key
-
-        raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
 
 if __name__ == '__main__':
     # for i in range(5):
