@@ -130,8 +130,6 @@ class Pulse(object):
             is_overlapping = False
         return is_overlapping
 
-
-
 class PulseBlaster(Instrument):
     """
     This Instrument controls a SpinCore Pulseblaster
@@ -187,14 +185,16 @@ class PulseBlaster(Instrument):
     def __init__(self, name=None, settings=None):
         try:
             self.dll_path = get_config_value('PULSEBLASTER_DLL_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+            print('pulse blaster dll path: ', self.dll_path)
         except IOError:
             warnings.warn(" ** Pulseblaster DLL not found. If it should be present, check the path.")
-            dll_path = None
+            self.dll_path = None
             print(('Expected dll_path: ', self.dll_path))
             self.is_conneted = False
         try:
-          #  self.pb = ctypes.windll.LoadLibrary(dll_path) commented AS and ER 20180503
-            self.pb = ctypes.CDLL('spinapi64')
+            #self.pb = ctypes.cdll.LoadLibrary(self.dll_path)
+            self.pb = ctypes.cdll.LoadLibrary(r"C:\SpinCore\SpinAPI\dll\spinapi64.dll") # added by FG, worked
+            print('successfully loaded PB DLL')
             self.prepare_function_calls()
         except WindowsError:
             self.is_conneted = False
@@ -840,6 +840,85 @@ class B26PulseBlaster(PulseBlaster):
 
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
 
+class B22PulseBlaster(PulseBlaster):
+    # COMMENT_ME
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('laser', [
+            Parameter('channel', 0, int, 'channel to which laser is connected'),
+            Parameter('status', True, bool, 'True if voltage is high to the laser, false otherwise'),
+            Parameter('delay_time', 350.2, float, 'delay time between pulse sending time and laser switch on [ns]')
+        ]),
+        Parameter('apd_readout', [
+            Parameter('channel', 1, int, 'channel to which the daq is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the daq, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and daq acknowledgement [ns]')
+        ]),
+        Parameter('microwave_i', [
+            Parameter('channel', 2, int, 'channel to which the microwave p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave p trigger, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave p trigger [ns]')
+        ]),
+        Parameter('microwave_q', [
+            Parameter('channel', 3, int, 'channel to which the microwave q trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
+        ]),
+        Parameter('microwave_switch', [
+            Parameter('channel', 4, int, 'channel to which the microwave switch is connected to'),
+            Parameter('status', True, bool, 'True if voltage is high to the microwave switch, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
+        ]),
+        Parameter('atto_trig', [
+            Parameter('channel', 8, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 250, float, 'delay time between pulse sending time and atto_trig on [ns]')
+        ]),
+        Parameter('rf_i', [
+            Parameter('channel', 5, int, 'channel to which the rf p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('rf_switch', [
+            Parameter('channel', 6, int, 'channel to which the rf switch is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_i_2', [
+            Parameter('channel', 7, int, 'channel to which the microwave p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_q_2', [
+            Parameter('channel', 9, int, 'channel to which the microwave q trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
+    ])
+
+    _PROBES = {}
+
+    def __init__(self, name=None, settings=None):
+        #COMMENT_ME
+        super(B22PulseBlaster, self).__init__(name, settings)
+
+    def update(self, settings):
+        # call the update_parameter_list to update the parameter list
+        # oh god this is confusing
+        super(B22PulseBlaster, self).update(settings)
+
+    def read_probes(self, key):
+        pass
+
+    def get_name(self, channel):
+        #COMMENT_ME
+        for key, value in self.settings:
+            if 'channel' in list(value.keys()) and value['channel'] == channel:
+                return key
+
+        raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
 
 if __name__ == '__main__':
     # for i in range(5):

@@ -117,7 +117,9 @@ Known issues:
         self.scripts['take_image'].update({'RoI_mode': 'center'})
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
 
-        self.scripts['take_image'].run(verbose=False)
+        #self.scripts['take_image'].run(verbose=False)
+        self.scripts['take_image'].run()
+
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
@@ -166,7 +168,8 @@ Known issues:
 
         if self.settings['adjust_laser']:
             self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
-            self.scripts['set_laser'].run(verbose=False)
+            #self.scripts['set_laser'].run(verbose=False)
+            self.scripts['set_laser'].run()
 
 
     @staticmethod

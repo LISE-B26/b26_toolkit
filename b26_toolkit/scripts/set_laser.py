@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.instruments import NI6259, NI9263, PiezoController
+from b26_toolkit.instruments import NI6259, NI9263, NI6229, PiezoController
 from pylabcontrol.core import Script, Parameter
 
 
@@ -40,7 +40,7 @@ This script points the laser to a point
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263}
+    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI6229': NI6229}
 
     _SCRIPTS = {}
 
@@ -83,7 +83,8 @@ This script points the laser to a point
 
 
         if self.settings['daq_type'] == 'PCI':
-            self.daq_out = self.instruments['NI6259']['instance']
+            #self.daq_out = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6229']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             self.daq_out = self.instruments['NI9263']['instance']
 
@@ -96,7 +97,8 @@ This script points the laser to a point
     def _setup_daq(self):
         # defines which daqs contain the input and output based on user selection of daq interface
         if self.settings['daq_type'] == 'PCI':
-            self.daq_out = self.instruments['NI6259']['instance']
+            #self.daq_out = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6229']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             self.daq_out = self.instruments['NI9263']['instance']
 

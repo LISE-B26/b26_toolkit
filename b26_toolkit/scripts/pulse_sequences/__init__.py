@@ -6,6 +6,6 @@
 # from .hahn_echo import HahnEcho, HahnEchoManyNVs
 # from .cpmg import CPMG
 # from .pdd import PDD
-from b26_toolkit.instruments import NI6259, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6229, NI6259, B22PulseBlaster, B26PulseBlaster, MicrowaveGenerator, Pulse
 from .pulsed_experiment_base_script import PulsedExperimentBaseScript
 from pylabcontrol.core import Parameter, Script
