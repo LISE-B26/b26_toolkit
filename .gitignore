@@ -15,8 +15,9 @@ C:\Users\Experiment\PycharmProjects\b26_toolkit\src\instruments\config.txt
 .idea/**/sqlDataSources.xml
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
-venv
+venv/
 dist
+data/
 b26_toolkit.egg-info
 
 

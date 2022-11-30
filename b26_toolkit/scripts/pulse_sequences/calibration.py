@@ -18,7 +18,7 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, NI6229,B22PulseBlaster, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import cose_with_decay, fit_exp_decay
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses
@@ -54,7 +54,7 @@ class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # COMMENT_ME
@@ -189,7 +189,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # COMMENT_ME
@@ -324,7 +324,7 @@ class ChoppedInitialization(PulsedExperimentBaseScript):
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # COMMENT_ME

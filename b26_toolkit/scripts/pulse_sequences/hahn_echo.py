@@ -18,7 +18,7 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, NI9263_02, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI6229, NI9402, NI9263_02,B22PulseBlaster, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.scripts import SelectPoints
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
@@ -63,7 +63,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
     ]
 
     #041619 MM added cDAQ
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
@@ -301,7 +301,7 @@ We never took (or tried to) good data with this, so this hasn't been tested well
         Parameter('num_averages', 100000, int, 'number of averages')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _create_pulse_sequences(self):
         '''
@@ -424,7 +424,7 @@ class FieldProfile_Pulsed_GARBAGE(HahnEcho_AttoTrig_GARBAGE):
         Parameter('num_averages', 100000, int, 'number of averages')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         # Same as default Hahn echo, but we also setup the trigger for a function generator connected to a high-power piezo controller
@@ -573,7 +573,7 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         Parameter('num_averages', 100000, int, 'number of averages')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B26PulseBlaster,
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'NI9263_02': NI9263_02, 'PB': B22PulseBlaster,
                     'mw_gen': MicrowaveGenerator}
 
 
@@ -1217,7 +1217,7 @@ We do this to check if we can extend T2 with something like this, which may help
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'PB': B22PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
         #COMMENT_ME
