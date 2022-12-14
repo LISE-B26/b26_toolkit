@@ -646,8 +646,8 @@ class DAQ(Instrument):
        # channel_list += self.settings['device'] + '/' + channel + ','
 
         channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
-     #   print('channel_list')
-     #   print(channel_list)
+        print(channel_list)
+
         if 'analog_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
@@ -1257,23 +1257,23 @@ class NI6229(DAQ):
                                 [
                                     Parameter('channel', 2, [0, 1, 2, 3], 'output channel'),
                                     Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
-                                    Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
-                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'), #nanomax in only takes positive values
+                                    Parameter('max_voltage',10.0, float, 'maximum output voltage (V)')
                                 ]
                                 ),
                       Parameter('ao3',
                                 [
                                     Parameter('channel', 3, [0, 1, 2, 3], 'output channel'),
                                     Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
-                                    Parameter('min_voltage', -10.0, float, 'minimum output voltage (V)'),
-                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'), #nanomax in only takes positive values
+                                    Parameter('max_voltage',10.0, float, 'maximum output voltage (V)')
                                 ]
                                 )
                   ]
                   ),
         Parameter('analog_input',
                   [
-                      Parameter('ai0',
+                      Parameter('ai0',  # connected to df AFM feedback
                                 [
                                     Parameter('channel', 0, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
@@ -2022,13 +2022,20 @@ def buffersize_to_time(size, ticks=56):
     return size * (ticks*0.000000025)
 
 if __name__ == '__main__':
-    daq, failed = Instrument.load_and_append({'daq': NI6259})
+    daq, failed = Instrument.load_and_append({'daq': NI6229})
     daq = daq['daq']
-    #self.instruments['NI9402']['instance']
-    task = daq.setup_gated_counter('ctr0', int(10))
-    daq.run(task)
-    #daq.read(task)
-    daq.read_counter(task)
+    print('GET', daq.get_analog_voltages(['ai0']))
+    print("---")
+    settings = {}
+    ctrtask = daq.setup_AI(channel='ai0',num_samples_to_acquire=10, continuous =True)
+
+    # start counter and scanning sequence
+    daq.run(ctrtask)
+    xLineData, nsamples = daq.read(ctrtask)
+    print(xLineData)
+    daq.stop(ctrtask)
+
+
     """
     daq_di, failed_di = Instrument.load_and_append({'daq': NI9402})
     daq_ao, failed_ao = Instrument.load_and_append({'daq': NI9263_02})

@@ -20,7 +20,7 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster
+from b26_toolkit.instruments import NI6259, NI9402,NI6229, B26PulseBlaster, B22PulseBlaster
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
 
@@ -39,11 +39,8 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         Parameter('max_len_to_plot', 10, int, 'maximum number of samples to plot'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'), # ER 20190325
     ]
-
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
-
+    _INSTRUMENTS = {'NI6229': NI6229, 'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
     _SCRIPTS = {
-
     }
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
@@ -59,7 +56,6 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         self.data_to_plot = {'voltage': deque(maxlen = self.settings['max_len_to_plot'])}
         self.data['voltage'] = list()
 
-
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -69,10 +65,18 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
       #  print(('settings in instrument', self.instruments['daq']['settings']))
 
         # new ER 20190325
-        if self.settings['daq_type'] == 'PCI':
-            daq = self.instruments['NI6259']['instance']
-        elif self.settings['daq_type'] == 'cDAQ':
-            daq = self.instruments['NI9402']['instance']
+        #if self.settings['daq_type'] == 'PCI':
+        #    daq = self.instruments['NI6259']['instance']
+        #elif self.settings['daq_type'] == 'cDAQ':
+        #    daq = self.instruments['NI9402']['instance']
+
+        if self.settings['daq_type'] == 'cDAQ':
+            self.daq = self.instruments['NI9402']['instance']
+        elif self.settings['daq_type'] == 'PCI':
+            self.daq = self.instruments['NI6229']['instance']
+        else:
+            self.log('proper daq not specified')
+            raise Exception
 
         self.data_to_plot = {'voltage': deque(maxlen = self.settings['max_len_to_plot'])}
         self.data['voltage'] = list()
@@ -80,7 +84,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         sample_rate = float(1) / self.settings['integration_time']
      #   self.instruments['daq']['instance'].settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
         # ER 20190325
-        daq.settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
+        self.daq.settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
         #  print('setting sample rate')
 
         self.last_value = 0
@@ -92,7 +96,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
      #   print(('here', self.instruments['daq']))
 
       #  task = self.instruments['daq']['instance'].setup_AI(self.settings['ai_channel'], sample_num, continuous =True)
-        task = daq.setup_AI(self.settings['ai_channel'], sample_num, continuous =True) # ER 20190325
+        task = self.daq.setup_AI(self.settings['ai_channel'], sample_num, continuous =True) # ER 20190325
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
@@ -101,7 +105,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         # start counter and scanning sequence
         #self.instruments['daq']['instance'].run(task)
         # ER 20190325
-        daq.run(task)
+        self.daq.run(task)
 
         sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
@@ -112,7 +116,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
           #  raw_data, num_read = self.instruments['daq']['instance'].read(task)
-            raw_data, num_read = daq.read(task) # ER 20190325
+            raw_data, num_read = self.daq.read(task) # ER 20190325
             for value in raw_data:
                 self.data_to_plot['voltage'].append(float(value))
                 self.data['voltage'].append(float(value))
@@ -129,7 +133,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
 
         # clean up APD tasks
         #self.instruments['daq']['instance'].stop(task)
-        daq.stop(task) # ER 20190325
+        self.daq.stop(task) # ER 20190325
 
         self.data_to_plot['voltage'] = list(self.data_to_plot['voltage'])
 

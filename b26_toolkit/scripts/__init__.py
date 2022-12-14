@@ -19,6 +19,8 @@
 # # from test_script import ScriptTest
 from .galvo_scan.galvo_scan import GalvoScan
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
+from .afm_scan import AFMScan
+#from ._afm_scan_classic import AFMScanClassic
 from .set_laser import SetLaser, SetAtto
 from .find_nv import FindNV
 from .daq_read_counter import Daq_Read_Counter

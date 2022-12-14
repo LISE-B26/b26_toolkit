@@ -131,6 +131,19 @@ class GalvoScanGeneric(Script):
         """
         self.before_scan()
 
+        ## catching the errror this way does not work
+        if self.settings["time_per_pt"] < self.settings["settle_time"]:
+            self.log('time per point !> settle time!')
+            raise AttributeError
+
+        _modt = self.settings["time_per_pt"]%self.settings["settle_time"]
+
+        #if (abs(_modt) >= 0.001) or (abs(self.settings["settle_time"] - _modt) >= 0.001):
+        #    self.log('time per point needs to be multiple of settle time')
+        #    raise AttributeError
+        ############################
+
+
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
 
@@ -164,7 +177,7 @@ class GalvoScanGeneric(Script):
             if self._ACQ_TYPE == 'line':
                 if self._abort:
                     break
-
+                self.y_current = self.y_array[yNum]
                 line_data = self.read_line_wrapper(self.y_array[yNum])
                 #line_data = self.read_line(self.y_array[yNum])
 
@@ -198,19 +211,20 @@ class GalvoScanGeneric(Script):
 
         # set point after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':
+            print("finished galvo loop")
             return
         elif self.settings['ending_behavior'] == 'return_to_start':
             self.set_galvo_location(initial_position)
         elif self.settings['ending_behavior'] == 'return_to_origin':
             self.set_galvo_location([0,0])
 
-    def get_galvo_location(self):
-        """
-        returns the current position of the galvo
-        Returns: list with two floats, which give the x and y position of the galvo mirror
-        """
-        raise NotImplementedError
-        return galvo_position
+    #def get_galvo_location(self):
+    #    """
+    #    returns the current position of the galvo
+    #    Returns: list with two floats, which give the x and y position of the galvo mirror
+    #    """
+    #    raise NotImplementedError
+    #    return galvo_position
 
     def set_galvo_location(self, galvo_position):
         """

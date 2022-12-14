@@ -53,9 +53,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                       Parameter('ai_channel', 'ai4', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'channel to use for photodiode 2, cant be the same as the track_laser_power photodiode')
                   ])
     ]
-
-    _INSTRUMENTS = {'daq': NI9402}
-
+    _INSTRUMENTS = {'daq': NI6229}
     _SCRIPTS = {
     }
 
@@ -70,7 +68,6 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                         log_function=log_function, data_path=data_path)
 
         self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
-
 
     def _function(self):
         """
