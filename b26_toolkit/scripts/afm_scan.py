@@ -53,7 +53,7 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
                   [Parameter('x', 1.0, float, 'x-coordinate'),
                    Parameter('y', 1.0, float, 'y-coordinate')
                    ]),
-        Parameter('RoI_mode', 'center', ['corner', 'center'], 'mode to calculate region of interest.\n \
+        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
                                                            corner: pta and ptb are diagonal corners of rectangle.\n \
                                                            center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
@@ -166,19 +166,18 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
             print("last line: %i"%linenumber)
             if linenumber%2 !=0:
                 isinstance(self.x_array,np.ndarray)
-                self._x_array = self.x_array[::-1]
+                x_end = self.x_array[0]
             else:
-                self._x_array = self.x_array
+                x_end = self.x_array[-1]
 
         elif self.settings['scanning_pattern']=='book':
-            self._x_array = self.x_array
+            x_end = self.x_array[0]
 
         else:
             raise Exception('scanning pattern not valid')
 
         # drive back home along x
-        print(self._x_array)
-        x = np.linspace(self._x_array[-1],self.settings['point_a']['x']/self.scale(), 10)
+        x = np.linspace(x_end,self.settings['point_a']['x']/self.scale(), 10)
         x = np.repeat(x, self.clockAdjust)
         print('x')
         print(x)
