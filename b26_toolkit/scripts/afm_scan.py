@@ -15,12 +15,14 @@
     You should have received a copy of the GNU General Public License
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+import time
 
 import numpy as np
 
 from b26_toolkit.instruments import NI6229, NI6259, NI9263, NI9402
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
+from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 
 '''
 FG: file copied from galvo_scan_photodiode.py and modified to work as AFM scanning script for B22 scanning probe setup
@@ -63,15 +65,16 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         Parameter('time_per_pt', .002,float, 'time in s to measure at each point'),
         Parameter('settle_time', .002,float, 'wait time between points to allow galvo to settle'),
         Parameter('scanning_pattern','book',['book','meander'],'how to read the x lines, meander:alternating, book: left to right'),
+        Parameter('speed_limit [V/s]',1,float,'speed at which the probe is moved to start'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         Parameter('DAQ_channels',
-                   [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
-                    Parameter('y_ao_channel', 'ao1', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
+                   [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+                    Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'], 'Daq channel counter to use as a clock for ao and ai'),
-                    Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3'], 'Daq channel used for photodiode voltage')
+                    Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3'], 'Daq channel used for photodiode voltage')
                   ]),
         #Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn'),
-        Parameter('ending_behavior', 'leave_at_corner', ['leave_at_corner'], 'return to the corn'),
+        Parameter('ending_behavior', 'leave_at_b', ['leave_at_b','return_to_a'], 'return to the corn'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
@@ -107,7 +110,6 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         #     self.daq_in = self.instruments['NI9402']['instance']
         #     self.daq_out = self.instruments['NI9263']['instance']
 
-
     def setup_scan(self):
         """
         setup the scan, i.e. identify the instruments and set up sample rate and such
@@ -115,7 +117,6 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
 
         :return:
         """
-
 
         # ER commented out 20181221 - still need to merge daq code with other scripts correctly
 
@@ -153,59 +154,141 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         self.daq_in.settings['analog_input'][
             self.settings['DAQ_channels']['ai_channel']]['sample_rate'] = sample_rate
 
+    def _read_current_position(self):
+        """
+        reads the current position in nanomax units
+        used BNC cables to connected AO2/3 with AI2/3
+        :return:
+        """
+        n_samples=10
+        # initlize ai2
+        ai2task = self.instruments['daq']['instance'].setup_AI(
+            channel='ai2',num_samples_to_acquire=n_samples, continuous =False, clk_source="")
+        ai3task = self.instruments['daq']['instance'].setup_AI(
+            channel='ai3',num_samples_to_acquire=n_samples, continuous =False, clk_source="")
+
+        # read AI2 values
+        self.daq_in.run(ai2task)
+        x_values, _ = self.daq_in.read(ai2task) # read the ai data for this scan
+        self.daq_in.stop(ai2task)
+
+        # read AI3 values
+        self.daq_in.run(ai3task)
+        y_values, _ = self.daq_in.read(ai3task) # read the ai data for this scan
+        self.daq_in.stop(ai3task)
+
+        # overwrites the current position values in nanomax units
+        self.x_current = np.mean(x_values)*self.scale()
+        self.y_current = np.mean(y_values)*self.scale()
+
+        self.log("current pos: (%.2f, %.2f)" %(self.x_current,self.y_current))
+        return True
+
+    def move_probe(self,a: list, b: list) -> bool:
+        """
+        moving probe from a to b
+        :param a: coordinates of point (nanomax units) a (vector like)
+        :param b: coordinates of point (nanomax units) a (vektor like)
+        :return: True
+        """
+        assert len(a)==len(b)==2
+        # make sure values are in bounds
+        for i in range(2):
+            if a[i]>10*self.scale():
+                a[i]=10.*self.scale()
+            if a[i]<0:
+                a[i]=0.
+            if b[i]>10*self.scale():
+                b[i]=10.*self.scale()
+            if b[i]<0:
+                b[i]=0.
+        # set output sample rate to 1000
+        self.daq_out.settings['analog_output'][
+            self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = 1000
+        self.daq_out.settings['analog_output'][
+            self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = 1000
+        # generate drive home path r1 -> r2
+        step_size = self.settings['speed_limit [V/s]']/1000
+        # setup_AO crashes if the length of the waveform is 1!!
+        x_steps = int(abs(a[0]-b[0])/step_size)+2
+        y_steps = int(abs(a[1]-b[1])/step_size)+2
+        x_path = np.linspace(a[0],b[0],x_steps)/self.scale()
+        y_path = np.linspace(a[1],b[1],y_steps)/self.scale()
+
+        assert min(x_path)>=0
+        assert max(x_path)<=10.
+        assert min(y_path)>=0
+        assert max(y_path)<=10.
+
+        # setup daq tasks
+        # moving along x
+        aox = self.daq_out.setup_AO(
+            channels=[self.settings['DAQ_channels']['x_ao_channel']],
+            waveform=x_path,
+            clk_source="")
+        self.log('moving along x ...')
+        self.daq_out.run(aox)
+        time.sleep(x_steps/1000)
+        self.daq_out.stop(aox)
+
+        # moving along y
+        aoy = self.daq_out.setup_AO(
+            channels=[self.settings['DAQ_channels']['y_ao_channel']],
+            waveform=y_path,
+            clk_source="")
+        self.log('moving along y ...')
+        self.daq_out.run(aoy)
+        time.sleep(y_steps/1000)
+        self.daq_out.stop(aoy)
+
+        self.log("arrived at (%.2f, %.2f)"%(b[0],b[1]))
+
+    def before_scan(self):
+        """
+         move the AFM tip from current position, gently to the starting postion of the scan
+        :return:
+        """
+        self.x_array = None
+        self.setup_scan()
+        self._read_current_position()
+        ax = self.x_current
+        ay = self.y_current
+        bx = self.settings['point_a']['x']
+        by = self.settings['point_a']['y']
+        self.move_probe([ax, ay], [bx, by])
+
     def after_scan(self):
         """
         depending on the scanning pattern the path back to the start is different
         :return:
         """
-        print('point a x')
-        print(self.settings['point_a']['x'])
-        if self.settings['scanning_pattern']=='meander':
-            # reverse direction
-            linenumber = self.settings['num_points']['y'] - 1
-            print("last line: %i"%linenumber)
-            if linenumber%2 !=0:
-                isinstance(self.x_array,np.ndarray)
-                x_end = self.x_array[0]
-            else:
-                x_end = self.x_array[-1]
+        #if self.settings['ending_behavior']=='leave_at_b':
+        #    self.log('probe at point b')
+        #elif self.settings['ending_behavior']=='return_to_a':
+        #    # depending on the scan pattern the
+        #    if self.settings['scanning_pattern']=='meander':
+        #        # reverse direction
+        #        linenumber = self.settings['num_points']['y'] - 1
+        #        print("last line: %i"%linenumber)
+        #        if linenumber%2 !=0:
+        #            isinstance(self.x_array,np.ndarray)
+        #            x_end = self.x_array[0]
+        #        else:
+        #            x_end = self.x_array[-1]
 
-        elif self.settings['scanning_pattern']=='book':
-            x_end = self.x_array[0]
+        #    elif self.settings['scanning_pattern']=='book':
+        #        x_end = self.x_array[0]
 
-        else:
-            raise Exception('scanning pattern not valid')
+        #    else:
+        #        raise Exception('scanning pattern not valid')
 
-        # drive back home along x
-        x = np.linspace(x_end,self.settings['point_a']['x']/self.scale(), 10)
-        x = np.repeat(x, self.clockAdjust)
-        print('x')
-        print(x)
-        clktask = self.daq_in.setup_clock(
-            self.settings['DAQ_channels']['counter_channel'],len(x) + 1)
-        aotask = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel']],x, clktask)
-        self.daq_out.run(aotask)
-        self.log('moving back to start along x')
-        self.daq_in.run(clktask)
-        self.daq_out.waitToFinish(aotask)
-        self.daq_out.stop(aotask)
-        self.daq_in.stop(clktask)
-
-        print(self.y_current)
-        y = np.linspace(self.y_current,self.settings['point_a']['y']/self.scale(), 10)
-        y = np.repeat(y, self.clockAdjust)
-        print('y')
-        print(y)
-        clktask = self.daq_in.setup_clock(
-            self.settings['DAQ_channels']['counter_channel'],len(y) + 1)
-        aotask = self.daq_out.setup_AO([self.settings['DAQ_channels']['y_ao_channel']],y, clktask)
-        self.daq_out.run(aotask)
-        self.log('moving back to start along y')
-        self.daq_in.run(clktask)
-        self.daq_out.waitToFinish(aotask)
-        self.daq_out.stop(aotask)
-        self.daq_in.stop(clktask)
-        self.log("returned to start")
+        #    # drive back to point a
+        self._read_current_position()
+        ax = self.x_current
+        ay = self.y_current
+        bx = self.settings['point_a']['x']
+        by = self.settings['point_a']['y']
+        self.move_probe([ax, ay], [bx, by])
 
     def read_line(self, y_pos):
         if self.settings['scanning_pattern']=='meander':
@@ -339,9 +422,7 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         #  so when driving on the back, the motion is 2um/V = 2nm/mV
         # Nanomax scale:
         var = self.instruments
-        print(var)
-        #voltage_limit_x = int(self.instruments['daq']['analog_output'][])
-        #print(voltage_limit_x)
+        #print(var)
         # for NanoMax the Voltage limit is 75V
         voltage_limit = 75
         if voltage_limit == 75:
@@ -351,6 +432,27 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         elif voltage_limit == 150:
             scale = 15
         return scale
+
+    def _plot(self, axes_list, data = None):
+        """
+        Plots the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
+            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
+        """
+
+        if data is None:
+            data = self.data
+
+        plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
+
+    def _update_plot(self, axes_list):
+        """
+        updates the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+        """
+        update_fluorescence(self.data['image_data'], axes_list[0], self.settings['max_counts_plot'])
 
 if __name__ == '__main__':
     script, failed, instruments = Script.load_and_append(script_dict={'AFMScan': 'AFMScan'})

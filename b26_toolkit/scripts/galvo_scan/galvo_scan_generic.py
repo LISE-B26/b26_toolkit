@@ -114,7 +114,6 @@ class GalvoScanGeneric(Script):
         """
         pass
 
-
     def after_scan(self):
         """
         Runs something after finishing the scan.
@@ -123,7 +122,6 @@ class GalvoScanGeneric(Script):
 
         """
         pass
-
 
     def _function(self):
         """
@@ -232,7 +230,6 @@ class GalvoScanGeneric(Script):
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
         raise NotImplementedError
-
 
     def read_line_wrapper(self, y_pos):
         """
