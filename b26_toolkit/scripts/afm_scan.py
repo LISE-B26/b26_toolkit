@@ -17,6 +17,7 @@
 """
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from b26_toolkit.instruments import NI6229, NI6259, NI9263, NI9402
@@ -289,6 +290,9 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         bx = self.settings['point_a']['x']
         by = self.settings['point_a']['y']
         self.move_probe([ax, ay], [bx, by])
+
+
+        plt.imsave(r"C:\Users\Characterization\B26_scanning_probe\data\out/.png",image,cmap="Greys"))
 
     def read_line(self, y_pos):
         if self.settings['scanning_pattern']=='meander':
