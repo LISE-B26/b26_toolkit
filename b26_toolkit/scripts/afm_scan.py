@@ -291,8 +291,7 @@ class AFMScan(GalvoScanGeneric): # ER 20181221
         by = self.settings['point_a']['y']
         self.move_probe([ax, ay], [bx, by])
 
-
-        plt.imsave(r"C:\Users\Characterization\B26_scanning_probe\data\out/.png",image,cmap="Greys"))
+        #plt.imsave(r"C:\Users\Characterization\B26_scanning_probe\data\out/.png",image,cmap="Greys")
 
     def read_line(self, y_pos):
         if self.settings['scanning_pattern']=='meander':
