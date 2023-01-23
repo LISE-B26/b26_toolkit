@@ -25,19 +25,17 @@ class TemperatureController(Instrument):
     This class implements the Lakeshore Model 335 Temperature controller. The class communicates with the device over RS232 using pyserial.
     """
 
-
-    # ASCII Characters used for controller communication
-    ETX = chr(3)
-    CR = chr(13)
-    LF = chr(10)
-    ENQ = chr(5)
-    ACK = chr(6)
-    NAK = chr(21)
-
-    _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
+    #
+    # # ASCII Characters used for controller communication
+    # ETX = chr(3)
+    # CR = chr(13)
+    # LF = chr(10)
+    # ENQ = chr(5)
+    # ACK = chr(6)
+    # NAK = chr(21)
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
             Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
@@ -54,7 +52,7 @@ class TemperatureController(Instrument):
         """
         super(TemperatureController, self).__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
-                                               timeout=self.settings['timeout'], parity = serial.PARITY_ODD, bytesize=serial.SEVENBITS)
+                                               timeout=self.settings['timeout'], parity=serial.PARITY_ODD, bytesize=serial.SEVENBITS)
 
     @property
     def _PROBES(self):
@@ -88,6 +86,37 @@ class TemperatureController(Instrument):
             message = '\'{0}\' not found as a probe in the class. ' \
                       'Expected either \'pressure\', \'units\', or \'model\''.format(probe_name)
             raise AttributeError(message)
+
+    def _get_temperature(self):
+        """
+        Returns the pressure currently read by the guage controller.
+
+        :return: pressure
+        """
+        raise NotImplementedError
+
+    def is_connected(self):
+        """
+        checks if serial connection is still open with instrument.
+
+        :return: boolean connection status
+        """
+        return self.serial_connection.isOpen()
+
+    def __del__(self):
+        """
+        Destructor, to close the serial connection when the instance is this class is garbage collected
+        """
+        self.serial_connection.close()
+
+
+class LakeShore335(TemperatureController):
+    _DEFAULT_SETTINGS = Parameter([
+            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+                                             'from the gauge controller for each query'),
+            Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
+        ])
 
     def _get_temperature(self):
         """
@@ -144,19 +173,23 @@ class TemperatureController(Instrument):
 
         return temperatureA, temperatureB, response, heater_status
 
-    def is_connected(self):
-        """
-        checks if serial connection is still open with instrument.
 
-        :return: boolean connection status
-        """
-        return self.serial_connection.isOpen()
+class LakeShore211(TemperatureController):
+    _DEFAULT_SETTINGS = Parameter([
+            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+                                             'from the gauge controller for each query'),
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+        ])
 
-    def __del__(self):
-        """
-        Destructor, to close the serial connection when the instance is this class is garbage collected
-        """
-        self.serial_connection.close()
+    def _get_temperature(self):
+        assert self.serial_connection.isOpen()
+
+        self.serial_connection.write('KRDG?\r\n'.encode())
+
+        response = self.serial_connection.readline()
+
+        return float(response[1:7])
 
 if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})

@@ -26,7 +26,7 @@ from .maestro import MaestroLightControl
 from .attocube import ANC300, ANC350
 from .microwave_generator import MicrowaveGenerator, RFGenerator, MicrowaveGenerator2
 from .magnet_coils import MagnetCoils
-from .temperature_controller import TemperatureController
+from .temperature_controller import LakeShore335, LakeShore211
 from .montana import CryoStation
 from .newport_smc100 import SMC100
 from .afg import AFG3021C
