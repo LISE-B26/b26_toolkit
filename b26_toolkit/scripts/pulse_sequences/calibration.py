@@ -117,8 +117,8 @@ class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
                 pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + tau, meas_time)
+                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time, nv_reset_time),
+                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time + delay_readout + tau, meas_time)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
@@ -237,7 +237,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         laser_off_time = self.settings['read_out']['laser_off_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
         pi_time = self.settings['mw_pulse']['pi_time']
-        meas_time = 100
+        meas_time = 1
 
         for tau in tau_list:
             pulse_sequence = \
@@ -249,8 +249,8 @@ class ReadoutDuration(PulsedExperimentBaseScript):
                 pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout,
+                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time, nv_reset_time),
+                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + pi_time,
                       tau)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)

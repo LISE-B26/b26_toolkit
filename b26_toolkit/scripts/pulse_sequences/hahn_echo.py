@@ -43,7 +43,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('tau_times', [
             Parameter('min_time', 500, float, 'minimum time between pi pulses'),
             Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
-            Parameter('time_step', 5, [2.5, 5, 10, 20, 40, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 100000, 500000],
+            Parameter('time_step', 5., [2.5, 5., 10., 20., 40., 50., 100., 200., 500., 1000., 2000., 5000., 10000., 100000., 500000.],
                   'time step increment of time between pi pulses (in ns)')
         ]),
         Parameter('read_out', [

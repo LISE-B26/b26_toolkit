@@ -39,7 +39,7 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for T1 (in ns)'),
             Parameter('max_time', 200, float, 'total time for T1 (in ns)'),
-            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000],
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000, 1000000, 5000000],
                       'time step increment of readout pulse duration (in ns)')
         ]),
         Parameter('read_out', [

@@ -414,7 +414,13 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         if data is None:
             data = self.data
 
-        for signal in [data['counts']]: #, data['ai']]: ER 20190130
+        if self.settings['counter_only']:
+            plotting_data = data['counts']
+        else:
+            plotting_data = data['ai']
+
+
+        for signal in [plotting_data]: #ER 20190130
             if len(signal) > 0:
                 # 20191105 ER get rid of normalization
                 #plot_counts(axes_list[0], signal/np.mean(signal))
@@ -463,7 +469,7 @@ class Daq_TimeTrace_NI6259_PD(Daq_TimeTrace_NI9402_NI9219): # ER 20200731
         #        # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
         #         plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
 
-        for signal in [data['ai']]:
+        for signal in data['ai']:
             if len(signal) > 0:
                 # 20191105 ER get rid of normalization
                 #plot_counts(axes_list[0], signal/np.mean(signal))

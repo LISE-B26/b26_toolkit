@@ -45,7 +45,8 @@ class MicrowaveGenerator(Instrument):
         Parameter('modulation_function', 'External', ['Sine', 'Ramp', 'Triangle', 'Square', 'Noise', 'External'],
                   'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
         Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'], 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
-        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM')
+        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM Hz'),
+        # Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
     ])
 
     def __init__(self, name=None, settings=None):

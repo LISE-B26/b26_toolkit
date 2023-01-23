@@ -165,6 +165,8 @@ for a given experiment
                 self.log('Could not find an NV in FindNV.')
                 self._abort = True
                 return  # exit function in case no NV is found
+            # elif self.settings['Tracking']['adaptive_track']:
+            #     self.curr_fluor = self.scripts['find_nv'].data['fluorescence']
 
         self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
         for average_loop in range(int(num_1E5_avg_pb_programs)):
@@ -348,11 +350,11 @@ for a given experiment
 
             if self.settings['normalize_block']:
 
-                result = [1,result[1]/result[0]]
+                result = [1, result[1] / result[0]]
 
                 # do the averaging with existing data
-                self.count_data[rand_index] = (self.count_data[rand_index] * self.current_averages + np.array(result) * num_loops_sweep)\
-                                              /(self.current_averages + num_loops_sweep)
+                self.count_data[rand_index] = (self.count_data[rand_index] * (self.current_averages - num_loops_sweep) + np.array(result) * num_loops_sweep)\
+                                              /(self.current_averages)
                 self.data['counts'][rand_index] = self.count_data[rand_index]
 
             else:
