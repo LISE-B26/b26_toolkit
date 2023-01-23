@@ -43,7 +43,7 @@ class GalvoScanZI3D(Script):
             z_driver.position = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+            self.log('Requested value not permitted. Did not set value to {:0.3f} um'.format(position))
 
     def plot(self, figure_list):
         self.scripts['galvoscanZI'].plot(figure_list)

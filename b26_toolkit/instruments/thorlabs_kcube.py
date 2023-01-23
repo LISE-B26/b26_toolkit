@@ -313,7 +313,7 @@ class B26KDC001x(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27501971, int, 'serial number written on device'),
+        Parameter('serial_number', 27002905, int, 'serial number written on device'),
         Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
@@ -322,7 +322,7 @@ class B26KDC001x(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 25.
+        self.max_pos = 14.5
         self.min_pos = 0.
         super(B26KDC001x, self).__init__()
 
@@ -334,7 +334,7 @@ class B26KDC001x(KDC001):
         '''
 
         # check if safety limits are met
-        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+        if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
             super(B26KDC001x, self).set_position(self)
         else:
             print('didnt make the safety cut! doing nothing')
@@ -347,8 +347,8 @@ class B26KDC001y(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27501986, int, 'serial number written on device'),
-        Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
+        Parameter('serial_number', 27501971, int, 'serial number written on device'),
+        Parameter('position', 25.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
     ])
@@ -356,7 +356,7 @@ class B26KDC001y(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 19.7
+        self.max_pos = 25
         self.min_pos = 0.
         super(B26KDC001y, self).__init__()
 
@@ -368,7 +368,7 @@ class B26KDC001y(KDC001):
         '''
 
         # check if safety limits are met
-        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+        if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
             super(B26KDC001y, self).set_position(self)
         else:
             print('didnt make the safety cut! doing nothing')
@@ -390,7 +390,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos =  21.51 # for mal/warm1, MM 20190813
+        self.max_pos = 25  # for mal/warm1, MM 20190813
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 
@@ -402,7 +402,7 @@ class B26KDC001z(KDC001):
         '''
 
         # check if safety limits are met
-        if self.settings['position'] < self.max_pos and self.settings['position'] > self.min_pos:
+        if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
             super(B26KDC001z, self).set_position(self)
         else:
             print('didnt make the safety cut! doing nothing')
@@ -412,9 +412,9 @@ if __name__ == '__main__':
     a = B26KDC001x()
     b = B26KDC001y()
     c = B26KDC001z()
-    a.home()
-    b.home()
-    c.home()
+    #a.home()
+    #b.home()
+    #c.home()
 
   #  a.set_velocity()
  #   a.set_position()

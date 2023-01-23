@@ -24,7 +24,7 @@ from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 
 
-class Rabi(PulsedExperimentBaseScript): # ER 5.25.2017
+class Rabi(PulsedExperimentBaseScript):  # ER 5.25.2017
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi oscillations.
 Uses a double_init scheme
@@ -174,6 +174,78 @@ Uses a double_init scheme
             super(Rabi, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
+
+class RabiDoublePi(Rabi):
+    """
+    Runs Rabi, but instead of sweeping the duration of a single MW pulse, sweeps the duration of two back to back MW
+    pulses with same durations. Used to calibrate pulses such that two pi pulses bring the Bloch vector back to the
+    original state
+    """
+
+    def _create_pulse_sequences(self):
+        """
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        """
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+       # tau_list = list(range(int(self.settings['tau_times']['min_time']),
+                            #  int(self.settings['tau_times']['max_time']),
+                            #  self.settings['tau_times']['time_step']))
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+
+        #MM: update 15 to min_pulse_duration
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
+                              Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time)]
+
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time,
+                                            tau))
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            laser_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2*40,
+                                            tau))
+
+            pulse_sequence.append(Pulse('laser',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + tau + 2*40 + delay_mw_readout,
+                                        nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + tau + 2*40 + delay_mw_readout + delay_readout,
+                                        meas_time))
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
 
 class RabiPowerSweepSingleTau(PulsedExperimentBaseScript):
     """

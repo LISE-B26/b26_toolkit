@@ -17,13 +17,16 @@
 """
 import numpy as np
 import time
-from b26_toolkit.instruments import ANC300, ANC350
+from b26_toolkit.instruments import ANC300, ANC350, PiezoController, NI6259, NI9263, NI9402
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter, Daq_Read_Counter_NI6259
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts import FindNV, ESR_simple
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
+from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+from b26_toolkit.data_analysis.nv_optical_response import B_field_from_esr
+
 
 class AttoStep(Script):
     _DEFAULT_SETTINGS = [
@@ -49,6 +52,7 @@ class AttoStep(Script):
 
 
 class AttoStepXY(AttoStep):
+    # Constrains Attostep so that only X & Y moves
     _DEFAULT_SETTINGS = [
         Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
         Parameter('num_steps', [
@@ -112,6 +116,7 @@ class AttoScanOpenLoop(Script):
 
     def _update_plot(self, axes_list):
         update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
+
 
 class AttoScanOpenLoopTrackNI6259(Script):
 
@@ -184,6 +189,7 @@ class AttoScanOpenLoopTrackNI6259(Script):
 
     def _update_plot(self, axes_list):
         update_counts_vs_pos(axes_list[0], self.data['counts'], self.data['positions'][:len(self.data['counts'])])
+
 
 class AttoScanOpenLoop2D(Script):
     _DEFAULT_SETTINGS = [
@@ -259,6 +265,8 @@ class AttoScanOpenLoop2D(Script):
 
 
 class AttoScanClosedLoop(Script):
+
+    # 20211012 FF: Not finished
     _DEFAULT_SETTINGS = [
         Parameter('scan_axis', 'x', ['x', 'y'], 'axis to scan on'),
         Parameter('direction', 'positive', ['positive', 'negative'], 'direction to scan'),
@@ -410,6 +418,322 @@ class AttoScanClosedLoop2D(Script):
 
     def _update_plot(self, axes_list):
         update_fluorescence(self.data['counts'], axes_list[0])
+
+
+class AttoScanDigitalGeneric(Script):
+
+    ''''
+
+    FF 20211012
+
+    Base script for taking measurements while scanning Attocube. This uses the piezo controller which applies a DC
+    voltage to the attocube in the fine positioning mode.
+
+    '''
+
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+                                               corner: pta and ptb are diagonal corners of rectangle.\n \
+                                               center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 5, int, 'number of x points to scan'),
+                   Parameter('y', 5, int, 'number of y points to scan')
+                   ]),
+        Parameter('Tracking', [
+            Parameter('on/off', True, bool, 'used to turn on tracking')]),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn')
+    ]
+
+    _INSTRUMENTS = {'piezo_controller': PiezoController}
+
+    def _function(self):
+
+        try:
+            self.setup_scan()
+        except AttributeError:
+            return
+
+        self.data = {'point_value': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
+                     'extent': self.pts_to_extent(self.settings['point_a'], self.settings['point_b'],
+                                                 self.settings['RoI_mode'])}
+        [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
+        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
+        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
+
+        # Check if there are negative voltages in the scan range
+        negative_voltage_err = 'Piezo voltage cannot be < 0 V'
+        if np.any(self.x_array < 0):
+            raise ValueError(negative_voltage_err)
+        elif np.any(self.y_array < 0):
+            raise ValueError(negative_voltage_err)
+
+        self.x_array = self.x_array.tolist()
+        self.y_array = self.y_array.tolist()
+
+        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
+        self.data['actual_Vx'] = np.zeros(Nx * Ny)
+        self.data['actual_Vy'] = np.zeros(Nx * Ny)
+
+        for yNum in range(0, Ny):
+
+            for xNum in range(0, Nx):
+                if self._abort:
+                    break
+
+                self.move_piezo(self.x_array[xNum], self.y_array[yNum])
+                #self.data['actual_Vx'][yNum*Nx+xNum], self.data['actual_Vy'][yNum*Nx+xNum] = self.read_piezo()
+
+                if self.settings['Tracking']['on/off']:
+                    # track to the NV
+                    self.scripts['find_nv'].run()
+
+                point_value = self.read_point()
+                self.data['point_value'][yNum, xNum] = point_value
+
+                self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
+
+                print(('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny,
+                                                                             self.progress)))
+
+                self.updateProgress.emit(int(self.progress))
+
+        # set end position after scan based on ending_behavior setting
+        if self.settings['ending_behavior'] == 'leave_at_corner':
+            return
+        elif self.settings['ending_behavior'] == 'return_to_start':
+            self.move_piezo(self.settings['point_a']['x'], self.settings['point_a']['y'])
+        elif self.settings['ending_behavior'] == 'return_to_origin':
+            self.move_piezo(0, 0)
+
+    def setup_scan(self):
+        raise NotImplementedError
+
+    def move_piezo(self, x, y):
+        piezo = self.instruments['piezo_controller']['instance']
+
+        piezo.axis = 'x'
+        piezo.voltage = x
+
+        piezo.axis = 'y'
+        piezo.voltage = y
+
+    def read_piezo(self):
+        piezo = self.instruments['piezo_controller']['instance']
+
+        piezo.axis = 'x'
+        x_posn = piezo.read_probes('voltage')
+
+        piezo.axis = 'y'
+        y_posn = piezo.read_probes('voltage')
+
+        return x_posn, y_posn
+
+    def read_point(self):
+        """
+        Replace this with some data-taking script, e.g. read the counts (to perform a galvoscan with the attocubes
+        instead) or take ESR (for a 2D scan of B field)
+        Returns: measured value at given pt, with other data that won't be plotted (e.g. for ESRs, we want to plot
+        only the on-axis field, and save but not plot the off-axis field)
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def pts_to_extent(pta, ptb, roi_mode):
+        """
+
+        Args:
+            pta: point a
+            ptb: point b
+            roi_mode:   mode how to calculate region of interest
+                        corner: pta and ptb are diagonal corners of rectangle.
+                        center: pta is center and ptb is extend or rectangle
+
+        Returns: extend of region of interest [xVmin, xVmax, yVmax, yVmin]
+
+        """
+        if roi_mode == 'corner':
+            xVmin = min(pta['x'], ptb['x'])
+            xVmax = max(pta['x'], ptb['x'])
+            yVmin = min(pta['y'], ptb['y'])
+            yVmax = max(pta['y'], ptb['y'])
+        elif roi_mode == 'center':
+            xVmin = pta['x'] - float(ptb['x']) / 2.
+            xVmax = pta['x'] + float(ptb['x']) / 2.
+            yVmin = pta['y'] - float(ptb['y']) / 2.
+            yVmax = pta['y'] + float(ptb['y']) / 2.
+        return [xVmin, xVmax, yVmax, yVmin]
+
+    def _plot(self, axes_list, data = None):
+        """
+        Plots the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot the galvo scan on the first axes object
+            data: data (dictionary that contains keys image_data, extent) if not provided use self.data
+        """
+
+        if data is None:
+            data = self.data
+        label = ['B field scan w/ Attocube', r'V$_x$ [V]', r'V$_y$ [V]', 'On-axis field (G)']
+        plot_fluorescence_new(data['point_value'], data['extent'], axes_list[0], max_counts=-1, labels=label)
+
+    def _update_plot(self, axes_list):
+        """
+        updates the galvo scan image
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+        """
+        update_fluorescence(self.data['point_value'], axes_list[0], -1)
+
+class AttoScanDigitalESR(AttoScanDigitalGeneric):
+    _DEFAULT_SETTINGS = [
+        Parameter('zero_field_splitting', 2.8707e9, float, 'Dip in ESR with no external B field applied'),
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+                                                   corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                   center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 5, int, 'number of x points to scan'),
+                   Parameter('y', 5, int, 'number of y points to scan')
+                   ]),
+        Parameter('Tracking', [
+            Parameter('on/off', True, bool, 'used to turn on tracking')]),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn')
+    ]
+
+    _SCRIPTS = {'find_nv': FindNV, 'ESR_simple': ESR_simple}
+    _INSTRUMENTS = {'piezo_controller': PiezoController}
+
+    def read_point(self):
+        """
+        Take ESR (for a 2D scan of B field)
+        Returns: measured value at given pt, with other data that won't be plotted
+        """
+
+        self.scripts['ESR_simple'].run()
+        point_data = self.scripts['ESR_simple'].data['fit_params']
+        if point_data is None or len(point_data) == 4:
+            point_value = 0
+        else:
+            fp = point_data[5]
+            fn = point_data[4]
+            point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
+                                           gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
+
+        return point_value
+
+    def setup_scan(self):
+        return
+
+
+class AttoScanDigitalCounts(AttoScanDigitalGeneric):
+
+    # UNTESTED
+    # Use AttoScanAO instead, it is much faster and tested many times
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+                                                   corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                   center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 5, int, 'number of x points to scan'),
+                   Parameter('y', 5, int, 'number of y points to scan')
+                   ]),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .1],
+                  'time in s to measure at each point'),
+        Parameter('settle_time', .0002, [.0002, .0005], 'wait time between points to allow galvo to settle'),
+        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('DAQ_channels',
+                  [Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'],
+                             'Daq channel used for counter')
+                   ]),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn'),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn'),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('Tracking', [
+            Parameter('on/off', True, bool, 'used to turn on tracking')])
+    ]
+
+    _SCRIPTS = {'find_nv': FindNV, 'ESR_simple': ESR_simple}
+    _INSTRUMENTS = {'piezo_controller': PiezoController, 'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402}
+
+    def setup_scan(self):
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            #self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            #self.daq_out = self.instruments['NI9263']['instance']
+
+        # checks that requested daqs are actually physically present in the system
+        device_list = NI6259.get_connected_devices()
+        if not (self.daq_in.settings['device'] in device_list):
+            self.log('The requested input daq ' + self.daq_in.settings[
+                'device'] + ' is not connected to this computer. Possible daqs are '
+                     + str(device_list) + '. Please choose one of these and try again.')
+            raise AttributeError
+
+        # Set up the array for reading out the counts at a certain location
+        # Array will be filled like this: [cts0, cts1, cts2, etc]
+        # cts0 will be for counts from the settling time and will be discarded eventually
+        # cts1 onward will be the actual counts. The time spent on filling cts1 onward should add up to the time_per_pt
+        # We will read out the counts with a sampling rate given by settling_rate, and the array length will be:
+        # (settling_time + time/pt)/(settling_time)
+
+        # Should add sth here asserting that (time/pt+settle_time)/settle_time is an integer (divisible)
+        self.clockAdjust = int(
+            (self.settings['time_per_pt'] + self.settings['settle_time']) / self.settings['settle_time'])
+
+        sample_rate = float(1) / self.settings['settle_time']
+        self.daq_in.settings['digital_input'][
+            self.settings['DAQ_channels']['counter_channel']]['sample_rate'] = sample_rate
+
+    def read_point(self):
+        """
+        Take ESR (for a 2D scan of B field)
+        Returns: measured value at given pt, with other data that won't be plotted
+        """
+
+        # initialize APD thread
+        ctrtask = self.daq_in.setup_counter(
+            self.settings['DAQ_channels']['counter_channel'],
+            self.clockAdjust + 1)
+
+        # start counter and scanning sequence
+        self.daq_in.run(ctrtask)
+        countsData, _ = self.daq_in.read(ctrtask)
+        print(countsData)
+        self.daq_in.stop(ctrtask)
+
+        point_value = (countsData[-1]-countsData[0]) * 0.001 / self.settings['time_per_pt']
+
+        return point_value
 
 
 if __name__ == '__main__':

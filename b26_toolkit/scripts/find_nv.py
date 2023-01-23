@@ -42,12 +42,15 @@ Known issues:
                   [Parameter('x', 0, float, 'x-coordinate'),
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
-        Parameter('sweep_range', .03, float, 'voltage range to sweep over to find a max'),
-        Parameter('num_points', 61, int, 'number of points to sweep in the sweep range'),
+        Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
+        Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
-        Parameter('min_mass', 180, int, 'TEMP: brightness of nv - need to be refined!!'),
-        Parameter('number_of_attempts', 1, int, 'Number of times to decrease min_mass if an NV is not found'),
-        Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than ')
+        Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
+        Parameter('number_of_attempts', 5, int, 'Number of times to decrease min_mass if an NV is not found'),
+        Parameter('center_on_current_location', False, bool, 'check to use current galvo location rather than initial pt'),
+        Parameter('pick_brightest_pt', True, bool, 'check to simply set_laser on the brightess point in the scan, '
+                                                    'otherwise run a fitting algorithm to determine the center'),
+        Parameter('adjust_laser', True, bool, 'set laser spot on NV location')
     ]
 
     _INSTRUMENTS = {}
@@ -114,47 +117,56 @@ Known issues:
         self.scripts['take_image'].update({'RoI_mode': 'center'})
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
 
-        self.scripts['take_image'].run()
+        self.scripts['take_image'].run(verbose=False)
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
-        while True: # modified ER 5/27/2017 to implement tracking
-            locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
-            po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
-            if len(locate_info) == 0:
-                self.data['maximum_point'] = {'x': float(po[0]), 'y': float(po[1])}
-            else:
 
-                # all the points that have been identified as valid NV centers
-                pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
-                       locate_info[['x', 'y']].as_matrix()]
-                #print(pts)
-                if len(pts) > 1:
-                    self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
-                # pick the one that is closest to the original one
-                pm = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
-                self.data['maximum_point'] = {'x': float(pm[0]), 'y': float(pm[1])}
-                counter = 0
-                for p in pts: # record maximum counts = fluorescence
-                    if p[1] == self.data['maximum_point']['y']:
-                        self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
-                        print('fluorescence of the NV, kCps:')
-                        print((self.data['fluorescence']))
-                        counter += 1
-                break
+        if self.settings['pick_brightest_pt']:
+            brightest_pt = np.unravel_index(self.data['image_data'].argmax(), self.data['image_data'].shape)
+            brightest_pt = brightest_pt[::-1]
+            brightest_pt = pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
+            self.data['maximum_point'] = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
+        else:
+            while True: # modified ER 5/27/2017 to implement tracking
+                locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
+                po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
+                if len(locate_info) == 0:
+                    self.data['maximum_point'] = {'x': float(po[0]), 'y': float(po[1])}
+                else:
 
-            if attempt_num <= self.settings['number_of_attempts'] and min_mass_adjustment(min_mass) > 0: # ER 20181219
-                self.log('changing the minimum mass from: {:d}'.format(min_mass))
-                self.log('to: {:d}'.format(min_mass_adjustment(min_mass)))
-                min_mass = min_mass_adjustment(min_mass)
-                attempt_num += 1
-            else:
-                self.log('FindNV did not find an NV --- setting laser to initial point instead, setting fluorescence to zero')
-                self.data['fluorescence'] = 0.0
-                break
+                    # all the points that have been identified as valid NV centers
+                    pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
+                           locate_info[['x', 'y']].as_matrix()]
 
-        self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
-        self.scripts['set_laser'].run()
+                    if len(pts) > 1:
+                        self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
+                    # pick the one that is closest to the original one
+                    pm = pts[np.argmin(np.array([np.linalg.norm(p - np.array(po)) for p in pts]))]
+                    self.data['maximum_point'] = {'x': float(pm[0]), 'y': float(pm[1])}
+                    counter = 0
+                    for p in pts: # record maximum counts = fluorescence
+                        if p[1] == self.data['maximum_point']['y']:
+                            self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
+                            print('fluorescence of the NV, kCps: %i' % self.data['fluorescence'][0])
+                            counter += 1
+                    break
+
+                if attempt_num <= self.settings['number_of_attempts'] and min_mass_adjustment(min_mass) > 0: # ER 20181219
+                    self.log('Changing the minimum mass from: {:d}'.format(min_mass))
+                    self.log('to: {:d}'.format(min_mass_adjustment(min_mass)))
+                    min_mass = min_mass_adjustment(min_mass)
+                    attempt_num += 1
+                else:
+                    self.log('FindNV did not find an NV --- setting laser to initial point instead, setting fluorescence to zero')
+                    self.data['fluorescence'] = 0.0
+                    break
+
+        self.log('Max fluorescence found: %i kcounts/s' % np.max(self.data['image_data']))
+
+        if self.settings['adjust_laser']:
+            self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
+            self.scripts['set_laser'].run(verbose=False)
 
 
     @staticmethod

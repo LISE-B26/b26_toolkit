@@ -95,6 +95,7 @@ class PiezoController(Instrument):
         return {
             'voltage': 'the voltage on the current channel',
             'voltage_limit': 'the maximum voltage that can be applied to the channel. must be physically switched on the back of the controller.',
+            'id': 'product header and firmware version'
         }
 
     def read_probes(self, key):
@@ -118,6 +119,10 @@ class PiezoController(Instrument):
             self.ser.write(('vlimit?\r').encode())
             vlimit = self.ser.readline()
             return vlimit[2:-3].strip()
+        elif key in ['id']:
+            self.ser.write(('id?\r').encode())
+            id = self.ser.readline()
+            return id
 
     @property
     def is_connected(self):
@@ -206,9 +211,9 @@ class MDT693A(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM18', str, 'serial port on which to connect'),
+        Parameter('port', 'COM7', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
-        Parameter('timeout', .1, float, 'connection timeout'),
+        Parameter('timeout', .5, float, 'connection timeout'),
         Parameter('voltage', 1.0, float, 'current voltage')
     ])
 
@@ -330,11 +335,11 @@ class MDT693A(Instrument):
             raise ValueError(message)
 
 if __name__ == '__main__':
-     a = PiezoController('hi', settings={'port':'COM18'})
-     a.axis = 'y'
-     a.voltage = 10
+     a = MDT693A('hi')
+     a.axis = 'x'
+     #a.set_voltage(56.0)
      print(a.read_probes('voltage'))
      #print(a.voltage)
     # a = MDT693A('hi', settings = {'port':'COM3'})
-    # print(a.voltage)
+
 

@@ -16,13 +16,15 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.data_processing import correlation, shift_NVs
+from b26_toolkit.data_processing import correlation, shift_NVs, compare_galvos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts import GalvoScan
 from copy import deepcopy
 import numpy as np
 from matplotlib import patches
+from b26_toolkit.instruments import PiezoController
+
 
 
 class Take_And_Correlate_Images(Script):
@@ -302,6 +304,265 @@ Track_Correlate_Images:
             self.scripts['take_new_image']._update_plot(axes_list)
         else:
             self._plot(axes_list)
+
+
+class ImageCorrelation(Script):
+    '''
+    Takes a galvo scan, compares it to a previous galvo scan to find the relative shift
+    '''
+
+    _DEFAULT_SETTINGS = [
+        Parameter('scan', 'baseline', ['baseline', 'comparison'],
+                  'Baseline: take baseline galvo scan; Comparison: take comparison galvo scan and calculate correlation')
+    ]
+
+    _INSTRUMENTS = {}
+    _SCRIPTS = {'GalvoScan': GalvoScan}
+
+    def __init__(self, instruments = None, name = None, settings = None, scripts = None, log_function = None, data_path = None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
+
+        self.data = {'baseline_image': [], 'new_image': [], 'image_extent': [], 'correlation_image': []}
+
+    def _function(self):
+        """
+        # Takes a new image, and correlates this with the image provided to baseline_image in self.data. It uses the
+        determined pixel shift to calculate a shift for each of the nvs in the old_nv_list, which is given to it by
+        a superscript, then store it as new_NV_list in data
+        """
+
+        if self.settings['scan'] == 'baseline':
+            self.data['new_image'] = []
+            self.data['correlation_image'] = []
+            self.log('Taking baseline galvo scan')
+            self.scripts['GalvoScan'].run()
+            self.data['baseline_image'] = self.scripts['GalvoScan'].data['image_data']
+            self.data['image_extent'] = self.scripts['GalvoScan'].data['extent']
+
+        elif self.settings['scan'] == 'comparison':
+            if self.data['baseline_image'] == []:
+                self.log('No baseline image avaliable!')
+            else:
+                self.log('Taking comparison galvo scan')
+                scan = self.scripts['GalvoScan']
+                scan.settings['point_a']['x'] = self.data['image_extent'][0]
+                scan.settings['point_b']['x'] = self.data['image_extent'][1]
+                scan.settings['point_a']['y'] = self.data['image_extent'][3]
+                scan.settings['point_b']['y'] = self.data['image_extent'][2]
+                scan.settings['RoI_mode'] = 'corner'
+
+                self.scripts['GalvoScan'].run()
+
+                self.data['new_image'] = self.scripts['GalvoScan'].data['image_data']
+                dx_voltage, dy_voltage, self.data['correlation_image'] = compare_galvos(self.data['baseline_image'],
+                                                                                        self.data['image_extent'],
+                                                                                        self.data['new_image'])
+
+                self.data['shift'] = [dx_voltage, dy_voltage]
+                self.log('Shift of Vx={:.3f},Vy={:.3f}V or Vx={:.3f},Vy={:.3f}um'
+                         .format(*self.data['shift'],*np.array(self.data['shift'])*90))
+                print((self.data['shift']))
+
+
+    def _plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        if self.scripts['GalvoScan'].is_running:
+            self.scripts['GalvoScan']._plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                extent = self.data['image_extent']
+                plot_fluorescence_new(data, extent, axes_list[1])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            elif not self.data['baseline_image'] == []:
+                self.scripts['GalvoScan']._plot(axes_list)
+
+    def _update_plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        if self.scripts['GalvoScan'].is_running:
+            self.scripts['GalvoScan']._update_plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                # update_fluorescence(data, axes_list[1])
+                update_fluorescence(data, axes_list[0])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            elif not self.data['baseline_image'] == []:
+                self.scripts['GalvoScan']._update_plot(axes_list)
+
+class atto_compen(Script):
+    '''
+        Takes a galvo scan, compares it to a previous galvo scan to find the relative shift
+        Optionally, also moves the attocube to compensate for any discovered shifts if they are above a threshold
+        '''
+
+    _DEFAULT_SETTINGS = [
+        Parameter('toggle Attocube compensation', [
+            Parameter('on/off', False, bool, 'If checked, apply DC voltage to Attocube to compensate for drifts'),
+            Parameter('error_threshold', 0.0005, float, 'Minimum shift (V on galvo) for compensation to occur'),
+            Parameter('adaptive_calibration', [
+                Parameter('on/off', False, bool, 'If checked, adjust calibration by comparing images '
+                                                           'before/after moving Attocubes'),
+                Parameter('threshold', 0.3, float, 'Max allowed relative adjustment in calibration')]),
+            Parameter('attocube_calibration', [
+                Parameter('x_calib', .00101, float, 'V_y_galvo/V_x_attocube'),
+                Parameter('y_calib', -.00090, float, 'V_x_galvo/V_y_attocube')]),
+            Parameter('max_step_size', [
+                Parameter('x', 15, float, 'Max step size for X attocube in V'),
+                Parameter('y', 15, float, 'Max step size for Y attocube in V')])
+            ])]
+
+    _INSTRUMENTS = {'attocube_DC_controller': PiezoController}
+    _SCRIPTS = {'ImageCorrelation': ImageCorrelation}
+
+    def __init__(self, instruments=None, name=None, settings=None, scripts=None, log_function=None, data_path=None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings=settings, instruments=instruments, scripts=scripts,
+                        log_function=log_function, data_path=data_path)
+
+        self.data = {'baseline_image': [], 'new_image': [], 'image_extent': [], 'correlation_image': [],
+                     'attocube_displacement': [], 'adjusted_calibration_x': None, 'adjusted_calibration_y': None}
+
+
+    def _function(self):
+        # Perform image correlation and obtain shifts in galvo voltage
+
+        if self.scripts['ImageCorrelation'].data['baseline_image'] == []:
+            self.log('No baseline image found. Take a baseline measurement first by running Image Correlation')
+
+        elif self.scripts['ImageCorrelation'].settings['scan'] == 'baseline':
+            self.log('Change ImageCorrelation''s scan type to ''comparison''!')
+        else:
+            self.scripts['ImageCorrelation'].run()
+            self.data['shift'] = self.scripts['ImageCorrelation'].data['shift']
+            self.data['new_image'] = self.scripts['ImageCorrelation'].data['new_image']
+            self.data['image_extent'] = self.scripts['ImageCorrelation'].data['image_extent']
+            self.data['baseline_image'] = self.scripts['ImageCorrelation'].data['baseline_image']
+            self.data['correlation_image'] = self.scripts['ImageCorrelation'].data['correlation_image']
+
+            if self.settings['toggle Attocube compensation']['on/off'] and not self.data['baseline_image'] == [] \
+                    and np.max(np.abs(self.data['shift'])) > self.settings['toggle Attocube compensation']['error_threshold']:
+                current_x, current_y = self.read_piezo()
+
+                # Note that the galvo XY axis corresponds to the Attocube YX axis
+                x_calib = self.settings['toggle Attocube compensation']['attocube_calibration']['x_calib']
+                y_calib = self.settings['toggle Attocube compensation']['attocube_calibration']['y_calib']
+
+                if not self.data['adjusted_calibration_x'] is None and not self.data['adjusted_calibration_y'] is None:
+                    x_calib_new = self.data['adjusted_calibration_x']
+                    y_calib_new = self.data['adjusted_calibration_y']
+
+                    if self.settings['toggle Attocube compensation']['adaptive_calibration']['on/off']:
+                        if max(np.abs(x_calib_new / x_calib - 1.), np.abs(y_calib_new / y_calib - 1.)) < \
+                                self.settings['toggle Attocube compensation']['adaptive_calibration']['threshold']:
+                            x_calib = x_calib_new
+                            y_calib = y_calib_new
+                        else:
+                            print('Adjusted calibration differs too much from old one. Will revert to old calibration.')
+
+                print('Current calibration: {:.5f},{:.5f}'.format(x_calib,y_calib))
+                step_x = self.data['shift'][1]/x_calib
+                step_y = self.data['shift'][0]/y_calib
+                destination_x = float(current_x - step_x)
+                destination_y = float(current_y - step_y)
+
+                if 0 < destination_x < 60 and 0 < destination_y < 60 \
+                        and step_x < self.settings['toggle Attocube compensation']['max_step_size']['x'] \
+                        and step_y < self.settings['toggle Attocube compensation']['max_step_size']['y']:
+                    # Ensure that the new voltage setting is within the Attocube's range, and that the step size is
+                    # within reason (0.5 um), in case the correlation algorithm calculated an incorrectly big shift.
+
+                    self.log('Target position (Attocube voltage): {:.2f},{:.2f}'.format(destination_x,destination_y))
+                    self.move_piezo(destination_x, destination_y)
+                else:
+                    self.log('Target position out of range! Attocube will not be moved.')
+
+                # Run correlation again to see if shift was eliminated
+                self.scripts['ImageCorrelation'].run()
+                self.data['shift_after_compensation'] = self.scripts['ImageCorrelation'].data['shift']
+
+                self.data['adjusted_calibration_x'] = -(self.data['shift_after_compensation'][1]-self.data['shift'][1])/step_x
+                self.data['adjusted_calibration_y'] = -(self.data['shift_after_compensation'][0]-self.data['shift'][0])/step_y
+
+
+
+    def move_piezo(self, x, y):
+        print(x, y)
+        self.piezo = self.instruments['attocube_DC_controller']['instance']
+        self.piezo.axis = 'x'
+        self.piezo.voltage = x
+        self.piezo.axis = 'y'
+        self.piezo.voltage = y
+
+    def read_piezo(self):
+        self.piezo = self.instruments['attocube_DC_controller']['instance']
+        self.piezo.axis = 'x'
+        x_posn = self.piezo.read_probes('voltage')
+        self.piezo.axis = 'y'
+        y_posn = self.piezo.read_probes('voltage')
+
+        return x_posn, y_posn
+
+    def _plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        if self.scripts['ImageCorrelation'].is_running:
+            self.scripts['ImageCorrelation']._plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                extent = self.data['image_extent']
+                plot_fluorescence_new(data, extent, axes_list[1])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            elif not self.data['baseline_image'] == []:
+                self.scripts['ImageCorrelation']._plot(axes_list)
+
+    def _update_plot(self, axes_list):
+        '''
+        Plots the newly taken galvo scan to axis 2, and the correlation image to axis 1
+        Args:
+            axes_list: list of axes to plot to. Uses two axes.
+
+        '''
+        if self.scripts['ImageCorrelation'].is_running:
+            self.scripts['ImageCorrelation']._update_plot(axes_list)
+        else:
+            if not self.data['new_image'] == [] and not self.data['image_extent'] == []:
+                data = self.data['new_image']
+                # update_fluorescence(data, axes_list[1])
+                update_fluorescence(data, axes_list[0])
+                if not self.data['correlation_image'] == []:
+                    axes_list[0].imshow(self.data['correlation_image'])
+            elif not self.data['baseline_image'] == []:
+                self.scripts['ImageCorrelation']._update_plot(axes_list)
 
 if __name__ == '__main__':
     script, failed, instr = Script.load_and_append({'Correlate_Images': Take_And_Correlate_Images})

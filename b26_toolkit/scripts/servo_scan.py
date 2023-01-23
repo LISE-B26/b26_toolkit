@@ -5,7 +5,7 @@ from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y, NI9219
 from b26_toolkit.scripts.find_nv import FindNV
 from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter
 from b26_toolkit.scripts.daq_read_ai import Daq_Read_AI
-from b26_toolkit.scripts.autofocus import AutoFocusDAQ
+from b26_toolkit.scripts.autofocus import AutoFocusDaqMDT693A, AutoFocusDAQMax
 from b26_toolkit.scripts.esr import ESR_simple
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from collections import deque
@@ -124,7 +124,7 @@ class ServoScan(Script):
                                       # limits of the instruments, it will not actually move and say so in the log
 
             # track to the NV if it's time to
-            if index > 0 and index % self.settings['track_n_pts'] == 0:
+            if index % self.settings['track_n_pts'] == 0:
                 if self.settings['use_autofocus']:
                   #  raise (NotImplementedError)
                     self.scripts['autofocus'].run()
@@ -138,7 +138,7 @@ class ServoScan(Script):
 
             # add to output structures which will be plotted
             data = self.scripts['daq_read_counter'].data['counts']
-            self.data['counts'].append(np.mean(data))
+            self.data['counts'].append(np.mean(data[3:])*2)
             self.positions['positions'].append(new_pos)
 
             self.progress = index*100./self.settings['num_points']
@@ -208,7 +208,7 @@ class ServoScan_2D(Script):
 
     _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y, 'ZServo': B26KDC001z}
 
-    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter, 'autofocus': AutoFocusDAQMax}
 #    _SCRIPTS = {'find_nv': FindNV, 'daq_read_counter': Daq_Read_Counter}
 
 
@@ -322,7 +322,7 @@ class ServoScan_2D(Script):
                 inner_instr.set_position()  # limits of the instruments, it will not actually move and say so in the log
 
                 # track to the NV
-                if tot_index > 0 and tot_index % self.settings['track_n_pts'] == 0:
+                if tot_index % self.settings['track_n_pts'] == 0:
                     if self.settings['use_autofocus']:
                       #  raise(NotImplementedError)
                         self.scripts['autofocus'].run()
@@ -339,7 +339,8 @@ class ServoScan_2D(Script):
                     data = self.scripts['daq_read_counter'].data['normalized_counts']
                 else:
                     data = self.scripts['daq_read_counter'].data['counts']
-                self.data['counts'][index_in][index_out] = np.mean(data)
+                self.data['counts'][index_in][index_out] = np.mean(data[3:])*2
+                # FF: DAQ read counter has a bug where the counts are shown half the actual values, and the first data point always gives zero
 
                 self.progress = tot_index * 100. / (self.settings['inner_loop']['num_points']*self.settings['outer_loop']['num_points'])
                 self.updateProgress.emit(int(self.progress))
@@ -365,6 +366,7 @@ class ServoScan_2D(Script):
     def _update_plot(self, axes_list):
         extent = [self.settings['inner_loop']['min_pos'], self.settings['inner_loop']['max_pos'], self.settings['outer_loop']['min_pos'], self.settings['outer_loop']['max_pos']]
         update_fluorescence(self.data['counts'], axes_list[0])
+
 
 class ServoScan_2D_ESR(Script):
     """
