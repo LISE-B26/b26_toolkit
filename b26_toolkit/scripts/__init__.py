@@ -20,6 +20,7 @@
 from .galvo_scan.galvo_scan import GalvoScan
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
 from .afm_scan import AFMScan
+from .set_position import SetPosition
 #from ._afm_scan_classic import AFMScanClassic
 from .set_laser import SetLaser, SetAtto
 from .find_nv import FindNV

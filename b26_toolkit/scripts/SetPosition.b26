@@ -1,0 +1,125 @@
+{
+    "scripts": {
+        "SetPosition": {
+            "class": "SetPosition",
+            "filepath": "C:\\Users\\Characterization\\B26_scanning_probe\\b26_toolkit\\b26_toolkit\\scripts\\set_position.py",
+            "info": "This script positions the sample to a point\n    ",
+            "package": "b26_toolkit",
+            "instruments": {
+                "daq": {
+                    "class": "NI6229",
+                    "settings": {
+                        "device": "Dev1",
+                        "override_buffer_size": -1,
+                        "ao_read_offset": 0.005,
+                        "analog_output": {
+                            "ao0": {
+                                "channel": 0,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ao1": {
+                                "channel": 1,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ao2": {
+                                "channel": 2,
+                                "sample_rate": 1000.0,
+                                "min_voltage": 0.0,
+                                "max_voltage": 10.0
+                            },
+                            "ao3": {
+                                "channel": 3,
+                                "sample_rate": 1000.0,
+                                "min_voltage": 0.0,
+                                "max_voltage": 10.0
+                            }
+                        },
+                        "analog_input": {
+                            "ai0": {
+                                "channel": 0,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ai1": {
+                                "channel": 1,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ai2": {
+                                "channel": 2,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ai3": {
+                                "channel": 3,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            },
+                            "ai4": {
+                                "channel": 4,
+                                "sample_rate": 1000.0,
+                                "min_voltage": -10.0,
+                                "max_voltage": 10.0
+                            }
+                        },
+                        "digital_input": {
+                            "ctr0": {
+                                "input_channel": 0,
+                                "counter_PFI_channel": 8,
+                                "gate_PFI_channel": 9,
+                                "clock_PFI_channel": 13,
+                                "clock_counter_channel": 1,
+                                "sample_rate": 1000.0
+                            },
+                            "ctr1": {
+                                "input_channel": 1,
+                                "counter_PFI_channel": 3,
+                                "gate_PFI_channel": 4,
+                                "clock_PFI_channel": 12,
+                                "clock_counter_channel": 0,
+                                "sample_rate": 1000.0
+                            }
+                        },
+                        "digital_output": {
+                            "do0": {
+                                "channel": 0,
+                                "sample_rate": 1000.0
+                            },
+                            "do8": {
+                                "channel": 8,
+                                "sample_rate": 1000.0
+                            }
+                        }
+                    }
+                }
+            },
+            "settings": {
+                "point_a": {
+                    "x": 0,
+                    "y": 0
+                },
+                "speed_limit [V/s]": 1,
+                "settle_time": 0.0005,
+                "time_per_pt": 0.001,
+                "DAQ_channels": {
+                    "x_ao_channel": "ao2",
+                    "y_ao_channel": "ao3",
+                    "counter_channel": "ctr0",
+                    "ai_channel": "ai0"
+                },
+                "daq_type": "PCI",
+                "path": "",
+                "tag": "setposition",
+                "save": false
+            }
+        }
+    }
+}
