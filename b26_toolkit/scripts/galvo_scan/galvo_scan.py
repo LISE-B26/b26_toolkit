@@ -234,11 +234,11 @@ class AttoScanAO(GalvoScan):
                    Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'],
                              'Daq channel used for counter')
                    ]),
-        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+        Parameter('ending_behavior', 'leave_at_corner', ['return_to_origin', 'leave_at_corner'],
                   'return to the corn'),
         #Parameter('ending_behavior', 'return_to_start', ['return_to_start'],
         #          'sets Attocube location after scan is complete'),
-        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('daq_type', 'NI6229', ['PCI', 'cDAQ','NI6229'], 'Type of daq to use for scan'),
 
         Parameter('microwaves',
                   [Parameter('enable', False, bool, 'enable microwaves'),
@@ -248,8 +248,8 @@ class AttoScanAO(GalvoScan):
                    Parameter('turn_off_after', False, bool, 'NOT IMPLEMENTED; if true MW output is turned off after the measurement'),
                    Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')])
     ]
-    _INSTRUMENTS = {'piezo_controller': PiezoController, 'microwave_generator': MicrowaveGenerator,
-                    'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402}
+    _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator,
+                    'NI6229':  NI6229}
 
     #_SCRIPTS = {'set_atto': SetAtto}
 
@@ -259,7 +259,7 @@ class AttoScanAO(GalvoScan):
             raise AttributeError
 
     def scale(self):
-        voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
+        voltage_limit = int(75)
         print(voltage_limit)
         if voltage_limit == 75:
             scale = 7.5

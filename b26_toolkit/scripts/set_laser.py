@@ -178,10 +178,11 @@ class SetAtto(SetLaser):
                    Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'],
                              'Daq channel used for y voltage analog output')
                    ]),
-        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ','NI6229'], 'Type of daq to use for scan')
+        #Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'piezo_controller': PiezoController, 'NI6259':  NI6259, 'NI9263': NI9263}
+    _INSTRUMENTS = {'NI6229':  NI6229}
 
     def check_bounds(self, x, y):
         if x < 0 or y < 0:
@@ -189,7 +190,9 @@ class SetAtto(SetLaser):
             raise AttributeError
 
     def scale(self):
-        voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
+        #voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
+        voltage_limit = int(75)
+
         #print(voltage_limit)
         if voltage_limit == 75:
             scale = 7.5

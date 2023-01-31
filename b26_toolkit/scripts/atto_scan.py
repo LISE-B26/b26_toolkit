@@ -628,7 +628,7 @@ class AttoScanDigitalESR(AttoScanDigitalGeneric):
 
         self.scripts['ESR_simple'].run()
         point_data = self.scripts['ESR_simple'].data['fit_params']
-        if point_data is None or len(point_data) == 4:
+        if point_data is None or len(point_data) == 4 or point_data==[]:
             point_value = 0
         else:
             fp = point_data[5]
@@ -640,7 +640,6 @@ class AttoScanDigitalESR(AttoScanDigitalGeneric):
 
     def setup_scan(self):
         return
-
 
 class AttoScanDigitalCounts(AttoScanDigitalGeneric):
 

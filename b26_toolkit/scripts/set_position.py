@@ -46,7 +46,7 @@ This script positions the sample to a point
                    ]),
         Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
                                                            corner: pta and ptb are diagonal corners of rectangle.\n \
-                                                           center: pta is center and pta is extend or rectangle'),
+                                                          center: pta is center and pta is extend or rectangle'),
         Parameter('ending_behavior', 'return_to_a', ['return_to_a'], 'return to the corn'),
         Parameter('DAQ_channels',
                   [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
