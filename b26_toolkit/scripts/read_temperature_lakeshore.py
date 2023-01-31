@@ -25,79 +25,7 @@ from collections import deque
 import time
 
 from b26_toolkit.plotting.plots_1d import plot_temperature
-class ReadTemperatureLakeshore335(Script):
-    """
-This script reads the temperature from the Lakeshore controller.
-    """
 
-    _DEFAULT_SETTINGS = [
-        Parameter('sample_rate', 1., float, 'Rate at which temperature is recorded in Hz'),
-        Parameter('max_samples', 10, int, 'Number of samples'),
-    ]
-
-    _INSTRUMENTS = {'temp_controller': LakeShore335}
-
-    _SCRIPTS = {
-
-    }
-
-    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
-        """
-        init script function see superclass for details on the parameters
-        """
-        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
-                        log_function=log_function, data_path=data_path)
-
-        self.data = None
-
-
-    def _function(self):
-        """
-        This is the actual function that will be executed. It uses only information that is provided in the settings property
-        will be overwritten in the __init__
-        """
-
-        sample_rate = self.settings['sample_rate']
-        max_samples = self.settings['max_samples']
-
-        self.data = {'temperature': deque()}
-        c = 0
-        while True:
-            if self._abort:
-                self.data['temperature'] = np.array(self.data['temperature'])
-                break
-
-            temperature = self.instruments['temp_controller']['instance'].temperature
-
-            if len(temperature) ==2:
-                temperature = temperature[0]
-            else:
-                print('warning! temperature reading failed. expected a list of length 2 received the following:')
-                print(temperature)
-                temperature = 0
-            self.data['temperature'].append(temperature)
-            self.progress = 50.
-            self.updateProgress.emit(int(self.progress))
-
-
-            c +=1
-            if c>=max_samples and max_samples>0:
-                self._abort = True
-                self.data['temperature'] = np.array(self.data['temperature'])
-
-            time.sleep(1.0 / sample_rate)
-
-    def _plot(self, axes_list, data = None):
-
-        if data is None:
-            data = self.data
-        if data:
-            plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'])
-
-    def _update_plot(self, axes_list, data = None):
-        if data is None:
-            data = self.data
-        plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'], True)
 class ReadTemperatureLakeshore211(Script):
     """
 This script reads the temperature from the Lakeshore controller.
@@ -110,9 +38,7 @@ This script reads the temperature from the Lakeshore controller.
 
     _INSTRUMENTS = {'temp_controller': LakeShore211}
 
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -129,6 +55,8 @@ This script reads the temperature from the Lakeshore controller.
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+
+        assert self.instruments['temp_controller']['instance'].is_connected()
 
         sample_rate = self.settings['sample_rate']
         max_samples = self.settings['max_samples']

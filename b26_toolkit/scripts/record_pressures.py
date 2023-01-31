@@ -21,7 +21,7 @@ import numpy as np
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
 
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
+from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge
 from b26_toolkit.instruments import CryoStation
 from datetime import datetime
 
@@ -255,7 +255,7 @@ class RecordPressuresTemperature211andMontana(Script):
 
     _INSTRUMENTS = {
         'chamber_pressure_gauge' : ChamberPressureGauge,
-         'temp_controller': LakeShore211,
+        'temp_controller': LakeShore211,
         'cryostation': CryoStation
     }
 
@@ -283,7 +283,7 @@ class RecordPressuresTemperature211andMontana(Script):
         self.data['time'] = []
         self.data['time_index'] = []
         self.data['sampleTemp'] = []
-        # self.data['platformTemp'] = []
+        self.data['platformTemp'] = []
         self.data['chamber_pressures'] = []
 
         time_index = 0
@@ -295,10 +295,9 @@ class RecordPressuresTemperature211andMontana(Script):
             self.data['chamber_pressures'].append(chamber_gauge.pressure)
             # self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
             # temp, raw = temp_controller.temperature
-            sampleTemp = temp_controller.temperature
             # platformTemp = cryostation
-            self.data['sampleTemp'].append(sampleTemp)
-            # self.data['temperaturesB'].append(tempB)
+            self.data['sampleTemp'].append(temp_controller.temperature)
+            self.data['platformTemp'].append(cryostation.platform_temp)
 
             self.data['time_index'].append(time_index * self.settings['time_interval'])
             time_index += 1
@@ -338,20 +337,20 @@ class RecordPressuresTemperature211andMontana(Script):
         axes_list[0].set_ylabel('Pressure (Torr)')
         #
         ax2 = axes_list[0].twinx()
-        lns2 = ax2.plot(time_index, self.data['temperaturesA'], color ='red',label='Temp A')
-        lns3 = ax2.plot(time_index, self.data['temperaturesB'], color = 'blue',label='Temp B')
+        lns2 = ax2.plot(time_index, self.data['sampleTemp'], color ='red',label='Sample Temperature')
+        lns3 = ax2.plot(time_index, self.data['platformTemp'], color = 'blue',label='Platform Temperature')
         ax2.set_ylabel('Temperature (K)')
 
         lns = lns1 + lns2 + lns3
         labs = [l.get_label() for l in lns]
         ax2.legend(lns, labs, loc=0)
 
-        ax2.text(0.5, 0.05, 'Temp A: %.3f Temp B: %.3f Pressure: %.3e'%(self.data['temperaturesA'][-1], self.data['temperaturesB'][-1], self.data['chamber_pressures'][-1]),
+        ax2.text(0.5, 0.05, 'Sample temp: %.3f Platform temp: %.3f Pressure: %.3e'%(self.data['sampleTemp'][-1], self.data['platformTemp'][-1], self.data['chamber_pressures'][-1]),
              horizontalalignment='center',
              verticalalignment='bottom',
              transform=ax2.transAxes)
-        ax2.text(0.5, 0.0, 'Temp A std: %.3f Temp B std: %.3f Pressure std: %.3e' % (
-        np.std(self.data['temperaturesA'][-10:-1]), np.std(self.data['temperaturesB'][-10:-1]), np.std(self.data['chamber_pressures'][-10:-1])),
+        ax2.text(0.5, 0.0, 'Sample temp std: %.3f Platform temp std: %.3f Pressure std: %.3e' % (
+        np.std(self.data['sampleTemp'][-10:-1]), np.std(self.data['platformTemp'][-10:-1]), np.std(self.data['chamber_pressures'][-10:-1])),
                  horizontalalignment='center',
                  verticalalignment='bottom',
                  transform=ax2.transAxes)

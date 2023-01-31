@@ -44,4 +44,4 @@ from .set_magnetic_coils import SetMagneticCoils
 from .align_magnetic_field_to_NV import AlignFieldToNV
 from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
 from .stability_with_microwaves import Stability_With_Microwaves
-from .read_temperature_lakeshore import ReadTemperatureLakeshore
+from .read_temperature_lakeshore import ReadTemperatureLakeshore211

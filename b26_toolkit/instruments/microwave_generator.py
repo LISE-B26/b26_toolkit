@@ -46,7 +46,7 @@ class MicrowaveGenerator(Instrument):
                   'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
         Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'], 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
         Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM Hz'),
-        # Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
+        Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
     ])
 
     def __init__(self, name=None, settings=None):
@@ -130,7 +130,8 @@ class MicrowaveGenerator(Instrument):
             'modulation_type': 'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ',
             'modulation_function': 'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External',
             'pulse_modulation_function': 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External',
-            'dev_width': 'Width of deviation from center frequency in FM'
+            'dev_width': 'Width of deviation from center frequency in FM',
+            'mod_rate': 'Rate of modulation in Hz'
         }
 
     def read_probes(self, key):
@@ -200,6 +201,8 @@ class MicrowaveGenerator(Instrument):
             return 'PFNC'
         elif param == 'dev_width':
             return 'FDEV'
+        elif param == 'mod_rate':
+            return 'RATE'
         else:
             raise KeyError
 

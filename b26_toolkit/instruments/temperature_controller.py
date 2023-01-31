@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import serial
+import serial, time
 from pylabcontrol.core import Instrument, Parameter
 
 
@@ -25,18 +25,9 @@ class TemperatureController(Instrument):
     This class implements the Lakeshore Model 335 Temperature controller. The class communicates with the device over RS232 using pyserial.
     """
 
-    #
-    # # ASCII Characters used for controller communication
-    # ETX = chr(3)
-    # CR = chr(13)
-    # LF = chr(10)
-    # ENQ = chr(5)
-    # ACK = chr(6)
-    # NAK = chr(21)
-
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+            Parameter('port', 'COM31', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 10.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
         ])
@@ -50,9 +41,10 @@ class TemperatureController(Instrument):
         handshake. These are all default for Serial and therefore not input
         below
         """
-        super(TemperatureController, self).__init__(name, settings)
+        super().__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
-                                               timeout=self.settings['timeout'], parity=serial.PARITY_ODD, bytesize=serial.SEVENBITS)
+                                               timeout=self.settings['timeout'], parity=serial.PARITY_ODD,
+                                               bytesize=serial.SEVENBITS)
 
     @property
     def _PROBES(self):
@@ -64,9 +56,6 @@ class TemperatureController(Instrument):
         return {
             'temperature': 'numerical temperature read from temperature controller'
         }
-
-    def update(self, settings):
-        super(Instrument, self).update(settings)
 
     def read_probes(self, probe_name):
         """
@@ -176,8 +165,8 @@ class LakeShore335(TemperatureController):
 
 class LakeShore211(TemperatureController):
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+            Parameter('port', 'COM33', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 10.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
         ])
@@ -189,9 +178,9 @@ class LakeShore211(TemperatureController):
 
         response = self.serial_connection.readline()
 
-        return float(response[1:7])
+        return float(response.decode().strip())
 
 if __name__ == '__main__':
-        instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})
-        print((instruments['TemperatureController']._get_temperature()))
+        instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': LakeShore211})
+        print((instruments['TemperatureController'].temperature))
 
