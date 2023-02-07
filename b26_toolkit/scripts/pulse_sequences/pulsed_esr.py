@@ -19,7 +19,7 @@ import numpy as np
 import time
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from copy import deepcopy
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator
+from b26_toolkit.instruments import NI6229,NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq, plot_pulsedesr
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr, fit_double_lorentzian, double_lorentzian
@@ -55,7 +55,7 @@ Uses double_init scheme.
                   'time wait after switching center frequencies on generator (s)')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6229': NI6229, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _configure_instruments_start_of_script(self):
         """
@@ -468,7 +468,7 @@ class PulsedESRFast_MWGen2(PulsedESR):
                   'time wait after switching center frequencies on generator (s)')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator2}
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator2}
 
 
 class PulsedNMR(PulsedESR):
@@ -502,7 +502,7 @@ class PulsedNMR(PulsedESR):
                   'time wait after switching center frequencies on generator (s)')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'rf_gen': RFGenerator}
 
     def _create_pulse_sequences(self):
@@ -835,7 +835,7 @@ class PulsedESRPolarized(PulsedESR):
         Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'mw_gen_2': MicrowaveGenerator2,
+    _INSTRUMENTS = {'6259': 6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'mw_gen_2': MicrowaveGenerator2,
                     'rf_gen': RFGenerator}
 
     def _create_pulse_sequences(self):
@@ -1192,7 +1192,7 @@ class NuclearPolarizationLaserDuration(PulsedExperimentBaseScript):
         ])
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'mw_gen_2': MicrowaveGenerator2,
+    _INSTRUMENTS = {'NI6229': NI6229,'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'mw_gen_2': MicrowaveGenerator2,
                     'rf_gen': RFGenerator}
 
     def _function(self, in_data=None):
