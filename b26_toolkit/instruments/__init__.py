@@ -18,7 +18,7 @@
 
 from .gauge_controller import PressureGauge, PumpLinePressureGauge, ChamberPressureGauge
 from .spectrum_analyzer import SpectrumAnalyzer
-from .ni_daq import NI6259, NI9263, NI9402, NI9219, NI9263_02
+from .ni_daq import NI6259, NI9263, NI9402, NI9219, NI9263_02, NI9215
 from .piezo_controller import PiezoController, PiezoControllerCold, MDT693A
 from .zurich_instruments import ZIHF2
 from .pulse_blaster import B26PulseBlaster, Pulse
@@ -29,10 +29,11 @@ from .magnet_coils import MagnetCoils
 from .temperature_controller import TemperatureController
 from .montana import CryoStation
 from .newport_smc100 import SMC100
-from .awg import AFG3022C
+from .awg import AFG3022C, AFG3022C_02
 from .keysight_oscilloscope import Oscilloscope
 from .thorlabs_kcube import KDC001, TLI_DeviceInfo, B26KDC001x, B26KDC001y, B26KDC001z
 from .magnet_coils import MagnetCoils
 from .ueye_camera import UEyeCamera
 from .optotune_lens import OptotuneLens
-from .arduino import ArduinoUno
+from .arduino import ArduinoZero
+from .commander import Commander

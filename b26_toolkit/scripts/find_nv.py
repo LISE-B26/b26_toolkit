@@ -61,6 +61,29 @@ Known issues:
 
         Script.__init__(self, name, scripts = scripts, settings=settings, log_function=log_function, data_path = data_path)
 
+    def pixel_to_voltage(self, pt, extent, image_dimensions):
+        """"
+        pt: point in pixels
+        extent: [xVmin, Vmax, Vmax, yVmin] in volts
+        image_dimensions: dimensions of image in pixels
+
+        Returns: point in volts
+        """
+
+        image_x_len, image_y_len = image_dimensions
+        image_x_min, image_x_max, image_y_max, image_y_min = extent
+
+        assert image_x_max > image_x_min
+        assert image_y_max > image_y_min
+
+        volt_per_px_x = (image_x_max - image_x_min) / (image_x_len - 1)
+        volt_per_px_y = (image_y_max - image_y_min) / (image_y_len - 1)
+
+        V_x = volt_per_px_x * pt[0] + image_x_min
+        V_y = volt_per_px_y * pt[1] + image_y_min
+
+        return [V_x, V_y]
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -85,29 +108,6 @@ Known issues:
                      'fluorescence': None
                      }
 
-        def pixel_to_voltage(pt, extent, image_dimensions):
-            """"
-            pt: point in pixels
-            extent: [xVmin, Vmax, Vmax, yVmin] in volts
-            image_dimensions: dimensions of image in pixels
-
-            Returns: point in volts
-            """
-
-            image_x_len, image_y_len = image_dimensions
-            image_x_min, image_x_max, image_y_max, image_y_min = extent
-
-            assert image_x_max > image_x_min
-            assert image_y_max > image_y_min
-
-            volt_per_px_x = (image_x_max - image_x_min) / (image_x_len-1)
-            volt_per_px_y = (image_y_max - image_y_min) / (image_y_len-1)
-
-            V_x = volt_per_px_x * pt[0] + image_x_min
-            V_y = volt_per_px_y * pt[1] + image_y_min
-
-            return [V_x, V_y]
-
         def min_mass_adjustment(min_mass):
             #COMMENT_ME
             return (min_mass - 20)
@@ -125,7 +125,7 @@ Known issues:
         if self.settings['pick_brightest_pt']:
             brightest_pt = np.unravel_index(self.data['image_data'].argmax(), self.data['image_data'].shape)
             brightest_pt = brightest_pt[::-1]
-            brightest_pt = pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
+            brightest_pt = self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
             self.data['maximum_point'] = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
         else:
             while True: # modified ER 5/27/2017 to implement tracking
@@ -136,7 +136,7 @@ Known issues:
                 else:
 
                     # all the points that have been identified as valid NV centers
-                    pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
+                    pts = [self.pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
                            locate_info[['x', 'y']].as_matrix()]
 
                     if len(pts) > 1:

@@ -692,7 +692,14 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
 
             self.current_averages = (average_loop + 1) * self.MAX_AVERAGES_PER_SCAN
 
+            # save data on the fly so that we can start to analyze it while the experiment is running!
             self._run_sweep(self.pulse_sequences, self.MAX_AVERAGES_PER_SCAN, num_daq_reads)
+
+            if self.settings['save']:
+                #     self.save_b26()
+                self.save_data()
+            #     self.save_log()
+            #     self.save_image_to_disk()
 
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
@@ -701,12 +708,8 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         if (len(self.data['counts'][0]) == 1) and not self._abort:
             self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
 
-        # save data on the fly so that we can start to analyze it while the experiment is running!
-        if self.settings['save']:
-        #     self.save_b26()
-            self.save_data()
-        #     self.save_log()
-        #     self.save_image_to_disk()
+
+
 
     def _initialize_data(self, num_daq_reads, in_data):
         super(FieldProfile_CW, self)._initialize_data(num_daq_reads, in_data)
@@ -841,6 +844,7 @@ class FieldProfile_CW(PulsedExperimentBaseScript):
         pulse_sequence = [Pulse('atto_trig', atto_settle_time + atto_trig_delay, atto_trig_duration)]
         pulse_sequence += [Pulse('laser', 0, atto_settle_time + tau_list[-1] + meas_time)]
         pulse_sequence += [Pulse('microwave_switch', 0, atto_settle_time + tau_list[-1] + meas_time)]
+        pulse_sequence += [Pulse('microwave_i', 0, atto_settle_time + tau_list[-1] + meas_time)]
 
 
         for tau in tau_list:
@@ -976,16 +980,16 @@ class FieldProfile_Pulsed(FieldProfile_CW):
         Parameter('tau_times', [
             Parameter('min_time', 500, float, 'beginning of first readout window'),
             Parameter('max_time', 10000, float, 'beginning of last readout window'),
-            Parameter('time_step', 1000, [1000, 2000, 5000, 10000, 20000, 40000, 50000, 100000, 200000],
-                      'time step between beginning of readout windows')
+            Parameter('time_step', 1000, float, 'time step between beginning of readout windows')
         ]),
         Parameter('read_out', [
             Parameter('meas_time', 1000, float, 'measurement time after rabi sequence (in ns)'),
             Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int,
-                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
             Parameter('delay_mw_readout', 1000, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('num_cycles', 5, int, 'number of initialization + pi-pulse cycles for each readout; the time step must be longer than '
+                                            'num_cycles*(nv_reset_time+laser_off_time+delay_mw_readout)')
         ]),
         Parameter('atto_trig', [
             Parameter('trig_duration', 200, float,
@@ -1126,7 +1130,138 @@ class FieldProfile_Pulsed(FieldProfile_CW):
         #     self.save_log()
         #     self.save_image_to_disk()
 
-    def _create_pulse_sequences(self):
+    def _function(self, in_data=None):
+        """
+        This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
+        is performed.
+
+        in_data: input data dictionary, caution 'tau' and 'counts' will be overwritten here!
+
+        Poststate: self.data contains two key/value pairs, 'tau' and 'counts'
+            'tau': a list of the times tau that are scanned over for the relative experiment (ex wait times between pulses)
+             'counts': the counts received from the experiment. This is a len('tau') list, with each element being a list
+             of length 1, 2, or 3 corresponding to the sum over all trials for a single tau time. In this sublist, the
+             first value is the signal, the second (optional) value is counts in the |0> state (the maximum counts for
+             normalization), and the third (optional) value is the counts in the |1> state (the minimum counts for
+             normalization)
+
+        """
+        self.MAX_AVERAGES_PER_SCAN = self.settings['averaging_block_size']
+        # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
+        last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
+        pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
+        mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
+
+        # Keeps track of index of current pulse sequence for plotting
+        self.sequence_index = 0
+
+        # self.is_valid and create pulses
+        self.pulse_sequences, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
+        self.num_averages = self.settings['num_averages']
+
+        if in_data is None:
+            in_data = {}
+
+        # calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
+        # called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
+        # never receives the rest of the counts (number too high)
+        num_daq_reads = 0
+
+        for pulse in self.pulse_sequences[0]:
+            if pulse.channel_id == 'apd_readout':
+                num_daq_reads += 1
+        self._initialize_data(num_daq_reads, in_data)
+
+        self.freq_values, self.freq_range = self.get_freq_array()
+
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+
+        # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
+        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
+        # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
+        (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, self.MAX_AVERAGES_PER_SCAN)
+
+
+        self.log("Averaging over {0} blocks of 1e5".format(num_1E5_avg_pb_programs))
+        for average_loop in range(int(num_1E5_avg_pb_programs)):
+            self.log("Running average block {0} of {1}".format(average_loop+1, int(num_1E5_avg_pb_programs)))
+
+            # run find_nv if tracking is on, at the beginning of each averaging block
+            if self.settings['Tracking']['on/off']:
+                self.scripts['find_nv'].run()
+                if self.scripts['find_nv'].data['fluorescence'] == 0.0:  # if it doesn't find an NV, abort the experiment
+                    self.log('Could not find an NV in FindNV.')
+                    self._abort = True
+                    return  # exit function in case no NV is found
+
+
+            if self._abort:
+                print('aborting!!')
+                # ER 20200828 stop the pulseblaster
+                if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+                    print('stopping pulse seq: abort!! ')
+                    self.instruments['PB']['instance'].stop_pulse_seq()
+
+                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
+                self.log('Aborted pulseblaster script during loop')
+                break
+
+            if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking']['track_every_N']==0:
+                self.scripts['esr'].run()
+
+                # retrieve the new mw frequency: if there are two frequencies in the fit, pick the one closest to the old frequency
+                fit_params = self.scripts['esr'].data['fit_params']
+
+                # default update flag to false
+                update_mw = False
+
+                if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+                    if len(fit_params) == 4:
+                        # single peak
+                        if (fit_params[2] - last_mw)**2 < (self.settings['ESR_Tracking']['allowed_delta_freq']*1e6)**2: # check if new value is within range allowed
+                            update_mw = True
+                        new_mw = fit_params[2]
+                    elif len(fit_params) == 6:
+                        # double peak, don't update the frequency - the fit may be bad
+                        update_mw = False
+
+                if update_mw:
+                    #self.instruments['mw_gen'].update({'frequency': new_mw})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(new_mw)})
+                    self.log('Updated mw carrier frequency to: {}'.format(new_mw))
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'enable_modulation': bool(mod_flag)})
+
+                    last_mw = new_mw
+                else:
+                    #self.instruments['mw_gen'].update({'frequency': last_mw})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'frequency': float(last_mw)})
+                    self.log('Not updating the mw carrier frequency. SRS carrier frequency kept at {0} Hz'.format(last_mw))
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'amplitude': float(pulse_ampl)})
+                    self.scripts['esr'].instruments['microwave_generator']['instance'].update({'enable_modulation': bool(mod_flag)})
+
+            self.current_averages = (average_loop + 1) * self.MAX_AVERAGES_PER_SCAN
+
+            # save data on the fly so that we can start to analyze it while the experiment is running!
+            self._run_sweep(self.pulse_sequences, self.MAX_AVERAGES_PER_SCAN, num_daq_reads)
+
+            if self.settings['save']:
+                #     self.save_b26()
+                self.save_data()
+            #     self.save_log()
+            #     self.save_image_to_disk()
+
+        if remainder != 0 and not self._abort:
+            self.current_averages = self.num_averages
+            self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
+
+        if (len(self.data['counts'][0]) == 1) and not self._abort:
+            self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
+
+    def _create_pulse_sequences_separate(self):
         '''
 
         Returns: pulse_sequence, num_averages, tau_list, meas_time
@@ -1182,6 +1317,72 @@ class FieldProfile_Pulsed(FieldProfile_CW):
             pulse_sequences.append(pulse_sequence)
 
         return pulse_sequences, tau_list, meas_time
+
+    def _create_pulse_sequences(self):
+        '''
+        Version where readout is a long window that encompasses multiple init + pi-pulse cycles
+        Use a long window instead of many short readout windows to save DAQ processing time
+
+        Returns: pulse_sequence, num_averages, tau_list, meas_time
+            pulse_sequences: a single pulse sequences, with daq reads at specified taus
+            num_averages: the number of times to repeat each pulse sequence
+
+        '''
+
+        if self.settings['read_out']['meas_time'] > self.settings['tau_times']['time_step']:
+            self.log('Readout window must be shorter between spacing between beginning of readout windows!')
+            raise AttributeError
+
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],
+                             self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list)  # 20180731 ER convert to list
+
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+        pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        atto_trig_duration = self.settings['atto_trig']['trig_duration']
+        atto_settle_time = self.settings['atto_trig']['settle_time']
+        atto_trig_delay = self.settings['atto_trig']['trig_delay']
+
+        num_cycles = self.settings['read_out']['num_cycles']
+
+        pulse_sequence = [Pulse('atto_trig', atto_settle_time + atto_trig_delay, atto_trig_duration)]
+        #pulse_sequence += [Pulse('laser', 0, atto_settle_time + tau_list[-1] + meas_time)]
+        #pulse_sequence += [Pulse('microwave_switch', 0, atto_settle_time + tau_list[-1] + meas_time)]
+
+        for tau in tau_list:
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                block_beginning = atto_settle_time + tau
+                for i in range(num_cycles):
+                    pulse_sequence += [Pulse(microwave_channel, block_beginning - 30, pi_time + 30 * 2)]
+                    pulse_sequence += [Pulse('microwave_switch', block_beginning, pi_time)]
+                    pulse_sequence += [Pulse('laser', block_beginning + pi_time + delay_mw_readout, nv_reset_time)]
+                    block_beginning += pi_time + delay_mw_readout + nv_reset_time + laser_off_time
+
+                pulse_sequence += [Pulse('apd_readout', atto_settle_time + tau, block_beginning - (atto_settle_time + tau))]
+
+        self.log('Total length of pulse sequence (including settling time): %i' % (atto_settle_time + tau + block_beginning - (atto_settle_time + tau)))
+        self.tau_list = tau_list
+
+        pulse_sequences = []
+
+        self.freq_values, self.freq_range = self.get_freq_array()
+        for freq in self.freq_values:
+            pulse_sequences.append(pulse_sequence)
+
+        meas_time = block_beginning - (atto_settle_time + tau)
+
+        return pulse_sequences, tau_list, meas_time
+
 
 class HahnEcho_bothIQ(PulsedExperimentBaseScript): # ER 20181013
     """

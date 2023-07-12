@@ -23,6 +23,7 @@ import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
 from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold, MDT693A
+from b26_toolkit.scripts import FindNV
 
 
 try:
@@ -44,17 +45,20 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('save_images', False, bool, 'save image taken at each voltage'),
         Parameter('z_axis_center_position', 50, float, 'center point of autofocus sweep'),
-        Parameter('scan_width', 5, float, 'distance (in V or mm) between the minimum and maximum points of the range'),
+        Parameter('scan_width', 10, float, 'distance (in V or mm) between the minimum and maximum points of the range'),
         Parameter('num_sweep_points', 10, int, 'number of values to sweep between min and max voltage'),
         Parameter('focusing_optimizer', 'standard_deviation',
-                  ['mean', 'standard_deviation', 'normalized_standard_deviation'], 'optimization function for focusing'),
-        Parameter('wait_time', 0.1, float),
-        Parameter('use_current_z_axis_position', False, bool, 'Overrides z axis center position and instead uses the current piezo voltage as the center of the range'),
+                  ['mean', 'standard_deviation', 'normalized_standard_deviation', 'max'],
+                  'optimization function for focusing; "max" looks at the mean value of the top few brightest pixels and also updates the scan to center around the brightest point'),
+        Parameter('fitting', 'max', ['Gaussian', 'max'],
+                  'Gaussian: fits optimizer value to Gaussian to find focus; max: simply choose Z height where optimizer value is max'),
+        Parameter('wait_time', 0.1, float, 'wait time between each voltage update'),
+        Parameter('use_current_z_axis_position', True, bool, 'Overrides z axis center position and instead uses the current piezo voltage as the center of the range'),
         Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in take_image'),
         Parameter('galvo_return_to_initial', False, bool, 'Check to return galvo location to initial value (before calling autofocus)'),
-        Parameter('reverse_scan', False, bool, 'If true, scans from highest value to lowest')
+        Parameter('reverse_scan', False, bool, 'If true, scans from highest value to lowest'),
+        Parameter('save_images', False, bool, 'save image taken at each voltage'),
         # Parameter('galvo_position', 'take_image_pta', ['take_image', 'current_location', 'last_run'], 'select galvo location (center point in acquire_image, current location of galvo or location from previous run)')
     ]
 
@@ -106,6 +110,29 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         will be overwritten in the __init__
         """
 
+        def pixel_to_voltage(pt, extent, image_dimensions):
+            """"
+            pt: point in pixels
+            extent: [xVmin, Vmax, Vmax, yVmin] in volts
+            image_dimensions: dimensions of image in pixels
+
+            Returns: point in volts
+            """
+
+            image_x_len, image_y_len = image_dimensions
+            image_x_min, image_x_max, image_y_max, image_y_min = extent
+
+            assert image_x_max > image_x_min
+            assert image_y_max > image_y_min
+
+            volt_per_px_x = (image_x_max - image_x_min) / (image_x_len - 1)
+            volt_per_px_y = (image_y_max - image_y_min) / (image_y_len - 1)
+
+            V_x = volt_per_px_x * pt[0] + image_x_min
+            V_y = volt_per_px_y * pt[1] + image_y_min
+
+            return [V_x, V_y]
+
 
         def calc_focusing_optimizer(image, optimizer):
             """
@@ -120,6 +147,14 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                 return np.std(image)
             elif optimizer == 'normalized_standard_deviation':
                 return np.std(image) / np.mean(image)
+            elif optimizer == 'max':
+                image_size = image.size
+                print('image size is %i'%image_size)
+                # takes the mean value of the brightest 1% of pixels
+                sample_size = int(image_size*0.01)+1
+                print('sampling %i pixels' % sample_size)
+
+                return np.mean(np.sort(image.flatten())[-sample_size:])
 
         def autofocus_loop(sweep_voltages):
             """
@@ -144,12 +179,23 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 # set the voltage on the piezo
                 self._step_piezo(voltage, self.settings['wait_time'])
-                self.log('take scan, position {:0.2f}'.format(voltage))
+                self.log('taking scan at {:0.2f} V'.format(voltage))
                 # update the tag of the suvbscript to reflect the current z position
                 self.scripts['take_image'].settings['tag'] = '{:s}_{:0.2f}'.format(take_image_tag, voltage)
                 # take a galvo scan
                 self.scripts['take_image'].run()
+
                 self.data['current_image'] = deepcopy(self.scripts['take_image'].data['image_data'])
+
+                if index > 0 and self.settings['focusing_optimizer'] == 'max':
+                    # Change initial point to last brightess point; this helps staying on the NV if there's a lot of lateral-Z coupling in the focus
+                    brightest_pt = np.unravel_index(self.data['current_image'].argmax(), self.data['current_image'].shape)
+                    brightest_pt = brightest_pt[::-1]
+                    brightest_pt = pixel_to_voltage(brightest_pt, self.scripts['take_image'].data['extent'], np.shape(self.data['current_image']))
+                              #self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
+                    self.maximum_point = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
+                    self.scripts['take_image'].settings['point_a'].update(self.maximum_point)
+                    print('take image pt a updated to %s' % str(self.maximum_point))
 
                 # calculate focusing function for this sweep
                 self.data['focus_function_result'].append(
@@ -185,25 +231,22 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         if self.settings['reverse_scan']:
             sweep_voltages = sweep_voltages[::-1]
 
-
         self.data['sweep_voltages'] = sweep_voltages
         self.data['focus_function_result'] = []
         self.data['fit_parameters'] = [0, 0, 0, 0]
         self.data['current_image'] = np.zeros([1,1])
         self.data['extent'] = None
 
-
         autofocus_loop(sweep_voltages)
 
         piezo_voltage, self.data['fit_parameters'] = self.fit_focus()
 
         # set piezo value to the fit value if this is within the bounds of the piezo
-        if piezo_voltage and piezo_voltage>0 and piezo_voltage<100:
+        if piezo_voltage and piezo_voltage > 0 and piezo_voltage < 100:
             # set the voltage on the piezo
             self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
         self.log('autofocus fit result: {:s} V'.format(str(piezo_voltage)))
-
 
         # self._step_piezo(piezo_voltage, self.settings['wait_time'])
 
@@ -223,39 +266,47 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
         if fails return None otherwise it returns the voltage for the piezo
         """
+        if self.settings['fitting'] == 'Gaussian':
+            noise_guess = np.min(self.data['focus_function_result'])
+            amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
+            center_guess = np.mean(self.data['sweep_voltages'])
+            width_guess = 0.8
 
-        noise_guess = np.min(self.data['focus_function_result'])
-        amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
-        center_guess = np.mean(self.data['sweep_voltages'])
-        width_guess = 0.8
+            p2 = [noise_guess, amplitude_guess, center_guess, width_guess]
 
-        p2 = [noise_guess, amplitude_guess, center_guess, width_guess]
+            return_voltage = None
+            try:
+                p2, success = sp.optimize.curve_fit(self.gaussian, self.data['sweep_voltages'],
+                                                    self.data['focus_function_result'], p0=p2,
+                                                    bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
 
-        return_voltage = None
-        try:
-            p2, success = sp.optimize.curve_fit(self.gaussian, self.data['sweep_voltages'],
-                                                self.data['focus_function_result'], p0=p2,
-                                                bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
+                return_voltage = p2[2]
 
-            return_voltage = p2[2]
+                self.log('Found fit parameters: ' + str(p2))
+            except(ValueError, RuntimeError):
+                self.log(
+                    'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
+                        self.data['sweep_voltages'][-1]))
+            finally:
+                # even if there is an exception we want to script to continue
+                sweep_voltages = self.data['sweep_voltages']
+                if return_voltage is not None:
+                    if return_voltage > sweep_voltages[-1]:
+                        return_voltage = float(sweep_voltages[-1])
+                        self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
+                    elif return_voltage < sweep_voltages[0]:
+                        return_voltage = float(sweep_voltages[0])
+                        self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
 
-            self.log('Found fit parameters: ' + str(p2))
-        except(ValueError, RuntimeError):
-            self.log(
-                'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
-                    self.data['sweep_voltages'][-1]))
-        finally:
-            # even if there is an exception we want to script to continue
-            sweep_voltages = self.data['sweep_voltages']
-            if return_voltage is not None:
-                if return_voltage > sweep_voltages[-1]:
-                    return_voltage = float(sweep_voltages[-1])
-                    self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
-                elif return_voltage < sweep_voltages[0]:
-                    return_voltage = float(sweep_voltages[0])
-                    self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
+        elif self.settings['fitting'] == 'max':
+            end_pt = np.max(self.data['focus_function_result'])
 
-            return return_voltage, p2
+            return_voltage = self.data['sweep_voltages'][np.where(self.data['focus_function_result'] == end_pt)]
+            p2 = [0, 0, 0, 0]
+
+        print('return voltage')
+        print(return_voltage)
+        return return_voltage, p2
 
     def _get_galvo_location(self):
         """
@@ -539,6 +590,7 @@ class AutoFocusDAQCold(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_piezo': PiezoControllerCold
     }
+
 class AutoFocusDaqSMC(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_driver': SMC100
@@ -601,6 +653,9 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         'find_NV': FindNV,
         'set_laser': SetLaser
     }
+    _INSTRUMENTS = {
+        'z_piezo': MDT693A
+    }
 
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
         """
@@ -611,9 +666,9 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         """
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
         #always want to use the autofocus's location
-        self.scripts['find_NV'].settings['center_on_current_location'] = True
-        self.scripts['set_laser'].settings['point'] = self.scripts['take_image'].settings['point_a']
-        self.scripts['set_laser'].run()
+        #self.scripts['find_NV'].settings['center_on_current_location'] = True
+        #self.scripts['set_laser'].settings['point'] = self.scripts['take_image'].settings['point_a']
+        #self.scripts['set_laser'].run()
 
     def init_image(self):
         """
@@ -629,6 +684,7 @@ class AutoFocusDaqMDT693A(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_piezo': MDT693A
     }
+
 
 class AutoFocusTwoPoints(AutoFocusDAQ):
     _SCRIPTS = {

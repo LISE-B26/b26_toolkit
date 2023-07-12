@@ -103,7 +103,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
 
     if colorbar is not None and max_counts < 0:
         # colorbar_min = 0
-        colorbar_min = np.min(image_data)
+        colorbar_min = np.min(np.where(image_data != 0, image_data, np.inf))
         colorbar_max = np.max(image_data)
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
         colorbar.set_ticks(colorbar_labels)
@@ -130,13 +130,16 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     if labels is None:
         labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
 
-    extra_x_extent = (extent[1]-extent[0])/float(2*(len(image_data[0])-1))
-    extra_y_extent = (extent[2]-extent[3])/float(2*(len(image_data)-1))
+    if len(image_data[0]) == 1 or len(image_data) == 1:
+        extra_x_extent, extra_y_extent = 0, 0
+    else:
+        extra_x_extent = (extent[1]-extent[0])/float(2*(len(image_data[0])-1))
+        extra_y_extent = (extent[2]-extent[3])/float(2*(len(image_data)-1))
     extent = [extent[0] - extra_x_extent, extent[1] + extra_x_extent, extent[2] + extra_y_extent, extent[3] - extra_y_extent]
 
     fig = axes_image.get_figure()
 
-    implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent, aspect=aspect)
+    implot = axes_image.imshow(image_data, cmap='inferno', interpolation="nearest", extent=extent, aspect=aspect)
 
     title, x_label, y_label, cbar_label = labels
     axes_image.set_xlabel(x_label)

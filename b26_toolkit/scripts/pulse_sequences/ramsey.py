@@ -67,6 +67,7 @@ class Ramsey(Rabi):
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
+
     def _create_pulse_sequences(self):
         """
 

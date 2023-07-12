@@ -15,6 +15,7 @@ class ControlMainWindowB26(MainWindow):
     def __init__(self, filename=None):
 
         super(ControlMainWindowB26, self).__init__(filename)
+        self.setStyleSheet("background-color: #fae6fb;")
 
     def load_scripts(self, verbose=False):
         """

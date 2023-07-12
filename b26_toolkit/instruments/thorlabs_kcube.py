@@ -322,7 +322,7 @@ class B26KDC001x(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 14.5
+        self.max_pos = 25.5
         self.min_pos = 0.
         super(B26KDC001x, self).__init__()
 
@@ -356,7 +356,7 @@ class B26KDC001y(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 25
+        self.max_pos = 25.5
         self.min_pos = 0.
         super(B26KDC001y, self).__init__()
 
@@ -390,7 +390,7 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 25  # for mal/warm1, MM 20190813
+        self.max_pos = 25.5  # for mal/warm1, MM 20190813
         self.min_pos = 0.
         super(B26KDC001z, self).__init__()
 

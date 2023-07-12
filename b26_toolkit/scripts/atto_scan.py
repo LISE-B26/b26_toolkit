@@ -22,13 +22,16 @@ from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter, Daq_Read_Coun
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import FindNV, ESR_simple
+from b26_toolkit.scripts import FindNV, ESR_simple, SetAtto
 from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+from b26_toolkit.scripts.set_laser import SetAttoANC300
 from b26_toolkit.data_analysis.nv_optical_response import B_field_from_esr
 
 
+
 class AttoStep(Script):
+    """Steps Attocube in number of steps specificed for each axis. Note that running this script will disable any offset afterwards!"""
     _DEFAULT_SETTINGS = [
         Parameter('controller_type', 'ANC350', ['ANC300', 'ANC350'], 'attocube controller model'),
         Parameter('num_steps', [
@@ -47,6 +50,34 @@ class AttoStep(Script):
         and the direction and number specified in settings
         """
         attocube = self.instruments[self.settings['controller_type']]['instance']
+        for axis in self.settings['num_steps']:
+            attocube.multistep(axis, self.settings['num_steps'][axis])
+
+
+class AttoSetAndStep(AttoStep):
+    """Sets DC input to zero first (with 16 Hz filter on to prevent any slippage), then steps Attocube in number of steps specificed for each axis.
+    Note that running this script will disable any offset afterwards!"""
+    _DEFAULT_SETTINGS = [
+        Parameter('controller_type', 'ANC300', ['ANC300', 'ANC350'], 'attocube controller model'),
+        Parameter('num_steps', [
+            Parameter('x', 0, int, 'num steps along x-axis'),
+            Parameter('y', 0, int, 'num steps along y-axis'),
+            Parameter('z', 0, int, 'num steps along z-axis')
+        ]
+    )]
+
+    _INSTRUMENTS = {'ANC300': ANC300, 'ANC350': ANC350}
+    _SCRIPTS = {'SetAttoANC300': SetAttoANC300}
+
+    def _function(self):
+        """
+        Performs a multiple attocube step with the voltage and frequency specified in instrument,
+        and the direction and number specified in settings
+        """
+        attocube = self.instruments[self.settings['controller_type']]['instance']
+
+        self.scripts['SetAttoANC300'].run()
+
         for axis in self.settings['num_steps']:
             attocube.multistep(axis, self.settings['num_steps'][axis])
 
@@ -462,12 +493,26 @@ class AttoScanDigitalGeneric(Script):
         except AttributeError:
             return
 
+        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
+        self.data['actual_Vx'] = np.zeros(Nx * Ny)
+        self.data['actual_Vy'] = np.zeros(Nx * Ny)
+
+        if self.settings['num_points']['y'] == 0:
+            self.linescan_axis = 'y'
+        elif self.settings['num_points']['x'] == 0:
+            self.linescan_axis = 'x'
+        else:
+            self.linescan_axis = '2d'
+
         self.data = {'point_value': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
                      'extent': self.pts_to_extent(self.settings['point_a'], self.settings['point_b'],
                                                  self.settings['RoI_mode'])}
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
         self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
+
+        self.data['x_array'] = self.x_array
+        self.data['y_array'] = self.y_array
 
         # Check if there are negative voltages in the scan range
         negative_voltage_err = 'Piezo voltage cannot be < 0 V'
@@ -479,12 +524,8 @@ class AttoScanDigitalGeneric(Script):
         self.x_array = self.x_array.tolist()
         self.y_array = self.y_array.tolist()
 
-        Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
-        self.data['actual_Vx'] = np.zeros(Nx * Ny)
-        self.data['actual_Vy'] = np.zeros(Nx * Ny)
 
         for yNum in range(0, Ny):
-
             for xNum in range(0, Nx):
                 if self._abort:
                     break
@@ -583,7 +624,11 @@ class AttoScanDigitalGeneric(Script):
         if data is None:
             data = self.data
         label = ['B field scan w/ Attocube', r'V$_x$ [V]', r'V$_y$ [V]', 'On-axis field (G)']
-        plot_fluorescence_new(data['point_value'], data['extent'], axes_list[0], max_counts=-1, labels=label)
+
+        if self.linescan_axis == '2d':
+            plot_fluorescence_new(data['point_value'], data['extent'], axes_list[0], max_counts=-1, labels=label)
+        elif self.linescan_axis == 'x' or self.linescan_axis == 'y':
+            raise NotImplementedError
 
     def _update_plot(self, axes_list):
         """
@@ -628,13 +673,14 @@ class AttoScanDigitalESR(AttoScanDigitalGeneric):
 
         self.scripts['ESR_simple'].run()
         point_data = self.scripts['ESR_simple'].data['fit_params']
-        if point_data is None or len(point_data) == 4:
-            point_value = 0
-        else:
+        print(point_data)
+        if len(point_data) == 5:
             fp = point_data[5]
             fn = point_data[4]
             point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
                                            gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
+        else:
+            point_value = 0
 
         return point_value
 
@@ -734,6 +780,37 @@ class AttoScanDigitalCounts(AttoScanDigitalGeneric):
         point_value = (countsData[-1]-countsData[0]) * 0.001 / self.settings['time_per_pt']
 
         return point_value
+
+
+class AttoScanAnalogEsr(AttoScanDigitalESR):
+    _SCRIPTS = {'find_nv': FindNV, 'ESR_simple': ESR_simple, 'SetAtto': SetAtto}
+    _INSTRUMENTS = {'piezo_controller': PiezoController}
+
+    def move_piezo(self, x, y):
+        self.scripts['SetAtto'].settings['point'].update({'x': float(x), 'y': float(y)})
+        self.scripts['SetAtto'].run()
+
+class AttoOffsetZ(Script):
+    """
+    Sets the offset of Z-axis Attocube.
+    Deliberately left out the other axes to avoid user error
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('z_offset', 0, float, 'Offset voltage for Z-axis Attocube')
+    ]
+
+    _INSTRUMENTS = {'ANC300': ANC300}
+    _SCRIPTS = {}
+
+    def _function(self):
+        """
+        Performs a multiple attocube step with the voltage and frequency specified in instrument,
+        and the direction and number specified in settings
+        """
+        attocube = self.instruments['ANC300']['instance']
+        attocube._set_offset(3, self.settings['z_offset'])
+        self.log('Z-axis Attocube offset changed to %.1f'%attocube.read_probes('z_offset'))
+
 
 
 if __name__ == '__main__':

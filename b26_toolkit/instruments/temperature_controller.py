@@ -129,7 +129,7 @@ class TemperatureController(Instrument):
         response = self.serial_connection.readline()
         temperatureB = float(response[1:7])
 
-        #self.serial_connection.write('RANGE 1,2 \r\n'.encode())
+        #self.serial_connection.write('RANGE 1,0 \r\n'.encode())
         #self.serial_connection.write('SETP 1,285 \r\n'.encode())
 
         # QUERY heater range (0,1,2,3 = off,low,med,high)

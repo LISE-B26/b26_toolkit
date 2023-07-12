@@ -52,16 +52,13 @@ class GalvoScanGeneric(Script):
         #             Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
         #             Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
         #           ]),
-        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
+        Parameter('ending_behavior', 'leave_at_corner', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
     ]
 
     _INSTRUMENTS = {}
     _SCRIPTS = {}
 
     _ACQ_TYPE = 'line' #this defines if the galvo acquisition is line by line or point by point, the default is line
-
-    # Only for line scans. If true, scans each line twice, but with different conditions (e.g. second scan
-    # has laser off or MW off)
 
     def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
         '''
@@ -129,6 +126,10 @@ class GalvoScanGeneric(Script):
         """
         Executes threaded galvo scan
         """
+        # Make a new variable for storing ending behavior,
+        # This fixes issue where self.settings['ending_behavior'] gets reset to initial value when saving and then stopping scan
+        self.ending_behavior = self.settings['ending_behavior']
+
         self.before_scan()
 
         self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
@@ -155,7 +156,7 @@ class GalvoScanGeneric(Script):
         initial_position = self.get_galvo_location()
         if initial_position == []:
             print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
-            self.settings['ending_behavior'] = 'leave_at_corner'
+            self.ending_behavior = 'leave_at_corner'
 
         Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
@@ -197,12 +198,12 @@ class GalvoScanGeneric(Script):
         self.after_scan()
 
         # set point after scan based on ending_behavior setting
-        if self.settings['ending_behavior'] == 'leave_at_corner':
+        if self.ending_behavior == 'leave_at_corner':
             return
-        elif self.settings['ending_behavior'] == 'return_to_start':
+        elif self.ending_behavior == 'return_to_start':
             self.set_galvo_location(initial_position)
-        elif self.settings['ending_behavior'] == 'return_to_origin':
-            self.set_galvo_location([0,0])
+        elif self.ending_behavior == 'return_to_origin':
+            self.set_galvo_location([0, 0])
 
     def get_galvo_location(self):
         """

@@ -200,10 +200,12 @@ class RecordPressuresTemperature(Script):
             self.force_update()
             self.progress = 50
             self.updateProgress.emit(int(self.progress))
+
+            if self.settings['save'] and time_index % 10 == 0:
+                self.save_data()
             time.sleep(self.settings['time_interval'])
 
-
-    def _plot(self, axes_list):
+    def _plot_OLD(self, axes_list):
         '''
         Args:
             axes_list: list of axes objects on which to plot the keyseight spectrun on the first axes object
@@ -231,6 +233,48 @@ class RecordPressuresTemperature(Script):
         ax2 = axes_list[0].twinx()
         lns2 = ax2.plot(time_index, self.data['temperaturesA'], color ='red',label='Temp A')
         lns3 = ax2.plot(time_index, self.data['temperaturesB'], color = 'blue',label='Temp B')
+        ax2.set_ylabel('Temperature (K)')
+
+        lns = lns1 + lns2 + lns3
+        labs = [l.get_label() for l in lns]
+        ax2.legend(lns, labs, loc=0)
+
+        ax2.text(0.5, 0.05, 'Temp A: %.3f Temp B: %.3f Pressure: %.3e'%(self.data['temperaturesA'][-1], self.data['temperaturesB'][-1], self.data['chamber_pressures'][-1]),
+             horizontalalignment='center',
+             verticalalignment='bottom',
+             transform=ax2.transAxes)
+        ax2.text(0.5, 0.0, 'Temp A std: %.3f Temp B std: %.3f Pressure std: %.3e' % (
+        np.std(self.data['temperaturesA'][-10:-1]), np.std(self.data['temperaturesB'][-10:-1]), np.std(self.data['chamber_pressures'][-10:-1])),
+                 horizontalalignment='center',
+                 verticalalignment='bottom',
+                 transform=ax2.transAxes)
+
+    def _plot(self, axes_list):
+        '''
+        Args:
+            axes_list: list of axes objects on which to plot the keyseight spectrun on the first axes object
+            data: data (dictionary that contains keys amplitudes, frequencies) if not provided use self.data
+        '''
+
+        time = np.array(self.data['time'])
+        if max(time)>3600:
+            time /= 3600
+            time_label = 'time (h)'
+        elif max(time) > 60:
+            time /= 60
+            time_label = 'time (min)'
+        else:
+            time_label = 'time (s)'
+
+        lns1 = axes_list[0].plot(time, self.data['chamber_pressures'], color='black',label='Chamber pressure')
+
+        axes_list[0].set_yscale('log')
+        axes_list[0].set_xlabel(time_label)
+        axes_list[0].set_ylabel('Pressure (Torr)')
+        #
+        ax2 = axes_list[0].twinx()
+        lns2 = ax2.plot(time, self.data['temperaturesA'], color ='red',label='Temp A')
+        lns3 = ax2.plot(time, self.data['temperaturesB'], color = 'blue',label='Temp B')
         ax2.set_ylabel('Temperature (K)')
 
         lns = lns1 + lns2 + lns3

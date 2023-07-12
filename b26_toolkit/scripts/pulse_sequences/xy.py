@@ -19,6 +19,7 @@ import numpy as np
 
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.scripts import FindNV, ESR
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
@@ -41,7 +42,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('tau_times', [
             Parameter('min_time', 500, float, 'minimum time between pi pulses'),
             Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
-            Parameter('time_step', 5, [2.5, 5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+            Parameter('time_step', 200, float,
                   'time step increment of time between pi pulses (in ns)')
         ]),
         Parameter('read_out', [
@@ -58,6 +59,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 #    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator} #ER 20181218
   #  _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _function(self):
         #COMMENT_ME
@@ -119,13 +121,14 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 
 
         for tau in tau_list:
+            tau = int(tau/ 32) * 32
             pulse_sequence = \
             [
                 Pulse(microwave_channel_pi2, laser_off_time, pi_half_time), # pi/2 pulse
             ]
 
           #  next_pi_t = laser_off_time + pi_half_time/2. + tau/2 - pi_time/2.
-            next_pi_t = laser_off_time + pi_half_time + tau/2 - pi_time/2.
+            next_pi_t = laser_off_time + pi_half_time + tau/2 #- pi_time/2.
 
             N = self.settings['mw_pulses']['pi_pulse_blocks_k']*8
             counter = 0
@@ -147,6 +150,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 Pulse(microwave_channel_pi2, next_pi_t - tau/2., pi_half_time)
                 ]
             end_of_first_CPMG = next_pi_t - tau/2. + pi_half_time
+            end_of_first_CPMG = int(end_of_first_CPMG/16)*16
 
             pulse_sequence += \
                 [
@@ -155,13 +159,14 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 ]
 
             start_of_second_CPMG = end_of_first_CPMG + delay_mw_readout + nv_reset_time + laser_off_time
+            start_of_second_CPMG = int(start_of_second_CPMG/16)*16
 
             pulse_sequence += \
             [
                 Pulse(microwave_channel_pi2, start_of_second_CPMG, pi_half_time),
             ]
 
-            next_pi_t = start_of_second_CPMG + pi_half_time + tau/2. - pi_time/2.
+            next_pi_t = start_of_second_CPMG + pi_half_time + tau/2. #- pi_time/2.
             counter = 0
             for ind in range(0, N):
                 if counter == 0 or counter == 2 or counter == 5 or counter == 7:
@@ -182,6 +187,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 ]
 
             end_of_second_CPMG = next_pi_t - tau/2. + three_pi_half_time
+            print(end_of_first_CPMG)
+            print(end_of_second_CPMG)
 
             pulse_sequence += [
                 Pulse('laser', end_of_second_CPMG + delay_mw_readout, nv_reset_time),

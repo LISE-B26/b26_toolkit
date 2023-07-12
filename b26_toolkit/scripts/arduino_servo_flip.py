@@ -16,15 +16,31 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pylabcontrol.core import Script
-from instruments import ArduinoUno
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.instruments import ArduinoZero, B26PulseBlaster
+
 
 class ArduinoServoFlip(Script):
     _DEFAULT_SETTINGS = [Parameter('servo_num', 0, int, 'servo id'),
                          Parameter('position', True, bool, 'checked for up, unchecked for down')]
     
-    _INSTRUMENTS = {'arduino': ArduinoUno}
+    _INSTRUMENTS = {'arduino': ArduinoZero}
     _SCRIPTS = {}
 
     def _function(self):
         self.instruments['arduino']['instance'].flip(self.settings['servo_num'], self.settings['position'])
+
+class ToggleCameraView(Script):
+    _INSTRUMENTS = {'arduino': ArduinoZero, 'PB': B26PulseBlaster}
+    _DEFAULT_SETTINGS = [Parameter('camera_view', False, bool, 'Toggle camera view')]
+
+    def _function(self):
+        state = self.settings['camera_view']
+        #self.instruments['arduino']['instance'].update({'LED_pellicle': {'status': state}})
+        #self.instruments['arduino']['instance'].update({'camera_pellicle': {'status': state}})
+
+        self.instruments['arduino']['instance']['LED_pellicle']['status'] = state
+        self.instruments['arduino']['instance']['camera_pellicle']['status'] = state
+
+        self.instruments['PB']['instance'].update({'laser': {'status': not state}})
+
