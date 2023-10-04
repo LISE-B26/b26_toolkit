@@ -38,7 +38,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
-        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr2'], 'Daq channel used for counter'),
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
         Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'), # added by ER 20180606
         Parameter('track_laser_power_photodiode1',
                   [
@@ -203,7 +203,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             else:
                 array_to_plot = np.delete(data['counts'], 0)
 
-            update_counts_vs_pos(axes_list[0], array_to_plot, np.linspace(0, len(array_to_plot), len(array_to_plot)))
+            update_counts_vs_pos(axes_list[0], array_to_plot, self.settings['integration_time'] * np.arange(len(array_to_plot)))
 
 class Daq_Read_Counter_2_Channel(Script):
     """

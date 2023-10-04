@@ -292,7 +292,7 @@ def plot_counts(axis, data):
         axis.plot(data, linewidth=1.25)
     # axis.hold(False)
 
-    axis.set_xlabel('sample number')
+    axis.set_xlabel('time [s]')
     axis.set_ylabel('[kCounts/s]')
 
 def update_counts(axis, data, data_size=1):

@@ -49,7 +49,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         Parameter('scan_width', 5, float, 'distance (in V or mm) between the minimum and maximum points of the range'),
         Parameter('num_sweep_points', 10, int, 'number of values to sweep between min and max voltage'),
         Parameter('focusing_optimizer', 'standard_deviation',
-                  ['mean', 'standard_deviation', 'normalized_standard_deviation'], 'optimization function for focusing'),
+                  ['mean', 'standard_deviation', 'normalized_standard_deviation', 'max'], 'optimization function for focusing'),
         Parameter('wait_time', 0.1, float),
         Parameter('use_current_z_axis_position', False, bool, 'Overrides z axis center position and instead uses the current piezo voltage as the center of the range'),
         Parameter('center_on_current_location', False, bool, 'Check to use current galvo location rather than center point in take_image'),
@@ -120,6 +120,8 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
                 return np.std(image)
             elif optimizer == 'normalized_standard_deviation':
                 return np.std(image) / np.mean(image)
+            elif optimizer == 'max':
+                return np.max(image)
 
         def autofocus_loop(sweep_voltages):
             """

@@ -279,7 +279,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
         Parameter('acquisition_time', 3.0, float, 'Total acquisition time (s)'),
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for analog in'),
-        Parameter('counter_only', True, bool, 'use counter input only')
+        Parameter('ctr_or_ai', 'ctr', ['ctr', 'ai'], 'select ctr or ai')
     ]
 
     _INSTRUMENTS = {'daq_ai': NI9219, 'daq_counter': NI9402}
@@ -321,13 +321,10 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             continuous_acquisition=False
         )
 
-        daq_ai = None
-        aitask = None
-        if not self.settings['counter_only']:
-            daq_ai = self.instruments['daq_ai']['instance']
-            aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
-                                          continuous=False, # continuous sampling still reads every clock tick, here set to the clock of the counter
-                                          clk_source=ctrtask)
+        daq_ai = self.instruments['daq_ai']['instance']
+        aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
+                                      continuous=False, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                      clk_source=ctrtask)
 
         return [[daq_ai, aitask], [daq_counter, ctrtask]]
 
@@ -339,9 +336,6 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         """
         daq_counter = self.instruments['daq_counter']['instance']
-
-        if not self.settings['counter_only']:
-            daq_ai = self.instruments['daq_ai']['instance']
 
         counter_channel = self.settings['counter_channel']
 
@@ -414,7 +408,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         if data is None:
             data = self.data
 
-        if self.settings['counter_only']:
+        if self.settings['ctr_or_ai'] == 'ctr':
             plotting_data = data['counts']
         else:
             plotting_data = data['ai']

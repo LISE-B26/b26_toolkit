@@ -152,7 +152,6 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
             data = self.data
 
         update_counts_vs_pos(axes_list[0], data['voltage'], np.linspace(0, len(data['voltage']), len(data['voltage'])))
-
 if __name__ == '__main__':
     script = {}
     instr = {}

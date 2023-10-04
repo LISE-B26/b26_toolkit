@@ -186,7 +186,7 @@ class PiezoControllerCold(PiezoController):
 
         current_voltage = self.voltage
 
-        voltage_list = np.linspace(current_voltage, voltage, np.floor(np.abs(voltage-current_voltage)))
+        voltage_list = np.linspace(current_voltage, voltage, int(np.abs(voltage-current_voltage)))
 
         t_start = time.time()
 

@@ -136,7 +136,7 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
 
     fig = axes_image.get_figure()
 
-    implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent, aspect=aspect)
+    implot = axes_image.imshow(image_data, cmap='inferno', interpolation="nearest", extent=extent, aspect=aspect)
 
     title, x_label, y_label, cbar_label = labels
     axes_image.set_xlabel(x_label)
