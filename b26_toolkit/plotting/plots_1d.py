@@ -54,7 +54,8 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin', color='b'):
 
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
-def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r', linestyle = '-', marker = '.'):
+def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r',
+             linestyle = '-', marker = '.',title='ESR',xlabel='Frequency (Hz)',ylabel='Kcounts/s'):
     """
     plots the esr
     Args:
@@ -80,7 +81,6 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #axes.hold(True) #ER 20181012
 
-    title = 'ESR'
     fit_data = None
 
     #  ======== plot fit =========
@@ -106,8 +106,8 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     #     lines = axes.plot(frequency, data, 'b')
 
     axes.set_title(title)
-    axes.set_xlabel('Frequency (Hz)')
-    axes.set_ylabel('Kcounts/s')
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
 
 def plot_pulsedesr(axes, frequency, fit_params=None, plot_marker_fit = 'r'):
     """
@@ -476,13 +476,13 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
         axis.relim()
         axis.autoscale_view()
 
-def plot_counts_vs_pos(axis, data, pos):
+def plot_counts_vs_pos(axis, data, pos, ylabel = 'kCounts/s'):
     """
     plots magnet position vs. counts for aligning the field with fluorescence
 
     """
     axis.set_xlabel('position (mm)')
-    axis.set_ylabel('kCounts/sec')
+    axis.set_ylabel(ylabel)
 
     axis.plot(pos, data, linewidth=2.0)
 

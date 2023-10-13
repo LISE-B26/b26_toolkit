@@ -20,10 +20,10 @@ import itertools
 from copy import deepcopy
 
 import numpy as np
-
+import time
 from b26_toolkit.scripts import FindNV, ESR
-from b26_toolkit.scripts.autofocus import AutoFocusDAQ
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ, AutoFocusDaqMDT693A
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, Commander
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random, datetime
@@ -51,7 +51,8 @@ for a given experiment
         Parameter('Tracking', [
             Parameter('on/off', False, bool, 'used to turn on tracking'),
             Parameter('threshold', 0.85, float, 'threshold for tracking'),
-            Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps')
+            Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps'),
+            Parameter('before_block', False, bool, 'run FindNV after each averaging block')
         ]),
         Parameter('ESR_Tracking', [
             Parameter('on/off', False, bool, 'turn on to track NV ESR'),
@@ -76,7 +77,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR} #, 'autofocus': AutoFocusDAQ}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDaqMDT693A}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -107,6 +108,27 @@ for a given experiment
         self.progress = 100.0 * progress
         return int(round(self.progress))
 
+    def _configure_instruments_start_of_script(self):
+        """
+        Configure instruments at the beginning of a script, e.g. enable IQ modulation
+        :return: None
+        """
+        pass
+
+    def _configure_instruments_for_tau(self, tau):
+        """
+        Configure instruments before taking measurements for a new tau value.
+        :return: None
+        """
+        pass
+
+    def _configure_instruments_end_of_script(self):
+        """
+        Configure instruments right before the script finishes, e.g. turn off function generators
+        :return: None
+        """
+        pass
+
     def _function(self, in_data=None):
         """
         This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
@@ -124,21 +146,25 @@ for a given experiment
 
         """
 
+        self._configure_instruments_start_of_script()
+
         # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
 
-        print('turning off microwave switch')
+        print('Turning off microwave switch')
         self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-        print('successfully turned off microwave switch')
+        print('Successfully turned off microwave switch')
+        # remember if laser was on prior to this script
+        self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
+        print('Laser status was %s before this script began.' % self.laser_status_before_script)
 
         # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
         pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
 
-        # remember if laser was on prior to this script
-        self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
 
         # ER 20181214 retrieve modulation on or off for main experiment
         mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
+
 
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
@@ -169,6 +195,7 @@ for a given experiment
         if self.settings['Tracking']['on/off']:
             self.instruments['PB']['instance'].update({'laser': {'status': True}})
             self.scripts['find_nv'].run()
+            #self.sleep(5)
             self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
             if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
                 self.log('Could not find an NV in FindNV.')
@@ -194,13 +221,9 @@ for a given experiment
                 self.log('Aborted pulseblaster script during loop')
                 break
 
-            #MM 20190621
-            #if self.settings['Autofocus_Tracking']['on/off'] and average_loop % self.settings['Autofocus_Tracking']['track_every_N'] == 0:
-            #    self.scripts['autofocus'].run()
-                #Retrack NV afterwards. 
-            #    self.scripts['find_nv'].run()
-            #    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
-
+            if 'before_block' in self.settings['Tracking'] and self.settings['Tracking']['before_block']:
+                self.scripts['find_nv'].run()
+                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
 
             # ER 20181028
             if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking']['track_every_N']==0:
@@ -365,6 +388,7 @@ for a given experiment
                     breaker = True
                     break
 
+                self._configure_instruments_for_tau(self.tau_list[rand_index])
                 result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
                 # self.result_current is added here for pulsed_esr. In a usual pulse sequence (e.g. Rabi), there are 2
                 # loops: tau and averaging blocks. In pulsed_esr, there are 3 loops: MW frequency, tau (with 1 value), and
@@ -379,7 +403,21 @@ for a given experiment
                 counts_temp = counts_to_check[self.ref_index]  # ref_index is set as 0 by default when script is initialized
 
                 # track to the NV if necessary ER 5/31/17
+                if 'commander' in self.instruments and self.instruments['commander']['instance'].settings['find_nv']:
+                    self.log('Running FindNV on manual request')
+                    self.instruments['PB']['instance'].update({'laser': {'status': True}})
+                    self.scripts['find_nv'].run()
+                    self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+                    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
+                    self.instruments['commander']['instance'].update({'find_nv': False})
 
+
+                if 'commander' in self.instruments and self.instruments['commander']['instance'].settings['autofocus']:
+                    self.log('Running Autofocus on manual request')
+                    self.instruments['PB']['instance'].update({'laser': {'status': True}})
+                    self.scripts['autofocus'].run()
+                    self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+                    self.instruments['commander']['instance'].update({'autofocus': False})
 
                 counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
                 if self.settings['Tracking']['on/off'] and counts_unsatisfactory:
@@ -447,23 +485,22 @@ for a given experiment
             daq = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
             daq = self.instruments['NI9402']['instance']
-        time_before_program = t.time()
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
-        time_after_program = t.time()
-        #print('PB program_pulse_seq: ' + str(datetime.timedelta(seconds=time_after_program - time_before_program)))
 
         # TODO(AK): figure out if timeout is actually needed
         timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
+
         if num_daq_reads != 0:
             task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
             daq.run(task)
 
-        time_before_pulse_seq = t.time()
         self.instruments['PB']['instance'].start_pulse_seq()
 
         result = []
 
-        time_before_daq_reads = t.time()
+        if num_daq_reads == 0:
+            result = [0]
+
         if num_daq_reads != 0:
             result_array, temp = daq.read(task)   # thread waits on DAQ getting the right number of gates
             t4 = t.perf_counter()
@@ -472,22 +509,18 @@ for a given experiment
 
         # clean up APD tasks
         if num_daq_reads != 0:
+            #print('task stopping...')
             daq.stop(task)
-        time_after_daq_reads = t.time()
-        #print('DAQ reads: ' + str(datetime.timedelta(seconds=time_after_daq_reads - time_before_daq_reads)))
+            #print('task stopped')
 
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
             print('stopping pulse seq: ')
             self.instruments['PB']['instance'].stop_pulse_seq()
 
-        time_after_pulse_seq = t.time()
-
-        #print('PB start_pulse_seq: ' + str(datetime.timedelta(seconds=time_after_pulse_seq - time_before_pulse_seq)))
         return result
 
     def _sum_measurements(self, daq_results, num_daq_reads):
-        #print('no of daq reads')
-        #print(num_daq_reads)
+
         summed_results = []
         for i in range(num_daq_reads):
             summed_results.append(sum(itertools.islice(daq_results, i, None, num_daq_reads)))
@@ -552,7 +585,7 @@ for a given experiment
         Returns:
 
         """
-
+        self.verbose = verbose
         # make sure that we have the pulse sequences that correspond to the current settings
         if pulse_sequences is None:
             pulse_sequences, __, __ = self.create_pulse_sequences()
@@ -803,7 +836,7 @@ for a given experiment
                 pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_i_2', overlap_window=2 * mw_switch_time)
                 pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_q', overlap_window=2 * mw_switch_time)
                 pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_q_2',overlap_window=2 * mw_switch_time)
-                pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_switch', overlap_window=2 * mw_switch_time)
+                #pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_switch', overlap_window=2 * mw_switch_time)
             pulse_sequences_with_mw_switch.append(pulse_sequence)
 
         return pulse_sequences_with_mw_switch
@@ -943,6 +976,7 @@ for a given experiment
 
 
 if __name__ == '__main__':
+    """
     script = {}
     instr = {}
     script, failed, instr = Script.load_and_append({'ExecutePulseBlasterSequence': 'ExecutePulseBlasterSequence'},
@@ -956,3 +990,5 @@ if __name__ == '__main__':
     print(script)
     print(failed)
     print(instr)
+    """
+    pass

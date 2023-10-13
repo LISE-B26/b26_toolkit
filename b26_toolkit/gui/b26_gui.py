@@ -16,17 +16,11 @@ class ControlMainWindowB26(MainWindow):
     def __init__(self, filename=None):
 
         super(ControlMainWindowB26, self).__init__(filename)
-        # self.label_2 = QLabel(self)
-        # # creating a opacity effect
-        # self.opacity_effect = QGraphicsOpacityEffect()
-        #
-        # # setting opacity level
-        # self.opacity_effect.setOpacity(0.1)
-        #
-        # # adding opacity effect to the label
-        # self.label_2.setGraphicsEffect(self.opacity_effect)
-        # self.label_2.setMinimumSize(2000, 1000)
-        # self.label_2.setStyleSheet("background-image : url(C:/Users/Experiment/Downloads/joker.jpg); border : 2px solid blue")
+        #self.setStyleSheet("background-color: #fae6fb;")
+        #self.setStyleSheet("background-color: gray")
+        self.setStyleSheet("background-image: url(C:/Users/Experiment/Pictures/heaven2.png); background-repeat: no-repeat;")
+        self.tree_scripts.setAlternatingRowColors(False)
+
 
     def load_scripts(self, verbose=False):
         """

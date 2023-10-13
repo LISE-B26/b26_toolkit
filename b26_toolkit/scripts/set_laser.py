@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.instruments import NI6259, NI9263, PiezoController
+from b26_toolkit.instruments import NI6259, NI9263, PiezoController, NI9263_02, ANC300
 from pylabcontrol.core import Script, Parameter
 
 
@@ -40,7 +40,7 @@ This script points the laser to a point
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9263': NI9263}
 
     _SCRIPTS = {}
 
@@ -85,7 +85,11 @@ This script points the laser to a point
         if self.settings['daq_type'] == 'PCI':
             self.daq_out = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
-            self.daq_out = self.instruments['NI9263']['instance']
+            if 'NI9263' in self.instruments:
+                self.daq_out = self.instruments['NI9263']['instance']
+            elif 'NI9263_02' in self.instruments:
+                print('using ni9263_02')
+                self.daq_out = self.instruments['NI9263_02']['instance']
 
     def scale(self):
         return 1
@@ -98,7 +102,11 @@ This script points the laser to a point
         if self.settings['daq_type'] == 'PCI':
             self.daq_out = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
-            self.daq_out = self.instruments['NI9263']['instance']
+            if 'NI9263' in self.instruments:
+                self.daq_out = self.instruments['NI9263']['instance']
+            elif 'NI9263_02' in self.instruments:
+                print('using ni9263_02')
+                self.daq_out = self.instruments['NI9263_02']['instance']
 
     def get_galvo_position(self):
         """
@@ -122,8 +130,11 @@ This script points the laser to a point
 
         # removes patches
         [child.remove() for child in axes_Image.get_children() if isinstance(child, patches.Circle)]
+        xticks = axes_Image.get_xticks()
+        radius = (xticks[-1]-xticks[0])*0.01
 
-        patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), .0005, fc='r')
+
+        patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), radius, fc='r', alpha = .8)
         axes_Image.add_patch(patch)
 
 class SetLaser_cDAQ(SetLaser):
@@ -163,7 +174,6 @@ This script points the laser to a point
         self.log('laser set to Vx={:.4}, Vy={:.4}'.format(self.settings['point']['x'], self.settings['point']['y']))
 
 
-
 class SetAtto(SetLaser):
     _DEFAULT_SETTINGS = [
         Parameter('point',
@@ -183,7 +193,7 @@ class SetAtto(SetLaser):
 
     def check_bounds(self, x, y):
         if x < 0 or y < 0:
-            self.log('Attocube cannot accept negative voltages!')
+            self.log('Piezo cannot accept negative voltages!')
             raise AttributeError
 
     def scale(self):
@@ -196,6 +206,65 @@ class SetAtto(SetLaser):
         elif voltage_limit == 150:
             scale = 15
         return scale
+
+
+
+class SetAttoANC300(SetAtto):
+    _DEFAULT_SETTINGS = [
+        Parameter('point',
+                  [Parameter('x', 0., float, 'x-coordinate'),
+                   Parameter('y', 0., float, 'y-coordinate')
+                   ]),
+        Parameter('zero_first', False, bool, 'Zero piezo inputs before moving to setpoint, to avoid hysteresis effects'),
+        Parameter('DAQ_channels',
+                  [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'],
+                             'Daq channel used for y voltage analog output')
+                   ]),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+    ]
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9263': NI9263, 'ANC300': ANC300}
+    def scale(self):
+        return 15
+
+    def _function(self):
+        def set_ao(x, y):
+            pt = (x / self.scale(), y / self.scale())
+            try:
+                self.check_bounds(pt[0], pt[1])
+            except AttributeError:
+                return
+
+            # daq API only accepts either one point and one channel or multiple points and multiple channels
+            pt = np.transpose(np.column_stack((pt[0], pt[1])))
+            pt = (np.repeat(pt, 2, axis=1))
+
+            self._setup_daq()
+
+            task = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
+            self.daq_out.run(task)
+            self.daq_out.waitToFinish(task)
+            self.daq_out.stop(task)
+            self.log('laser set to Vx={:.4}, Vy={:.4}'.format(float(x), float(y)))
+
+        if self.settings['zero_first']:
+            set_ao(0, 0)
+            self.instruments['ANC300']['instance']._set_mode(1, 'input')
+            self.instruments['ANC300']['instance']._set_mode(2, 'input')
+
+        set_ao(self.settings['point']['x'], self.settings['point']['y'])
+        self.instruments['ANC300']['instance']._set_mode(1, 'input')
+        self.instruments['ANC300']['instance']._set_mode(2, 'input')
+
+class SetLaserInterferometer(SetAtto):
+    """
+    Set IR laser spot using kinematic mount piezos
+    """
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9263_02': NI9263_02}
+    def scale(self):
+        return 15
+
 
 if __name__ == '__main__':
     from pylabcontrol.core import Instrument

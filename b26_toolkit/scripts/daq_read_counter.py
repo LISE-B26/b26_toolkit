@@ -21,7 +21,7 @@ from collections import deque
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 import matplotlib.pyplot as plt
-from b26_toolkit.instruments import NI6259, NI9402, NI9219, MicrowaveGenerator, PiezoController
+from b26_toolkit.instruments import NI6259, NI9402, NI9215, MicrowaveGenerator, PiezoController
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos, update_counts
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import FindNV
@@ -204,6 +204,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 array_to_plot = np.delete(data['counts'], 0)
 
             update_counts_vs_pos(axes_list[0], array_to_plot, self.settings['integration_time'] * np.arange(len(array_to_plot)))
+
 
 class Daq_Read_Counter_2_Channel(Script):
     """
@@ -506,26 +507,170 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             self.ax2.autoscale_view()
 
 
+class Daq_Read_Counter_v2(Script):
+    """
+This script reads the Counter input from the DAQ and plots it.
 
-"""def _update_plot(self, axes_list, data = None):
+WARNING: Only implemented either for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
+
+If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
+
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('integration_time', .25, float, 'Time per data point (s)'),
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr2'], 'Daq channel used for counter'),
+        Parameter('total_int_time', -1, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
+        Parameter('trim_plot', -1, int, 'Keep only the last n data points to keep plot decluttered (saved data unaffected), (if -1 then no trim)'),
+        Parameter('histogram', False, bool, 'Plot histogram of counts'),
+        Parameter('num_plot', False, bool, 'Show a big number showing the last Daq value instead of a time series plot')
+    ]
+
+    _INSTRUMENTS = {'daq': NI9402}
+
+    _SCRIPTS = {}
+
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
+
+        self.data = {'counts': deque()}
+
+        plt.ioff()
+
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        sample_num = 2
+        sample_rate = float(sample_num) / self.settings['integration_time']
+        normalization = self.settings['integration_time']/.001/float(sample_num)
+
+        self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
+
+        self.data = {'counts': deque()}
+        self.last_value = 0
+
+        # maximum number of samples if total_int_time > 0
+        if self.settings['total_int_time'] > 0:
+            max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
+
+        self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num,
+                                                                   continuous_acquisition=True)
+
+        self.instruments['daq']['instance'].run(self.task)
+
+        # ER 20180827 wait for at least one clock tick to go by to start with a full clock tick of acquisition time for the first bin
+        time.sleep(self.settings['integration_time'])
+
+        err_sum = 0
+
+        sample_index = 0  # keep track of samples made to know when to stop if finite integration time
+        self.loop_iteration = 0
+
+        while True:
+            if self._abort:
+                break
+            self.loop_iteration += 1
+            # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
+            # than it acquires, this should be replaced with a blocking read in the future
+
+            raw_data, num_read = self.instruments['daq']['instance'].read(self.task)
+
+
+            if num_read.value < sample_num:
+                time.sleep(float(sample_num) / sample_rate)
+                continue
+
+            if self.last_value == 0:
+                self.last_value = raw_data[0]
+                raw_data = raw_data[1:]
+
+            for value in raw_data:
+                self.new_val = ((float(value) - self.last_value) / normalization)
+                #print('New_value:'+str(float(value) - self.last_value_a))
+                #print('Last_value:' + str(value))
+                self.data['counts'].append(self.new_val)
+                self.last_value = value
+
+            if self.settings['total_int_time'] > 0:
+                self.progress = sample_index/max_samples
+            else:
+                self.progress = 50.
+            self.updateProgress.emit(int(self.progress))
+
+            time.sleep(float(sample_num) / sample_rate)
+            sample_index = sample_index + 1
+            if self.settings['total_int_time'] > 0. and sample_index >= max_samples: # if the maximum integration time is hit
+                self._abort = True # tell the script to abort
+
+            def restart_loop():
+                self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'],
+                                                                           sample_num, continuous_acquisition=True)
+                self.instruments['daq']['instance'].run(self.task)
+                time.sleep(self.settings['integration_time'])
+                self.last_value = 0
+
+            # Script crashes after about 500 loops if the sampling rate is set to 1 kS/s
+            if self.loop_iteration > 200000 / sample_rate:
+                print(self.loop_iteration)
+                self.loop_iteration = 0
+                self.instruments['daq']['instance'].stop(self.task)
+                restart_loop()
+
+
+        # clean up APD tasks
+        self.instruments['daq']['instance'].stop(self.task)
+
+        self.data['counts'] = list(self.data['counts'])
+
+
+    def plot(self, figure_list):
+        super(Daq_Read_Counter_v2, self).plot([figure_list[1]])
+
+    def _plot(self, axes_list, data = None):
+        # COMMENT_ME
+
+        if data is None:
+            data = self.data
+            if self.settings['num_plot']:
+                self.plot_txt = axes_list[0].text(0.5, 0.5, '%.1f kCt/s' % 0, fontsize=80, ha='center', va='center', transform=axes_list[0].transAxes)
+                axes_list[0].set_axis_off()
+
+        if len(data['counts']) > 0:
+            array_to_plot = np.delete(data['counts'], 0)
+            if self.settings['num_plot']:
+                if len(array_to_plot) > 1:
+                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
+            else:
+                self.lns1 = axes_list[0].plot(array_to_plot, label='kCt/s')
+
+    def _update_plot(self, axes_list, data=None):
         if data is None:
             data = self.data
 
         if data:
-            array_to_plot = np.array([np.delete(data['counts_diff'], 0), np.delete(data['mw_freq'], 0)])
-            #array_to_plot = np.delete(data['counts_diff'], 0)
+            array_to_plot = np.delete(data['counts'], 0)
+            if self.settings['num_plot']:
+                if len(array_to_plot) > 1:
+                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
+            else:
+                if self.settings['trim_plot'] != -1 and len(data['counts']) > self.settings['trim_plot']:
+                        array_to_plot = array_to_plot[-self.settings['trim_plot']:]
+                self.lns1[0].set_ydata(array_to_plot)
+                self.lns1[0].set_xdata(range(0, len(array_to_plot)))
 
-            # Decimate data to speed up plotting once data set becomes too large
-
-
-            if self.settings['decimate_plot']:
-                if len(data['counts_diff']) > self.max_pts:
-                    array_to_plot = array_to_plot[:, ::int(len(data['counts_a']) / self.max_pts)]
-                    #array_to_plot = array_to_plot[::int(len(data['counts_a']) / self.max_pts)]
-
-            #update_counts_vs_pos(axes_list[0], array_to_plot, np.linspace(0, len(array_to_plot), len(array_to_plot)))
-            update_counts(axes_list[0], array_to_plot)"""
-
+                axes_list[0].relim()
+                axes_list[0].autoscale_view()
 
 class Daq_Read_Counter_NI6259(Daq_Read_Counter):
     _INSTRUMENTS = {'daq': NI6259}

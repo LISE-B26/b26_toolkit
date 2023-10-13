@@ -21,10 +21,11 @@ from copy import deepcopy
 import numpy as np
 import trackpy as tp
 from matplotlib import patches
+import matplotlib.patheffects as pe
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan
+from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan, GalvoScanSafe
 from b26_toolkit.scripts.set_laser import SetLaser
 
 
@@ -43,6 +44,7 @@ Known issues:
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
         Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
         Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
         Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
@@ -61,6 +63,29 @@ Known issues:
 
         Script.__init__(self, name, scripts = scripts, settings=settings, log_function=log_function, data_path = data_path)
 
+    def pixel_to_voltage(self, pt, extent, image_dimensions):
+        """"
+        pt: point in pixels
+        extent: [xVmin, Vmax, Vmax, yVmin] in volts
+        image_dimensions: dimensions of image in pixels
+
+        Returns: point in volts
+        """
+
+        image_x_len, image_y_len = image_dimensions
+        image_x_min, image_x_max, image_y_max, image_y_min = extent
+
+        assert image_x_max > image_x_min
+        assert image_y_max > image_y_min
+
+        volt_per_px_x = (image_x_max - image_x_min) / (image_x_len - 1)
+        volt_per_px_y = (image_y_max - image_y_min) / (image_y_len - 1)
+
+        V_x = volt_per_px_x * pt[0] + image_x_min
+        V_y = volt_per_px_y * pt[1] + image_y_min
+
+        return [V_x, V_y]
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -68,7 +93,7 @@ Known issues:
         """
 
         attempt_num = 1
-        # print((self.scripts['take_image'].instruments))
+
         if self.settings['center_on_current_location']:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
@@ -85,39 +110,18 @@ Known issues:
                      'fluorescence': None
                      }
 
-        def pixel_to_voltage(pt, extent, image_dimensions):
-            """"
-            pt: point in pixels
-            extent: [xVmin, Vmax, Vmax, yVmin] in volts
-            image_dimensions: dimensions of image in pixels
-
-            Returns: point in volts
-            """
-
-            image_x_len, image_y_len = image_dimensions
-            image_x_min, image_x_max, image_y_max, image_y_min = extent
-
-            assert image_x_max > image_x_min
-            assert image_y_max > image_y_min
-
-            volt_per_px_x = (image_x_max - image_x_min) / (image_x_len-1)
-            volt_per_px_y = (image_y_max - image_y_min) / (image_y_len-1)
-
-            V_x = volt_per_px_x * pt[0] + image_x_min
-            V_y = volt_per_px_y * pt[1] + image_y_min
-
-            return [V_x, V_y]
-
         def min_mass_adjustment(min_mass):
             #COMMENT_ME
-            return (min_mass - 20)
+            return (min_mass - 2)
 
         self.scripts['take_image'].settings['point_a'].update({'x': self.settings['initial_point']['x'], 'y': self.settings['initial_point']['y']})
         self.scripts['take_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
         self.scripts['take_image'].update({'RoI_mode': 'center'})
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
+        self.scripts['take_image'].update({'time_per_pt': self.settings['time_per_pt']})
 
-        self.scripts['take_image'].run()
+        self.scripts['take_image'].run(verbose=True)
+
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
@@ -125,7 +129,7 @@ Known issues:
         if self.settings['pick_brightest_pt']:
             brightest_pt = np.unravel_index(self.data['image_data'].argmax(), self.data['image_data'].shape)
             brightest_pt = brightest_pt[::-1]
-            brightest_pt = pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
+            brightest_pt = self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
             self.data['maximum_point'] = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
         else:
             while True: # modified ER 5/27/2017 to implement tracking
@@ -136,7 +140,7 @@ Known issues:
                 else:
 
                     # all the points that have been identified as valid NV centers
-                    pts = [pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
+                    pts = [self.pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
                            locate_info[['x', 'y']].as_matrix()]
 
                     if len(pts) > 1:
@@ -164,24 +168,32 @@ Known issues:
 
         self.log('Max fluorescence found: %i kcounts/s' % np.max(self.data['image_data']))
 
-        if self.settings['adjust_laser']:
+        # The first condition below is written for FindNvSafe. Won't matter for normal FindNv.
+        # If counts exceed threshold, laser should be turned off automatically while running FindNvSafe
+        # If that happens, we also don't want the script to leave the laser on the brightest spot (likely to be the micromagnet)
+        # So we just move the laser to the initial point (usually where we think the NV is before running the script)
+        if self.scripts['take_image'].safety_threshold_exceeded:
+            self.scripts['set_laser'].settings['point'].update(self.settings['initial_point'])
+            self.scripts['set_laser'].run(verbose=True)
+        elif self.settings['adjust_laser']:
             self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
+            self.scripts['set_laser'].run(verbose=True)
             self.scripts['set_laser'].run()
 
 
     @staticmethod
     def plot_data(axes_list, data):
-        plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
+        #plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
         initial_point = data['initial_point']
-        patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none', ls='dashed')
+        patch = patches.Circle((initial_point['x'], initial_point['y']), .001, ec='g', fc='none', ls='dashed', alpha=0.8)
         axes_list[0].add_patch(patch)
         axes_list[0].text(initial_point['x'], initial_point['y'] - .002, 'initial point', color='g', fontsize=8)
 
         # plot marker
         if data['maximum_point']:
             maximum_point = data['maximum_point']
-            patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none', ls='dashed')
+            patch = patches.Circle((maximum_point['x'], maximum_point['y']), .001, ec='r', fc='none', ls='dashed', alpha=0.8)
             axes_list[0].add_patch(patch)
             axes_list[0].text(maximum_point['x'], maximum_point['y'] - .002, 'found NV', color='r', fontsize=8)
 
@@ -195,12 +207,11 @@ Known issues:
         if data is None:
             data = self.data
 
-
         if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
             self.scripts['take_image']._plot(axes_list)
         else:
+            self.scripts['take_image']._plot(axes_list)
             self.plot_data(axes_list, data)
-
 
     def _update_plot(self, axes_list):
         """
@@ -235,6 +246,43 @@ Known issues:
         # create a new figure list that contains only figure 1, this assures that the super.get_axes_layout doesn't
         # empty the plot contained on figure 2
         return super(FindNV, self).get_axes_layout([figure_list[0]])
+
+
+class FindNvSafe(FindNV):
+    """
+    Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
+    Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
+    destroying the string underneath
+    """
+
+
+
+    _DEFAULT_SETTINGS = [
+        Parameter('initial_point',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
+        Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
+        Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
+        Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
+        Parameter('number_of_attempts', 5, int, 'Number of times to decrease min_mass if an NV is not found'),
+        Parameter('center_on_current_location', False, bool, 'check to use current galvo location rather than initial pt'),
+        Parameter('pick_brightest_pt', True, bool, 'check to simply set_laser on the brightess point in the scan, '
+                                                   'otherwise run a fitting algorithm to determine the center'),
+        Parameter('adjust_laser', True, bool, 'set laser spot on NV location'),
+        Parameter('safety_threshold', 10, float, 'when a line contains a pixel exceeding this threshold (kCt/s), the PulseBlaster will turn off the laser')
+    ]
+
+    _INSTRUMENTS = {}
+
+    _SCRIPTS = {'take_image': GalvoScanSafe, 'set_laser': SetLaser}
+
+    def _function(self):
+        self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
+        super(FindNvSafe, self)._function()
+
 
 # class FindNV_cDAQ(FindNV):
 #     """

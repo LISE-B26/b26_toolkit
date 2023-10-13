@@ -18,10 +18,11 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
+from b26_toolkit.scripts import FindNV, ESR
 
 
 class Rabi(PulsedExperimentBaseScript):  # ER 5.25.2017
@@ -49,10 +50,11 @@ Uses a double_init scheme
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _function(self):
         #COMMENT_ME
@@ -175,6 +177,7 @@ Uses a double_init scheme
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
+
 class RabiDoublePi(Rabi):
     """
     Runs Rabi, but instead of sweeping the duration of a single MW pulse, sweeps the duration of two back to back MW
@@ -247,10 +250,11 @@ class RabiDoublePi(Rabi):
 
         return pulse_sequences, tau_list, meas_time
 
+
 class RabiPowerSweepSingleTau(PulsedExperimentBaseScript):
     """
-This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
-todo(emma): (write as a double_init scheme)
+    This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
+    todo(emma): (write as a double_init scheme)
     """
     _DEFAULT_SETTINGS = [
         Parameter('min_mw_power', -45.0, float, 'minimum microwave power in dB'),

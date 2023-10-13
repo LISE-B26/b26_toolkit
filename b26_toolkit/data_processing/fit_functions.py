@@ -195,6 +195,7 @@ def fit_lorentzian_nanopillar(x_values, y_values, starting_params=None, bounds=N
     # defines a lorentzian with amplitude, width, center, and offset to use with opt.curve_fit
     if return_cov:
 
+
         if bounds:
             return optimize.curve_fit(lorentzian, x_values, y_values, p0=starting_params, bounds=bounds, max_nfev=2000)
         else:

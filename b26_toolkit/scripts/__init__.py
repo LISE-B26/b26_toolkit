@@ -19,7 +19,7 @@
 # # from test_script import ScriptTest
 from .galvo_scan.galvo_scan import GalvoScan, GalvoScanTimetrace
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
-from .set_laser import SetLaser, SetAtto
+from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
 from .find_nv import FindNV
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
@@ -34,6 +34,7 @@ from .atto_scan import AttoStep
 # #     HahnEcho, XY4, XYXY, ReadoutStartTimeWithoutMW, ReadoutStartTime, ReadoutDuration, CPMG, \
 # #     HahnEchoManyNVs, RabiPowerSweepSingleTau
 from .pulse_sequences.rabi import Rabi
+#from .pulse_sequences.pulsed_esr import PulsedESR
 from .esr_and_rabi import ESRAndRabi
 # from .spec_analyzer_get_spectrum import KeysightGetSpectrum
 from .light_control import ApplyLightControlSettings, CameraOn
@@ -44,5 +45,7 @@ from .set_magnetic_coils import SetMagneticCoils
 from .align_magnetic_field_to_NV import AlignFieldToNV
 from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
 from .stability_with_microwaves import Stability_With_Microwaves
+from .load_instrument import LoadInstrument
+from .arduino_servo_flip import ToggleCameraView
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
 from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219

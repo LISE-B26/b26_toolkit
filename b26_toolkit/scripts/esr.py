@@ -22,15 +22,18 @@ from pylabcontrol.core import Script, Parameter
 # import standard libraries
 import numpy as np
 from b26_toolkit.scripts import FindNV
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, RFGenerator
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, RFGenerator, ANC300
 from b26_toolkit.scripts.spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from b26_toolkit.plotting.plots_1d import plot_esr
-
+from scipy import optimize
 
 # from b26_toolkit.plotting.plots_1d import plot_diff_freq_vs_freq
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
+
 import time
 import random
+from b26_toolkit.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian, lorentzian, double_lorentzian
+from b26_toolkit.data_processing.esr_signal_processing import find_nv_peaks as find_nv_peaks
 
 
 class ESR_DAQ_FM(Script):
@@ -701,7 +704,7 @@ class ESR_simple(Script):
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.05, float, 'The TOTAL integration time. The integration time per daq bins is integration_time / num_samps_per_pt'),
         Parameter('num_samps_per_pt', 100, int, 'Number of samples within one DAQ buffer, for each frequency. This should be large because the first measurement is thrown away (may start in the middle of a clock tick)'),
-        Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
+        Parameter('switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('save_full_esr', True, bool, 'If true save all the esr traces individually'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
@@ -756,15 +759,14 @@ class ESR_simple(Script):
 
     def get_freq_array(self):
         '''
-
-        Construct the frequency array based on the setting parameters.
+        Construct a list of values through which we will sweep a parameter.
+        Function is called get_freq_array, but the array does not have to be frequency. Can be e.g. voltage values for a piezo
 
         Returns:
-            freq_values: array of the frequencies to be tested
-            freq_range: the range of the frequency to be tested, i.e. maximum frequency - minumum frequency
+            freq_values: array of the parameter values to be tested
+            freq_range: the range of the parameter values to be tested, i.e. maximum frequency - minumum frequency
         '''
 
-        # contruct the frequency array
         if self.settings['range_type'] == 'start_stop':
             if self.settings['freq_start']>self.settings['freq_stop']:
                 self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
@@ -827,8 +829,9 @@ class ESR_simple(Script):
             freq = freq_values[freq_index]
 
             # change MW frequency
-            self.instruments['microwave_generator']['instance'].update({'frequency': float(freq)})
-            time.sleep(self.settings['mw_generator_switching_time'])
+            self.change_param(freq)
+
+            time.sleep(self.settings['switching_time'])
 
 
             single_sweep_data[freq_index] = self.measure_signal(num_samps)
@@ -839,8 +842,11 @@ class ESR_simple(Script):
 
         end_run_sweep = time.time()
 
-
         return single_sweep_data, indeces
+
+    def change_param(self, param):
+        # Change a certain parameter for each point in a sweep. Parameter can be frequency or something else, such as voltage on an Attocube
+        self.instruments['microwave_generator']['instance'].update({'frequency': float(param)})
 
     def measure_signal(self, num_samps):
         """
@@ -924,14 +930,14 @@ class ESR_simple(Script):
             # save the single sweep data
             esr_data[scan_num] = single_sweep_data
 
-            if self.settings['save_timetrace']:
+            if 'save_timetrace' in self.settings and self.settings['save_timetrace']:
                 index_data[scan_num] = indeces
 
             # current non-normalized averaged data to plot and fit to if laser power tracking is off
             esr_avg = np.mean(esr_data[0:(scan_num + 1)], axis=0)
 
             # fit to the data
-            fit_params = fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['minimum_counts'],
+            fit_params = self.fit_esr(freq_values, esr_avg, min_counts = self.settings['fit_constants']['minimum_counts'],
                                 contrast_factor=self.settings['fit_constants']['contrast_factor'])
 
             self.data.update({'data': esr_avg, 'fit_params': fit_params})
@@ -950,6 +956,9 @@ class ESR_simple(Script):
 
         if self.settings['turn_off_after']:
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+
+    def fit_esr(self, freq_values, esr_avg, min_counts, contrast_factor):
+        return fit_esr(freq_values, esr_avg, min_counts, contrast_factor)
 
     def _calc_progress(self, scan_num):
         #COMMENT_ME
@@ -986,6 +995,118 @@ class ESR_simple(Script):
         """
         new_figure_list = [figure_list[1]]
         return super(ESR_simple, self).get_axes_layout(new_figure_list)
+
+class AttoScanZ(ESR_simple):
+    _DEFAULT_SETTINGS = [
+        Parameter('power_out', -45.0, float, 'output microwave power (dBm)'),
+        Parameter('mw_freq', 2.87e9, float, 'output microwave frequency (Hz'),
+        Parameter('esr_avg', 2, int, 'number of averages'),
+        Parameter('z_start', 0, float, 'start Z voltage of scan'),
+        Parameter('z_stop', 10, float, 'end Z voltage of scan'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('z_points', 40, int, 'number of frequencies in scan'),
+        Parameter('integration_time', 0.05, float, 'The TOTAL integration time. The integration time per daq bins is integration_time / num_samps_per_pt'),
+        Parameter('num_samps_per_pt', 100, int,
+                  'Number of samples within one DAQ buffer, for each frequency. This should be large because the first measurement is thrown away (may start in the middle of a clock tick)'),
+        Parameter('switching_time', 1, float, 'time wait after switching center frequencies on generator (s)'),
+        Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
+        Parameter('save_full_esr', False, bool, 'If true save all the esr traces individually'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('fit_constants',
+                  [
+                      Parameter('minimum_counts', .5, float, 'minumum counts for an ESR to not be considered noise'),
+                      Parameter('contrast_factor', 1.5, float, 'minimum contrast for an ESR to not be considered noise')
+                  ]),
+        Parameter('randomize', False, bool, 'check to randomize esr frequencies'),
+        Parameter('save_timetrace', False, bool,
+                  'check to save the measured fluorescence over time. This is identical to the full esr when the freq. are not randomized')
+    ]
+
+    _INSTRUMENTS = {
+        'microwave_generator': MicrowaveGenerator,
+        'NI6259': NI6259,  # PCI
+        'NI9402': NI9402,  # cDAQ
+        'ANC300': ANC300
+    }
+
+    def setup_microwave_gen(self):
+        '''
+
+        set relevant parameters on the MW generator.
+
+        '''
+        self.instruments['microwave_generator']['instance'].update({'frequency': self.settings['mw_freq']})
+        self.instruments['microwave_generator']['instance'].update({'amplitude': self.settings['power_out']})
+        self.instruments['microwave_generator']['instance'].update({'enable_modulation': False})
+        self.instruments['microwave_generator']['instance'].update({'enable_output': True})
+
+    def change_param(self, param):
+        # Change a certain parameter for each point in a sweep. Parameter can be frequency or something else, such as voltage on an Attocube
+        self.instruments['ANC300']['instance']._set_offset(3, param)
+        print('Changing Z to %.1f V'%param)
+
+    def get_freq_array(self):
+        '''
+        Construct a list of values through which we will sweep a parameter.
+        Function is called get_freq_array, but the array does not have to be frequency. Can be e.g. voltage values for a piezo
+
+        Returns:
+            freq_values: array of the parameter values to be tested
+            freq_range: the range of the parameter values to be tested, i.e. maximum frequency - minumum frequency
+        '''
+
+        if self.settings['range_type'] == 'start_stop':
+            freq_values = np.linspace(self.settings['z_start'], self.settings['z_stop'], self.settings['z_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+        elif self.settings['range_type'] == 'center_range':
+            freq_values = np.linspace(self.settings['z_start'] - self.settings['z_stop'] / 2,
+                                      self.settings['z_start'] + self.settings['z_stop'] / 2, self.settings['z_points'])
+            freq_range = max(freq_values) - min(freq_values)
+
+        else:
+            self.log('unknown range parameter. Abort script')
+            self._abort = True
+
+        if np.min(freq_values) < 0 or np.max(freq_values) > 100:
+            self.log('start or stop voltage out of bounds')
+            self._abort = True
+
+        self.settings['esr_avg'] = 1
+        return freq_values, freq_range
+
+    def fit_esr(self, freq, ampl, min_counts=.5, contrast_factor=1.5, verbose=True):
+        #freq_peaks, ampl_peaks = find_nv_peaks(freq, ampl)
+
+        #start_vals = get_lorentzian_fit_starting_values(freq, ampl)
+        #start_vals[2] = freq_peaks[0]
+        starting_vals = np.average(ampl), - (np.average(ampl) - np.min(ampl)), freq[np.argmin(ampl)], np.diff(freq)[0]*4
+        print(starting_vals)
+        #fit = fit_lorentzian(freq, ampl, starting_params=starting_vals, bounds=[(0, -np.inf, 0, 0), (np.inf, 0, np.inf, np.inf)])
+        try:
+            popt,pcov = optimize.curve_fit(lorentzian, freq, ampl, p0=starting_vals)
+        except:
+            popt = starting_vals
+        #lorentzian(x, constant_offset, amplitude, center, fwhm):
+        print(popt)
+        return popt
+
+    def _plot(self, axes_list, data = None):
+        """
+        plotting function for esr
+        Args:
+            axes_list: list of axes objects on which to plot plots the esr on the first axes object
+            data: data (dictionary that contains keys frequency, data and fit_params) if not provided use self.data
+        Returns:
+
+        """
+
+        if data is None:
+            data = self.data
+
+        plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'],title='Attocube Z scan',
+                 xlabel='Attocube Vz',ylabel='kCounts/s')
 
 class ESR_simple_lowerupper(Script):
 
@@ -1269,8 +1390,8 @@ class ESR(Script):
         esr_data = np.zeros((self.settings['esr_avg'], len(freq_values))) # for the raw esr data
 
         # to get the timetrace we keep track of the indecies WRONG? 20221115
-        if self.settings['save_timetrace']:
-            index_data = np.zeros((self.settings['esr_avg'], len(freq_values))).astype(int)  # for the raw esr data
+        #if self.settings['save_timetrace']:
+        #    index_data = np.zeros((self.settings['esr_avg'], len(freq_values))).astype(int)  # for the raw esr data
 
         #WRONG?20221115
         laser_data = np.zeros((self.settings['esr_avg'], len(freq_values))) # for the raw photodiode data

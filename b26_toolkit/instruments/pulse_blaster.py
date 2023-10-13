@@ -812,6 +812,11 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
         ]),
+        Parameter('spacer', [
+            Parameter('channel', 10, int, 'placeholder channel to control the length of pulse sequences, do not actually use the physical output!'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
         Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
         Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')

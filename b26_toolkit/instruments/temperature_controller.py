@@ -29,7 +29,13 @@ class TemperatureController(Instrument):
             Parameter('port', 'COM31', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
             Parameter('timeout', 10.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
-            Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
+            Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge'),
+            Parameter('temperature_A', 300, float, 'temperature reading A; changing this does nothing'),
+            Parameter('temperature_B', 300, float, 'temperature reading B; changing this does nothing'),
+            Parameter('heater_1_range', 'off', ['off', 'low', 'medium', 'high'], 'heater power range (each higher level -> 10x power)'),
+            Parameter('heater_1_setpoint', 0, float, 'temperature setpoint (K) for PID feedback'),
+            Parameter('heater_1_ramp_rate', 0, float, 'ramp rate (0.1 - 100 K/min) of temperature setpoint, to avoid temperature shocks during cool down/warm up'),
+            Parameter('heater_1_output', 0, float, 'percent of full scale power for heater 1; changing this does nothing')
         ])
 
     #serial_connection = serial.Serial(port=_DEFAULT_SETTINGS['port'], baudrate=_DEFAULT_SETTINGS['baudrate'],
@@ -43,8 +49,7 @@ class TemperatureController(Instrument):
         """
         super().__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
-                                               timeout=self.settings['timeout'], parity=serial.PARITY_ODD,
-                                               bytesize=serial.SEVENBITS)
+                                               timeout=self.settings['timeout'], parity=serial.PARITY_ODD, bytesize=serial.SEVENBITS)
 
     @property
     def _PROBES(self):
@@ -54,8 +59,27 @@ class TemperatureController(Instrument):
 
         """
         return {
-            'temperature': 'numerical temperature read from temperature controller'
+            'temperature_A': 'numerical temperature read from temperature controller',
+            'temperature_B': 'numerical temperature read from temperature controller',
+            'heater_1_range': 'heater power range (each higher level -> 10x power)',
+            'heater_1_setpoint': 'temperature setpoint for PID feedback',
+            'heater_1_ramp_rate': 'temperature setpoint for PID feedback',
+            'heater_1_output': 'percent of full scale power for heater 1'
         }
+
+    def update(self, settings):
+        super(TemperatureController, self).update(settings)
+
+        for key, value in settings.items():
+            if key == 'heater_1_range':
+                value_dict = {'off': 0, 'low': 1, 'medium': 2, 'high': 3}
+                self.serial_connection.write(('RANGE 1,%i \r\n' % value_dict[value]).encode())
+            elif key == 'heater_1_setpoint':
+                self.serial_connection.write(('SETP 1,%.3f \r\n' % float(value)).encode())
+            elif key == 'heater_1_ramp_rate':
+                self.serial_connection.write(('RAMP 1,1,%.3f \r\n' % float(value)).encode())
+
+
 
     def read_probes(self, probe_name):
         """
@@ -66,17 +90,38 @@ class TemperatureController(Instrument):
             value of the probe from the Pressure Gauge
         """
 
-        probe_name = probe_name.lower()  # making sure the probe is lowercase
         assert probe_name in list(self._PROBES.keys())
 
-        if probe_name == 'temperature':
-            return self._get_temperature()
+        if probe_name == 'temperature_A':
+            return self._get_temperature('A')
+        if probe_name == 'temperature_B':
+            return self._get_temperature('B')
+        if probe_name == 'heater_1_range':
+            self.serial_connection.write('RANGE? 1 \r\n'.encode())
+            response = int(self.serial_connection.readline().strip())
+            response_dict = {0: 'off', 1: 'low', 2: 'medium', 3: 'high'}
+            return response_dict[response]
+        if probe_name == 'heater_1_setpoint':
+            self.serial_connection.write('SETP? 1 \r\n'.encode())
+            return float(self.serial_connection.readline())
+        if probe_name == 'heater_1_output':
+            self.serial_connection.write('HTR? 1 \r\n'.encode())
+            return float(self.serial_connection.readline())
+        if probe_name == 'heater_1_ramp_rate':
+            self.serial_connection.write('RAMP? 1 \r\n'.encode())
+            response = (self.serial_connection.readline().strip()).decode("utf-8")
+            status, rate = response.split(',')
+            if status == 0:
+                return 0
+            else:
+                return float(rate)
+
         else:
             message = '\'{0}\' not found as a probe in the class. ' \
                       'Expected either \'pressure\', \'units\', or \'model\''.format(probe_name)
             raise AttributeError(message)
 
-    def _get_temperature(self):
+    def _get_temperature(self, channel):
         """
         Returns the pressure currently read by the guage controller.
 
@@ -99,68 +144,61 @@ class TemperatureController(Instrument):
         self.serial_connection.close()
 
 
-class LakeShore335(TemperatureController):
-    _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
-                                             'from the gauge controller for each query'),
-            Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
-        ])
-
-    def _get_temperature(self):
-        """
-        Returns the pressure currently read by the guage controller.
-
-        :return: pressure
-        """
-        assert self.serial_connection.isOpen()
-
-        self.serial_connection.write('KRDG? A\r\n'.encode())
-
-        # response returns string with temperature values interspaced with \x characters
-        response = self.serial_connection.readline()
-
-        # ======================================
-        # output when cold (>100K)
-        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
-        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
-        # '\xab\xb6\xb0\xae\xb571\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
-        # ======================================
-
-        # ======================================
-        # output when cold (>100K)
-        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
-        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
-        # '\xab\xb6\xb0\xae\xb571\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
-        # ======================================
-
-        # repr(response) forces python not to interpret \x as a hex value
-        # temperature = float(''.join([s for s in repr(response) if s.isdigit()])[0:-1])/1000.0
-
-        temperatureA = float(response[1:7])
-
-        self.serial_connection.write('KRDG? B\r\n'.encode())
-        response = self.serial_connection.readline()
-        temperatureB = float(response[1:7])
-
-        #self.serial_connection.write('RANGE 1,2 \r\n'.encode())
-        #self.serial_connection.write('SETP 1,285 \r\n'.encode())
-
-        # QUERY heater range (0,1,2,3 = off,low,med,high)
-        self.serial_connection.write('RANGE? 1 \r\n'.encode())
-        #self.serial_connection.write('RAMP 1,1,0.85 \r\n'.encode())
-        self.serial_connection.write('RAMP? 1 \r\n'.encode())
-
-        response = self.serial_connection.readline()
-        heater_status = self.serial_connection.readline()
-        print(response)
-
-
-        return temperatureA, temperatureB, response, heater_status
+# class LakeShore335(TemperatureController):
+#     _DEFAULT_SETTINGS = Parameter([
+#             Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+#             Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+#                                              'from the gauge controller for each query'),
+#             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
+#         ])
+#
+#     def _get_temperature(self):
+#         """
+#         Returns the pressure currently read by the guage controller.
+#
+#         :return: pressure
+#         """
+#         assert self.serial_connection.isOpen()
+#         self.serial_connection.write(('KRDG? %s\r\n' % str(channel)).encode())
+#
+#         # response returns string with temperature values interspaced with \x characters
+#         response = self.serial_connection.readline()
+#         temperature = float(response[1:7])
+#
+#         # ======================================
+#         # output when cold (>100K)
+#         # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb571\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+#         # ======================================
+#
+#         # ======================================
+#         # output when cold (>100K)
+#         # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb571\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+#         # ======================================
+#
+#         # repr(response) forces python not to interpret \x as a hex value
+#         # temperature = float(''.join([s for s in repr(response) if s.isdigit()])[0:-1])/1000.0
+#
+#         return temperature
+#
+#     def _set_heater_range(self, heater_range):
+#         #self.serial_connection.write('RANGE 1,%i \r\n'%heater_range.encode())
+#         pass
+#
+#     def _set_heater_ramp_rate(self, ramp_rate):
+#         #self.serial_connection.write('RAMP 1,1,%.2f \r\n' % float(ramp_rate).encode())
+#         pass
+#
+#     def _set_heater_setpoint(self, setpoint):
+#         #self.serial_connection.write('SETP 1,%.2f \r\n' % float(setpoint).encode())
+#         pass
 
 
 class LakeShore211(TemperatureController):
@@ -181,6 +219,8 @@ class LakeShore211(TemperatureController):
         return float(response.decode().strip())
 
 if __name__ == '__main__':
-        instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': LakeShore211})
-        print((instruments['TemperatureController'].temperature))
+        instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})
+        print(instruments['TemperatureController'].read_probes('temperature_A'))
+        print(instruments['TemperatureController'].read_probes('heater_1_range'))
+        print(instruments['TemperatureController'].read_probes('heater_1_ramp_rate'))
 
