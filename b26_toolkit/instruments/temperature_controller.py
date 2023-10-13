@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import serial
+import serial, time
 from pylabcontrol.core import Instrument, Parameter
 
 
@@ -25,20 +25,9 @@ class TemperatureController(Instrument):
     This class implements the Lakeshore Model 335 Temperature controller. The class communicates with the device over RS232 using pyserial.
     """
 
-
-    # ASCII Characters used for controller communication
-    ETX = chr(3)
-    CR = chr(13)
-    LF = chr(10)
-    ENQ = chr(5)
-    ACK = chr(6)
-    NAK = chr(21)
-
-    _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
-
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM5', _possible_com_ports, 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+            Parameter('port', 'COM31', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 10.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge'),
             Parameter('temperature_A', 300, float, 'temperature reading A; changing this does nothing'),
@@ -58,7 +47,7 @@ class TemperatureController(Instrument):
         handshake. These are all default for Serial and therefore not input
         below
         """
-        super(TemperatureController, self).__init__(name, settings)
+        super().__init__(name, settings)
         self.serial_connection = serial.Serial(port=self.settings['port'], baudrate=self.settings['baudrate'],
                                                timeout=self.settings['timeout'], parity=serial.PARITY_ODD, bytesize=serial.SEVENBITS)
 
@@ -89,6 +78,7 @@ class TemperatureController(Instrument):
                 self.serial_connection.write(('SETP 1,%.3f \r\n' % float(value)).encode())
             elif key == 'heater_1_ramp_rate':
                 self.serial_connection.write(('RAMP 1,1,%.3f \r\n' % float(value)).encode())
+
 
 
     def read_probes(self, probe_name):
@@ -137,47 +127,7 @@ class TemperatureController(Instrument):
 
         :return: pressure
         """
-        assert self.serial_connection.isOpen()
-        self.serial_connection.write(('KRDG? %s\r\n' % str(channel)).encode())
-
-        # response returns string with temperature values interspaced with \x characters
-        response = self.serial_connection.readline()
-        temperature = float(response[1:7])
-
-        # ======================================
-        # output when cold (>100K)
-        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
-        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
-        # '\xab\xb6\xb0\xae\xb571\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
-        # ======================================
-
-        # ======================================
-        # output when cold (>100K)
-        # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
-        # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
-        # '\xab\xb6\xb0\xae\xb571\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
-        # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
-        # ======================================
-
-        # repr(response) forces python not to interpret \x as a hex value
-        # temperature = float(''.join([s for s in repr(response) if s.isdigit()])[0:-1])/1000.0
-
-        return temperature
-
-    def _set_heater_range(self, heater_range):
-        #self.serial_connection.write('RANGE 1,%i \r\n'%heater_range.encode())
-        pass
-
-    def _set_heater_ramp_rate(self, ramp_rate):
-        #self.serial_connection.write('RAMP 1,1,%.2f \r\n' % float(ramp_rate).encode())
-        pass
-
-    def _set_heater_setpoint(self, setpoint):
-        #self.serial_connection.write('SETP 1,%.2f \r\n' % float(setpoint).encode())
-        pass
+        raise NotImplementedError
 
     def is_connected(self):
         """
@@ -192,6 +142,81 @@ class TemperatureController(Instrument):
         Destructor, to close the serial connection when the instance is this class is garbage collected
         """
         self.serial_connection.close()
+
+
+# class LakeShore335(TemperatureController):
+#     _DEFAULT_SETTINGS = Parameter([
+#             Parameter('port', 'COM5', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+#             Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
+#                                              'from the gauge controller for each query'),
+#             Parameter('baudrate', 57600, int, 'baudrate of serial communication with gauge')
+#         ])
+#
+#     def _get_temperature(self):
+#         """
+#         Returns the pressure currently read by the guage controller.
+#
+#         :return: pressure
+#         """
+#         assert self.serial_connection.isOpen()
+#         self.serial_connection.write(('KRDG? %s\r\n' % str(channel)).encode())
+#
+#         # response returns string with temperature values interspaced with \x characters
+#         response = self.serial_connection.readline()
+#         temperature = float(response[1:7])
+#
+#         # ======================================
+#         # output when cold (>100K)
+#         # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb571\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+#         # ======================================
+#
+#         # ======================================
+#         # output when cold (>100K)
+#         # '\xab\xb6\xb0\xae\xb57\xb5\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb57\xb3\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb571\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb6\xb9\r\x8a'
+#         # '\xab\xb6\xb0\xae\xb5\xb67\r\x8a'
+#         # ======================================
+#
+#         # repr(response) forces python not to interpret \x as a hex value
+#         # temperature = float(''.join([s for s in repr(response) if s.isdigit()])[0:-1])/1000.0
+#
+#         return temperature
+#
+#     def _set_heater_range(self, heater_range):
+#         #self.serial_connection.write('RANGE 1,%i \r\n'%heater_range.encode())
+#         pass
+#
+#     def _set_heater_ramp_rate(self, ramp_rate):
+#         #self.serial_connection.write('RAMP 1,1,%.2f \r\n' % float(ramp_rate).encode())
+#         pass
+#
+#     def _set_heater_setpoint(self, setpoint):
+#         #self.serial_connection.write('SETP 1,%.2f \r\n' % float(setpoint).encode())
+#         pass
+
+
+class LakeShore211(TemperatureController):
+    _DEFAULT_SETTINGS = Parameter([
+            Parameter('port', 'COM33', ['COM' + str(i) for i in range(0, 256)], 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 10.0, float, 'amount of time to wait for a response '
+                                             'from the gauge controller for each query'),
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+        ])
+
+    def _get_temperature(self):
+        assert self.serial_connection.isOpen()
+
+        self.serial_connection.write('KRDG?\r\n'.encode())
+
+        response = self.serial_connection.readline()
+
+        return float(response.decode().strip())
 
 if __name__ == '__main__':
         instruments, failed = Instrument.load_and_append(instrument_dict={'TemperatureController': TemperatureController})

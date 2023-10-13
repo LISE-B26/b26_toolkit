@@ -156,6 +156,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 return np.mean(np.sort(image.flatten())[-sample_size:])
 
+
         def autofocus_loop(sweep_voltages):
             """
             this is the actual autofocus loop

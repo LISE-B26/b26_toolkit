@@ -21,9 +21,10 @@ import time
 
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
+
+from b26_toolkit.scripts.daq_read_counter_timetrace import Daq_TimeTrace_NI6259
 from b26_toolkit.scripts.set_laser import SetLaser
-from pylabcontrol.core import Script, Parameter
-from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+
 
 class GalvoScan(GalvoScanGeneric):
 
@@ -196,6 +197,97 @@ class GalvoScan(GalvoScanGeneric):
         self.daq_out.run(task)
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
+
+class GalvoScanTimetrace(GalvoScanGeneric):
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'center', ['corner', 'center'], 'mode to calculate region of interest.\n \
+                                                               corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                               center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 64, int, 'number of x points to scan'),
+                   Parameter('y', 64, int, 'number of y points to scan')
+                   ]),
+        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn'),
+        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
+    ]
+
+    _INSTRUMENTS = {}
+
+    _SCRIPTS = {'Daq_timetrace': Daq_TimeTrace_NI6259, 'SetLaser': SetLaser}
+
+    def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
+        '''
+        Initializes GalvoScan script for use in gui
+
+        Args:
+            instruments: list of instrument objects
+            name: name to give to instantiated script object
+            settings: dictionary of new settings to pass in to override defaults
+            log_function: log function passed from the gui to direct log calls to the gui log
+            data_path: path to save data
+
+        '''
+        Script.__init__(self, name=name, settings=settings, instruments=instruments, scripts=scripts, log_function=log_function, data_path=data_path)
+
+    def setup_scan(self):
+        """
+        setup the scan, i.e. identify the instruments and set up sample rate and such
+        """
+        self.scripts['SetLaser'].settings['daq_type'] = 'PCI'
+        self.data['counts'] = []
+
+    def read_line(self, y_pos):
+        set_laser_script = self.scripts['SetLaser']
+        set_laser_script.settings['point']['y'] = y_pos
+
+        line_data = np.zeros(len(self.x_array))
+
+        self.data['counts'].append([])
+
+        for i in range(len(self.x_array)):
+            if self._abort:
+                break
+
+            set_laser_script.settings['point']['x'] = self.x_array[i]
+            set_laser_script.run()
+
+            self.scripts['Daq_timetrace'].run()
+            counts = self.scripts['Daq_timetrace'].data['counts']
+
+            line_data[i] = np.mean(counts)
+            self.data['counts'][-1].append(counts)
+
+        return line_data
+
+    def get_galvo_location(self):
+        """
+        Returns the current position of the galvo. Requires a daq with analog inputs internally routed to the analog
+        outputs (ex. NI6259. Note that the cDAQ does not have this capability).
+        Returns: list with two floats, which give the x and y position of the galvo mirror
+        """
+        point = self.scripts['SetLaser'].settings['point']
+        return [point['x'], point['y']]
+
+    def set_galvo_location(self, galvo_position):
+        """
+        sets the current position of the galvo
+        galvo_position: list with two floats, which give the x and y position of the galvo mirror
+        """
+        if galvo_position[0] > 1 or galvo_position[0] < -1 or galvo_position[1] > 1 or galvo_position[1] < -1:
+            raise ValueError('The script attempted to set the galvo position to an illegal position outside of +- 1 V')
+
+        self.scripts['SetLaser'].settings['point']['x'] = galvo_position[0]
+        self.scripts['SetLaser'].settings['point']['y'] = galvo_position[1]
 
 
 

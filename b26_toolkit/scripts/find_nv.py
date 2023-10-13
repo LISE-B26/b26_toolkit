@@ -122,6 +122,7 @@ Known issues:
 
         self.scripts['take_image'].run(verbose=True)
 
+
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
 
@@ -177,6 +178,7 @@ Known issues:
         elif self.settings['adjust_laser']:
             self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
             self.scripts['set_laser'].run(verbose=True)
+            self.scripts['set_laser'].run()
 
 
     @staticmethod

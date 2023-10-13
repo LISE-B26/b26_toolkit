@@ -26,10 +26,10 @@ from .maestro import MaestroLightControl
 from .attocube import ANC300, ANC350
 from .microwave_generator import MicrowaveGenerator, RFGenerator, MicrowaveGenerator2
 from .magnet_coils import MagnetCoils
-from .temperature_controller import TemperatureController
 from .montana import CryoStation
 from .newport_smc100 import SMC100
 from .awg import AFG3022C, AFG3022C_02
+
 from .keysight_oscilloscope import Oscilloscope
 from .thorlabs_kcube import KDC001, TLI_DeviceInfo, B26KDC001x, B26KDC001y, B26KDC001z
 from .magnet_coils import MagnetCoils
@@ -37,3 +37,4 @@ from .ueye_camera import UEyeCamera
 from .optotune_lens import OptotuneLens
 from .arduino import ArduinoZero
 from .commander import Commander
+from .temperature_controller import TemperatureController, LakeShore211

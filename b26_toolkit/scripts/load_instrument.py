@@ -1,6 +1,8 @@
 
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.instruments import AFG3022C_02, ANC300, ArduinoZero, AFG3022C
+from pylabcontrol.core import Parameter, Script
+from b26_toolkit.instruments import RFGenerator, B26PulseBlaster
 
 
 class LoadInstrument(Script):
@@ -14,3 +16,4 @@ class LoadInstrument(Script):
     _SCRIPTS = {}
     #_INSTRUMENTS = {'arduino': ArduinoZero}
     _INSTRUMENTS = {'afg': AFG3022C, 'arduino': ArduinoZero}
+

@@ -17,7 +17,7 @@
 """
 
 # # from test_script import ScriptTest
-from .galvo_scan.galvo_scan import GalvoScan
+from .galvo_scan.galvo_scan import GalvoScan, GalvoScanTimetrace
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
 from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
 from .find_nv import FindNV
@@ -45,6 +45,7 @@ from .set_magnetic_coils import SetMagneticCoils
 from .align_magnetic_field_to_NV import AlignFieldToNV
 from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
 from .stability_with_microwaves import Stability_With_Microwaves
-from .read_temperature_lakeshore import ReadTemperatureLakeshore
 from .load_instrument import LoadInstrument
 from .arduino_servo_flip import ToggleCameraView
+from .read_temperature_lakeshore import ReadTemperatureLakeshore211
+from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219

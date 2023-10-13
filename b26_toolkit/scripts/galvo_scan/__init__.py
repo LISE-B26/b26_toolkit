@@ -1,1 +1,1 @@
-# from .galvo_scan import GalvoScan
+#from .galvo_scan_generic import GalvoScanGeneric

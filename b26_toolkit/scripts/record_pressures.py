@@ -21,7 +21,7 @@ import numpy as np
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
 
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
+from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge
 from b26_toolkit.instruments import CryoStation
 from datetime import datetime
 
@@ -41,9 +41,8 @@ from datetime import datetime
 """
 import time
 import numpy as np
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
+from b26_toolkit.instruments import ChamberPressureGauge, TemperatureController, LakeShore211
 from b26_toolkit.instruments import CryoStation
 
 class RecordPressures(Script):
@@ -139,7 +138,7 @@ class RecordPressures(Script):
 
 
 
-class RecordPressuresTemperature(Script):
+class RecordPressuresTemperature335(Script):
     # COMMENT_ME
 
     _DEFAULT_SETTINGS = [
@@ -238,7 +237,9 @@ class RecordPressuresTemperature(Script):
              horizontalalignment='center', verticalalignment='bottom', transform=ax2.transAxes)
         ax2.text(0.5, 0.0, 'Temp A std: %.3f Temp B std: %.3f Pressure std: %.3e' % (
         np.std(self.data['temperaturesA'][-10:-1]), np.std(self.data['temperaturesB'][-10:-1]), np.std(self.data['chamber_pressures'][-10:-1])),
-                 horizontalalignment='center', verticalalignment='bottom', transform=ax2.transAxes)
+                 horizontalalignment='center',
+                 verticalalignment='bottom',
+                 transform=ax2.transAxes)
 
     def get_axes_layout(self, figure_list):
         """
@@ -265,6 +266,70 @@ class RecordPressuresTemperature(Script):
                 axes_list.append(fig.axes[0])
 
         return axes_list
+
+class RecordPressuresTemperature211andMontana(Script):
+    # COMMENT_ME
+
+    _DEFAULT_SETTINGS = [
+        Parameter('time_interval', 5.0, float, 'Time between points (s)'),
+    ]
+
+    _INSTRUMENTS = {
+        'chamber_pressure_gauge' : ChamberPressureGauge,
+        'temp_controller': LakeShore211,
+        'cryostation': CryoStation
+    }
+
+    _SCRIPTS = {}
+
+    def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+        """
+        Example of a script that emits a QT signal for the gui
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        Script.__init__(self, name, settings = settings, instruments = instruments, log_function= log_function, data_path=data_path)
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        chamber_gauge = self.instruments['chamber_pressure_gauge']['instance']
+        temp_controller = self.instruments['temp_controller']['instance']
+        cryostation = self.instruments['cryostation']['instance']
+
+        self.data['time'] = []
+        self.data['time_index'] = []
+        self.data['sampleTemp'] = []
+        self.data['platformTemp'] = []
+        self.data['chamber_pressures'] = []
+
+        time_index = 0
+
+        while not self._abort:
+            if len(self.data['time']) == 0:
+                time_start = datetime.now()
+
+            self.data['chamber_pressures'].append(chamber_gauge.pressure)
+            # self.data['pump_line_pressures'].append(pump_line_gauge.pressure)
+            # temp, raw = temp_controller.temperature
+            # platformTemp = cryostation
+            self.data['sampleTemp'].append(temp_controller.temperature)
+            self.data['platformTemp'].append(cryostation.platform_temp)
+
+            self.data['time_index'].append(time_index * self.settings['time_interval'])
+            time_index += 1
+
+            time_elapsed  = (datetime.now()-time_start).total_seconds()
+            self.data['time'].append(time_elapsed)
+
+            self.force_update()
+            self.progress = 50
+            self.updateProgress.emit(int(self.progress))
+            time.sleep(self.settings['time_interval'])
 
 
     def _plot(self, axes_list):

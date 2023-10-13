@@ -23,6 +23,7 @@ import numpy as np
 from b26_toolkit.instruments import NI6259, NI9215, B26PulseBlaster
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
+from b26_toolkit.plotting.plots_1d import update_counts_vs_pos
 
 
 class Daq_Read_Analog(Script):
@@ -130,12 +131,17 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         # COMMENT_ME
 #        axes_list[0].hold(False)
         if data is None:
-            data = self.data_to_plot
+            data = self.data
 
         if data:
             axes_list[0].clear()
             plot_voltage(axes_list[0], data['voltage'])
 
+    def _update_plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        update_counts_vs_pos(axes_list[0], data['voltage'], np.linspace(0, len(data['voltage']), len(data['voltage'])))
 if __name__ == '__main__':
     script = {}
     instr = {}
