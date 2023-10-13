@@ -349,8 +349,8 @@ def photoluminescence_rate(transition_rates, populations):
 
     # if the input is a 1D array we cast it into a 2D array to work with the rest of the code
     if len(np.shape(transition_rates))==2:
-        assert np.shape(transition_rates)==np.array([7,7])
-        assert np.shape(populations) == np.array([7])
+        #assert np.shape(transition_rates)==np.array([7,7])
+        #assert np.shape(populations) == np.array([7])
         transition_rates = [transition_rates]
         populations = [populations]
         input_1D = True

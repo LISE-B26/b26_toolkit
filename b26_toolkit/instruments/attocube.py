@@ -500,7 +500,7 @@ class ANC300(Attocube):
         # Do nothing if no steps
         if num_steps == 0:
             return
-
+        axis_string = axis
         # Set to stepping mode and get OK
         axis = self._convert_axis(axis)
         if self.serial_numbers[axis][:6] == 'ANM300':
@@ -520,6 +520,9 @@ class ANC300(Attocube):
 
         # Get OK for stepping and waiting
         self._get_OK()
+        print('Time to wait')
+        print(np.abs(num_steps)/self.settings['%s_freq' % axis_string])
+        time.sleep(np.abs(num_steps)/self.settings['%s_freq' % axis_string])
         self._get_OK()
 
 

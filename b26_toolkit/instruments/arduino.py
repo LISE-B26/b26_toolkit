@@ -71,13 +71,13 @@ class ArduinoZero(Instrument):
         Parameter('port', 'COM14', str, 'COM port that arduino board is on'),
         Parameter('baudrate', 9600, int, 'baudrate over serial port'),
         Parameter('timeout', 1., float, 'connection timeout in seconds'),
-        Parameter('LED_pellicle', [
-            Parameter('channel', 0, int, 'channel to which laser is connected'),
-            Parameter('status', False, bool, 'True if voltage is high to the laser, false otherwise')
+        Parameter('LB1005 integrator hold', [
+            Parameter('channel', 13, int, 'channel to which LB1005 integrator hold toggle is connected; set true to disengage feedback loop'),
+            Parameter('status', False, bool, 'True if voltage is high, false otherwise')
         ]),
-        Parameter('camera_pellicle', [
-            Parameter('channel', 1, int, 'channel to which laser is connected'),
-            Parameter('status', False, bool, 'True if voltage is high to the laser, false otherwise')
+        Parameter('pellicles', [
+            Parameter('channel', 14, int, 'channel to which camera and LED pellicles are connected'),
+            Parameter('status', False, bool, 'True if voltage is high, false otherwise')
         ]),
     ])
 

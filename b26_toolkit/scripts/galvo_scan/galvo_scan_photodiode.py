@@ -157,7 +157,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
 
         # initialize the photodiode channel
         aitask = self.daq_in.setup_AI(
-            self.settings['DAQ_channels']['ai_channel'], len(self.x_array) + 1, continuous =False, clk_source=clktask)
+            self.settings['DAQ_channels']['ai_channel'], len(self.x_array) + 1, continuous=False, clk_source=clktask)
         aotask = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel']],
                                        self.x_array, clktask)
 
@@ -167,7 +167,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         self.daq_clk.run(clktask)
         self.daq_out.waitToFinish(aotask)
         self.daq_out.stop(aotask)
-        xLineData, _ = self.daq_in.read(aitask) # read the ai data for this scan
+        xLineData, _ = self.daq_in.read(aitask)  # read the ai data for this scan
         self.daq_in.stop(aitask)
         self.daq_clk.stop(clktask)
       #  diffData = np.diff(xLineData)
@@ -181,7 +181,9 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
                 processed_data[i] = np.std(xLineData_block)
             elif self.settings['statistics'] == 'min-max':
                 processed_data[i] = np.max(xLineData_block)-np.min(xLineData_block)
-        return processed_data
+
+        print(processed_data)
+        return processed_data*1e3
 
     def get_galvo_location(self):
         """

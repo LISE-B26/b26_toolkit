@@ -15,7 +15,10 @@ class ControlMainWindowB26(MainWindow):
     def __init__(self, filename=None):
 
         super(ControlMainWindowB26, self).__init__(filename)
-        self.setStyleSheet("background-color: #fae6fb;")
+        #self.setStyleSheet("background-color: #fae6fb;")
+        #self.setStyleSheet("background-color: gray")
+        self.setStyleSheet("background-image: url(C:/Users/Experiment/Pictures/heaven2.png); background-repeat: no-repeat;")
+        self.tree_scripts.setAlternatingRowColors(False)
 
     def load_scripts(self, verbose=False):
         """

@@ -20,12 +20,12 @@ import time
 from collections import deque
 import numpy as np
 
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster
+from b26_toolkit.instruments import NI6259, NI9215, B26PulseBlaster
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
 
 
-class Daq_Read_AI(Script):
+class Daq_Read_Analog(Script):
     """
 This script reads the analog input from the DAQ and plots it. ER 20180626
 
@@ -33,18 +33,17 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
 
     """
     _DEFAULT_SETTINGS = [
-        Parameter('integration_time', .25, float, 'Time per data point (s)'),
-        Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for counter'),
+        Parameter('sampling_rate', 100, float, 'rate (Hz) at which samples are read by DAQ'),
+        Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for counter'),
         Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
-        Parameter('max_len_to_plot', 10, int, 'maximum number of samples to plot'),
-        Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'), # ER 20190325
+        Parameter('max_len_to_plot', 1000, int, 'plots the last n samples'),
+        Parameter('daq_read_rate', 2, float, 'rate (Hz) at which samples are requested from the DAQ and plotted, default = 2'),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'), # ER 20190325
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9215': NI9215}
 
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -72,38 +71,31 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         if self.settings['daq_type'] == 'PCI':
             daq = self.instruments['NI6259']['instance']
         elif self.settings['daq_type'] == 'cDAQ':
-            daq = self.instruments['NI9402']['instance']
+            daq = self.instruments['NI9215']['instance']
 
-        self.data_to_plot = {'voltage': deque(maxlen = self.settings['max_len_to_plot'])}
+        self.data_to_plot = {'voltage': deque(maxlen=self.settings['max_len_to_plot'])}
         self.data['voltage'] = list()
-
-        sample_rate = float(1) / self.settings['integration_time']
-     #   self.instruments['daq']['instance'].settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
-        # ER 20190325
-        daq.settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = sample_rate
-        #  print('setting sample rate')
-
-        self.last_value = 0
-
-        sample_num = 2
-
-      #  print(('settings in instrument 2', self.instruments['daq']['settings']))
-
-     #   print(('here', self.instruments['daq']))
-
-      #  task = self.instruments['daq']['instance'].setup_AI(self.settings['ai_channel'], sample_num, continuous =True)
-        task = daq.setup_AI(self.settings['ai_channel'], sample_num, continuous =True) # ER 20190325
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
-            max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
+            max_samples = int(np.floor(self.settings['total_int_time'] * self.settings['sampling_rate']))
+            if max_samples == 0:
+                self.log('Sampling rate too low to even get one sample during total measurement time')
+                return
+        else:
+            max_samples = np.inf
 
-        # start counter and scanning sequence
-        #self.instruments['daq']['instance'].run(task)
-        # ER 20190325
+        sample_num = int(self.settings['sampling_rate']/self.settings['daq_read_rate'])
+        if sample_num == 0:
+            sample_num = 1
+        elif sample_num > max_samples:
+            sample_num = max_samples
+
+        daq.settings['analog_input'][self.settings['ai_channel']]['sample_rate'] = self.settings['sampling_rate']
+        task = daq.setup_AI(self.settings['ai_channel'], sample_num, continuous=True)
         daq.run(task)
 
-        sample_index = 0 # keep track of samples made to know when to stop if finite integration time
+        sample_index = 0  # keep track of samples made to know when to stop if finite integration time
 
         while True:
             if self._abort:
@@ -111,8 +103,7 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
 
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-          #  raw_data, num_read = self.instruments['daq']['instance'].read(task)
-            raw_data, num_read = daq.read(task) # ER 20190325
+            raw_data, num_read = daq.read(task)
             for value in raw_data:
                 self.data_to_plot['voltage'].append(float(value))
                 self.data['voltage'].append(float(value))
@@ -122,19 +113,18 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
                 self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 
-            time.sleep(2.0 / sample_rate)
-            sample_index = sample_index + 1
+            time.sleep(sample_num / self.settings['sampling_rate'])
+            sample_index += sample_num
             if self.settings['total_int_time'] > 0. and sample_index >= max_samples: # if the maximum integration time is hit
-                self._abort = True # tell the script to abort
+                self._abort = True
 
         # clean up APD tasks
-        #self.instruments['daq']['instance'].stop(task)
-        daq.stop(task) # ER 20190325
+        daq.stop(task)
 
         self.data_to_plot['voltage'] = list(self.data_to_plot['voltage'])
 
     def plot(self, figure_list):
-        super(Daq_Read_AI, self).plot([figure_list[1]])
+        super(Daq_Read_Analog, self).plot([figure_list[1]])
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME

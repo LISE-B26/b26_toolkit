@@ -19,7 +19,7 @@
 import numpy as np
 import time
 
-from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300
+from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from b26_toolkit.scripts.set_laser import SetLaser
 from pylabcontrol.core import Script, Parameter
@@ -43,7 +43,7 @@ class GalvoScan(GalvoScanGeneric):
                   [Parameter('x', 64, int, 'number of x points to scan'),
                    Parameter('y', 64, int, 'number of y points to scan')
                    ]),
-        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .1], 'time in s to measure at each point'),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
         Parameter('settle_time', .0002, [.0002, .0005], 'wait time between points to allow galvo to settle'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         Parameter('DAQ_channels',
@@ -159,7 +159,11 @@ class GalvoScan(GalvoScanGeneric):
                 diffData[(i * self.clockAdjust + 1):((i+1) * self.clockAdjust - 1)])
 
         # also normalizing to kcounts/sec
-        return(summedData * (.001 / self.settings['time_per_pt']))
+        normalizedData = (summedData * (.001 / self.settings['time_per_pt']))
+        if 'safety_threshold' in self.settings and any(pixel > self.settings['safety_threshold'] for pixel in normalizedData):
+            self.safety_threshold_exceeded = True
+            self.safety_exceeded_behavior()
+        return normalizedData
 
     def get_galvo_location(self):
         """
@@ -192,6 +196,48 @@ class GalvoScan(GalvoScanGeneric):
         self.daq_out.run(task)
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
+
+
+
+class GalvoScanSafe(GalvoScan):
+
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'center', ['corner', 'center'], 'mode to calculate region of interest.\n \
+                                                           corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                           center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 64, int, 'number of x points to scan'),
+                   Parameter('y', 64, int, 'number of y points to scan')
+                   ]),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
+        Parameter('settle_time', .0002, [.0002, .0005], 'wait time between points to allow galvo to settle'),
+        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('DAQ_channels',
+                   [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+                    Parameter('y_ao_channel', 'ao1', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
+                    Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1', 'ctr2', 'ctr3'], 'Daq channel used for counter')
+                  ]),
+        Parameter('ending_behavior', 'leave_at_corner', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn'),
+        Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan'),
+        Parameter('safety_threshold', 10, float, 'The PulseBlaster will turn off the laser when a line contains a pixel exceeding this threshold (kCt/s)')
+    ]
+
+    _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402, 'PB': B26PulseBlaster}
+
+    _SCRIPTS = {}
+
+    def safety_exceeded_behavior(self):
+        self.instruments['PB']['instance'].update({'laser': {'status': False}})
+        self.log('Line contains a pixel exceeding the safety threshold! Turned off laser with PulseBlaster.')
+        self._abort = True
 
 
 class AttoScanAO(GalvoScan):
@@ -240,7 +286,7 @@ class AttoScanAO(GalvoScan):
                    Parameter('power_out', -45.0, float, 'output power (dBm)'),
                    Parameter('freq', 2.82e9, float, 'frequency of MW'),
                    Parameter('normalize_scan', False, bool, 'Normalize scan by taking each line twice, with MW off and on'),
-                   Parameter('turn_off_after', False, bool, 'NOT IMPLEMENTED; if true MW output is turned off after the measurement'),
+                   Parameter('turn_off_after', False, bool, 'If true MW output is turned off after the measurement'),
                    Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')])
     ]
     _INSTRUMENTS = {'piezo_controller': PiezoController, 'microwave_generator': MicrowaveGenerator,
@@ -267,7 +313,6 @@ class AttoScanAO(GalvoScan):
 
     def scale(self):
         voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
-        print(voltage_limit)
         if voltage_limit == 75:
             scale = 7.5
         elif voltage_limit == 100:
@@ -354,8 +399,8 @@ class AttoScanAO(GalvoScan):
 
         #################
         # If forward scan speed is x of the max speed, do the reverse scan at 0.1 max speed
-        if self.speed_ratio < 0.1:
-            reverse_speedup = int(1/self.speed_ratio*0.1)
+        if self.speed_ratio < 0.04:
+            reverse_speedup = int(1/self.speed_ratio*0.04)
         else:
             reverse_speedup = 1
 

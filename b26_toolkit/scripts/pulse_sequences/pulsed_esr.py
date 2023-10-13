@@ -270,9 +270,9 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
                 self.esr_counts[i][average_loop] = self.result_current
                 self.data['esr_counts'][i] = np.average(self.esr_counts[i][0:average_loop+1], axis=0)
 
-                # save data on the fly so that we can start to analyze it while the experiment is running!
-                if self.settings['save']:
-                    self.save_data()
+            # save data on the fly so that we can start to analyze it while the experiment is running!
+            if self.settings['save']:
+                self.save_data()
 
             time_elapsed = t.time() - time_start
             self.log("Completed average block %i of %i in %s" %

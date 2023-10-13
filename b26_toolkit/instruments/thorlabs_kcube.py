@@ -181,8 +181,8 @@ class KDC001(Instrument):
             self._servo_library.CC_WaitForMessage(self._serial_num, message_type, message_id, message_data)
 
         if verbose:
-            position = self.get_position()
-            print('Device now at position {0} mm'.format(position))
+            position = self.get_position(verbose=True)
+            #print('Device now at position {0} mm'.format(position))
 
     def home(self, verbose=True):
 
@@ -285,9 +285,9 @@ class KDC001(Instrument):
         if self._settings_initialized:
             for key, value in settings.items():
                 if key == 'position':
-                    self.set_position()
+                    self.set_position(verbose=verbose)
                 elif key == 'velocity':
-                    self.set_velocity()
+                    self.set_velocity(verbose=verbose)
 
     def read_probes(self, key = None):
         assert key in list(self._PROBES.keys())
@@ -335,7 +335,7 @@ class B26KDC001x(KDC001):
 
         # check if safety limits are met
         if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
-            super(B26KDC001x, self).set_position(self)
+            super(B26KDC001x, self).set_position(verbose=verbose)
         else:
             print('didnt make the safety cut! doing nothing')
           #  raise AttributeError('position is outside safety limits!! Doing nothing.')
@@ -369,7 +369,7 @@ class B26KDC001y(KDC001):
 
         # check if safety limits are met
         if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
-            super(B26KDC001y, self).set_position(self)
+            super(B26KDC001y, self).set_position(verbose=verbose)
         else:
             print('didnt make the safety cut! doing nothing')
           #  raise AttributeError('position is outside safety limits!! Doing nothing.')
@@ -403,18 +403,18 @@ class B26KDC001z(KDC001):
 
         # check if safety limits are met
         if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
-            super(B26KDC001z, self).set_position(self)
+            super(B26KDC001z, self).set_position(verbose=verbose)
         else:
             print('didnt make the safety cut! doing nothing')
           #  raise AttributeError('position is outside safety limits!! Doing nothing.')
 
 if __name__ == '__main__':
     a = B26KDC001x()
-    b = B26KDC001y()
-    c = B26KDC001z()
+    #b = B26KDC001y()
+    #c = B26KDC001z()
     #a.home()
     #b.home()
     #c.home()
 
   #  a.set_velocity()
- #   a.set_position()
+    #a.get_position()

@@ -61,7 +61,8 @@ class PressureGauge(Instrument):
             Parameter('port', 'COM8', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
-            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge'),
+            Parameter('pressure', 1000, float, 'pressure reading (Torr); changing this does nothing')
         ])
 
     #serial_connection = serial.Serial(port=_DEFAULT_SETTINGS['port'], baudrate=_DEFAULT_SETTINGS['baudrate'],
@@ -104,6 +105,7 @@ class PressureGauge(Instrument):
         """
 
         probe_name = probe_name.lower()  # making sure the probe is lowercase
+        assert probe_name in list(self._PROBES.keys())
 
         if probe_name == 'pressure':
             return self._get_pressure()
@@ -147,7 +149,7 @@ class PressureGauge(Instrument):
 
         self.serial_connection.write(self.ENQ)
         err_msg_and_pressure = self.serial_connection.readline().rstrip(self.LF).rstrip(self.CR).decode()
-        print(err_msg_and_pressure)
+        #print(err_msg_and_pressure)
 
         err_msg = err_msg_and_pressure[0]
         pressure = float(err_msg_and_pressure[3:])
@@ -236,7 +238,8 @@ class ChamberPressureGauge(PressureGauge):
             Parameter('port', 'COM10', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
-            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge'),
+            Parameter('pressure', 1000, float, 'pressure reading (Torr); changing this does nothing')
         ])
 
 

@@ -114,6 +114,7 @@ for a given experiment
         :return: None
         """
         pass
+
     def _configure_instruments_for_tau(self, tau):
         """
         Configure instruments before taking measurements for a new tau value.
@@ -163,6 +164,7 @@ for a given experiment
 
         # ER 20181214 retrieve modulation on or off for main experiment
         mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
+
 
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
@@ -581,7 +583,7 @@ for a given experiment
         Returns:
 
         """
-
+        self.verbose = verbose
         # make sure that we have the pulse sequences that correspond to the current settings
         if pulse_sequences is None:
             pulse_sequences, __, __ = self.create_pulse_sequences()

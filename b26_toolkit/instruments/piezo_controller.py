@@ -293,7 +293,7 @@ class MDT693A(Instrument):
         if key in ['voltage']:
             self.ser.write((self.settings['axis'] + 'R?\r').encode())
             xVoltage = self.ser.readline()
-            #print(str(xVoltage)[-8:-4])
+            print(str(xVoltage)[-8:-4])
             return(float(str(xVoltage)[-8:-4]))
         elif key in ['voltage_limit']:
             self.ser.write('XH?\r')

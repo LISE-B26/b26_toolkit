@@ -50,7 +50,7 @@ Uses a double_init scheme
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
@@ -176,6 +176,7 @@ Uses a double_init scheme
             super(Rabi, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
+
 
 class RabiDoublePi(Rabi):
     """

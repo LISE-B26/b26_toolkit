@@ -130,8 +130,11 @@ This script points the laser to a point
 
         # removes patches
         [child.remove() for child in axes_Image.get_children() if isinstance(child, patches.Circle)]
+        xticks = axes_Image.get_xticks()
+        radius = (xticks[-1]-xticks[0])*0.01
 
-        patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), .0005, fc='r')
+
+        patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), radius, fc='r', alpha = .8)
         axes_Image.add_patch(patch)
 
 class SetLaser_cDAQ(SetLaser):
@@ -204,14 +207,6 @@ class SetAtto(SetLaser):
             scale = 15
         return scale
 
-    def plot(self, figure_list):
-        axes_Image = figure_list[0].axes[0]
-
-        # removes patches
-        [child.remove() for child in axes_Image.get_children() if isinstance(child, patches.Circle)]
-
-        patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), .8, fc='g')
-        axes_Image.add_patch(patch)
 
 
 class SetAttoANC300(SetAtto):

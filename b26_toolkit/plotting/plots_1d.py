@@ -476,13 +476,13 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
         axis.relim()
         axis.autoscale_view()
 
-def plot_counts_vs_pos(axis, data, pos):
+def plot_counts_vs_pos(axis, data, pos, ylabel = 'kCounts/s'):
     """
     plots magnet position vs. counts for aligning the field with fluorescence
 
     """
     axis.set_xlabel('position (mm)')
-    axis.set_ylabel('kCounts/sec')
+    axis.set_ylabel(ylabel)
 
     axis.plot(pos, data, linewidth=2.0)
 

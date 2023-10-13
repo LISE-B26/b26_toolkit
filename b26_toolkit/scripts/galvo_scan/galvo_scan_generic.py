@@ -20,6 +20,7 @@ import numpy as np
 import time
 from b26_toolkit.instruments import NI6259
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+import matplotlib.patheffects as pe
 from pylabcontrol.core import Script, Parameter
 
 class GalvoScanGeneric(Script):
@@ -126,13 +127,15 @@ class GalvoScanGeneric(Script):
         """
         Executes threaded galvo scan
         """
+        self.safety_threshold_exceeded = False
+
         # Make a new variable for storing ending behavior,
         # This fixes issue where self.settings['ending_behavior'] gets reset to initial value when saving and then stopping scan
         self.ending_behavior = self.settings['ending_behavior']
 
         self.before_scan()
 
-        self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
+        self.data = {'image_data': np.full((self.settings['num_points']['y'], self.settings['num_points']['x']), fill_value = -1.0)}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
@@ -192,7 +195,7 @@ class GalvoScanGeneric(Script):
 
                 # fill the rest of the array with the mean of the data up to now
                 # (otherwise it's zero and the data is not visible in the plot)
-                if yNum<Ny:
+                if yNum < Ny:
                     self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :].flatten())
 
         self.after_scan()
@@ -223,15 +226,15 @@ class GalvoScanGeneric(Script):
 
     def read_line_wrapper(self, y_pos):
         """
-                In the simplest scenario this just runs read_line
-                However, you can rewrite this to call read_line twice with different conditions, e.g. read_line with MW
-                on and off and extract the difference
-                Args:
-                    y_pos: y position of the scan
+        In the simplest scenario this just runs read_line
+        However, you can rewrite this to call read_line twice with different conditions, e.g. read_line with MW
+        on and off and extract the difference
+        Args:
+            y_pos: y position of the scan
 
-                Returns:
+        Returns:
 
-                """
+        """
         return self.read_line(y_pos)
 
     def read_line(self, y_pos):
@@ -295,6 +298,11 @@ class GalvoScanGeneric(Script):
 
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
+        if self.safety_threshold_exceeded:
+            axes_list[0].text(0.5, 0.5, 'COUNTS \n EXCEEDED \n SAFETY!', fontsize=35, color='white', weight='bold',
+                              horizontalalignment='center', verticalalignment='center', transform=axes_list[0].transAxes,
+                              path_effects=[pe.withStroke(linewidth=4, foreground="red")])
+
     def _update_plot(self, axes_list):
         """
         updates the galvo scan image
@@ -317,6 +325,17 @@ class GalvoScanGeneric(Script):
 
         # only pick the first figure from the figure list, this avoids that get_axes_layout clears all the figures
         return super(GalvoScanGeneric, self).get_axes_layout([figure_list[0]])
+
+
+    def safety_exceeded_behavior(self):
+        """
+        Action if a pixel in a line exceeds a safety threshold. E.g. we might want to shut off the laser if we see something really bright (i.e. burning it)
+
+        Args:
+        Returns:
+
+        """
+        pass
 
 
 # uncommented by Jan March 12th 2018. I think this is not used anymore
