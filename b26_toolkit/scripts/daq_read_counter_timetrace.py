@@ -399,9 +399,6 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             if daq is not None:
                 daq.stop(task)
 
-    def plot(self, figure_list):
-        super(Daq_TimeTrace_NI9402_NI9219, self).plot(figure_list)
-
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
 
@@ -418,7 +415,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             if len(signal) > 0:
                 # 20191105 ER get rid of normalization
                 #plot_counts(axes_list[0], signal/np.mean(signal))
-                plot_counts(axes_list[0], signal)
+                plot_counts(axes_list[0], signal, int_time=self.settings['integration_time'])
                 #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
                 freq, psd = power_spectral_density(signal, self.settings['integration_time'])
 

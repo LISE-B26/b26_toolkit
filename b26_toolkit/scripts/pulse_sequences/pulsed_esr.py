@@ -315,17 +315,18 @@ Uses double_init scheme.
         # If fit is found and fit has not been plotted, plot both data and fit
         fit_in_plot = len(axes_list[0].lines) == len(np.transpose(counts)) + 1
         update_1d_simple(axes_list[0], x_data, counts, fit_in_plot=fit_in_plot)
-        if 'fits' in data.keys() and data['fits'] is not None:
-            title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}'\
-                .format(data['fits'][4], data['fits'][5], data['fits'][1],
-                        np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
-            axes_list[0].set_title(title)
-            if fit_in_plot:
-                for index, counts in enumerate([double_lorentzian(x_data_fine, *data['fits'])]):
-                    axes_list[0].lines[-1 - index].set_ydata(counts)
-
-            else:
-                plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5)
+        # if 'fits' in data.keys() and data['fits'] is not None:
+        #     title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}'\
+        #         .format(data['fits'][4], data['fits'][5], data['fits'][1],
+        #                 np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
+        #     axes_list[0].set_title(title)
+        #     if fit_in_plot:
+        #
+        #         for index, counts in enumerate([double_lorentzian(x_data_fine, *data['fits'])]):
+        #             axes_list[0].lines[-1 - index].set_ydata(counts)
+        #
+        #     else:
+        #         plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5)
 
         update_pulse_plot(axes_list[1], self.pulse_sequences[self.sequence_index])
 

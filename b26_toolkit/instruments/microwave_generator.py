@@ -90,10 +90,11 @@ class MicrowaveGenerator(Instrument):
         super(MicrowaveGenerator, self).update(settings)
         # XXXXX MW ISSUE = START
         # ===========================================
+        if not self._settings_initialized:
+            return
+
         for key, value in settings.items():
-            if key == 'connection_type':
-                self._connect()
-            elif not (key == 'port' or key == 'GPIB_num'):
+            if not (key == 'port' or key == 'GPIB_num'):
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif key == 'modulation_type':
@@ -108,8 +109,7 @@ class MicrowaveGenerator(Instrument):
                 key = self._param_to_internal(key)
 
                 # only send update to instrument if connection to instrument has been established
-                if self._settings_initialized:
-                    self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
+                self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
                     # ER 20180904
                    # if key == 'FREQ':
@@ -200,9 +200,11 @@ class MicrowaveGenerator(Instrument):
         elif param == 'pulse_modulation_function':
             return 'PFNC'
         elif param == 'dev_width':
-            if self.settings['modulation_function'] == 'Noise':
-                return 'FNDV'
-            return 'FDEV'
+            if self.read_probes('modulation_type') == 'FM':
+                if self.read_probes('modulation_function') == 'Noise':
+                    return 'FNDV'
+                return 'FDEV'
+            raise KeyError('non-FM dev width not implemented yet')
         elif param == 'mod_rate':
             return 'RATE'
         else:

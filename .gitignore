@@ -224,4 +224,7 @@ dmypy.json
 ### Python Patch ###
 .venv/
 
+key
+key.pub
+
 # End of https://www.gitignore.io/api/python,pycharm+all

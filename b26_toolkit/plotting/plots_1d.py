@@ -275,7 +275,7 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
             axis.set_xlabel('time [us]')
 
 
-def plot_counts(axis, data):
+def plot_counts(axis, data, int_time=1.):
     """
     plots APD timeseries data
 
@@ -289,7 +289,7 @@ def plot_counts(axis, data):
         for datum in data:
             axis.plot(datum, linewidth=1.25)
     else:
-        axis.plot(data, linewidth=1.25)
+        axis.plot(int_time * np.arange(len(data)), data, linewidth=1.25)
     # axis.hold(False)
 
     axis.set_xlabel('time [s]')
