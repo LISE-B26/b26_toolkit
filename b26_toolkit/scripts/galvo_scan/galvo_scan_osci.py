@@ -1,7 +1,7 @@
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from pylabcontrol.core import Script, Parameter
 import numpy as np
-from b26_toolkit.scripts import SetLaser, KeysightOsciGetTimeTrace
+from b26_toolkit.scripts import SetLaser
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
@@ -20,7 +20,7 @@ class GalvoScanOsci(GalvoScanGeneric):
                   ])
     ]
 
-    _SCRIPTS = {'setlaser': SetLaser, 'get_trace': KeysightOsciGetTimeTrace}
+    _SCRIPTS = {'setlaser': SetLaser}#3, 'get_trace': KeysightOsciGetTimeTrace}
 
     _ACQ_TYPE = 'point'
 

@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pylabcontrol.core import Script
+from pylabcontrol.core import Script, Parameter
 from instruments import ArduinoUno
 
 class ArduinoServoFlip(Script):

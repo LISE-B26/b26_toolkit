@@ -17,7 +17,8 @@
 """
 
 from pylabcontrol.core import Instrument, Parameter
-import visa
+from struct import unpack
+import pyvisa
 import numpy as np
 import time
 
@@ -26,53 +27,55 @@ import matplotlib.pyplot as plt
 # class Oscilloscope(Instrument):
 
 class rigol_Oscilloscope(Instrument):
+
     """
     This class provides a python implementation of the Keysight DSO1024A oscilloscope.
     """
 
     # String returned by spectrum analyzer upon querying it with '*IDN?'
-    _INSTRUMENT_IDENTIFIER = 'RIGOL TECHNOLOGIES,MSO5104,MS5A241503457,00.01.03.00.03'
+    _INSTRUMENT_IDENTIFIER = 'RIGOL TECHNOLOGIES,MSO5104,MS5A241503457,00.01.03.02.02'
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('visa_resource', 'USB0::0x1AB1::0x0515::MS5A241503457::INSTR', (str),
+        Parameter('visa_resource', 'TCPIP::169.254.63.230::INSTR', (str),
                       'pyVisa instrument identifier, to make a connection using the pyVisa package.'),
         Parameter('timebase',[
-            Parameter('format', 'main', ['main', 'xy', 'roll'], 'time base format')
+            Parameter('format', 'MAIN', ['MAIN', 'XY', 'ROLL'], 'time base format')
         ]),
         # Parameter('frequency_step', 10e6, float, 'frequency interval of spectrum analyzer frequency range'),
         Parameter('acquisition',[
-                      Parameter('type','normal',['normal', 'averages', 'peak', 'hresolution'], 'acquisition type'),
-                      Parameter('count',4.0, float, 'acquisition count')
+                      Parameter('type','NORM',['NORM', 'AVER', 'PEAK', 'HRES'], 'acquisition type'),
+                      Parameter('count',1, int, 'acquisition count'),
+                      Parameter('memory_depth', '10k', ['AUTO', '1k', '10k','100k','1M','5M','10M','25M','50M','100M','200M'],'number of waveform points per trigger')
                   ]),
         Parameter('waveform', [
             Parameter('mode', 'raw', ['normal', 'maximum', 'raw'], 'waveform mode (not that normal allows only to acquire up to 1000 datapoints!)'),
-            Parameter('points', 1000, int, 'waveform length, max is 10240 (mode raw) or 1000 (mode normal)'),
+            # Parameter('points', 10000, int, 'waveform length, max is 10240 (mode raw) or 1000 (mode normal)'),
             Parameter('format', 'byte', ['word', 'ascii', 'byte'], 'waveform format '),
             Parameter('channel', 'CHAN1', ['CHAN1','CHAN2','CHAN3','CHAN4'], 'channel from which to read the data'),
-            Parameter('timebase', 0.000001, float, 'timebase: units per devision'),
-            Parameter('CHAN1', [
-                Parameter('offset', 0.0, float, 'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
-                Parameter('probe', 1.0, float,
-                          'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
-                Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
-            Parameter('CHAN2', [
-                Parameter('offset', 0.0, float,
-                          'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
-                Parameter('probe', 1.0, float,
-                          'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
-                Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
-            Parameter('CHAN3', [
-                Parameter('offset', 0.0, float,
-                          'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
-                Parameter('probe', 1.0, float,
-                          'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
-                Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
-            Parameter('CHAN4', [
-                Parameter('offset', 0.0, float,
-                          'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
-                Parameter('probe', 1.0, float,
-                          'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
-                Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
+            Parameter('timebase', 2, float, 'timebase: units per division'),
+            # Parameter('CHAN1', [
+            Parameter('offset', 0.0, float, 'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
+            Parameter('probe', 1, int,
+                          'multiplication factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
+            Parameter('vert_scale', 500.E-3, float, 'volts per division (500 uV to 10 V)'),
+        #     Parameter('CHAN2', [
+        #         Parameter('offset', 0.0, float,
+        #                   'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
+        #         Parameter('probe', 1.0, float,
+        #                   'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
+        #         Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
+        #     Parameter('CHAN3', [
+        #         Parameter('offset', 0.0, float,
+        #                   'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
+        #         Parameter('probe', 1.0, float,
+        #                   'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
+        #         Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
+        #     Parameter('CHAN4', [
+        #         Parameter('offset', 0.0, float,
+        #                   'offset on channel in volts. range is +/- 1V, +/1 30V, +/- 100V depending on vertical scale'),
+        #         Parameter('probe', 1.0, float,
+        #                   'multipliation factor for y scale - can only be 1s, 2s, 5s from 1e-4 to 1e4'),
+        #         Parameter('vert_scale', 100.E-3, float, 'volts per division (500 uV to 10 V)')]),
         ]),
         Parameter('trigger', [
             # Parameter('on', True, bool, 'trigger on or off'),
@@ -84,7 +87,8 @@ class rigol_Oscilloscope(Instrument):
         Parameter('connection_timeout', 9., float, 'the time to wait for a response from the oscilloscope with each query in seconds (16 ns to 10s'),
         ])
 
-    def __init__(self, name='Oscilloscope', settings={}):
+
+    def __init__(self, name='None', settings=None):
         """
 
         Args:
@@ -98,29 +102,37 @@ class rigol_Oscilloscope(Instrument):
         # keep track of when the instrument was updated last to prevent sending requests to frequently
         self._last_update_time = time.time()
 
-        rm = visa.ResourceManager()
+        rm = pyvisa.ResourceManager()
 
         print(rm.list_resources())
 
         # todo: JG 20170623 implement proper error handling when insturment is not connected.
         self.osci = rm.open_resource(self.settings['visa_resource'])
+        self.osci.query_delay = 1000
+        self._channel = self._DEFAULT_SETTINGS['waveform']['channel']
+        baudrate = 9600
 
-        self.osci.read_termination = '\n'
         self.osci.write_termination = '\n'
-        self.osci.timeout = self.settings['connection_timeout']
-        self.osci.inputbuffersize = 1000
-        self.osci.ByteOrder = 'littleEndian'
-        self.osci.baud_rate = 9600
-        #
+        self.osci.read_termination = '\n'
+
+        self.osci.timeout = 10000
+        # self.osci.inputbuffersize = 1000
+        # self.osci.ByteOrder = 'littleEndian'
+        self.osci.baud_rate = baudrate  #9600
+
         self.osci.write('*RST') #Places the oscilloscope in the factory default setup state.
         self._wait_for_osci()
         self._wait_for_osci()
         self._wait_for_osci()
         self._wait_for_osci()
-        print('waited')
+        # print('waited')
         self.update(self.settings)
+        # self.osci.write(':BUS1:RS232:BAUD ' + str(baudrate))
         # except:
         #     raise
+
+    def __del__(self):
+        self.osci.close()
 
     def reset(self):
         """
@@ -138,34 +150,36 @@ class rigol_Oscilloscope(Instrument):
             settings: dictionary that contains the parameter indentifiers (keys) and the new parameters values (value)
 
         """
+          # Places the oscilloscope in the factory default setup state.
+
         super(rigol_Oscilloscope, self).update(settings)
+        # print('RESET')
+        # self.osci.write('*RST')
+        # self._wait_for_osci()
+        # self._wait_for_osci()
+        # self._wait_for_osci()
+        # self._wait_for_osci()
 
         for key, value in settings.items():
             # print(key)
             if key == 'visa_resource' or key == 'connection_timeout':
                 continue
             for subkey, subvalue in value.items():
-                # print(subkey)
-                # print(self.is_connected())
                 subvalue = self._value_to_internal(subvalue)
                 if key == 'timebase':
                     subkey = self._timebase_param_to_internal(subkey)
                 elif key == 'acquisition':
                     subkey = self._acq_param_to_internal(subkey)
                 elif key == 'waveform':
-                    if subkey in ['CHAN1','CHAN2','CHAN3','CHAN4']:
-                        subkey = self._wav_param_to_internal(subkey, optional_dict = self.settings['waveform'][subkey])
-                        continue
-                    else:
-                        subkey = self._wav_param_to_internal(subkey)
+                    if value == 'channel':
+                        self._channel = value
+                    subkey = self._wav_param_to_internal(subkey, self._channel)
                 elif key == 'trigger':
                     subkey = self._trig_param_to_internal(subkey)
 
                 if self.is_connected():
                     print(subkey + ' ' + str(subvalue))
                     self.osci.write(subkey + ' ' + str(subvalue))
-                    self._wait_for_osci()
-                    self._wait_for_osci()
 
 
     def _value_to_internal(self, value):
@@ -173,40 +187,20 @@ class rigol_Oscilloscope(Instrument):
 
     def _timebase_param_to_internal(self, param):
         if param == 'format':
-            return ':TIME:MODE'
+            return ':TIM:MODE'
     def _acq_param_to_internal(self, param):
         if param == 'type':
             return ':ACQ:TYPE'
         if param == 'count':
             return ':ACQ:AVER'
+        if param == 'memory_depth':
+            return ':ACQ:MDEP'
         else:
             raise KeyError
 
-    def _wav_param_to_internal(self, param, optional_dict = None):
-        if param in ['CHAN1', 'CHAN2', 'CHAN3', 'CHAN4']:
-            print(optional_dict)
-            for key, val in optional_dict.items():
-                if key == 'offset':
-                    if self.is_connected():
-                        print(':'+param + ':OFFS ' + str(val))
-                        self.osci.write(':'+param + ':OFFS ' + str(val))
-                        self._wait_for_osci()
-                    # return ':' + param + ':OFFS'
-                elif key == 'probe':
-                    if self.is_connected():
-                        print(':'+param + ':PROB ' + str(val))
-                        self.osci.write(':'+param + ':PROB ' + str(val))
-                        self._wait_for_osci()
-                    # return ':' + param + ':PROB'
-                elif key == 'vert_scale':
-                    if self.is_connected():
-                        print(':'+param + ':SCAL ' + str(val))
-                        self.osci.write(':'+param + ':SCAL ' + str(val))
-                        self._wait_for_osci()
-                    # return ':' + param + ':SCAL'
-                else:
-                    raise KeyError
-        elif param == 'mode':
+    # def _wav_param_to_internal(self, param, optional_dict = None):
+    def _wav_param_to_internal(self, param, channel):
+        if param == 'mode':
             return ':WAV:MODE'
         elif param == 'points':
             return ':WAV:POINT'
@@ -215,7 +209,13 @@ class rigol_Oscilloscope(Instrument):
         elif param == 'channel':
             return ':WAV:SOUR'
         elif param == 'timebase':
-            return ':TIME:SCAL'
+            return ':TIM:SCAL'
+        elif param == 'offset':
+            return ':'+channel + ':OFFS '
+        elif param == 'probe':
+            return ':'+channel + ':PROB '
+        elif param == 'vert_scale':
+            return ':'+channel + ':SCAL '
         else:
             raise KeyError
 
@@ -229,49 +229,6 @@ class rigol_Oscilloscope(Instrument):
         else:
             raise KeyError
 
-
-        # if 'timebase' in settings:
-        #     timebase = settings['timebase']
-        #     # self._wait_for_osci()
-        #     # self._set_timebase(settings['timebase'])
-        #     # self.osci.write(':TIM:MODE MAIN')
-        #     if
-        #     self.osci.write(':TIM:MODE ' + settings['timebase']['format'])
-        #
-        # if 'acquisition' in settings:
-        #     # self._wait_for_osci()
-        #     # self._set_acquisition(settings['acquisition'])
-        #     self.osci.write(':ACQ:TYPE ' + settings['acquisition']['type'])
-        #     self.osci.write(':ACQ:AVER ' + str(settings['acquisition']['count']))
-        #
-        # if 'waveform' in settings:
-        #     channel = str(settings['waveform']['channel'])
-        #     waveform = settings['waveform']
-        #     # self._wait_for_osci()
-        #     # self._set_waveform(settings['waveform'])
-        #     self.osci.write(':WAV:MODE ' + waveform['mode'])
-        #     self.osci.write(':WAV:POINT ' + str(waveform['points']))
-        #     self.osci.write(':WAV:FORM ' + waveform['format'])
-        #     self.osci.write(':WAV:SOUR CHAN' + str(channel))
-        #     self.osci.write(':TIM:SCAL ' + self.time_base_to_nr3(waveform['timebase'], waveform['timebase_unit']))
-        #     self.osci.write(':CHAN' + str(channel) + ':PROB ' + str(waveform['probe'])) #PROBE MUST BE SET BEFORE SCALE
-        #     self.osci.write(':CHAN' + str(channel) + ':SCAL ' + str(waveform['vert_scale']))
-        #     self.osci.write(':CHAN' + str(channel) + ':OFFS ' + str(waveform['offset']))#'{:0.02e}'.format(waveform['offset']))
-        #
-        # if 'trigger' in settings:
-        #     channel = str(settings['trigger']['channel'])
-        #     self.osci.write(':TRIG:PULS:SOUR CHAN' + str(channel))
-        #     if 'mode' in settings['trigger']:
-        #         if settings['trigger'] == 'POS':
-        #             self.osci.write(':TRIG:EDGE:SLOP POS')
-        #         if settings['trigger'] == 'NEG':
-        #             self.osci.write(':TRIG:EDGE:SLOP NEG')
-        #         if settings['trigger'] == 'RFAL':
-        #             self.osci.write(':TRIG:EDGE:SLOP RFAL')
-        #
-        #     self.osci.write(':TRIG:EDGE:LEV ' + str(settings['trigger']['level']))
-
-
     def acq_time(self):
         """
         estimates the acquisition time
@@ -279,18 +236,21 @@ class rigol_Oscilloscope(Instrument):
 
         """
         waveform = self.settings['waveform']
-        total_time = float(waveform['timebase'])
+        total_time = float(waveform['timebase'])*10.0
         return total_time
 
     def _PROBES(self):
         return{'timebase_format':'time base format',
                'acquisition_type':'acquisition type',
                'acquisition_count':'acquisition count',
+               'acquisition_mdepth': 'number of points per trace',
                'waveform_mode':'waveform mode',
-               'num_pts':'number of points',
                'waveform_format':'waveform_format',
                'waveform_channel':'waveform channel',
                'waveform_timebase':'waveform timebase in seconds',
+               'offset' : 'waveform y offset',
+               'probe' : 'y intercept',
+               'vert_scale' : 'vertical scale per division in volts',
                'trigger_channel':'channel from which to trigger',
                'trigger_mode':'trigger mode',
                'trigger_level':'trigger level'
@@ -298,36 +258,58 @@ class rigol_Oscilloscope(Instrument):
 
     def read_probes(self, probe_name):
 
-        self._wait_for_osci()
+        # self._wait_for_osci()
+        # assert(False)
+        assert self._settings_initialized  # will cause read_probes to fail if settings (and thus also connection) not yet initialized
+        if probe_name == 'visa_resource':
+            return self.settings['visa_resource']
+        if probe_name == 'connection_timeout':
+            return self.settings['connection_timeout']
 
-        assert (self._settings_initialized)  # will cause read_probes to fail if settings (and thus also connection) not yet initialized
-        assert key in list(self._PROBES.keys())
+        assert probe_name in list(self._PROBES.keys())
 
-        if prob_name == 'timebase_format':
+        if probe_name == 'timebase_format':
             return float(self.osci.query(':TIM:MODE?'))
-        elif prob_name == 'acquisition_type':
+        elif probe_name == 'acquisition_type':
             return self.osci.query(':ACQ:TYPE?')
-        elif prob_name == 'acquisition_count':
+        elif probe_name == 'acquisition_count':
             return int(self.osci.query(':ACQ:AVER?'))
-        elif prob_name == 'waveform_mode':
+        elif probe_name == 'waveform_mode':
             return self.osci.query(':WAV:MODE?')
-        elif prob_name == 'num_pts':
-            return int(self.osci.query(':WAV:POIN?'))
-        elif prob_name == 'waveform_format':
+        # elif probe_name == 'num_pts':
+        #     return int(self.osci.query(':WAV:POIN?'))
+        elif probe_name == 'waveform_format':
             return self.osci.query(':WAV:FORM?')
-        elif prob_name == 'waveform_channel':
+        elif probe_name == 'waveform_channel':
             return self.osci.query(':WAV:SOUR?')
-        elif prob_name == 'waveform_timebase':
-            return float(self.osci.query(':TIME:MAIN:SCAL?'))
-        elif prob_name == 'trigger_channel':
+        elif probe_name == 'waveform_timebase':
+            return float(self.osci.query(':TIM:MAIN:SCAL?'))
+        elif probe_name == 'offset':
+            channel = self.osci.query(':WAV:SOUR?')
+            return float(self.osci.query(':' + channel + ':OFFS?'))
+        elif probe_name == 'probe':
+            channel = self.osci.query(':WAV:SOUR?')
+            return float(self.osci.query(':' + channel + ':PROB??'))
+        elif probe_name == 'vert_scale':
+            channel = self.osci.query(':WAV:SOUR?')
+            return float(self.osci.query(':' + channel + ':SCAL??'))
+        elif probe_name == 'trigger_channel':
             return self.osci.query(':TRIG:PULS:SOUR?')
-        elif prob_name == 'trigger_mode':
+        elif probe_name == 'trigger_mode':
             return self.osci.query(':TRIG:EDGE:SLOP?')
-        elif prob_name == 'trigger_level':
+        elif probe_name == 'trigger_level':
             return self.osci.query(':TRIG:EDGE:LEV?')
         else:
             raise KeyError
 
+    # def mdepth_to_num(self, mdepth):
+    #     mdepth = mdepth.strip().lower()
+    #     if mdepth.endswith('k'):
+    #         return int(float(mdepth[:-1])*1000)
+    #     if mdepth.endswith('m'):
+    #         return int(float(mdepth[:-1])*1000000)
+    #     else:
+    #         return int(mdepth)
 
     def is_connected(self):
         """
@@ -335,10 +317,7 @@ class rigol_Oscilloscope(Instrument):
         Returns: True if connected, False otherwise.
 
         """
-        identification = self.osci.query('*IDN?')
-        # self.osci.write('*IDN?')
-        # time.sleep(0.1)
-        # print(self.osci.read())
+        identification = self.osci.query("*IDN?", delay = 0.1)
         return identification.strip("\n") == self._INSTRUMENT_IDENTIFIER
 
     def get_timetrace(self):
@@ -347,29 +326,25 @@ class rigol_Oscilloscope(Instrument):
         Returns:
 
         """
+        half_wait = 10*self.settings['waveform']['timebase']
         self.osci.write(':SINGLE') # start a single acquisition
-        self._wait_for_osci()
+        time.sleep(half_wait)
+        triggered = False
+        while not triggered:
+            if self.osci.query('TRIG:STAT?', delay = 0.1) == 'WAIT':
+                triggered = True
+            time.sleep(half_wait)
         self.osci.write(':TFORce') # force trigger to make sure that the acquisition starts
-        self._wait_for_osci()
-        self.is_connected()
-
+        # time.sleep(half_wait)
         # estimate acquisition time and wait until acquisition is finished
         # JG: This seems to work, just wait enough time so that the oscilloscope can acquire the data
-        # output counter to terminal to show that the program didn't freeze
-        total_time = self.acq_time()
-        total_time = int(total_time )*10 # multiply by 10 because the wait loop time is 100ms
-        total_time = int(total_time * 1.2+1) # give another percent margin, this is empirical
-
+        total_time = int(np.ceil(half_wait))
         for i in range(total_time):
             print(('waiting {:d}/{:d}'.format(i, total_time)))
-            time.sleep(0.1)
-        if self.is_connected():
-            operationComplete = bool(self.osci.query('*OPC?'))
-            print(('operationComplete', operationComplete))
-
+            time.sleep(1)
 
         # Get the preamble block
-        preambleBlock = self.osci.query(':WAV:PREAMBLE?')
+        preambleBlock = self.osci.query(':WAV:PREAMBLE?',delay = 0.1)
         # preable contains the curren settings
         #   FORMAT        : int16 - 0 = WORD, 1 = BYTE, 2 = ASCII.
         #   TYPE          : int16 - 0 = NORMAL, 1 = PEAK DETECT, 2 = AVERAGE
@@ -384,8 +359,12 @@ class rigol_Oscilloscope(Instrument):
 
         # convert into dictionary
         preamble = {k:float(v) for k, v in zip(['format', 'type', 'points', 'count', 'xincrement', 'xorigin', 'xreference', 'yincrement', 'yorigin', 'yreference'], preambleBlock.split(','))}
-        self._wait_for_osci()
         print(preamble)
+        yoff = preamble['yorigin']
+        yzero = preamble['yreference']
+        ymult = preamble['yincrement']
+
+        # self.osci.baud_rate = 18000000  #9600
 
         format = str(self.settings['waveform']['format']).lower()
         # depending on the setting we get differnet data back
@@ -395,12 +374,15 @@ class rigol_Oscilloscope(Instrument):
 
             # send command to read data
             # raw_data = self.osci.query(':WAV:DATA?')
-            raw_data = self.osci.query_ascii_values(':WAV:DATA?')
+            # raw_data = self.osci.query_ascii_values(':WAV:DATA?', delay = 60)
+            raw_data = self.osci.query(':WAV:DATA?', delay=120)
             # the first charactars are some metadata
             prefix = raw_data[:11]
-            data = raw_data[11:].split(',')
+            data = raw_data[11:].split(',')[:-1]
             # data = [float(d) for d in data]
-            data = np.array(data)
+            data = np.array(data, dtype=np.float32)
+            # data = [(a - yzero) * ymult + yoff for a in data]
+
 
         elif format == 'word':
             print('datatype word')
@@ -417,11 +399,27 @@ class rigol_Oscilloscope(Instrument):
 
         elif format == 'byte':
             print('datatype byte')
-            print('JG: WARNING BYTE NOT TESTED!')
-            print(self.is_connected())
-            raw_data = self.osci.query_binary_values(':WAV:DATA?', delay = 3)
-            # raw_data = self.osci.query(':WAV:DATA?')
-            data = raw_data
+            # print(self.is_connected())
+            # self.osci.write(':WAV:DATA?')
+            # raw_data = self.osci.read_binary_values(datatype = 'B')
+            self.osci.write(':WAV:DATA?')
+            time.sleep(5)
+            raw_data = self.osci.read_raw()
+            # raw_data = raw_data[11:]
+            print(raw_data)
+            data = [byte for byte in raw_data[11:]]
+            # print(self.osci.read_raw())
+            # raw_data = self.osci.query_binary_values(':WAV:DATA?', datatype = 'B')#, expect_termination=False)#, chunk_size=102400)
+            # raw_data = self.osci.query(':WAV:DATA? CHAN1').encode('ascii')[10:]
+            # data = [int(a,2) for a in raw_data]
+            # raw_data = self.osci.query(':WAV:DATA?', delay=4)
+            # data = np.frombuffer(raw_data, 'B')
+            # data = np.array(unpack('%sB'%len(raw_data),raw_data))
+            data = [(a - yzero) * ymult + yoff for a in data]
+            # print(fulldata)
+            # data = fulldata[11:]
+            print(data)
+            # data = raw_data
         else:
             print('WARNING UNKNOWN DATA FORMAT')
 
@@ -429,11 +427,11 @@ class rigol_Oscilloscope(Instrument):
             dt = float((self.settings['waveform']['timebase'])*10/len(data))
         else:
             dt = 1
-        # add more meta data to the preamble
+        # # add more meta data to the preamble
         preamble['dt']= dt
-        channel = self.settings['waveform']['channel']
-        # preamble['vert_scale'] =float(self.settings['waveform'][channel]['vert_scale'])*float(self.settings['waveform'][channel]['probe'].split('X')[0]) #  vertical scale of osci
-        preamble['vert_scale'] = float(self.settings['waveform'][channel]['vert_scale']) * float(self.settings['waveform'][channel]['probe'])  # vertical scale of osci
+        # channel = self.settings['waveform']['channel']
+        # # preamble['vert_scale'] =float(self.settings['waveform'][channel]['vert_scale'])*float(self.settings['waveform'][channel]['probe'].split('X')[0]) #  vertical scale of osci
+        preamble['vert_scale'] = float(self.settings['waveform']['vert_scale']) * float(self.settings['waveform']['probe'])  # vertical scale of osci
         return data, preamble
 
 
@@ -803,8 +801,8 @@ if __name__ == '__main__':
 
         # print((oscil.settings))
 
-        # oscil.write(':SINGLE')  # start a single acquisition
-        # oscil.write(':TFORce')
+        # oscil.osci.write(':SINGLE')  # start a single acquisition
+        # oscil.osci.write(':TFORce')
 
         data, preambleBlock = oscil.get_timetrace()
 
@@ -814,3 +812,4 @@ if __name__ == '__main__':
         plt.plot(time, data, '-x')
 
         plt.show()
+
