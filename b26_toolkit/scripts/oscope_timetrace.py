@@ -53,7 +53,7 @@ class OScope_Timetrace(Script):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'psd': [], 'freq': []}
+        self.data = {'psd': [], 'freq': [], 'voltage': []}
 
     # TODO: might not need this task setup formally, unlike the daq
     def setup_scope_tasks(self, number_of_samples):
@@ -128,6 +128,7 @@ class OScope_Timetrace(Script):
 
         psds_sum = np.sum(psd_outputs, axis=0)
 
+        data['voltage'] = scope_data
         data['psd'] = psds_sum
         data['freq'] = freq
 
