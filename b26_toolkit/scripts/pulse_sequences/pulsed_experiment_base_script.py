@@ -22,7 +22,7 @@ from copy import deepcopy
 import numpy as np
 import time
 from b26_toolkit.scripts import FindNV, ESR
-from b26_toolkit.scripts.autofocus import AutoFocusDAQ, AutoFocusDaqMDT693A
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ, AutoFocusDaqMDT693A, AutoFocusDAQCold
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, Commander
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
@@ -30,15 +30,17 @@ import random, datetime
 import time as t
 
 #ER 20210302 CHANGE HERE TO 1e4 if you want
-#MAX_AVERAGES_PER_SCAN = 5e4  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
+MAX_BLOCK_SIZE = 1048576  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
                                  #pulseblaster stores this value in 22 bits in its register
                                 # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
                                 # if too large
 
 
+
 class PulsedExperimentBaseScript(Script):
     """
 This class is a base class that should be inherited by all classes that utilize the pulseblaster for experiments. The
+_function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
 _function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
 the daq for reading counter input (usually from the APD). It also provides all of the functionality needed to run a
 standard Script such as plotting.
@@ -77,7 +79,7 @@ for a given experiment
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDaqMDT693A}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDAQCold}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -92,6 +94,9 @@ for a given experiment
                         log_function=log_function, data_path=data_path)
 
         self.ref_index = 0
+
+        if self.settings['averaging_block_size'] > MAX_BLOCK_SIZE:
+            raise Exception('block size too large')
 
     def _calc_progress(self, index):
         # progress of inner loop (in _run_sweep)
@@ -581,7 +586,7 @@ for a given experiment
         Args:
             create_pulse: is true creates the pulses first before validation
             verbose: print more stuff if true
-
+_
         Returns:
 
         """
@@ -699,7 +704,7 @@ for a given experiment
         pb_state_changes = pulse_blaster.generate_pb_sequence(delayed_pulse_collection)
         pb_commands = pulse_blaster.create_commands(pb_state_changes, self.settings['num_averages'])
 
-        if len(pb_commands) < 4096:
+        if len(pb_commands) < B26PulseBlaster.MAX_COMMANDS:
             return False
         else:
             if verbose:

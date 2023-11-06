@@ -19,7 +19,7 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.instruments import LakeShore335, LakeShore211
+from b26_toolkit.instruments import LakeShore211
 from pylabcontrol.core import Script, Parameter
 from collections import deque
 import time

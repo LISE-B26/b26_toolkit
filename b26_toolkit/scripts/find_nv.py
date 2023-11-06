@@ -120,7 +120,7 @@ Known issues:
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
         self.scripts['take_image'].update({'time_per_pt': self.settings['time_per_pt']})
 
-        self.scripts['take_image'].run(verbose=True)
+        self.scripts['take_image'].run()
 
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
@@ -174,12 +174,10 @@ Known issues:
         # So we just move the laser to the initial point (usually where we think the NV is before running the script)
         if self.scripts['take_image'].safety_threshold_exceeded:
             self.scripts['set_laser'].settings['point'].update(self.settings['initial_point'])
-            self.scripts['set_laser'].run(verbose=True)
+            self.scripts['set_laser'].run()
         elif self.settings['adjust_laser']:
             self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
-            self.scripts['set_laser'].run(verbose=True)
             self.scripts['set_laser'].run()
-
 
     @staticmethod
     def plot_data(axes_list, data):

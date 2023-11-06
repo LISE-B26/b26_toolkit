@@ -30,7 +30,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM9', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM8', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -211,7 +211,7 @@ class MDT693A(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM7', str, 'serial port on which to connect'),
+        Parameter('port', 'COM8', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .5, float, 'connection timeout'),
         Parameter('voltage', 1.0, float, 'current voltage')

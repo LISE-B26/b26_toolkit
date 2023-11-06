@@ -381,8 +381,8 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             self.log('total measurement time must be positive. Abort script')
             return
 
-        self.progress = 50
-        self.updateProgress.emit(self.progress)
+        # self.progress = 50
+        # self.updateProgress.emit(self.progress)
 
         daq_tasks = self.setup_daq_tasks(number_of_samples)
 

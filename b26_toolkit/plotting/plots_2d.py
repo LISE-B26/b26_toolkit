@@ -99,7 +99,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
 
     implot.autoscale()
 
-    colorbar_min = np.min(np.where(image_data >= 0, image_data, np.inf))
+    colorbar_min = np.min(np.where(image_data >= -1, image_data, np.inf))
     implot.set_clim(colorbar_min, None)
 
     if colorbar is not None:
@@ -111,7 +111,6 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
         if np.abs(colorbar_max - colorbar_min) > 4:
             colorbar.set_ticks(colorbar_labels)
-
         colorbar.set_clim(colorbar_min, colorbar_max)
         colorbar.update_normal(implot)
 
@@ -145,13 +144,11 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     fig = axes_image.get_figure()
 
     implot = axes_image.imshow(image_data, cmap='inferno', interpolation="nearest", extent=extent, aspect=aspect)
-<<<<<<< HEAD
 
     implot.autoscale()
-    colorbar_min = np.min(np.where(image_data >= 0, image_data, np.inf))
+    colorbar_min = np.min(np.where(image_data >= -1, image_data, np.inf))
     implot.set_clim(colorbar_min, None)
-=======
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
+
 
     title, x_label, y_label, cbar_label = labels
     axes_image.set_xlabel(x_label)
@@ -170,7 +167,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         colorbar_max = np.max(image_data)
     else:
         colorbar_max = max_counts
-
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
 
     if colorbar is None:

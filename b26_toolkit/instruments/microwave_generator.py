@@ -33,7 +33,7 @@ class MicrowaveGenerator(Instrument):
         # SHOULD BE 4
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 4, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('port', 5, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -65,6 +65,9 @@ class MicrowaveGenerator(Instrument):
             raise(e)
         #XXXXX MW ISSUE = END
         #===========================================
+
+    def __del__(self):
+        self.srs.close()
 
     def _connect(self):
         rm = visa.ResourceManager()

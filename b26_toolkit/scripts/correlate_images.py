@@ -366,7 +366,7 @@ class ImageCorrelation(Script):
 
                 self.data['shift'] = [dx_voltage, dy_voltage]
                 self.log('Shift of Vx={:.3f},Vy={:.3f}V or Vx={:.3f},Vy={:.3f}um'
-                         .format(*self.data['shift'],*np.array(self.data['shift'])*90))
+                         .format(self.data['shift'], np.array(self.data['shift']) * 90))
                 print((self.data['shift']))
 
 

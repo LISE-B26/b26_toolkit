@@ -1924,7 +1924,7 @@ class ESR_Spec_Ana(Script):
  #           plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'])
  #       elif self.settings['track_laser_power']['on/off'] and self.settings['daq_type'] == 'PCI':
  #           plot_esr(axes_list[0], data['frequency'], data['norm_data'], data['fit_params'])
-        plot_diff_freq_vs_freq(axes_list[0], data['frequency'] - data['temp_peaks'], data['frequency'])
+ #        plot_diff_freq_vs_freq(axes_list[0], data['frequency'] - data['temp_peaks'], data['frequency'])
 
     def get_axes_layout(self, figure_list):
         """

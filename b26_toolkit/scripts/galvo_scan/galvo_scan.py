@@ -21,6 +21,8 @@ import time
 
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
+from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
+from pylabcontrol.core import Parameter, Script
 
 from b26_toolkit.scripts.daq_read_counter_timetrace import Daq_TimeTrace_NI6259
 from b26_toolkit.scripts.set_laser import SetLaser
@@ -198,7 +200,8 @@ class GalvoScan(GalvoScanGeneric):
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
 
-class GalvoScanTimetrace(GalvoScanGeneric):
+
+class GalvoScanTimetrace(GalvoScan):
     _DEFAULT_SETTINGS = [
         Parameter('point_a',
                   [Parameter('x', 0, float, 'x-coordinate'),
@@ -221,23 +224,9 @@ class GalvoScanTimetrace(GalvoScanGeneric):
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {}
-
     _SCRIPTS = {'Daq_timetrace': Daq_TimeTrace_NI6259, 'SetLaser': SetLaser}
 
-    def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
-        '''
-        Initializes GalvoScan script for use in gui
 
-        Args:
-            instruments: list of instrument objects
-            name: name to give to instantiated script object
-            settings: dictionary of new settings to pass in to override defaults
-            log_function: log function passed from the gui to direct log calls to the gui log
-            data_path: path to save data
-
-        '''
-        Script.__init__(self, name=name, settings=settings, instruments=instruments, scripts=scripts, log_function=log_function, data_path=data_path)
 
     def setup_scan(self):
         """
@@ -288,8 +277,6 @@ class GalvoScanTimetrace(GalvoScanGeneric):
 
         self.scripts['SetLaser'].settings['point']['x'] = galvo_position[0]
         self.scripts['SetLaser'].settings['point']['y'] = galvo_position[1]
-
-
 
 class GalvoScanSafe(GalvoScan):
 

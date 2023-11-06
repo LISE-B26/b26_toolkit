@@ -19,7 +19,7 @@
 import numpy as np
 import time, random
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9402, AFG3021C
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9402, AFG3022C
 from b26_toolkit.plotting.plots_1d import plot_esr
 
 TTL = 3.3 #V
@@ -50,7 +50,7 @@ class StroboscopicSweep(Script):
     ]
 
     _INSTRUMENTS = {
-        'afg': AFG3021C,
+        'afg': AFG3022C,
         'NI6259': NI6259,  # PCI
         'NI9402': NI9402,  # cDAQ
     }

@@ -82,8 +82,8 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             print('cant use both photodiodes at the same time - only use one AI channel at a time, unfortunately :-(')
             return
 
-        sample_rate = float(2) / self.settings['integration_time']
-        normalization = self.settings['integration_time']/.001
+        sample_rate = 1. / self.settings['integration_time']
+        normalization = self.settings['integration_time'] / .001
         self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
         self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
         self.last_value = 0
@@ -191,7 +191,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             else:
                 array_to_plot = np.delete(data['counts'], 0)
 
-            plot_counts(axes_list[0], array_to_plot)
+            plot_counts(axes_list[0], array_to_plot, self.settings['integration_time'])
 
     def _update_plot(self, axes_list, data = None):
         if data is None:

@@ -17,10 +17,10 @@
 """
 
 # # from test_script import ScriptTest
-from .galvo_scan.galvo_scan import GalvoScan, GalvoScanTimetrace
+from .galvo_scan.galvo_scan import GalvoScan
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
-from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
 from .find_nv import FindNV
+from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
 from .esr import ESR, ESR_tracking, ESR_simple_lowerupper, ESR_simple
@@ -49,3 +49,8 @@ from .load_instrument import LoadInstrument
 from .arduino_servo_flip import ToggleCameraView
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
 from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219
+from .keysight_osci_get_timetrace import KeysightOsciGetTimeTrace
+from .pulse_sequences.stroboscopic_readout import StroboscopicReadout
+from .galvo_scan.galvo_scan_pulses import GalvoScanStrobed
+
+

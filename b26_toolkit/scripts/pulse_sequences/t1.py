@@ -37,16 +37,10 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
             Parameter('pi_time', 30.0, float, 'pi time in ns')
         ]),
         Parameter('tau_times', [
-<<<<<<< HEAD
-            Parameter('min_time', 20, float, 'minimum time for T1 (in ns)'),
-            Parameter('max_time', 200000, float, 'total time for T1 (in ns)'),
-            Parameter('time_step', 1000, float, 'time step increment of readout pulse duration (in ns)')
-=======
             Parameter('min_time', 15, float, 'minimum time for T1 (in ns)'),
             Parameter('max_time', 200, float, 'total time for T1 (in ns)'),
             Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000, 1000000, 5000000],
                       'time step increment of readout pulse duration (in ns)')
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
         ]),
         Parameter('read_out', [
             Parameter('nv_reset_time', 7000, int, 'time with laser on to reset state'),

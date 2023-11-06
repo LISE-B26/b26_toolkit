@@ -138,6 +138,7 @@ class PulseBlaster(Instrument):
     """
     PBStateChange = namedtuple('PBStateChange', ('channel_bits', 'time'))
     PBCommand = namedtuple('PBCommand', ('channel_bits', 'duration', 'command', 'command_arg'))
+    MAX_COMMANDS = 4096
 
     _PROBES = {}
 
@@ -678,7 +679,7 @@ class PulseBlaster(Instrument):
         pb_commands = self.create_commands(pb_state_changes, num_loops)
         # print(pb_commands)
 
-        assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
+        assert len(pb_commands) < PulseBlaster.MAX_COMMANDS, "Generated a number of commands too long for the pulseblaster!"
 
         #MM: Updated 061719 to switch 15 ns to min_pulse_dur
         for command in pb_commands:
