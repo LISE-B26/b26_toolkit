@@ -23,7 +23,7 @@ from .piezo_controller import PiezoController, PiezoControllerCold
 from .zurich_instruments import ZIHF2
 from .pulse_blaster import B26PulseBlaster, Pulse
 from .maestro import MaestroLightControl
-from .attocube import Attocube
+from .attocube import Attocube, AttocubeXY
 from .microwave_generator import MicrowaveGenerator
 from .magnet_coils import MagnetCoils
 from .temperature_controller import TemperatureController
