@@ -19,7 +19,6 @@
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import ArduinoZero, B26PulseBlaster
 
-
 class ArduinoServoFlip(Script):
     _DEFAULT_SETTINGS = [Parameter('servo_num', 0, int, 'servo id'),
                          Parameter('position', True, bool, 'checked for up, unchecked for down')]

@@ -49,8 +49,7 @@ from .load_instrument import LoadInstrument
 from .arduino_servo_flip import ToggleCameraView
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
 from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219
-from .keysight_osci_get_timetrace import KeysightOsciGetTimeTrace
 from .pulse_sequences.stroboscopic_readout import StroboscopicReadout
 from .galvo_scan.galvo_scan_pulses import GalvoScanStrobed
-
-
+from .read_temperature_lakeshore import ReadTemperatureLakeshore211
+from .oscope_timetrace import OScope_Timetrace
