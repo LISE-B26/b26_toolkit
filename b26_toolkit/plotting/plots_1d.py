@@ -22,7 +22,7 @@ from matplotlib.collections import PatchCollection
 
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
-def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
+def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin', color='b'):
     '''
     plots the power spectral density on to the canvas axes
     :param freq: x-values array of length N
@@ -42,19 +42,20 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
 
 
     if y_scaling == 'log' and x_scaling == 'log':
-        axes.loglog(c_unit*freq, psd, 'b')
+        axes.loglog(c_unit*freq, psd, color=color)
     elif y_scaling == 'log' and x_scaling == 'lin':
-        axes.semilogy(c_unit*freq, psd, 'b')
+        axes.semilogy(c_unit*freq, psd, color=color)
     elif y_scaling == 'lin' and x_scaling == 'log':
-        axes.semilogx(c_unit*freq, psd, 'b')
+        axes.semilogx(c_unit*freq, psd, color=color)
     elif y_scaling == 'lin' and x_scaling == 'lin':
-        axes.plot(c_unit*freq, psd, 'b')
+        axes.plot(c_unit*freq, psd, color=color)
 
     axes.set_xlabel('frequency ({:s})'.format(unit))
 
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
-def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r', linestyle = '-', marker = '.'):
+def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r',
+             linestyle = '-', marker = '.',title='ESR',xlabel='Frequency (Hz)',ylabel='Kcounts/s'):
     """
     plots the esr
     Args:
@@ -70,11 +71,21 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
 
     #  ======== plot data =========
     axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
+<<<<<<< HEAD
     if np.shape(frequency) == np.shape(counts): # ER 20190129
         axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
+=======
+    if len(np.array(counts).shape) == 1:
+        if np.shape(frequency) == np.shape(counts): # ER 20190129
+            axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
+    elif len(np.array(counts).shape) == 2:
+        for count_row in counts:
+            if np.shape(frequency) == np.shape(count_row):  # ER 20190129
+                axes.plot(frequency, count_row, plot_marker_data, linestyle=linestyle, marker=marker)
+
+>>>>>>> repo_fix
     #axes.hold(True) #ER 20181012
 
-    title = 'ESR'
     fit_data = None
 
     #  ======== plot fit =========
@@ -82,12 +93,14 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
         if len(fit_params) == 4:
             # single peak
             fit_data = lorentzian(frequency, *fit_params)
-            title = 'ESR fo = {:0.4e}, wo = {:0.2e}'.format(fit_params[2], fit_params[3])
+            title = 'ESR fo = {:0.4e}, wo = {:0.2e}, contrast0 = {:.2%}'.format(fit_params[2], fit_params[3],
+                                                                                np.abs(fit_params[1]) / fit_params[0])
         elif len(fit_params) == 6:
             # double peak
             fit_data = double_lorentzian(frequency, *fit_params)
-            title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e}'.format(fit_params[4], fit_params[5],
-                                                                                fit_params[1])
+            title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e},\n contrast1 = {:.2%}, contrast2 = {:.2%}'.format(fit_params[4], fit_params[5],
+                                                                                fit_params[1],
+                                                                                np.abs(fit_params[2]) / fit_params[0], np.abs(fit_params[3]) / fit_params[0])
 
     if fit_data is not None:
         axes.plot(frequency, fit_data, plot_marker_fit)
@@ -98,12 +111,42 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     #     lines = axes.plot(frequency, data, 'b')
 
     axes.set_title(title)
-    axes.set_xlabel('Frequency (Hz)')
-    axes.set_ylabel('Kcounts/s')
-  #  axes.hold(False) ER 20181012: in matplotlib 3.0.0, axes.hold is removed
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
 
-    # return lines
+def plot_pulsedesr(axes, frequency, fit_params=None, plot_marker_fit = 'r'):
+    """
+    plots the esr (simplified for pulsedESR)
+    Args:
+        axes: axes object
+        fit_params: array with fitparameters either length 4 for single peak or length 6 for double peak
+        frequency: mw frequency (array)
+        counts: counts (array)
+        plot_marker:  (str) plot marker
 
+    Returns:
+
+    """
+
+    fit_data = None
+
+    #  ======== plot fit =========
+    if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
+        if len(fit_params) == 4:
+            # single peak
+            fit_data = lorentzian(frequency, *fit_params)
+            #title = 'ESR fo = {:0.4e}, wo = {:0.2e}, contrast0 = {:.2%}'.format(fit_params[2], fit_params[3],
+            #                                                                    np.abs(fit_params[1]) / fit_params[0])
+        elif len(fit_params) == 6:
+            # double peak
+            fit_data = double_lorentzian(frequency, *fit_params)
+            print(fit_data)
+            #title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e},\n contrast1 = {:.2%}, contrast2 = {:.2%}'.format(fit_params[4], fit_params[5],
+            #                                                                    fit_params[1],
+            #                                                                    np.abs(fit_params[2]) / fit_params[0], np.abs(fit_params[3]) / fit_params[0])
+
+    if fit_data is not None:
+        axes.plot(frequency, fit_data, plot_marker_fit)
 
 def plot_pulses(axis, pulse_collection, pulse_colors=None):
     """
@@ -136,6 +179,9 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     axis.set_yticks(list(range(len(instrument_names))))
     axis.set_yticklabels(instrument_names)
 
+    # remove all previous pulses
+    [child.remove() for child in axis.get_children() if isinstance(child, PatchCollection)]
+
     # create horizontal lines for each pulse
     for pulse_plot_y_position in range(0, len(instrument_names)):
         axis.axhline(pulse_plot_y_position - .25, 0.0, max_time, color='k')
@@ -156,7 +202,7 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
 
     # label the axis
     axis.set_title('Pulse Visualization')
-    axis.set_ylabel('pulse destination')
+    #axis.set_ylabel('pulse destination')
     axis.set_xlabel('time [ns]')
 
     xticks = np.array(axis.get_xticks())
@@ -234,7 +280,7 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
             axis.set_xlabel('time [us]')
 
 
-def plot_counts(axis, data):
+def plot_counts(axis, data, int_time=1.):
     """
     plots APD timeseries data
 
@@ -244,19 +290,27 @@ def plot_counts(axis, data):
 
     Returns: (none)
     """
-
-    axis.plot(data, linewidth=2.0)
+    if len(np.shape(data)) > 1:
+        for datum in data:
+            axis.plot(datum, linewidth=1.25)
+    else:
+        axis.plot(int_time * np.arange(len(data)), data, linewidth=1.25)
     # axis.hold(False)
 
-    axis.set_xlabel('time')
-    axis.set_ylabel('kCounts/sec')
+    axis.set_xlabel('time [s]')
+    axis.set_ylabel('[kCounts/s]')
 
-def update_counts(axis, data):
-    if data == None:
+def update_counts(axis, data, data_size=1):
+    if data is None:
         return
+    if len(np.shape(data)) > 1:
+        for i, datum in enumerate(data):
+            axis.lines[i].set_ydata(datum)
+            axis.lines[i].set_xdata(range(0, len(datum)))
 
-    axis.lines[0].set_ydata(data)
-    axis.lines[0].set_xdata(range(0,len(data)))
+    else:
+        axis.lines[0].set_ydata(data)
+        axis.lines[0].set_xdata(range(0, len(data)))
     axis.relim()
     axis.autoscale_view()
 
@@ -278,7 +332,7 @@ def plot_voltage(axis, data):
     axis.set_ylabel('voltage (V)')
 
 
-def plot_temperature(axis, data, sample_rate):
+def plot_temperature(axis, data, sample_rate, update=False):
     """
     plots the temperature
 
@@ -293,14 +347,22 @@ def plot_temperature(axis, data, sample_rate):
     time = np.arange(len(data))/float(sample_rate)
 
     label = 'time (s)'
+
     if max(time)>60:
         time /= 60.
         label = 'time (min)'
     if max(time)>60:
         time /= 60.
         label = 'time (h)'
-    axis.plot(time, data)
-    # axis.hold(False)
+
+    if update:
+        axis.lines[0].set_ydata(data)
+        axis.lines[0].set_xdata(time)
+
+        axis.relim()
+        axis.autoscale_view()
+    else:
+        axis.plot(time, data)
 
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
@@ -339,18 +401,56 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
 
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
+    axis.grid(True, alpha=.15)
     if title:
         axis.set_title(title)
     axis.set_xlim([min(times), max(times)])
 
+def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=None,alpha=1):
+    """
+    plots a time trace for a list of data assuming that the times are give in ns
+    Args:
+        axis: axis object on which to plot
+        times: times in ns (list or array of length N)
+        data_list: list of data (size MxN)
+        y_label: (optional) label for y axis
+        title:  (optional) title
 
-def update_1d_simple(axis, times, counts_list):
+    """
+
+    freqs = 1.*np.array(freqs) # cast onto numpy in case we got a list, which breaks some of the commands below
+
+    if max(freqs) < 1e3:
+        x_label = 'freq [Hz]'
+    elif max(freqs) < 1e6:
+        x_label = 'freq [kHz]'
+        freqs *= 1e-3
+    elif max(freqs) < 1e9:
+        x_label = 'freq [MHz]'
+        freqs *= 1e-6
+    elif max(freqs) < 1e12:
+        x_label = 'freq [GHz]'
+        freqs *= 1e-9
+
+    for counts in data_list:
+        axis.plot(freqs, counts, alpha=alpha)
+
+    axis.set_xlabel(x_label)
+    axis.set_ylabel(y_label)
+    axis.grid(True, alpha=.1)
+    if title:
+        axis.set_title(title)
+    axis.set_xlim([min(freqs), max(freqs)])
+
+
+def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
     """
 
     Args:
         axis: axes object
         times: JG: THIS IS NOT USED! WHAT IS IT? => add comment, e.g. for future purpose or delete!
         counts_list: list of
+        fitting: if fitting is True, then account for the fact that the number of lines in the existing plot will be more than the length of the counts list
 
     Returns:
 
@@ -368,11 +468,11 @@ def update_1d_simple(axis, times, counts_list):
     #     print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))
 
     #assert len(axis.lines) == len(counts_list)
-    if len(axis.lines) != len(counts_list): # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
-        print('number of lines to plot is not equal to number of counts lists!!!')
+    if len(axis.lines) != len(counts_list) and fit_in_plot is False: # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
+        print('Number of lines to plot is not equal to number of counts lists!!!')
         print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
               ' (they should be the same!!)')
-        print('counts_list: ', counts_list)
+        #print('counts_list: ', counts_list)
         return
 
     else:
@@ -381,13 +481,13 @@ def update_1d_simple(axis, times, counts_list):
         axis.relim()
         axis.autoscale_view()
 
-def plot_counts_vs_pos(axis, data, pos):
+def plot_counts_vs_pos(axis, data, pos, ylabel = 'kCounts/s'):
     """
     plots magnet position vs. counts for aligning the field with fluorescence
 
     """
     axis.set_xlabel('position (mm)')
-    axis.set_ylabel('kCounts/sec')
+    axis.set_ylabel(ylabel)
 
     axis.plot(pos, data, linewidth=2.0)
 

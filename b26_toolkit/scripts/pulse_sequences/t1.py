@@ -39,7 +39,7 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for T1 (in ns)'),
             Parameter('max_time', 200, float, 'total time for T1 (in ns)'),
-            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000],
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000, 1000000, 5000000],
                       'time step increment of readout pulse duration (in ns)')
         ]),
         Parameter('read_out', [
@@ -48,7 +48,8 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
             Parameter('laser_off_time', 1000, int,
                       'minimum laser off time before taking measurements (ns)'),
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('readout_ref_same_pulse', False, bool, 'take reference fluorescence at the end of the readout pulse, which should be sufficiently long to initialize the NV')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
@@ -92,7 +93,7 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
         tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         self.settings['tau_times']['time_step']))
+                         int(self.settings['tau_times']['time_step'])))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -106,23 +107,47 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
         pi_time = self.settings['mw_pulse']['pi_time']
         meas_time = self.settings['read_out']['meas_time']
 
+        if not self.settings['read_out']['readout_ref_same_pulse']:
+            for tau in tau_list:
+                pulse_sequence = \
+                    [Pulse('laser', laser_off_time + tau, nv_reset_time),
+                     Pulse('apd_readout', laser_off_time + delay_readout + tau, meas_time),
+                     ]
+                # if tau is 0 there is actually no mw pulse
+                if tau > 0:
+                    pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time + tau, pi_time)]
 
-        for tau in tau_list:
-            pulse_sequence = \
-                [Pulse('laser', laser_off_time + tau, nv_reset_time),
-                 Pulse('apd_readout', laser_off_time+ delay_readout + tau, meas_time),
-                 ]
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time + tau, pi_time)]
+                pulse_sequence += [
+                    Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2*tau, nv_reset_time),
+                    Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + 2*tau, meas_time)
+                ]
+                # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+                # if tau == 0 or tau>=15:
+                pulse_sequences.append(pulse_sequence)
+        else:
+            for tau in tau_list:
+                pulse_sequence = \
+                    [Pulse('laser', laser_off_time + tau, nv_reset_time),
+                     #Pulse('apd_readout', laser_off_time + delay_readout + tau, meas_time),
+                     ]
+                # if tau is 0 there is actually no mw pulse
+                if tau > 0:
+                    pulse_sequence += [
+                        Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time + tau, pi_time)]
 
-            pulse_sequence += [
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2*tau, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + 2*tau, meas_time)
-            ]
-            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
-            # if tau == 0 or tau>=15:
-            pulse_sequences.append(pulse_sequence)
+                pulse_sequence += [
+                    Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2 * tau,
+                          nv_reset_time),
+                    Pulse('apd_readout',
+                          laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + 2 * tau,
+                          meas_time),
+                    Pulse('apd_readout',
+                          laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2 * tau + nv_reset_time - meas_time,
+                          meas_time)
+                ]
+                # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+                # if tau == 0 or tau>=15:
+                pulse_sequences.append(pulse_sequence)
 
         return pulse_sequences, tau_list, meas_time
 

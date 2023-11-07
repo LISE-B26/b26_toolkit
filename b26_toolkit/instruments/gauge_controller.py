@@ -18,6 +18,7 @@
 
 import serial
 from pylabcontrol.core import Parameter, Instrument
+import six
 
 
 class PressureGauge(Instrument):
@@ -46,20 +47,22 @@ class PressureGauge(Instrument):
     }
 
     # ASCII Characters used for controller communication
-    ETX = chr(3)
-    CR = chr(13)
-    LF = chr(10)
-    ENQ = chr(5)
-    ACK = chr(6)
-    NAK = chr(21)
+    # six package provides a python2 and 3 compatable version of python 2's chr()
+    ETX = six.int2byte(3)
+    CR = six.int2byte(13)
+    LF = six.int2byte(10)
+    ENQ = six.int2byte(5)
+    ACK = six.int2byte(6)
+    NAK = six.int2byte(21)
 
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM7', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM8', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
-            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge'),
+            Parameter('pressure', 1000, float, 'pressure reading (Torr); changing this does nothing')
         ])
 
     #serial_connection = serial.Serial(port=_DEFAULT_SETTINGS['port'], baudrate=_DEFAULT_SETTINGS['baudrate'],
@@ -102,6 +105,7 @@ class PressureGauge(Instrument):
         """
 
         probe_name = probe_name.lower()  # making sure the probe is lowercase
+        assert probe_name in list(self._PROBES.keys())
 
         if probe_name == 'pressure':
             return self._get_pressure()
@@ -139,12 +143,13 @@ class PressureGauge(Instrument):
         """
         assert self.serial_connection.isOpen()
 
-        self.serial_connection.write('PR1' + self.CR + self.LF)
+        self.serial_connection.write('PR1'.encode() + self.CR + self.LF)
         acknowledgement = self.serial_connection.readline()
         self._check_acknowledgement(acknowledgement)
 
         self.serial_connection.write(self.ENQ)
-        err_msg_and_pressure = self.serial_connection.readline().rstrip(self.LF).rstrip(self.CR)
+        err_msg_and_pressure = self.serial_connection.readline().rstrip(self.LF).rstrip(self.CR).decode()
+        #print(err_msg_and_pressure)
 
         err_msg = err_msg_and_pressure[0]
         pressure = float(err_msg_and_pressure[3:])
@@ -216,7 +221,7 @@ class PumpLinePressureGauge(PressureGauge):
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM6', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM10', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
@@ -230,20 +235,21 @@ class ChamberPressureGauge(PressureGauge):
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM7', _possible_com_ports, 'com port to which the gauge controller is connected'),
-            Parameter('timeout', 1.0, float, 'amount of time to wait for a response '
+            Parameter('port', 'COM27', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
-            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge')
+            Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge'),
+            Parameter('pressure', 1000, float, 'pressure reading (Torr); changing this does nothing')
         ])
 
 
 
 if __name__ == '__main__':
-        instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
+        # instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
 
 
-        print((instruments['GaugeController']))
-        print(('PumpLinePressureGauge', instruments['GaugeController'].pressure))
+        # print((instruments['GaugeController']))
+        # print(('PumpLinePressureGauge', instruments['GaugeController'].pressure))
 
         instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': ChamberPressureGauge})
         print(('ChamberPressureGauge', instruments['GaugeController'].pressure))

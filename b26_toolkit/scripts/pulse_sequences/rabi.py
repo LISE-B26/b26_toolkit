@@ -18,12 +18,14 @@
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
+from b26_toolkit.scripts import FindNV, ESR
 
-class Rabi(PulsedExperimentBaseScript): # ER 5.25.2017
+
+class Rabi(PulsedExperimentBaseScript):  # ER 5.25.2017
     """
 This script applies a microwave pulse at fixed power for varying durations to measure Rabi oscillations.
 Uses a double_init scheme
@@ -37,7 +39,7 @@ Uses a double_init scheme
         Parameter('tau_times', [
             Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
             Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
-            Parameter('time_step', 5., [2.5, 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
+            Parameter('time_step', 5., [2.5, 4., 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
                   'time step increment of rabi pulse duration (in ns)')
         ]),
         Parameter('read_out', [
@@ -48,10 +50,11 @@ Uses a double_init scheme
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
         ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
     ]
 
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _function(self):
         #COMMENT_ME
@@ -65,6 +68,8 @@ Uses a double_init scheme
 
         if 'counts' in self.data.keys() and 'tau' in self.data.keys():
             counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
+            print('shape')
+            print(np.shape(self.count_data))
             tau = self.data['tau']
 
             try:
@@ -98,7 +103,13 @@ Uses a double_init scheme
         tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
-        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+
+        #MM: update 15 to min_pulse_duration
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
 
         nv_reset_time = self.settings['read_out']['nv_reset_time']
         delay_readout = self.settings['read_out']['delay_readout']
@@ -166,10 +177,84 @@ Uses a double_init scheme
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
+
+class RabiDoublePi(Rabi):
+    """
+    Runs Rabi, but instead of sweeping the duration of a single MW pulse, sweeps the duration of two back to back MW
+    pulses with same durations. Used to calibrate pulses such that two pi pulses bring the Bloch vector back to the
+    original state
+    """
+
+    def _create_pulse_sequences(self):
+        """
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        """
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+       # tau_list = list(range(int(self.settings['tau_times']['min_time']),
+                            #  int(self.settings['tau_times']['max_time']),
+                            #  self.settings['tau_times']['time_step']))
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+
+        #MM: update 15 to min_pulse_duration
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
+                              Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time)]
+
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time,
+                                            tau))
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            laser_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2*40,
+                                            tau))
+
+            pulse_sequence.append(Pulse('laser',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + tau + 2*40 + delay_mw_readout,
+                                        nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout',
+                                        laser_off_time + tau + 2*40 + nv_reset_time + laser_off_time + tau + 2*40 + tau + 2*40 + delay_mw_readout + delay_readout,
+                                        meas_time))
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+
 class RabiPowerSweepSingleTau(PulsedExperimentBaseScript):
     """
-This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
-todo(emma): (write as a double_init scheme)
+    This script applies a microwave pulse at fixed power for varying durations to measure Rabi Oscillations
+    todo(emma): (write as a double_init scheme)
     """
     _DEFAULT_SETTINGS = [
         Parameter('min_mw_power', -45.0, float, 'minimum microwave power in dB'),

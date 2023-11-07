@@ -17,10 +17,11 @@
 """
 
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, FuncFormatter
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
-def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None):
+def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None,
+                      labels = None):
     """
 
     Args:
@@ -28,10 +29,13 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
         extent: vector of length 4, i.e. [x_min, x_max, y_max, y_min]
         axes: axes object on which to plot
         implot: reference to image plot
+        labels: labels for plotting [title, x_label, y_label, cbar_label]
     Returns:
 
     """
     fig = axes_image.get_figure()
+    if labels is None:
+        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
 
     if axes_colorbar is None:
         # try to figure out if there is a axis for the colorbar
@@ -46,9 +50,15 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
             implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent, vmax=max_counts)
         else:
             implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent)
-        axes_image.set_xlabel(r'V$_x$ [V]')
-        axes_image.set_ylabel(r'V$_y$ [V]')
-        axes_image.set_title('Confocal Image')
+
+        title, x_label, y_label, cbar_label = labels
+        axes_image.set_xlabel(x_label)
+        axes_image.set_ylabel(y_label)
+        axes_image.set_title(title)
+
+        #axes_image.set_xlabel(r'V$_x$ [V]')
+        #axes_image.set_ylabel(r'V$_y$ [V]')
+        #axes_image.set_title('Confocal Image')
     else:
         implot.set_data(image_data)
 
@@ -56,9 +66,9 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
         implot.autoscale()
 
     if axes_colorbar is None and cbar is None:
-        cbar = fig.colorbar(implot, label='kcounts/sec')
+        cbar = fig.colorbar(implot, label=cbar_label)
     elif cbar is None:
-        cbar = fig.colorbar(implot, cax=axes_colorbar, label='kcounts/sec')
+        cbar = fig.colorbar(implot, cax=axes_colorbar, label=cbar_label)
     else:
         cbar.update_bruteforce(implot)
     # todo: tightlayout warning test it this avoids the warning:
@@ -80,7 +90,7 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
     """
 
     if max_counts >= 0:
-        image_data = np.clip(image_data, 0, max_counts)
+        image_data = np.clip(image_data, -1, max_counts)
 
     implot = axes_image.images[0]
     colorbar = implot.colorbar
@@ -89,16 +99,23 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
 
     implot.autoscale()
 
-    if colorbar is not None and max_counts < 0:
-        # colorbar_min = 0
-        colorbar_min = np.min(image_data)
-        colorbar_max = np.max(image_data)
+    colorbar_min = np.min(np.where(image_data >= -1, image_data, np.inf))
+    implot.set_clim(colorbar_min, None)
+
+    if colorbar is not None:
+        if max_counts < 0 or np.max(image_data) < max_counts:
+            colorbar_max = np.max(image_data)
+        else:
+            colorbar_max = max_counts
+
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
-        colorbar.set_ticks(colorbar_labels)
+        if np.abs(colorbar_max - colorbar_min) > 4:
+            colorbar.set_ticks(colorbar_labels)
         colorbar.set_clim(colorbar_min, colorbar_max)
         colorbar.update_normal(implot)
 
-def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None):
+
+def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None, labels = None, aspect=1):
     """
     plots fluorescence data in a 2D plot
     Args:
@@ -106,50 +123,62 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
         extent: vector of length 4, i.e. [x_min, x_max, y_max, y_min]
         axes_image: axes object on which to plot
         max_counts: cap colorbar at this value if negative autoscale
+        labels: labels for plotting [title, x_label, y_label, cbar_label]
 
     Returns:
 
     """
     if max_counts >= 0:
-        image_data = np.clip(image_data, 0, max_counts)
+        image_data = np.clip(image_data, -1, max_counts)
 
-    extra_x_extent = (extent[1]-extent[0])/float(2*(len(image_data[0])-1))
-    extra_y_extent = (extent[2]-extent[3])/float(2*(len(image_data)-1))
+    if labels is None:
+        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
+
+    if len(image_data[0]) == 1 or len(image_data) == 1:
+        extra_x_extent, extra_y_extent = 0, 0
+    else:
+        extra_x_extent = (extent[1]-extent[0])/float(2*(len(image_data[0])-1))
+        extra_y_extent = (extent[2]-extent[3])/float(2*(len(image_data)-1))
     extent = [extent[0] - extra_x_extent, extent[1] + extra_x_extent, extent[2] + extra_y_extent, extent[3] - extra_y_extent]
 
     fig = axes_image.get_figure()
 
-    implot = axes_image.imshow(image_data, cmap='pink', interpolation="nearest", extent=extent)
-    axes_image.set_xlabel(r'V$_x$ [V]')
-    axes_image.set_ylabel(r'V$_y$ [V]')
-    axes_image.set_title('Confocal Image')
+    implot = axes_image.imshow(image_data, cmap='inferno', interpolation="nearest", extent=extent, aspect=aspect)
 
-    # explicitly round x_ticks because otherwise they have too much precision (~17 decimal points) when displayed
-    # on plot
-    axes_image.set_xticklabels([round(xticklabel, 4) for xticklabel in axes_image.get_xticks()], rotation=90)
+    implot.autoscale()
+    colorbar_min = np.min(np.where(image_data >= -1, image_data, np.inf))
+    implot.set_clim(colorbar_min, None)
 
-    if np.min(image_data)<200:
-        colorbar_min = 0
-    else:
-        colorbar_min = np.min(image_data)
 
-    if max_counts < 0:
+    title, x_label, y_label, cbar_label = labels
+    axes_image.set_xlabel(x_label)
+    axes_image.set_ylabel(y_label)
+    axes_image.set_title(title)
+
+    def fmt(x, pos):
+        return round(x, 4)
+
+    axes_image.xaxis.set_major_formatter(FuncFormatter(fmt))
+    axes_image.yaxis.set_major_formatter(FuncFormatter(fmt))
+
+    axes_image.tick_params(axis="x", which="both", rotation=90)
+
+    if max_counts < 0 or np.max(image_data) < max_counts:
         colorbar_max = np.max(image_data)
     else:
         colorbar_max = max_counts
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
 
-    if max_counts <= 0:
-        implot.autoscale()
-
     if colorbar is None:
-        colorbar = fig.colorbar(implot, label='kcounts/sec')
-        colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar = fig.colorbar(implot, label=cbar_label)
     else:
-        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label=cbar_label)
+
+    if np.abs(colorbar_max - colorbar_min) > 4:
         colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+
+    colorbar.set_clim(colorbar_min, colorbar_max)
+    colorbar.update_normal(implot)
 
 def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, colorbar = None):
     """
@@ -187,6 +216,7 @@ def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, color
 
     if max_counts < 0:
         colorbar_max = np.max(image_data)
+        implot.autoscale()
     else:
         colorbar_max = max_counts
     colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]

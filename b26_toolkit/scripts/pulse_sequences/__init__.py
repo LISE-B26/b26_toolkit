@@ -6,3 +6,4 @@
 # from .hahn_echo import HahnEcho, HahnEchoManyNVs
 # from .cpmg import CPMG
 # from .pdd import PDD
+from .pulsed_experiment_base_script import PulsedExperimentBaseScript

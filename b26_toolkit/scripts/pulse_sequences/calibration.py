@@ -112,13 +112,13 @@ class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
                 [Pulse('laser', laser_off_time, nv_reset_time),
                  Pulse('apd_readout', laser_off_time+ delay_readout + tau, meas_time),
                  ]
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
+
+
+            pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + tau, meas_time)
+                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time, nv_reset_time),
+                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time + delay_readout + tau, meas_time)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
@@ -237,21 +237,19 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         laser_off_time = self.settings['read_out']['laser_off_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
         pi_time = self.settings['mw_pulse']['pi_time']
-        meas_time = 100
+        meas_time = 100 # Placeholder
 
         for tau in tau_list:
             pulse_sequence = \
                 [Pulse('laser', laser_off_time, nv_reset_time),
                  Pulse('apd_readout', laser_off_time + delay_readout, tau),
                  ]
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
+
+            pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout,
-                      tau)
+                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout, nv_reset_time),
+                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout + delay_readout, tau)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
@@ -291,6 +289,171 @@ class ReadoutDuration(PulsedExperimentBaseScript):
             axislist[0].set_title('Readout pulse width counts')
         else:
             super(ReadoutDuration, self)._plot(axislist)
+            axislist[0].set_title('Readout pulse width counts')
+            axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
+
+
+class ChoppedInitialization(PulsedExperimentBaseScript):
+    """
+  This script sweeps the number of chopped laser pulses to find the optimum for initialization.
+      """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulse', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('pi_time', 30.0, float, 'pi time in ns')
+        ]),
+        Parameter('initialization_laser', [
+            Parameter('pulse_duration', 80, float, 'duration of each chopped laser pulse'),
+            Parameter('wait_duration', 80, float, 'spacing between each chopped laser pulse'),
+            Parameter('min_n', 1, int, 'min num of initialization laser pulses'),
+            Parameter('max_n', 20, int, 'max num of initialization laser pulses'),
+            Parameter('n_step', 1, int, 'step increment of number of initialization laser pulses')
+        ]),
+        Parameter('compare_to_square_pulse', False, bool, 'compare to initialization with square, continuous pulses'),
+        Parameter('read_out', [
+            Parameter('meas_time', 300, int, 'measurement time after initialization sequence'),
+            Parameter('nv_reset_time', 1750, int, 'time with CW laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+    ]
+
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    def _function(self):
+        # COMMENT_ME
+
+        self.data['fits'] = None
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
+        super(ChoppedInitialization, self)._function(self.data)
+
+        counts = self.data['counts'][:, 1]  # / self.data['counts'][:, 0]
+        tau = self.data['tau']
+
+        try:
+            fits = fit_exp_decay(tau, counts, varibale_phase=True)
+            self.data['fits'] = fits
+        except:
+            self.data['fits'] = None
+            self.log('fit failed')
+
+    def _create_pulse_sequences(self):
+        '''
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+        '''
+        pulse_sequences = []
+
+        tau_list = range(int(self.settings['initialization_laser']['min_n']),
+                         int(self.settings['initialization_laser']['max_n']),
+                         int(self.settings['initialization_laser']['n_step']))
+        n_list = tau_list
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        nv_reset_time_pulsed = self.settings['initialization_laser']['pulse_duration']
+        nv_reset_time_wait = self.settings['initialization_laser']['wait_duration']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+        pi_time = self.settings['mw_pulse']['pi_time']
+        meas_time = self.settings['read_out']['meas_time']
+
+        for n in list(n_list):
+            pulse_sequence = []
+            current_time = laser_off_time
+            for i in range(int(n)):
+                pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed))
+                current_time = current_time + nv_reset_time_pulsed + nv_reset_time_wait
+
+            pulse_sequence += [
+                Pulse('laser', current_time + laser_off_time, nv_reset_time),
+                Pulse('apd_readout', current_time + laser_off_time + delay_readout, meas_time)]
+
+            pulse_sequence += [Pulse(microwave_channel, current_time + laser_off_time + nv_reset_time + laser_off_time, pi_time)]
+
+            current_time = current_time + laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout
+            for i in range(int(n)):
+                pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed))
+                current_time = current_time + nv_reset_time_pulsed + nv_reset_time_wait
+
+            pulse_sequence += [
+                Pulse('laser', current_time + laser_off_time, nv_reset_time),
+                Pulse('apd_readout', current_time + laser_off_time + delay_readout, meas_time)]
+
+            if self.settings['compare_to_square_pulse']:
+                current_time = current_time + laser_off_time + nv_reset_time + laser_off_time
+                if n > 0:
+                    pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed*n))
+                current_time = current_time + nv_reset_time_pulsed*n
+
+                pulse_sequence += [
+                    Pulse('laser', current_time + laser_off_time, nv_reset_time),
+                    Pulse('apd_readout', current_time + laser_off_time + delay_readout, meas_time)]
+
+                pulse_sequence += [Pulse(microwave_channel, current_time + laser_off_time + nv_reset_time + laser_off_time, pi_time)]
+
+                current_time = current_time + laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout
+                if n > 0:
+                    pulse_sequence.append(Pulse('laser', current_time, nv_reset_time_pulsed*n))
+                current_time = current_time + nv_reset_time_pulsed*n
+
+                pulse_sequence += [
+                    Pulse('laser', current_time + laser_off_time, nv_reset_time),
+                    Pulse('apd_readout', current_time + laser_off_time + delay_readout, meas_time)]
+
+
+
+
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+    def _plot(self, axislist, data=None):
+        """
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
+        """
+
+        if data is None:
+            data = self.data
+
+        if data['fits'] is not None:
+            counts = data['counts'][:, 1] / data['counts'][:, 0]
+            tau = data['tau']
+            fits = data['fits']  # amplitude, frequency, phase, offset
+
+            axislist[0].plot(tau, counts, 'b')
+            axislist[0].hold(True)
+
+            axislist[0].plot(tau, cose_with_decay(tau, *fits), 'k', lw=3)
+            # pi_time = 2*np.pi / fits[1] / 2
+            pi_time = (np.pi - fits[2]) / fits[1]
+            pi_half_time = (np.pi / 2 - fits[2]) / fits[1]
+            three_pi_half_time = (3 * np.pi / 2 - fits[2]) / fits[1]
+            rabi_freq = 1000 * fits[1] / (2 * np.pi)
+            #   axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns, pi-half-time: {:2.1f}ns, 3pi_half_time: {:2.1f}ns, Rabi freq: {2.1f}MHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time, pi_half_time, three_pi_half_time, rabi_freq))
+            axislist[0].set_title('Readout pulse width counts')
+        else:
+            super(ChoppedInitialization, self)._plot(axislist)
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 

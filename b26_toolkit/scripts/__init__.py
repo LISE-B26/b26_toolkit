@@ -19,29 +19,38 @@
 # # from test_script import ScriptTest
 from .galvo_scan.galvo_scan import GalvoScan
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
-from .set_laser import SetLaser
+from .find_nv import FindNV
+from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
-from .esr import ESR
+from .esr import ESR, ESR_tracking, ESR_simple_lowerupper, ESR_simple
 from .esr_dithering import ESR_FM_Dither
 from .esr_two_freq_continuous import ESRTwoFreqContinuous
 from .spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from .zi_sweeper import ZISweeper
 from .zi_high_res_sweep import ZISweeperHighResolution
-from .find_nv import FindNV
 from .atto_scan import AttoStep
 # # from .pulse_sequences import XY8_k, T1, Rabi, PDD, XY4, T1SingleInit, PulsedESR, \
 # #     HahnEcho, XY4, XYXY, ReadoutStartTimeWithoutMW, ReadoutStartTime, ReadoutDuration, CPMG, \
 # #     HahnEchoManyNVs, RabiPowerSweepSingleTau
 from .pulse_sequences.rabi import Rabi
+#from .pulse_sequences.pulsed_esr import PulsedESR
 from .esr_and_rabi import ESRAndRabi
 # from .spec_analyzer_get_spectrum import KeysightGetSpectrum
 from .light_control import ApplyLightControlSettings, CameraOn
 from .correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
-from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC, AutoFocusDAQCold
+from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC, AutoFocusDAQCold, AutoFocusDAQMax
 from .record_pressures import RecordPressures
 from .set_magnetic_coils import SetMagneticCoils
 from .align_magnetic_field_to_NV import AlignFieldToNV
 from .Ni_9263_polarization_controller import Ni9263_BalancePolarization
 from .stability_with_microwaves import Stability_With_Microwaves
-from .read_temperature_lakeshore import ReadTemperatureLakeshore
+from .load_instrument import LoadInstrument
+from .arduino_servo_flip import ToggleCameraView
+from .read_temperature_lakeshore import ReadTemperatureLakeshore211
+from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219
+from .keysight_osci_get_timetrace import KeysightOsciGetTimeTrace
+from .pulse_sequences.stroboscopic_readout import StroboscopicReadout
+from .galvo_scan.galvo_scan_pulses import GalvoScanStrobed
+
+

@@ -16,7 +16,8 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-# from .fit_functions import fit_gaussian, fit_lorentzian, lorentzian, gaussian
+from .fit_functions import fit_gaussian, fit_lorentzian, lorentzian, gaussian
 
-# from correlate_images import find_image_shift
-from .correlate_images import find_image_shift, correlation, shift_NVs
+from .correlate_images import find_image_shift
+from .correlate_images import find_image_shift, correlation, shift_NVs, pixel_to_voltage_conversion_factor
+from .correlate_images_subpixel import compare_galvos

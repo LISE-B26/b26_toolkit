@@ -1,0 +1,5 @@
+starting script find_NV at 18:26:49 on 13/09/21
+changing the minimum mass from: 100
+to: 80
+FindNV did not find an NV --- setting laser to initial point instead, setting fluorescence to zero
+script find_NV finished at 18:27:05 on 13/09/21

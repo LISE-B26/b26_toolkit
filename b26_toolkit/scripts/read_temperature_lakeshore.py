@@ -19,27 +19,26 @@
 import numpy as np
 from matplotlib import patches
 
-from b26_toolkit.instruments import TemperatureController
+from b26_toolkit.instruments import LakeShore211
 from pylabcontrol.core import Script, Parameter
 from collections import deque
 import time
 
 from b26_toolkit.plotting.plots_1d import plot_temperature
-class ReadTemperatureLakeshore(Script):
+
+class ReadTemperatureLakeshore211(Script):
     """
 This script reads the temperature from the Lakeshore controller.
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('sample_rate', 1, float, 'Rate at which temperature is recorded in seconds'),
+        Parameter('sample_rate', 1., float, 'Rate at which temperature is recorded in Hz'),
         Parameter('max_samples', 10, int, 'Number of samples'),
     ]
 
-    _INSTRUMENTS = {'temp_controller': TemperatureController}
+    _INSTRUMENTS = {'temp_controller': LakeShore211}
 
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -57,6 +56,8 @@ This script reads the temperature from the Lakeshore controller.
         will be overwritten in the __init__
         """
 
+        assert self.instruments['temp_controller']['instance'].is_connected()
+
         sample_rate = self.settings['sample_rate']
         max_samples = self.settings['max_samples']
 
@@ -68,13 +69,6 @@ This script reads the temperature from the Lakeshore controller.
                 break
 
             temperature = self.instruments['temp_controller']['instance'].temperature
-
-            if len(temperature) ==2:
-                temperature = temperature[0]
-            else:
-                print('warning! temperature reading failed. expected a list of length 2 received the following:')
-                print(temperature)
-                temperature = 0
             self.data['temperature'].append(temperature)
             self.progress = 50.
             self.updateProgress.emit(int(self.progress))
@@ -93,6 +87,11 @@ This script reads the temperature from the Lakeshore controller.
             data = self.data
         if data:
             plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'])
+
+    def _update_plot(self, axes_list, data = None):
+        if data is None:
+            data = self.data
+        plot_temperature(axes_list[0], data['temperature'], self.settings['sample_rate'], True)
 
 if __name__ == '__main__':
     pass

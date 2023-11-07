@@ -20,6 +20,7 @@ import numpy as np
 import time
 from b26_toolkit.instruments import NI6259
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
+import matplotlib.patheffects as pe
 from pylabcontrol.core import Script, Parameter
 
 class GalvoScanGeneric(Script):
@@ -52,7 +53,7 @@ class GalvoScanGeneric(Script):
         #             Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
         #             Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
         #           ]),
-        Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
+        Parameter('ending_behavior', 'leave_at_corner', ['return_to_start', 'return_to_origin', 'leave_at_corner'], 'return to the corn')
     ]
 
     _INSTRUMENTS = {}
@@ -84,22 +85,70 @@ class GalvoScanGeneric(Script):
         """
         pass
 
+    def check_bounds(self):
+        """
+        Checks that the scan positions are legal
+        Returns:
+
+        """
+        pass
+
+    def scale(self):
+        """
+        Custom scaling for voltages
+        For galvo scans, this should be left as 1
+        For Attocube scans, this should be 7.5/10/15, depending on the voltage limit of the piezo controller
+        Returns:
+        1 as default
+        """
+        return 1
+
+    def before_scan(self):
+        """
+        Runs something before starting the scan.
+        This can be something like moving the laser to a certain position, running findNV, or turning on MW
+        Returns:
+
+        """
+        pass
+
+
+    def after_scan(self):
+        """
+        Runs something after finishing the scan.
+        This can be something like moving the laser to a certain position, running findNV, or turning off MW
+        Returns:
+
+        """
+        pass
+
     def _function(self):
         """
         Executes threaded galvo scan
         """
+        self.safety_threshold_exceeded = False
 
-        self.data = {'image_data': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
+        # Make a new variable for storing ending behavior,
+        # This fixes issue where self.settings['ending_behavior'] gets reset to initial value when saving and then stopping scan
+        self.ending_behavior = self.settings['ending_behavior']
+
+        self.before_scan()
+
+        self.data = {'image_data': np.full((self.settings['num_points']['y'], self.settings['num_points']['x']), fill_value = -1.0)}
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
-        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
-        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
+        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)/self.scale()
+        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)/self.scale()
+        try:
+            self.check_bounds()
+        except AttributeError:
+            return
 
         if self._ACQ_TYPE == 'point':
             self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
 
-        #error is raised in setup_scan if requested daq is not connected. This then ends the script.
+        # error is raised in setup_scan if requested daq is not connected. This then ends the script.
         try:
             self.setup_scan()
         except AttributeError:
@@ -109,7 +158,7 @@ class GalvoScanGeneric(Script):
         initial_position = self.get_galvo_location()
         if initial_position == []:
             print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
-            self.settings['ending_behavior'] = 'leave_at_corner'
+            self.ending_behavior = 'leave_at_corner'
 
         Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
@@ -118,8 +167,12 @@ class GalvoScanGeneric(Script):
             if self._ACQ_TYPE == 'line':
                 if self._abort:
                     break
-                line_data = self.read_line(self.y_array[yNum])
+
+                line_data = self.read_line_wrapper(self.y_array[yNum])
+                #line_data = self.read_line(self.y_array[yNum])
+
                 self.data['image_data'][yNum] = line_data
+
                 self.progress = float(yNum + 1) / Ny * 100
                 self.updateProgress.emit(int(self.progress))
 
@@ -139,17 +192,20 @@ class GalvoScanGeneric(Script):
 
                     self.updateProgress.emit(int(self.progress))
 
-                # fill the rest of the array with the mean of the data up to now (otherwise it's zero and the data is not visible in the plot)
-                if yNum<Ny:
+                # fill the rest of the array with the mean of the data up to now
+                # (otherwise it's zero and the data is not visible in the plot)
+                if yNum < Ny:
                     self.data['image_data'][yNum + 1:, :] = np.mean(self.data['image_data'][0:yNum, :].flatten())
 
-        #set point after scan based on ending_behavior setting
-        if self.settings['ending_behavior'] == 'leave_at_corner':
+        self.after_scan()
+
+        # set point after scan based on ending_behavior setting
+        if self.ending_behavior == 'leave_at_corner':
             return
-        elif self.settings['ending_behavior'] == 'return_to_start':
+        elif self.ending_behavior == 'return_to_start':
             self.set_galvo_location(initial_position)
-        elif self.settings['ending_behavior'] == 'return_to_origin':
-            self.set_galvo_location([0,0])
+        elif self.ending_behavior == 'return_to_origin':
+            self.set_galvo_location([0, 0])
 
     def get_galvo_location(self):
         """
@@ -165,6 +221,20 @@ class GalvoScanGeneric(Script):
         galvo_position: list with two floats, which give the x and y position of the galvo mirror
         """
         raise NotImplementedError
+
+
+    def read_line_wrapper(self, y_pos):
+        """
+        In the simplest scenario this just runs read_line
+        However, you can rewrite this to call read_line twice with different conditions, e.g. read_line with MW
+        on and off and extract the difference
+        Args:
+            y_pos: y position of the scan
+
+        Returns:
+
+        """
+        return self.read_line(y_pos)
 
     def read_line(self, y_pos):
         """
@@ -227,6 +297,11 @@ class GalvoScanGeneric(Script):
 
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
 
+        if self.safety_threshold_exceeded:
+            axes_list[0].text(0.5, 0.5, 'COUNTS \n EXCEEDED \n SAFETY!', fontsize=35, color='white', weight='bold',
+                              horizontalalignment='center', verticalalignment='center', transform=axes_list[0].transAxes,
+                              path_effects=[pe.withStroke(linewidth=4, foreground="red")])
+
     def _update_plot(self, axes_list):
         """
         updates the galvo scan image
@@ -249,6 +324,17 @@ class GalvoScanGeneric(Script):
 
         # only pick the first figure from the figure list, this avoids that get_axes_layout clears all the figures
         return super(GalvoScanGeneric, self).get_axes_layout([figure_list[0]])
+
+
+    def safety_exceeded_behavior(self):
+        """
+        Action if a pixel in a line exceeds a safety threshold. E.g. we might want to shut off the laser if we see something really bright (i.e. burning it)
+
+        Args:
+        Returns:
+
+        """
+        pass
 
 
 # uncommented by Jan March 12th 2018. I think this is not used anymore

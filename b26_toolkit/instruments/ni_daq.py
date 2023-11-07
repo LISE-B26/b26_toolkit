@@ -22,9 +22,12 @@
 
 import ctypes
 import os
+import time, datetime
 import numpy
 import warnings
 from pylabcontrol.core.read_write_functions import get_config_value
+from scipy import signal
+
 
 from pylabcontrol.core import Instrument, Parameter
 import numpy as np
@@ -47,6 +50,7 @@ TaskHandle = uInt64
 DAQmx_Val_Cfg_Default = int32(-1)
 DAQmx_Val_Volts = 10348
 DAQmx_Val_Rising = 10280
+DAQmx_Val_Falling = 10171
 DAQmx_Val_FiniteSamps = 10178
 DAQmx_Val_ContSamps = 10123
 DAQmx_Val_GroupByChannel = 0
@@ -344,20 +348,26 @@ class DAQ(Instrument):
         else:
             task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
+
         input_channel_str = (self.settings['device'] + '/' + channel).encode('ascii')
+
+        # Configure internal clock connections
         task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/PFI' + str(
             channel_settings['clock_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
         counter_out_str = (self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('utf-8')
+
         task['task_handle_ctr'] = TaskHandle(0)
         task['task_handle'] = TaskHandle(1)
 
         # set up clock
         self._dig_pulse_train_cont(task, .5, counter_out_str)
+
         # set up counter using clock as reference
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
         self._check_error(self.nidaq.DAQmxCreateCICountEdgesChan(task['task_handle_ctr'],
                                                                  input_channel_str, "", DAQmx_Val_Rising, 0,
                                                                  DAQmx_Val_CountUp))
+
         # PFI13 is standard output channel for ctr1 channel used for clock and
         # is internally looped back to ctr1 input to be read
         if not continuous_acquisition:
@@ -388,10 +398,17 @@ class DAQ(Instrument):
 
         """
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+
+        # Creates channel(s) to generate digital pulses and adds the channel to the task you specify with taskHandle.
+        # The pulses appear on the default output terminal of the counter unless you select a different output terminal.
+        # counter_out_str is self.settings['device'] + '/ctr' + str(channel_settings['clock_counter_channel'])
         self._check_error(self.nidaq.DAQmxCreateCOPulseChanFreq(task['task_handle'],
                                                                 counter_out_str, '', DAQmx_Val_Hz, DAQmx_Val_Low,
                                                                 float64(0.0),
                                                                 float64(task['sample_rate']), float64(DutyCycle)))
+
+        # Sets only the number of samples to acquire or generate without specifying timing. Typically, you should use
+        # this function when the task does not require sample timing, such as pulse train generation in this case.
         self._check_error(self.nidaq.DAQmxCfgImplicitTiming(task['task_handle'],
                                                             DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
 
@@ -446,7 +463,7 @@ class DAQ(Instrument):
         gate_PFI_str = ('/' + self.settings['device'] + '/PFI' + str(
             channel_settings['gate_PFI_channel'])).encode('ascii')  # initial / required only here, see NIDAQ documentation
 
-        #set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
+        # set both to same value, no option for continuous counting (num_samples_per_channel == -1) with gated counter
         task['sample_num'] = num_samples
         task['num_samples_per_channel'] = num_samples
 
@@ -552,6 +569,8 @@ class DAQ(Instrument):
 
         for c in channels:
             if not self.settings['analog_output'][c]['sample_rate'] == task['sample_rate']:
+                print(self.settings['analog_output'][c]['sample_rate'])
+                print(task['sample_rate'])
                 raise ValueError('All sample rates must be the same')
         channel_list = ''.encode('ascii')
         for c in channels:
@@ -625,12 +644,7 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('ai', task)
 
-        channel_list = ''
-       # channel_list += self.settings['device'] + '/' + channel + ','
-
         channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
-     #   print('channel_list')
-     #   print(channel_list)
         if 'analog_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog input')
         task['task_handle'] = TaskHandle(0)
@@ -793,9 +807,9 @@ class DAQ(Instrument):
         if 'task_handle_ctr' in list(task.keys()):
             self.nidaq.DAQmxStopTask(task['task_handle_ctr'])
             self.nidaq.DAQmxClearTask(task['task_handle_ctr'])
-
-        self.nidaq.DAQmxStopTask(task['task_handle'])
-        self.nidaq.DAQmxClearTask(task['task_handle'])
+        if 'task_handle' in list(task.keys()):
+            self.nidaq.DAQmxStopTask(task['task_handle'])
+            self.nidaq.DAQmxClearTask(task['task_handle'])
 
     def get_analog_voltages(self, channel_list):
         """
@@ -808,9 +822,9 @@ class DAQ(Instrument):
         """
         daq_channels_str = ''
         for channel in channel_list:
-            if channel in self.settings['analog_output']:
+            if 'analog_output' in self.settings and channel in self.settings['analog_output']:
                 daq_channels_str += self.settings['device'] + '/_' + channel + '_vs_aognd, '
-            elif (channel in self.settings['analog_input']):
+            elif 'analog_input' in self.settings and channel in self.settings['analog_input']:
                 daq_channels_str += self.settings['device'] + '/' + channel + ', '
         daq_channels_str = daq_channels_str[:-2].encode('ascii')  # strip final comma period
         data = (float64 * len(channel_list))()
@@ -1076,7 +1090,7 @@ class NI9263(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ1Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1'],
+        Parameter('device', 'cDAQ1Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1','cDAQ1Mod5'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
@@ -1154,7 +1168,7 @@ class NI9402(DAQ):
                   ),
     ])
 
-    def setup_counter(self, channel, sample_num, continuous_acquisition=False):
+    def setup_counter(self, channel, sample_num, continuous_acquisition=False, existing_clock_channel=None):
         """
         Initializes a hardware-timed digital counter, bound to a hardware clock
         Args:
@@ -1174,7 +1188,6 @@ class NI9402(DAQ):
         # is the task which is started when run is called. The second 'task_handle_ctr' corresponds to the counter,
         # and this waits for the clock and will be started simultaneously.
         task = {
-            'task_handle': None,
             'task_handle_ctr': None,
             'counter_out_PFI_str': None,
             'sample_num': None,
@@ -1182,6 +1195,8 @@ class NI9402(DAQ):
             'num_samples_per_channel': None,
             'timeout': None
         }
+        if existing_clock_channel is None:
+            task.update({'task_handle': None})
 
         task_name = self._add_to_tasklist('ctr', task)
 
@@ -1200,13 +1215,23 @@ class NI9402(DAQ):
             task['num_samples_per_channel'] = -1
         task['timeout'] = float64(5 * (1 / task['sample_rate']) * task['sample_num'])
         input_channel_str = (self.settings['device'] + self.settings['module'] + '/' + channel).encode('ascii')
-        task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')
-        counter_out_str = (self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('ascii')
-        task['task_handle_ctr'] = TaskHandle(0)
-        task['task_handle'] = TaskHandle(1)
 
-        # set up clock
-        self._dig_pulse_train_cont(task, .5, counter_out_str)
+        # Configure internal clock connections; note how we use the "InternalOutput", whereas for the base script DAQ we use the PFI specified in the settings
+        if existing_clock_channel is None:
+            task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/Ctr' + str(channel_settings['clock_counter_channel']) + 'InternalOutput').encode('ascii')
+            counter_out_str = (self.settings['device'] + self.settings['module'] + '/ctr' + str(channel_settings['clock_counter_channel'])).encode('ascii')
+
+            # set up clock
+            task['task_handle'] = TaskHandle(1)  # Clock
+            self._dig_pulse_train_cont(task, .5, counter_out_str)
+
+        else:
+            assert existing_clock_channel is float or int
+            task['counter_out_PFI_str'] = ('/' + self.settings['device'] + '/Ctr' + str(existing_clock_channel) + 'InternalOutput').encode('ascii')
+            counter_out_str = (self.settings['device'] + self.settings['module'] + '/ctr' + str(existing_clock_channel)).encode('ascii')
+
+        task['task_handle_ctr'] = TaskHandle(0)  # Counter
+
         # set up counter using clock as reference
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle_ctr'])))
         self._check_error(self.nidaq.DAQmxCreateCICountEdgesChan(task['task_handle_ctr'],
@@ -1222,13 +1247,12 @@ class NI9402(DAQ):
                                                                float64(task['sample_rate']), DAQmx_Val_Rising,
                                                                DAQmx_Val_ContSamps, uInt64(task['sample_num'])))
         # if (self.settings['override_buffer_size'] > 0):
-        #     self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(self.settings['override_buffer_size'])))
+        # self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(self.settings['override_buffer_size'])))
         # self._check_error(self.nidaq.DAQmxCfgInputBuffer(self.DI_taskHandleCtr, uInt64(sampleNum)))
-
         self._check_error(self.nidaq.DAQmxStartTask(task['task_handle_ctr']))
 
-
         return task_name
+
 
     def setup_gated_counter(self, channel, num_samples):
         """
@@ -1353,6 +1377,199 @@ class NI9219(DAQ):
                   )
     ])
 
+class NI9263_02(DAQ):
+    """
+    This class implements the NI9263 DAQ, which includes 4 AO channels. It inherits output functionality from the DAQ
+    class. This is a duplicate of NI9263, because pylabcontrol cannot handle two instruments with the same name
+    """
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'cDAQ1Mod5', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod5'],
+                  'Name of DAQ device - check in NiMax'),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),
+        Parameter('analog_output',
+                  [
+                      Parameter('ao0',
+                                [
+                                    Parameter('channel', 0, [0, 1, 2, 3], 'output channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                ]
+                                ),
+                      Parameter('ao1',
+                                [
+                                    Parameter('channel', 1, [0, 1, 2, 3], 'output channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                ]
+                                ),
+                      Parameter('ao2',
+                                [
+                                    Parameter('channel', 2, [0, 1, 2, 3], 'output channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                ]
+                                ),
+                      Parameter('ao3',
+                                [
+                                    Parameter('channel', 3, [0, 1, 2, 3], 'output channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'output sample rate (Hz)'),
+                                    Parameter('min_voltage', 0.0, float, 'minimum output voltage (V)'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum output voltage (V)')
+                                ]
+                                )
+                  ]
+                  )
+    ])
+
+    def setup_AO_triggered_single(self, channels, waveform, clk_source="", trig_source=""):
+        """
+        Initializes a arbitrary number of analog output channels to output an arbitrary waveform
+        Args:
+            channels: List of channels to output on
+            waveform: 2d array of voltages to output, with each column giving the output values at a given time
+                (the timing given by the sample rate of the channel) with the channels going from top to bottom in
+                the column in the order given in channels
+            trig_source: the PFI channel of some AI to trigger the analog output waveform
+        """
+        if 'analog_output' not in list(self.settings.keys()):
+            raise ValueError('This DAQ does not support analog output')
+        for c in channels:
+            if not c in list(self.settings['analog_output'].keys()):
+                raise KeyError('This is not a valid analog output channel')
+
+        task = {
+            'task_handle': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+
+        task_name = self._add_to_tasklist('ao', task)
+
+        task['sample_rate'] = float(
+            self.settings['analog_output'][channels[0]]['sample_rate'])  # float prevents truncation in division
+
+        for c in channels:
+            if not self.settings['analog_output'][c]['sample_rate'] == task['sample_rate']:
+                raise ValueError('All sample rates must be the same')
+        channel_list = ''.encode('ascii')
+        for c in channels:
+            channel_list += (self.settings['device'] + '/' + c + ',').encode('ascii')
+        channel_list = channel_list[:-1]
+        self.running = True
+        # special case 1D waveform since length(waveform[0]) is undefined
+        if (len(numpy.shape(waveform)) == 2):
+            numChannels = len(waveform)
+            task['sample_num'] = len(waveform[0])
+        else:
+            task['sample_num'] = len(waveform)
+            numChannels = 1
+        task['task_handle'] = TaskHandle(0)
+        # special case 1D waveform since length(waveform[0]) is undefined
+        # converts python array to ctypes array
+        if len(numpy.shape(waveform)) == 2:
+            data = numpy.zeros((numChannels, task['sample_num']), dtype=numpy.float64)
+            for i in range(numChannels):
+                for j in range(task['sample_num']):
+                    data[i, j] = waveform[i, j]
+        else:
+            data = numpy.zeros((task['sample_num']), dtype=numpy.float64)
+            for i in range(task['sample_num']):
+                data[i] = waveform[i]
+
+        if not (clk_source == ""):
+            clk_source = self.tasklist[clk_source]['counter_out_PFI_str']
+
+        self._check_error(self.nidaq.DAQmxCreateTask("",
+                                                     ctypes.byref(task['task_handle'])))
+        self._check_error(self.nidaq.DAQmxCreateAOVoltageChan(task['task_handle'],
+                                                              channel_list,
+                                                              "",
+                                                              float64(-10.0),
+                                                              float64(10.0),
+                                                              DAQmx_Val_Volts,
+                                                              None))
+        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
+                                                           clk_source,
+                                                           float64(task['sample_rate']),
+                                                           DAQmx_Val_Falling,
+                                                           DAQmx_Val_FiniteSamps,
+                                                           uInt64(task['sample_num'])))
+        self._check_error(self.nidaq.DAQmxCfgDigEdgeStartTrig(task['task_handle'],
+                                                              trig_source,
+                                                              DAQmx_Val_Rising))
+        self._check_error(self.nidaq.DAQmxWriteAnalogF64(task['task_handle'],
+                                                         int32(task['sample_num']),
+                                                         0,
+                                                         float64(-1),
+                                                         DAQmx_Val_GroupByChannel,
+                                                         data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
+                                                         None,
+                                                         None))
+
+        return task_name
+
+
+class NI9215(DAQ):
+    """
+    This class implements the NI9215 DAQ, which includes 4 differential AI channels. It inherits output functionality from the DAQ
+    class.
+    """
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('device', 'cDAQ1Mod3', ['cDAQ1Mod3', 'cDAQ9184-1BA7633Mod2', 'cDAQ9188-1BFB6F2Mod2'], 'Name of DAQ device - check in NiMax'),
+        Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
+        Parameter('analog_input',
+                  [
+                      Parameter('ai0',
+                                [
+                                    Parameter('channel', 0, list(range(0, 32)), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai1',
+                                [
+                                    Parameter('channel', 1, list(range(0, 32)), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai2',
+                                [
+                                    Parameter('channel', 2, list(range(0, 32)), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai3',
+                                [
+                                    Parameter('channel', 3, list(range(0, 32)), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                ]
+                                ),
+                      Parameter('ai4',
+                                [
+                                    Parameter('channel', 4, list(range(0, 32)), 'input channel'),
+                                    Parameter('sample_rate', 1000.0, float, 'input sample rate'),
+                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage (V)')
+                                ]
+                                )
+                  ]
+                  ),
+    ])
+
+
 
 def int_to_voltage(integer):
     """
@@ -1383,13 +1600,41 @@ def time_to_buffersize(time, ticks=56):
 def buffersize_to_time(size, ticks=56):
     return size * (ticks*0.000000025)
 
-if __name__ == '__main__':
+if __name__ == '__main__DISABLED':
     print((voltage_to_int(2.4)))
 
-if __name__ == '__main__':
-    # pass
-    # daq, failed = Instrument.load_and_append({'daq': NI9263, 'daq_in': NI6259})
-    NI9402.get_connected_devices()
+if __name__ == '__main__DISABLED':
+
+    daq_di, failed_di = Instrument.load_and_append({'daq': NI9402})
+    daq_ao, failed_ao = Instrument.load_and_append({'daq': NI9263_02})
+
+
+    sample_rate = 100000
+    daq_ao['daq'].settings['analog_output']['ao0']['sample_rate'] = sample_rate
+    period = 500e-6
+    t_end = period
+    t_array = np.linspace(0, t_end, int(t_end*sample_rate))
+    waveform = np.sin(2*np.pi*t_array/period)
+    waveform = signal.sawtooth(2 * np.pi * t_array / period, 0.5) + 1
+
+    waveform2 = [[i] for i in waveform]
+    print(waveform[0])
+    trig_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
+    clk_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
+    #task = daq_ao['daq'].setup_AO_triggered(channels=['ao0'],
+    #                                        waveform=waveform, clk_source="", trig_source=trig_source)
+    task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
+                                            waveform=waveform, clk_source=clk_source, trig_source=trig_source)
+    #task = daq_ao['daq'].setup_AO(['ao0'], waveform)
+    daq_ao['daq'].run(task)
+
+    time.sleep(2)
+
+    #daq['daq'].run(task_a)
+    #daq['daq'].run(task_a)
+    #daq['daq'].stop(task_a)
+    #daq['daq'].stop(task_b)
+
     # print('FAILED', failed)
     # print(daq['daq'].settings)
     #
@@ -1410,3 +1655,13 @@ if __name__ == '__main__':
 
     # daq, failed = Instrument.load_and_append({'daq_in': NI6259})
     # daq['daq_in'].set_digital_output({'do0': False})
+
+
+if __name__ == '__main__':
+    daq_ai, failed_ai = Instrument.load_and_append({'daq': NI9215})
+    daq_ai['daq'].settings['analog_input']['ai0']['sample_rate'] = 100
+    task = daq_ai['daq'].setup_AI('ai0', 20, continuous=False)
+    xLineData, _ = daq_ai['daq'].read(task)
+    print(list(xLineData))
+    daq_ai['daq'].stop(task)
+

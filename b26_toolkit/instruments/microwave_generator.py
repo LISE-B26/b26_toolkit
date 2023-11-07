@@ -30,7 +30,7 @@ class MicrowaveGenerator(Instrument):
     This class implements the Stanford Research Systems SG384 microwave generator. The class commuicates with the
     device over GPIB using pyvisa.
     """
-
+        # SHOULD BE 4
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
         Parameter('port', 5, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
@@ -45,7 +45,8 @@ class MicrowaveGenerator(Instrument):
         Parameter('modulation_function', 'External', ['Sine', 'Ramp', 'Triangle', 'Square', 'Noise', 'External'],
                   'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
         Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'], 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
-        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM')
+        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM Hz'),
+        Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
     ])
 
     def __init__(self, name=None, settings=None):
@@ -64,6 +65,9 @@ class MicrowaveGenerator(Instrument):
             raise(e)
         #XXXXX MW ISSUE = END
         #===========================================
+
+    def __del__(self):
+        self.srs.close()
 
     def _connect(self):
         rm = visa.ResourceManager()
@@ -89,10 +93,11 @@ class MicrowaveGenerator(Instrument):
         super(MicrowaveGenerator, self).update(settings)
         # XXXXX MW ISSUE = START
         # ===========================================
+        if not self._settings_initialized:
+            return
+
         for key, value in settings.items():
-            if key == 'connection_type':
-                self._connect()
-            elif not (key == 'port' or key == 'GPIB_num'):
+            if not (key == 'port' or key == 'GPIB_num'):
                 if self.settings.valid_values[key] == bool: #converts booleans, which are more natural to store for on/off, to
                     value = int(value)                #the integers used internally in the SRS
                 elif key == 'modulation_type':
@@ -107,8 +112,7 @@ class MicrowaveGenerator(Instrument):
                 key = self._param_to_internal(key)
 
                 # only send update to instrument if connection to instrument has been established
-                if self._settings_initialized:
-                    self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
+                self.srs.write(key + ' ' + str(value)) # frequency change operation timed using timeit.timeit and
                                                            # completion confirmed by query('*OPC?'), found delay of <10ms
                     # ER 20180904
                    # if key == 'FREQ':
@@ -129,7 +133,8 @@ class MicrowaveGenerator(Instrument):
             'modulation_type': 'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ',
             'modulation_function': 'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External',
             'pulse_modulation_function': 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External',
-            'dev_width': 'Width of deviation from center frequency in FM'
+            'dev_width': 'Width of deviation from center frequency in FM',
+            'mod_rate': 'Rate of modulation in Hz'
         }
 
     def read_probes(self, key):
@@ -138,14 +143,14 @@ class MicrowaveGenerator(Instrument):
         assert key in list(self._PROBES.keys())
 
         #query always returns string, need to cast to proper return type
-        if key in ['enable_output', 'enable_modulation']:
+        if key in ['enable_output', 'enable_rf_output', 'enable_modulation']:
             key_internal = self._param_to_internal(key)
             value = int(self.srs.query(key_internal + '?'))
             if value == 1:
                 value = True
             elif value == 0:
                 value = False
-        elif key in ['modulation_type','modulation_function','pulse_modulation_function']:
+        elif key in ['modulation_type', 'modulation_function', 'pulse_modulation_function']:
             key_internal = self._param_to_internal(key)
             value = int(self.srs.query(key_internal + '?'))
             if key == 'modulation_type':
@@ -179,10 +184,14 @@ class MicrowaveGenerator(Instrument):
         """
         if param == 'enable_output':
             return 'ENBR'
+        if param == 'enable_rf_output':
+            return 'ENBL'
         elif param == 'frequency':
             return 'FREQ'
         elif param == 'amplitude':
             return 'AMPR'
+        elif param == 'amplitude_rf':
+            return 'AMPL'
         elif param == 'phase':
             return 'PHAS'
         elif param == 'enable_modulation':
@@ -194,7 +203,13 @@ class MicrowaveGenerator(Instrument):
         elif param == 'pulse_modulation_function':
             return 'PFNC'
         elif param == 'dev_width':
-            return 'FDEV'
+            if self.read_probes('modulation_type') == 'FM':
+                if self.read_probes('modulation_function') == 'Noise':
+                    return 'FNDV'
+                return 'FDEV'
+            raise KeyError('non-FM dev width not implemented yet')
+        elif param == 'mod_rate':
+            return 'RATE'
         else:
             raise KeyError
 
@@ -291,6 +306,67 @@ class MicrowaveGenerator(Instrument):
             return 'External'
         else:
             raise KeyError
+
+class MicrowaveGenerator2(MicrowaveGenerator):
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('port', 11, list(range(0, 31)), 'GPIB or COM port on which to connect'),
+        ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
+        Parameter('enable_output', False, bool, 'Type-N output enabled'),
+        Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
+        Parameter('amplitude', -60, float, 'Type-N amplitude in dBm'),
+        Parameter('phase', 0, float, 'output phase'),
+        Parameter('enable_modulation', True, bool, 'enable modulation'),
+        Parameter('modulation_type', 'FM', ['AM', 'FM', 'PhaseM', 'Freq sweep', 'Pulse', 'Blank', 'IQ'],
+                  'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ'),
+        Parameter('modulation_function', 'External', ['Sine', 'Ramp', 'Triangle', 'Square', 'Noise', 'External'],
+                  'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
+        Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'],
+                  'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
+        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM')
+    ])
+
+class RFGenerator(MicrowaveGenerator):
+    """
+    Just a clone of MWGenerator, except that this only allows BNC output
+    """
+
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('port', 14, list(range(0, 31)), 'GPIB or COM port on which to connect'),
+        ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
+        Parameter('enable_rf_output', False, bool, 'BNC output enabled'),
+        Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
+        Parameter('amplitude_rf', -60, float, 'BNC amplitude in dBm'),
+        Parameter('phase', 0, float, 'output phase'),
+        Parameter('enable_modulation', True, bool, 'enable modulation'),
+        Parameter('modulation_type', 'FM', ['AM', 'FM', 'PhaseM', 'Freq sweep', 'Pulse', 'Blank', 'IQ'],
+                  'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ'),
+        Parameter('modulation_function', 'External', ['Sine', 'Ramp', 'Triangle', 'Square', 'Noise', 'External'],
+                  'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
+        Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'],
+                  'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
+        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM'),
+        Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
+
+    ])
+
+    @property
+    def _PROBES(self):
+        return{
+            'enable_rf_output': 'if BNC output is enabled',
+            'frequency': 'frequency of output in Hz',
+            'amplitude_rf': 'BNC amplitude in dBm',
+            'phase': 'phase',
+            'enable_modulation': 'is modulation enabled',
+            'modulation_type': 'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ',
+            'modulation_function': 'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External',
+            'pulse_modulation_function': 'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External',
+            'dev_width': 'Width of deviation from center frequency in FM',
+            'mod_rate': 'Rate of modulation in Hz'
+        }
 
 if __name__ == '__main__':
     # from pylabcontrol.core import Instrument

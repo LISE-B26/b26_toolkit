@@ -409,5 +409,5 @@ class KDC001(Instrument):
 if __name__ == '__main__':
     #A test function for the device. Tries to connect to the
     a = KDC001()
-    # print(a.is_connected)
+    print(a.is_connected)
     # a._move_servo(5)
