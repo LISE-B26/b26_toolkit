@@ -17,14 +17,14 @@
 """
 
 import numpy as np
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import cose_with_decay, fit_exp_decay
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses
 
 
-class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
+class ReadoutStartTime(PulsedExperimentGeneric):  # ER 10.21.2017
     """
     This script sweeps the start time of the APD readout window, using a fixed-duration readout pulse.
     The goal is to figure out when to turn on the readout window to maximize SNR.
@@ -117,13 +117,8 @@ class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
             pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-<<<<<<< HEAD
                 Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout, nv_reset_time),
                 Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout + delay_readout + tau, meas_time)
-=======
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time + delay_readout + tau, meas_time)
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
@@ -167,7 +162,7 @@ class ReadoutStartTime(PulsedExperimentBaseScript):  # ER 10.21.2017
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-class ReadoutDuration(PulsedExperimentBaseScript):
+class ReadoutDuration(PulsedExperimentGeneric):
     """
   This script sweeps the readout pulse duration. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
       """
@@ -242,11 +237,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
         laser_off_time = self.settings['read_out']['laser_off_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
         pi_time = self.settings['mw_pulse']['pi_time']
-<<<<<<< HEAD
         meas_time = 100 # Placeholder
-=======
-        meas_time = 1
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
 
         for tau in tau_list:
             pulse_sequence = \
@@ -257,13 +248,8 @@ class ReadoutDuration(PulsedExperimentBaseScript):
             pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time, pi_time)]
 
             pulse_sequence += [
-<<<<<<< HEAD
                 Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout, nv_reset_time),
                 Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + pi_time + delay_mw_readout + delay_readout,
-=======
-                Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + pi_time, nv_reset_time),
-                Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + pi_time,
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
                       tau)
             ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
@@ -308,7 +294,7 @@ class ReadoutDuration(PulsedExperimentBaseScript):
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
 
-class ChoppedInitialization(PulsedExperimentBaseScript):
+class ChoppedInit(PulsedExperimentGeneric):
     """
   This script sweeps the number of chopped laser pulses to find the optimum for initialization.
       """
@@ -347,7 +333,7 @@ class ChoppedInitialization(PulsedExperimentBaseScript):
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
-        super(ChoppedInitialization, self)._function(self.data)
+        super(ChoppedInit, self)._function(self.data)
 
         counts = self.data['counts'][:, 1]  # / self.data['counts'][:, 0]
         tau = self.data['tau']
@@ -468,11 +454,11 @@ class ChoppedInitialization(PulsedExperimentBaseScript):
             #   axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns, pi-half-time: {:2.1f}ns, 3pi_half_time: {:2.1f}ns, Rabi freq: {2.1f}MHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time, pi_half_time, three_pi_half_time, rabi_freq))
             axislist[0].set_title('Readout pulse width counts')
         else:
-            super(ChoppedInitialization, self)._plot(axislist)
+            super(ChoppedInit, self)._plot(axislist)
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-class ReadoutStartTimeWithoutMW(PulsedExperimentBaseScript):
+class ReadoutStartTimeWithoutMW(PulsedExperimentGeneric):
     """
 
     This script sweeps the start time of the APD readout window, using a fixed-duration readout pulse.

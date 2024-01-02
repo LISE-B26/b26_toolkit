@@ -18,6 +18,7 @@
 
 import numpy as np
 from scipy import optimize
+import scipy.optimize
 
 
 # ========= Gaussian fit functions =============================
@@ -301,6 +302,74 @@ def double_lorentzian(x, constant_offset, fwhm, amplitude_1, amplitude_2, center
     """
     return lorentzian(x, constant_offset / 2, amplitude_1, center_1, fwhm) + lorentzian(x, constant_offset / 2,
                                                                                         amplitude_2, center_2, fwhm)
+
+def pulsed_odmr_double(freq, rabi_freq, baseline, contrast_1, contrast_2, freq_1, freq_2):
+    """
+    Pulsed ODMR signal with two resonances
+    :param freq: freq of MW (Hz)
+    :param rabi_freq: Rabi frequency (Hz), 1/(2*pi-pulse time)
+    :param baseline: baseline fluorescence (kCt/s)
+    :param contrast_1: contrast of first resonance (0 to 1)
+    :param contrast_2: contrast of second resonance (0 to 1)
+    :param freq_1: freq of first resonance (Hz)
+    :param freq_2: freq of second resonance (Hz)
+    :return: value of ODMR signal at a given MW frequency
+    """
+    detuning_1 = freq - freq_1
+    detuning_2 = freq - freq_2
+    ratio_1 = np.square(rabi_freq)/(np.square(rabi_freq)+np.square(detuning_1))
+    ratio_2 = np.square(rabi_freq)/(np.square(rabi_freq)+np.square(detuning_2))
+    func_1 = baseline*contrast_1*ratio_1*np.square(np.sin(np.pi/2*np.sqrt(ratio_1)))
+    func_2 = baseline*contrast_2*ratio_2*np.square(np.sin(np.pi/2*np.sqrt(ratio_2)))
+    return baseline - func_1 - func_2
+
+def pulsed_odmr_single(freq, rabi_freq, baseline, contrast_1, freq_1):
+    """
+    Pulsed ODMR signal with one resonances
+    :param freq: freq of MW (Hz)
+    :param rabi_freq: Rabi frequency (Hz), 1/(2*pi-pulse time)
+    :param baseline: baseline fluorescence (kCt/s)
+    :param contrast_1: contrast of first resonance (0 to 1)
+    :param freq_1: freq of first resonance (Hz)
+    :return: value of ODMR signal at a given MW frequency
+    """
+    detuning_1 = freq - freq_1
+    ratio_1 = np.square(rabi_freq)/(np.square(rabi_freq)+np.square(detuning_1))
+    func_1 = baseline*contrast_1*ratio_1*np.square(np.sin(np.pi/2*np.sqrt(ratio_1)))
+    return baseline - func_1
+
+
+def fit_pulsed_odmr(esr_freq, esr_counts, rabi_freq = 1/(80e-9 * 2), baseline = None, contrast_1=0.08, contrast_2=0.08):
+    """
+    Returns fitting parameters for ODMR measurement
+    :param esr_freq: frequencies swept in measurement data
+    :param esr_counts: fluorescence recorded for each frequency in data
+    :param rabi_freq: Rabi freq, which is 1/(2*pi pulse duration)
+    :param baseline: baseline fluorescence, i.e. fluorescence not on resonance
+    :param contrast_1: fractional contrast on first resonance
+    :param contrast_2: fractional contrast on second resonance
+    :return: popt, i.e. fit parameters from scipy curve_fit
+    """
+    peaks, peak_properties = scipy.signal.find_peaks(-esr_counts, height=-np.average(esr_counts) * 0.93, distance=6,
+                                                     prominence=3)
+    prominences = peak_properties['prominences']
+    peak_loc_est = peaks[np.argsort(prominences)[::-1]]
+    if baseline is None:
+        baseline = np.average(esr_counts)
+    if len(peak_loc_est) > 1:
+        popt, _ = scipy.optimize.curve_fit(pulsed_odmr_double, esr_freq, esr_counts,
+                                           p0=[rabi_freq, baseline, contrast_1, contrast_2,
+                                               esr_freq[peak_loc_est[0]], esr_freq[peak_loc_est[1]]])
+        # Sort peak frequencies
+        #fit_freqs = popt[[4,5]]
+        #popt[4] = np.min(fit_freqs)
+        #popt[5] = np.max(fit_freqs)
+        if popt[4] > popt[5]:
+            popt[2], popt[3], popt[4], popt[5] = popt[3], popt[2], popt[5], popt[4]
+    else:
+        popt, _ = scipy.optimize.curve_fit(pulsed_odmr_single, esr_freq, esr_counts,
+                                           p0=[rabi_freq, baseline, contrast_1, esr_freq[peak_loc_est[0]]])
+    return popt
 
 # ========= Cose fit functions =============================
 #===============================================================

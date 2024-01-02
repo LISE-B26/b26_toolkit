@@ -225,13 +225,12 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
             self.log('Exceeded galvo range!')
             raise AttributeError
 
+
 class KinematicMountScanPhotodiode(GalvoScanPhotodiode):
-
-    '''
-
+    """
     Same as GalvoScanPhotodiode, but uses a piezo-actuated kinematic mount instead of galvo mirrors.
     Sets different voltage scales (15x for piezo controller) and voltage bounds (non-negative)
-    '''
+    """
 
     _DEFAULT_SETTINGS = [
         Parameter('point_a',

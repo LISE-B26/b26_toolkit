@@ -112,11 +112,11 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         if np.abs(colorbar_max - colorbar_min) > 4:
             colorbar.set_ticks(colorbar_labels)
 
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.mappable.set_clim(colorbar_min, colorbar_max)
         colorbar.update_normal(implot)
 
 
-def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None, labels = None, aspect=1):
+def plot_fluorescence_new(image_data, extent, axes_image, max_counts=-1, colorbar = None, labels = None, aspect=1):
     """
     plots fluorescence data in a 2D plot
     Args:
@@ -145,13 +145,10 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     fig = axes_image.get_figure()
 
     implot = axes_image.imshow(image_data, cmap='inferno', interpolation="nearest", extent=extent, aspect=aspect)
-<<<<<<< HEAD
 
     implot.autoscale()
     colorbar_min = np.min(np.where(image_data >= 0, image_data, np.inf))
     implot.set_clim(colorbar_min, None)
-=======
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
 
     title, x_label, y_label, cbar_label = labels
     axes_image.set_xlabel(x_label)
@@ -181,7 +178,7 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     if np.abs(colorbar_max - colorbar_min) > 4:
         colorbar.set_ticks(colorbar_labels)
 
-    colorbar.set_clim(colorbar_min, colorbar_max)
+    colorbar.mappable.set_clim(colorbar_min, colorbar_max)
     colorbar.update_normal(implot)
 
 def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, colorbar = None):
@@ -231,8 +228,8 @@ def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, color
     if colorbar is None:
         colorbar = fig.colorbar(implot, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.mappable.set_clim(colorbar_min, colorbar_max)
     else:
         colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.mappable.set_clim(colorbar_min, colorbar_max)

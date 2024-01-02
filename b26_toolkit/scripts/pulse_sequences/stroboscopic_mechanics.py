@@ -20,12 +20,14 @@
 ###############PROBABLY DOESNT WORK#############################
 import numpy as np
 from pylabcontrol.core import Parameter
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, update_1d_simple
 
-class StroboscopicMechanics(PulsedExperimentBaseScript):
-
+class StroboscopicMechanics(PulsedExperimentGeneric):
+    """
+    DaLi wrote this. I don't know what it does.
+    """
     _DEFAULT_SETTINGS = [
         Parameter('taus_times', [
             Parameter('min_time', 1e4, float, 'minimum strobing frequency [Hz]'),

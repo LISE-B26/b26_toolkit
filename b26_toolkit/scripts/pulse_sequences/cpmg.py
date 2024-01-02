@@ -15,12 +15,12 @@
     You should have received a copy of the GNU General Public License
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
-class CPMG(PulsedExperimentBaseScript): # ER 5.25.2017
+class Cpmg(PulsedExperimentGeneric): # ER 5.25.2017
     """
 This script runs a CPMG on the NV to find the CPMG T2.
 To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
@@ -63,7 +63,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
         self.instruments['mw_gen']['instance'].update({'enable_modulation': True}) # ER 20181018
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(CPMG, self)._function(self.data)
+        super(Cpmg, self)._function(self.data)
 
         counts = (- self.data['counts'][:, 1] + self.data['counts'][:,0]) / (self.data['counts'][:,1] + self.data['counts'][:, 0])
         tau = self.data['tau']
@@ -193,12 +193,12 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
         else:
-            super(CPMG, self)._plot(axislist)
+            super(Cpmg, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
 
 
-class PDD(PulsedExperimentBaseScript): # ER 5.25.2017
+class CpmgPdd(PulsedExperimentGeneric): # ER 5.25.2017
     """
 This script runs a PDD (periodic dynamical decoupling with a single unit) on the NV to measure the T2.
 To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
@@ -239,7 +239,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
         self.instruments['mw_gen']['instance'].update({'enable_modulation': True}) # ER 20181018
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(CPMG, self)._function(self.data)
+        super(Cpmg, self)._function(self.data)
 
         counts = (- self.data['counts'][:, 1] + self.data['counts'][:,0]) / (self.data['counts'][:,1] + self.data['counts'][:, 0])
         tau = self.data['tau']
@@ -351,6 +351,6 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))
         else:
-            super(CPMG, self)._plot(axislist)
+            super(Cpmg, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)

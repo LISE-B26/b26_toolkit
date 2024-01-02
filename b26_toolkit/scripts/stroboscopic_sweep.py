@@ -19,12 +19,15 @@
 import numpy as np
 import time, random
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9402, AFG3021C
-from b26_toolkit.plotting.plots_1d import plot_esr
+from b26_toolkit.instruments import NI6259, NI9402, AFG3021C
 
-TTL = 3.3 #V
+TTL = 3.3  # V
+
 
 class StroboscopicSweep(Script):
+    """
+    DaLi will never read this because he never writes doc strings for his code
+    """
 
     _DEFAULT_SETTINGS = [
         Parameter('sweep_avg', 1, int, 'number of sweep averages'),

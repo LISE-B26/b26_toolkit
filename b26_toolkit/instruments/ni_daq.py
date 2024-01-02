@@ -54,6 +54,7 @@ DAQmx_Val_Falling = 10171
 DAQmx_Val_FiniteSamps = 10178
 DAQmx_Val_ContSamps = 10123
 DAQmx_Val_GroupByChannel = 0
+DAQmx_Val_Task_Commit = 3
 
 # DI constants
 DAQmx_Val_CountUp = 10128
@@ -280,6 +281,8 @@ class DAQ(Instrument):
             last_task = sorted(matching)[-1]
             task_name = name + '{0:03d}'.format(int(last_task[-3:])+1)
         self.tasklist.update({task_name: task})
+        # print('task list:')
+        # print(self.tasklist)
         return task_name
 
     @property
@@ -528,12 +531,14 @@ class DAQ(Instrument):
         data = (float64 * task['sample_num'])()
         samplesPerChanRead = int32()
 
+        #timer_start = time.time()
         self._check_error(self.nidaq.DAQmxReadCounterF64(task_handle_ctr,
                                                          int32(task['num_samples_per_channel']), float64(-1),
                                                          ctypes.byref(data),
                                                          uInt32(task['sample_num']),
                                                          ctypes.byref(samplesPerChanRead),
                                                          None))
+        # print('Time for reading counter: %.2e' % float(time.time() - timer_start))
 
         return data, samplesPerChanRead
 
@@ -609,20 +614,30 @@ class DAQ(Instrument):
                                                               float64(10.0),
                                                               DAQmx_Val_Volts,
                                                               None))
-        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
-                                                           clk_source,
-                                                           float64(task['sample_rate']),
-                                                           DAQmx_Val_Rising,
-                                                           DAQmx_Val_FiniteSamps,
-                                                           uInt64(task['sample_num'])))
-        self._check_error(self.nidaq.DAQmxWriteAnalogF64(task['task_handle'],
-                                                         int32(task['sample_num']),
-                                                         0,
-                                                         float64(-1),
-                                                         DAQmx_Val_GroupByChannel,
-                                                         data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
-                                                         None,
-                                                         None))
+        if task['sample_num'] > 1:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'],
+                                                               clk_source,
+                                                               float64(task['sample_rate']),
+                                                               DAQmx_Val_Rising,
+                                                               DAQmx_Val_FiniteSamps,
+                                                               uInt64(task['sample_num'])))
+            self._check_error(self.nidaq.DAQmxWriteAnalogF64(task['task_handle'],
+                                                             int32(task['sample_num']),
+                                                             0,
+                                                             float64(-1),
+                                                             DAQmx_Val_GroupByChannel,
+                                                             data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
+                                                             None,
+                                                             None))
+        else:
+            self._check_error(self.nidaq.DAQmxWriteAnalogF64(task['task_handle'],
+                                                             int32(task['sample_num']),
+                                                             1,
+                                                             float64(-1),
+                                                             DAQmx_Val_GroupByChannel,
+                                                             data.ctypes.data_as(ctypes.POINTER(ctypes.c_longlong)),
+                                                             None,
+                                                             None))
 
         return task_name
 
@@ -783,7 +798,8 @@ class DAQ(Instrument):
         """
         task = self.tasklist[task_name]
         self._check_error(self.nidaq.DAQmxWaitUntilTaskDone(task['task_handle'],
-                                                            float64(task['sample_num'] / task['sample_rate'] * 4 + 1)))
+                                                            float64(task['sample_num'] / task['sample_rate'] * 10 + 2)))
+        # float64(task['sample_num'] / task['sample_rate'] * 4 + 1 causes issues when time_per_pt in galvoscans exceeds 0.1 s
 
     def read(self, task_name):
         if 'ctr' in task_name:
@@ -868,10 +884,11 @@ class DAQ(Instrument):
             voltages.append(v)
 
         voltages = np.array([voltages]).T
-        voltages = (np.repeat(voltages, 2, axis=1))
+        if len(voltages[0]) > 1:
+            voltages = (np.repeat(voltages, 2, axis=1))
+
         # pt = np.transpose(np.column_stack((pt[0],pt[1])))
         # pt = (np.repeat(pt, 2, axis=1))
-
         task_name = self.setup_AO(channels, voltages)
         self.run(task_name)
         self.waitToFinish(task_name)
@@ -893,8 +910,8 @@ class DAQ(Instrument):
             channels.append('do' + k.replace('do', ''))  # make sure the key has the right format, e.g. ao0
             values.append(v)
 
-        print(('channels', channels))
-        print(('voltages', values))
+        #print(('channels', channels))
+        #print(('voltages', values))
 
         task_name = self.setup_DO(channels)
 
@@ -1324,8 +1341,8 @@ class NI9402(DAQ):
         # though the timebase never went high and thus nothing would normally progress, by also referencing to the internal
         # clock at max frequency, see http://zone.ni.com/reference/en-XX/help/370466AC-01/mxdevconsid/dupcountprevention/
         # for more details)
-        self._check_error(
-            self.nidaq.DAQmxSetCIDupCountPrevent(task['task_handle'], input_channel_str_gated, bool32(True)))
+        #self._check_error(
+        #    self.nidaq.DAQmxSetCIDupCountPrevent(task['task_handle'], input_channel_str_gated, bool32(True)))
 
         return task_name
 
@@ -1600,68 +1617,110 @@ def time_to_buffersize(time, ticks=56):
 def buffersize_to_time(size, ticks=56):
     return size * (ticks*0.000000025)
 
-if __name__ == '__main__DISABLED':
-    print((voltage_to_int(2.4)))
 
-if __name__ == '__main__DISABLED':
-
-    daq_di, failed_di = Instrument.load_and_append({'daq': NI9402})
-    daq_ao, failed_ao = Instrument.load_and_append({'daq': NI9263_02})
-
-
-    sample_rate = 100000
-    daq_ao['daq'].settings['analog_output']['ao0']['sample_rate'] = sample_rate
-    period = 500e-6
-    t_end = period
-    t_array = np.linspace(0, t_end, int(t_end*sample_rate))
-    waveform = np.sin(2*np.pi*t_array/period)
-    waveform = signal.sawtooth(2 * np.pi * t_array / period, 0.5) + 1
-
-    waveform2 = [[i] for i in waveform]
-    print(waveform[0])
-    trig_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
-    clk_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
-    #task = daq_ao['daq'].setup_AO_triggered(channels=['ao0'],
-    #                                        waveform=waveform, clk_source="", trig_source=trig_source)
-    task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
-                                            waveform=waveform, clk_source=clk_source, trig_source=trig_source)
-    #task = daq_ao['daq'].setup_AO(['ao0'], waveform)
-    daq_ao['daq'].run(task)
-
-    time.sleep(2)
-
-    #daq['daq'].run(task_a)
-    #daq['daq'].run(task_a)
-    #daq['daq'].stop(task_a)
-    #daq['daq'].stop(task_b)
-
-    # print('FAILED', failed)
-    # print(daq['daq'].settings)
-    #
-    # daq['daq'].device = 'cDAQ9184-1BA7633Mod3'
-    # print('------ daq ------')
-    # print(daq['daq'])
-    # print('------ daq_in ------')
-    # print(daq['daq_in'])
-    #
-    # print('------')
-    #
-    # vout = -1
-    # daq['daq'].set_analog_voltages({'ao0': vout})
-    # print('SET', vout)
-    #
-    # print(daq['daq_in'])
-    # print('GET', daq['daq_in'].get_analog_voltages(['ai1', 'ai2']))
-
-    # daq, failed = Instrument.load_and_append({'daq_in': NI6259})
-    # daq['daq_in'].set_digital_output({'do0': False})
-
+# if __name__ == '__main__':
+#
+#     daq_di, failed_di = Instrument.load_and_append({'daq': NI9402})
+#     daq_ao, failed_ao = Instrument.load_and_append({'daq': NI9263_02})
+#
+#
+#     sample_rate = 100000
+#     daq_ao['daq'].settings['analog_output']['ao0']['sample_rate'] = sample_rate
+#     period = 500e-6
+#     t_end = period
+#     t_array = np.linspace(0, t_end, int(t_end*sample_rate))
+#     waveform = np.sin(2*np.pi*t_array/period)
+#     waveform = signal.sawtooth(2 * np.pi * t_array / period, 0.5) + 1
+#
+#     print(waveform)
+#     trig_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
+#     print(trig_source)
+#     clk_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
+#     task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
+#                                             waveform=waveform, trig_source=trig_source)
+#     #task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
+#     #                                        waveform=waveform, clk_source=clk_source, trig_source=trig_source)
+#     #task = daq_ao['daq'].setup_AO(['ao0'], waveform)
+#     daq_ao['daq'].run(task)
+#
+#     time.sleep(5)
 
 if __name__ == '__main__':
-    daq_ai, failed_ai = Instrument.load_and_append({'daq': NI9215})
-    daq_ai['daq'].settings['analog_input']['ai0']['sample_rate'] = 100
-    task = daq_ai['daq'].setup_AI('ai0', 20, continuous=False)
-    xLineData, _ = daq_ai['daq'].read(task)
-    print(list(xLineData))
-    daq_ai['daq'].stop(task)
 
+    # def stop(task_name):
+    #     #remove task to be cleared from tasklist
+    #     task = daq.tasklist[task_name]
+    #
+    #     #special case counters, which create two tasks that need to be cleared
+    #     if 'task_handle_ctr' in list(task.keys()):
+    #         daq.nidaq.DAQmxStopTask(task['task_handle_ctr'])
+    #         #daq['daq'].nidaq.DAQmxClearTask(task['task_handle_ctr'])
+    #     if 'task_handle' in list(task.keys()):
+    #         daq.nidaq.DAQmxStopTask(task['task_handle'])
+    #         #daq['daq'].nidaq.DAQmxClearTask(task['task_handle'])
+    #
+    #
+    # daq, failed = Instrument.load_and_append({'daq': NI9402})
+    # daq = daq['daq']
+    # daq.settings['digital_input']['ctr0']['sample_rate'] = 1000
+    #
+    # start_meas = time.time()
+    # for i in range(40):
+    #     # setup the tasks
+    #     if i == 0:
+    #         ctrtask = daq.setup_counter("ctr0", 500, continuous_acquisition=False)
+    #         daq.nidaq.DAQmxTaskControl(ctrtask, int32(DAQmx_Val_Task_Commit))
+    #     daq.run(ctrtask)  # the counter clock turns on and starts the AI task
+    #     t2 = time.time() - start_meas
+    #     raw_data, _ = daq.read_counter(ctrtask)
+    #     t4 = time.time() - start_meas
+    #     #print(list(raw_data))
+    #     print(t2, t4)
+    #     print()
+    #     stop(ctrtask)
+    #
+    # print('OLD!!!')
+    #
+    # start_meas = time.time()
+    # for i in range(40):
+    #     # setup the tasks
+    #     ctrtask = daq.setup_counter("ctr0", 500, continuous_acquisition=False)
+    #     #daq.nidaq.DAQmxTaskControl(ctrtask, int32(DAQmx_Val_Task_Commit))
+    #     daq.run(ctrtask)  # the counter clock turns on and starts the AI task
+    #     t2 = time.time() - start_meas
+    #     raw_data, _ = daq.read_counter(ctrtask)
+    #     t4 = time.time() - start_meas
+    #     #print(list(raw_data))
+    #     print(t2, t4)
+    #     print()
+    #     daq.stop(ctrtask)
+
+    pt = (0, 0)
+    pt = np.transpose(np.column_stack((pt[0], pt[1])))
+    pt = (np.repeat(pt, 2, axis=1))
+
+
+
+    daq, failed = Instrument.load_and_append({'daq': NI9263})
+    daq = daq['daq']
+
+    # Is it faster to prepare tasks beforehand?
+    n = 100
+    # Prep beforehand
+    t_start = time.time()
+    tasks = []
+    for x in np.linspace(0, .5, n):
+        tasks.append(daq.setup_AO(['ao1'], [x]))
+    for task in tasks:
+        daq.run(task)
+        daq.waitToFinish(task)
+        daq.stop(task)
+    print(time.time()-t_start)
+
+    t_start = time.time()
+    for x in np.linspace(0, .5, n):
+        task = daq.setup_AO(['ao1'], [x])
+        daq.run(task)
+        daq.waitToFinish(task)
+        daq.stop(task)
+    print(time.time()-t_start)

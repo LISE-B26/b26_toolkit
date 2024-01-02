@@ -117,7 +117,7 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         axis_focus.set_xlabel('Piezo Voltage [V]')
         axis_focus.set_ylabel('Detector Voltage [V]')
 
-class DAQ_Timetrace(Script):
+class DaqTimeTrace(Script):
     """
 SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo voltages
     """

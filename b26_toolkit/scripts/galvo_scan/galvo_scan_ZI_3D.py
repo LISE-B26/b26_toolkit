@@ -1,16 +1,16 @@
 from pylabcontrol.core import Script, Parameter
-from .galvo_scan_ZI import GalvoScanZI
+from .galvo_scan_ZI import GalvoScanZi
 from b26_toolkit.instruments.newport_smc100 import SMC100
 import numpy as np
 
-class GalvoScanZI3D(Script):
+class GalvoScanZi3D(Script):
     _DEFAULT_SETTINGS = [
         Parameter('z_axis_center_position', 6000, float, 'center point of autofocus sweep'),
         Parameter('scan_width', 5, float, 'distance (in V or mm) between the minimum and maximum points of the range'),
         Parameter('num_sweep_points', 10, int, 'number of values to sweep between min and max voltage'),
     ]
 
-    _SCRIPTS = {'galvoscanZI': GalvoScanZI}
+    _SCRIPTS = {'galvoscanZI': GalvoScanZi}
     _INSTRUMENTS = {'z_driver': SMC100}
 
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):

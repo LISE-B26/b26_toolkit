@@ -1,447 +1,35 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-import time
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from copy import deepcopy
+from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_esr import PulsedEsr
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator, AFG3022C, Commander, AFG3022C_02
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq, plot_pulsedesr
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-from b26_toolkit.scripts import FindNV, ESR
-from pylabcontrol.core import Script, Parameter
-from b26_toolkit.data_processing.esr_signal_processing import fit_esr, fit_double_lorentzian, double_lorentzian
+from pylabcontrol.core import Parameter
 import time as t
-import datetime
 
 
-#MAX_AVERAGES_PER_SCAN = 5e4
-laser_pulse_end_delay = 100 # Time of end of PB pulse to AOM minus time of end of laser pulse
+laser_pulse_end_delay = 100  # Time of end of PB pulse to AOM minus time of end of laser pulse
 
-class PulsedESR(PulsedExperimentBaseScript):
+class PulsedEsrMwGen2(PulsedEsr):
     """
-Pulsed version of ESR. This script applies a microwave pulse at fixed power and durations for varying frequencies.
-    """
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
-
-    def _configure_instruments_start_of_script(self):
-        """
-        Configure instruments at the beginning of a script, e.g. enable IQ modulation
-        :return: None
-        """
-        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-        # print('successfully turned off microwave switch')
-        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
-        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
-        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_power']})
-        self.instruments['mw_gen']['instance'].update({'enable_output': True})
-
-    def _configure_instruments_end_of_script(self):
-        """
-        Configure instruments right before the script finishes, e.g. turn off function generators
-        :return: None
-        """
-        pass
-
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
-        """
-        Configure instruments before running a sweep. For example, change MW frequency
-        :return: None
-        """
-        self.instruments['mw_gen']['instance'].update({'frequency': float(mw_frequency_current)})
-
-    def _configure_frequency_array(self):
-        # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
-        # it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
-
-        if 'freq_points' not in self.settings:
-            self.mw_frequencies = [self.settings['freq_start']]
-        elif self.settings['range_type'] == 'start_stop':
-            if self.settings['freq_start'] > self.settings['freq_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
-                self._abort = True
-
-            if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
-                self.log('start or stop frequency out of bounds')
-                self._abort = True
-
-            self.mw_frequencies = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
-
-        elif self.settings['range_type'] == 'center_range':
-            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
-                self._abort = True
-            self.mw_frequencies = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
-                                              self.settings['freq_start'] + self.settings['freq_stop'] / 2, self.settings['freq_points'])
-
-    def dbm_to_vpp(self, dbm):
-        dbm = float(dbm)
-        return np.sqrt(10 ** (dbm / 10) / 1000 * 50) * 2 * np.sqrt(2)
-
-    def _function(self, in_data=None):
-        self.data['fits'] = None
-
-        self._configure_instruments_start_of_script()
-
-        self._configure_frequency_array()
-
-        # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
-        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
-        # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
-        self.pulse_sequences, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
-        self.num_averages = self.settings['num_averages']
-        (self.num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, self.settings['averaging_block_size'])
-
-        # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
-        last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
-        pulse_ampl = self.scripts['esr'].instruments['microwave_generator']['instance'].amplitude
-
-        self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
-
-        # ER 20181214 retrieve modulation on or off for main experiment
-        mod_flag = self.scripts['esr'].instruments['microwave_generator']['instance'].enable_modulation
-
-        # Keeps track of index of current pulse sequence for plotting
-        self.sequence_index = 0
-
-        if in_data is None:
-            in_data = {}
-
-        # calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
-        # called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
-        # never receives the rest of the counts (number too high)
-        num_daq_reads = 0
-
-        for pulse in self.pulse_sequences[0]:
-            if pulse.channel_id == 'apd_readout':
-                num_daq_reads += 1
-
-        if num_daq_reads > 0:
-            self._initialize_data(num_daq_reads, in_data)
-        else:
-            self._initialize_data(1, in_data)
-
-        # run find_nv if tracking is on ER 5/30/2017
-        if self.settings['Tracking']['on/off']:
-            self.instruments['PB']['instance'].update({'laser': {'status': True}})
-            self.scripts['find_nv'].run()
-            self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
-            if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
-                self.log('Could not find an NV in FindNV.')
-                self._abort = True
-                return  # exit function in case no NV is found
-
-        #self.log("Averaging over %i blocks of %.1e" % (self.num_1E5_avg_pb_programs, self.settings['averaging_block_size']))
-
-        breaker = 0
-        for average_loop in range(int(self.num_1E5_avg_pb_programs)):
-            time_start = t.time()
-            if breaker:
-                break
-
-            mw_freq_indices = list(range(len(self.mw_frequencies)))
-            if self.settings['randomize']:
-                np.random.shuffle(mw_freq_indices)
-
-            if 'every_n_blocks' in self.settings['Tracking'] and self.settings['Tracking']['every_n_blocks'] != 0 and int(average_loop) % self.settings['Tracking']['every_n_blocks'] == 0:
-                self.instruments['PB']['instance'].update({'laser': {'status': True}})
-                self.scripts['find_nv'].run()
-                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
-                self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
-
-            if 'before_block' in self.settings['Tracking'] and self.settings['Tracking']['before_block']:
-                self.instruments['PB']['instance'].update({'laser': {'status': True}})
-                self.scripts['find_nv'].run()
-                self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
-                self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
-
-            for i in mw_freq_indices:
-                if self._abort:
-                    print('aborting!!')
-                    # ER 20200828 stop the pulseblaster
-                    if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
-                        print('stopping pulse seq: abort!! ')
-                        self.instruments['PB']['instance'].stop_pulse_seq()
-
-                    self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-
-                    self.log('Aborted pulseblaster script during loop')
-                    breaker = 1
-                    break
-
-                # MM 20190621
-                # if self.settings['Autofocus_Tracking']['on/off'] and average_loop % self.settings['Autofocus_Tracking']['track_every_N'] == 0:
-                #    self.scripts['autofocus'].run()
-                # Retrack NV afterwards.
-                #    self.scripts['find_nv'].run()
-                #    self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
-
-                time.sleep(self.settings['mw_generator_switching_time'])
-                self.mw_frequency_current = self.mw_frequencies[i]
-                self._configure_instruments_start_of_sweep(self.mw_frequency_current)
-                time.sleep(self.settings['mw_generator_switching_time'])
-
-                # ER 20181028
-                if self.settings['ESR_Tracking']['on/off'] and average_loop % self.settings['ESR_Tracking'][
-                    'track_every_N'] == 0:
-                    self.scripts['esr'].run()
-
-                    # retrieve the new mw frequency: if there are two frequencies in the fit, pick the one closest to the old frequency
-                    fit_params = self.scripts['esr'].data['fit_params']
-
-                    # default update flag to false
-                    update_mw = False
-
-                    if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
-                        if len(fit_params) == 4:
-                            # single peak
-                            if (fit_params[2] - last_mw) ** 2 < (self.settings['ESR_Tracking'][
-                                                                     'allowed_delta_freq'] * 1e6) ** 2:  # check if new value is within range allowed
-                                update_mw = True
-                            new_mw = fit_params[2]
-                        elif len(fit_params) == 6:
-                            # double peak, don't update the frequency - the fit may be bad
-                            update_mw = False
-
-                    if update_mw:
-                        # self.instruments['mw_gen'].update({'frequency': new_mw})
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'frequency': float(new_mw)})
-                        self.log('Updated mw carrier frequency to: {}'.format(new_mw))
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'amplitude': float(pulse_ampl)})
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'enable_modulation': bool(mod_flag)})
-
-                        last_mw = new_mw
-                    else:
-                        # self.instruments['mw_gen'].update({'frequency': last_mw})
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'frequency': float(last_mw)})
-                        self.log(
-                            'Not updating the mw carrier frequency. SRS carrier frequency kept at {0} Hz'.format(
-                                last_mw))
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'amplitude': float(pulse_ampl)})
-                        self.scripts['esr'].instruments['microwave_generator']['instance'].update(
-                            {'enable_modulation': bool(mod_flag)})
-
-                self.current_averages = (average_loop + 1) * self.settings['averaging_block_size']
-                #    print('tau sequences running: ', self.tau_list)
-
-                self._run_sweep(self.pulse_sequences, self.settings['averaging_block_size'], num_daq_reads)
-                #print('Shape of result_current: %s' % str(np.shape(self.result_current)))
-                self.esr_counts[i][average_loop] = self.result_current
-                self.data['esr_counts'][i] = np.average(self.esr_counts[i][0:average_loop+1], axis=0)
-
-            # save data on the fly so that we can start to analyze it while the experiment is running!
-            if self.settings['save']:
-                self.save_data()
-
-            time_elapsed = t.time() - time_start
-            self.log("Completed average block %i of %i in %s" %
-                     (average_loop + 1, int(self.num_1E5_avg_pb_programs), str(datetime.timedelta(seconds=time_elapsed))[:-7]))
-
-            if 'esr_counts' in self.data.keys() and 'mw_frequencies' in self.data.keys():
-                #self.data['fits'] = None
-                #self.log('ESR fit failed')
-
-                try:
-                    freq = self.data['mw_frequencies']
-                    counts = self.data['esr_counts'][:, 1]
-                    freq_spacing = freq[1]-freq[0]
-                    est_contrast = (min(counts)-max(counts))
-                    fits = fit_double_lorentzian(freq, counts,
-                                                 starting_params = [max(counts),1e6,est_contrast,est_contrast,
-                                                                    min(freq)+(max(freq)-min(freq))*0.2,max(freq)-(max(freq)-min(freq))*0.2])
-                    self.data['fits'] = fits
-                    print(fits)
-                except:
-                    self.data['fits'] = None
-                    self.log('ESR fit failed')
-
-        if remainder != 0 and not self._abort:
-            self.current_averages = self.num_averages
-            self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
-
-        self._configure_instruments_end_of_script()
-
-        if (len(self.data['counts'][0]) == 1) and not self._abort:
-            #print("(len(self.data['counts'][0]) == 1) and not self._abort")
-            self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
-
-    def _plot(self, axes_list, data=None):
-        """
-        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
-        received for each time
-        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
-        performed
-
-        Args:
-            axes_list: list of axes to write plots to (uses first 2)
-            data (optional) dataset to plot (dictionary that contains keys counts, tau), if not provided use self.data
-        """
-
-        #        if self.scripts['find_nv'].is_running: #self.scripts['find_nv'].data['maximum_point']:
-        #            # self.scripts['find_nv'].plot(axes_list)
-        #             self.scripts['find_nv']._plot(axes_list)
-        #             self._plot_refresh = True
-        #        else:
-        if data is None:
-            data = self.data
-
-        if 'esr_counts' in data.keys():
-            plot_1d_simple_freq(axes_list[0], data['mw_frequencies'], [data['esr_counts']])
-            plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
-        if 'fits' in data.keys() and data['fits'] is not None:
-            title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}' \
-                .format(data['fits'][4], data['fits'][5], data['fits'][1],
-                        np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
-            axes_list[0].set_title(title)
-
-            x_data = data['mw_frequencies']
-            x_data_fine = np.linspace(np.min(x_data), np.max(x_data), len(x_data) * 2)
-            plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5, title=title)
-
-    def _update_plot(self, axes_list):
-        '''
-        Updates plots specified in _plot above
-        Args:
-            axes_list: list of axes to write plots to (uses first 2)
-
-        '''
-        #        if self.scripts['find_nv'].is_running:
-        #            self.scripts['find_nv']._update_plot(axes_list)
-        #        else:
-
-        data = self.data
-        counts = data['esr_counts']
-        x_data = data['mw_frequencies']
-        x_data_fine = np.linspace(np.min(x_data), np.max(x_data), len(x_data)*2)
-
-        # If fit is found and fit has not been plotted, plot both data and fit
-        fit_in_plot = len(axes_list[0].lines) == len(np.transpose(counts)) + 1
-        update_1d_simple(axes_list[0], x_data, counts, fit_in_plot=fit_in_plot)
-        if 'fits' in data.keys() and data['fits'] is not None:
-            title = 'Pulsed ESR f1 = {:0.6e} Hz, f2 = {:0.6e} Hz, wo = {:0.2e},\n contrast1 = {:.1%}, contrast2 = {:.1%}'\
-                .format(data['fits'][4], data['fits'][5], data['fits'][1],
-                        np.abs(data['fits'][2]) / data['fits'][0], np.abs(data['fits'][3]) / data['fits'][0])
-            axes_list[0].set_title(title)
-            if fit_in_plot:
-                for index, counts in enumerate([double_lorentzian(x_data_fine, *data['fits'])]):
-                    axes_list[0].lines[-1 - index].set_ydata(counts)
-
-            else:
-                plot_1d_simple_freq(axes_list[0], x_data_fine, [double_lorentzian(x_data_fine, *data['fits'])], alpha=0.5)
-
-        update_pulse_plot(axes_list[1], self.pulse_sequences[self.sequence_index])
-
-    def _create_pulse_sequences(self):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel = 'microwave_' + self.settings['microwave_channel']
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        meas_time = self.settings['read_out']['meas_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = \
-                [Pulse('laser', laser_off_time + tau + 2 * 40, nv_reset_time),
-                 Pulse('apd_readout',
-                       laser_off_time + tau + 2 * 40 + delay_readout, meas_time)]
-               #  Pulse('apd_readout', laser_off_time + tau + 2 * 40 + delay_readout, meas_time),
-               #  ]
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [
-                    Pulse(microwave_channel, laser_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time, tau)]
-
-            pulse_sequence += [
-                Pulse('laser',
-                      laser_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout,
-                      nv_reset_time),
-                Pulse('apd_readout',
-                      laser_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout + delay_readout,
-                      meas_time)
-            ]
-            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
-            # if tau == 0 or tau>=15:
-            pulse_sequences.append(pulse_sequence)
-        return pulse_sequences, tau_list, self.settings['read_out']['meas_time']
-
-    def _initialize_data(self, num_daq_reads, in_data):
-        signal = [0.0]
-        norms = np.repeat([0.0], (num_daq_reads - 1))
-        self.count_data = np.repeat([np.append(signal, norms)], len(self.pulse_sequences), axis=0)
-        self.data = in_data
-        self.data['tau'] = np.array(self.tau_list)
-        self.data['counts'] = deepcopy(self.count_data)
-        self.data['mw_frequencies'] = self.mw_frequencies
-        self.esr_counts = np.zeros((len(self.mw_frequencies), int(self.num_1E5_avg_pb_programs), num_daq_reads))
-        self.data['esr_counts'] = np.zeros((len(self.mw_frequencies),
-                                            num_daq_reads))
-        if self.settings['save_full']: # ER 20210331
-            print('num avgs in initialize ', self.num_averages)
-            self.data['full_contrast'] = np.zeros((int(self.num_averages/self.settings['averaging_block_size']), len(self.pulse_sequences)))
-
-
-class PulsedEsrMwGen2(PulsedESR):
-    """
-Pulsed version of ESR. This script applies a microwave pulse at fixed power and durations for varying frequencies.
+    Same as PulsedEsr but for a second microwave generator.
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
@@ -465,7 +53,6 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen_2': MicrowaveGenerator2, 'commander': Commander}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _configure_instruments_start_of_script(self):
         """
@@ -479,189 +66,15 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
         self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_power']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
+    def _configure_instruments_start_of_sweep(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
         """
-        self.instruments['mw_gen_2']['instance'].update({'frequency': float(mw_frequency_current)})
+        self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
-class PulsedESRFast(PulsedESR):
-    """
-    Faster version of PulsedESR. PulsedESR is the "proper" sequence for it has separate readout windows for reference and signal fluorescence, but the DAQ read
-    speed limits how quickly one can repeat one single pulse sequence, e.g.  despite only requiring ~600 ns to reinitialize, PulsedESR requires 1.5 us initialization
-    time to artificially slow down the pulse sequence repetition to avoid a DAQ crash.
-
-    This fast version chains together multiple PulsedESR sequences while only using one long readout window. There is loss of contrast from the readout window
-    being on during initialization and laser off times, but the effective pulse sequence repetition rate is now much higher, leading to an overall reduction in
-    averaging time needed.
-    """
-
-    #_DEFAULT_SETTINGS += [Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')]
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('repetitions', 4, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
-
-    def _create_pulse_sequences(self):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel = 'microwave_i'
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        meas_time = self.settings['read_out']['meas_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = []
-            current_time = 0
-            for part in range(int(self.settings['repetitions'])):  # Repeat pulse sequence 4 times because DAQ crashes if we run really short pulse sequences (~ several us long)
-                # if tau is 0 there is actually no mw pulse
-                if tau > 0:
-                    pulse_sequence += [
-                        Pulse(microwave_channel, current_time + laser_off_time, tau)]
-
-                pulse_sequence += [
-                    Pulse('laser',
-                          current_time + laser_off_time + tau + delay_mw_readout,
-                          nv_reset_time)
-                ]
-                current_time += laser_off_time + tau + delay_mw_readout + nv_reset_time
-
-            meas_time_long = current_time - (laser_off_time + tau + delay_mw_readout + delay_readout) - nv_reset_time + delay_readout + meas_time
-            pulse_sequence += [Pulse('apd_readout',
-                                     laser_off_time + tau + delay_mw_readout + delay_readout, meas_time_long)]
-
-            pulse_sequences.append(pulse_sequence)
-        return pulse_sequences, tau_list, meas_time_long
-
-class PulsedESRFastSingle(PulsedESRFast):
-    """
-    Single frequency version of PulsedESRFast
-    """
-
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('repetitions', 4, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-class PulsedESRSingleBlind(PulsedESRFast):
-    """
-    Single frequency version of PulsedESR, with no readout window, to be run in the background while another script does the readout
-    """
-
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('read_out', [
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-        ]),
-        Parameter('repetitions', 100, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-    def _create_pulse_sequences(self, get_duration=False):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        microwave_channel = 'microwave_i'
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = []
-            current_time = 0
-            for part in range(int(self.settings['repetitions'])):  # Repeat pulse sequence 4 times because DAQ crashes if we run really short pulse sequences (~ several us long)
-                # if tau is 0 there is actually no mw pulse
-                if tau > 0:
-                    pulse_sequence += [
-                        Pulse(microwave_channel, current_time + laser_off_time, tau)]
-
-                pulse_sequence += [
-                    Pulse('laser',
-                          current_time + laser_off_time + tau + delay_mw_readout,
-                          nv_reset_time)
-                ]
-                current_time += laser_off_time + tau + delay_mw_readout + nv_reset_time
-
-            pulse_sequences.append(pulse_sequence)
-
-        if get_duration:
-            # Return total sequence duration and total laser duration
-            return current_time
-        else:
-            return pulse_sequences, tau_list, 100
-
-class PulsedESRFast_MWGen2(PulsedESR):
+class PulsedEsrFastMwGen2(PulsedEsr):
     _DEFAULT_SETTINGS = [
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
@@ -684,7 +97,7 @@ class PulsedESRFast_MWGen2(PulsedESR):
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator2, 'commander': Commander}
 
 
-class PulsedNMR(PulsedESR):
+class PulsedNmr(PulsedEsr):
     # Uses the AFG3022C to send MHz signals to the RF coil to drive the nuclear spin. Code is also greatly simplified compared to PulsedNMR_SRS
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
@@ -804,12 +217,12 @@ class PulsedNMR(PulsedESR):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
+    def _configure_instruments_start_of_sweep(self, param_current):
         for channel in [1, 2]:
-            self.instruments['afg']['instance'].update({'ch%i_frequency' % channel: float(mw_frequency_current)})
+            self.instruments['afg']['instance'].update({'ch%i_frequency' % channel: float(param_current)})
 
 
-class PulsedNMR_SRS(PulsedNMR):
+class PulsedNmrSrs(PulsedNmr):
     """
     Uses the SRS to drive the RF coil to drive nuclear transitions. Not recommended; you should use PulsedNMR instead which uses the AFG3022C, which will be used
     to drive nuclear transitions in all other scripts anyway.
@@ -863,11 +276,11 @@ class PulsedNMR_SRS(PulsedNMR):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
-        self.instruments['rf_gen']['instance'].update({'frequency': mw_frequency_current})
+    def _configure_instruments_start_of_sweep(self, param_current):
+        self.instruments['rf_gen']['instance'].update({'frequency': param_current})
 
 
-class PulsedESRPolarized(PulsedNMR):
+class PulsedEsrPolarized(PulsedNmr):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_power_1', -45.0, float, 'microwave power in dBm'),
@@ -1020,11 +433,11 @@ class PulsedESRPolarized(PulsedNMR):
         self.instruments['afg']['instance'].update({'ch1_phase': 0})
         self.instruments['afg']['instance'].update({'ch2_phase': 3.1415926})
 
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
-        self.instruments['mw_gen_2']['instance'].update({'frequency': float(mw_frequency_current)})
+    def _configure_instruments_start_of_sweep(self, param_current):
+        self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
-class PulsedEsrRfHeating(PulsedESRPolarized):
+class PulsedEsrRfHeating(PulsedEsrPolarized):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_power_1', -45.0, float, 'microwave power in dBm'),
@@ -1134,7 +547,7 @@ class PulsedEsrRfHeating(PulsedESRPolarized):
         return pulse_sequences, tau_list, self.settings['read_out']['meas_time']
 
 
-class NuclearPolarizationLaserDuration(PulsedExperimentBaseScript):
+class NuclearPolarizationLaserDuration(PulsedExperimentGeneric):
     # Please update this with structure from PulsedESRPolarized, FF
     _DEFAULT_SETTINGS = [
         Parameter('mw_power_1', -45.0, float, 'microwave power in dBm'),
@@ -1287,7 +700,7 @@ class NuclearPolarizationLaserDuration(PulsedExperimentBaseScript):
         return pulse_sequences, tau_list, meas_time
 
 
-class CnotFidelity(PulsedESRPolarized):
+class CnotFidelity(PulsedEsrPolarized):
     """
     Executes a CNOT gate before a PulsedESR. Depending on the fidelity of this first CNOT gate, the ESR lineshape changes:
     A perfect CNOT gate one transition A will lead to transition A disappearing in the ESR while unaffecting other transitions.
@@ -1398,11 +811,11 @@ class CnotFidelity(PulsedESRPolarized):
         self.instruments['mw_gen_2']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency_1']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, mw_frequency_current):
-        self.instruments['mw_gen_2']['instance'].update({'frequency': float(mw_frequency_current)})
+    def _configure_instruments_start_of_sweep(self, param_current):
+        self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
-class CnotPowerSweep(PulsedESR):
+class CnotPowerSweep(PulsedEsr):
     """
     Sweeps the power to optimize a pi-pulse given a fixed pi time.
 
@@ -1515,7 +928,7 @@ class CnotPowerSweep(PulsedESR):
 
         self.instruments[mw_gen_instrument]['instance'].update({'amplitude': float(power_current)})
 
-    def _configure_frequency_array(self):
+    def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
         # it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
 
@@ -1525,15 +938,15 @@ class CnotPowerSweep(PulsedESR):
                 self._abort = True
 
 
-            self.mw_frequencies = np.linspace(self.settings['power_start'], self.settings['power_stop'], self.settings['power_points'])
+            self.params = np.linspace(self.settings['power_start'], self.settings['power_stop'], self.settings['power_points'])
 
         elif self.settings['range_type'] == 'center_range':
 
-            self.mw_frequencies = np.linspace(self.settings['power_start'] - self.settings['power_stop'] / 2,
-                                              self.settings['power_start'] + self.settings['power_stop'] / 2, self.settings['power_points'])
+            self.params = np.linspace(self.settings['power_start'] - self.settings['power_stop'] / 2,
+                                      self.settings['power_start'] + self.settings['power_stop'] / 2, self.settings['power_points'])
 
 
-class FieldProfilePulsed(PulsedESR):
+class FieldProfilePulsed(PulsedEsr):
     _DEFAULT_SETTINGS = [
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
@@ -1568,7 +981,6 @@ class FieldProfilePulsed(PulsedESR):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
         '''
@@ -1659,9 +1071,9 @@ class FieldProfilePulsed(PulsedESR):
 
         if 'counts' in data.keys():
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
-            counts = np.array(self.data['esr_counts'])
+            counts = np.array(self.data['count_data'])
             label = ['Pulsed ESR while moving', 'time', 'freq', 'kcounts/s']
-            extent = self.subblock_tau_list[0], self.subblock_tau_list[-1], data['mw_frequencies'][-1], data['mw_frequencies'][0]
+            extent = self.subblock_tau_list[0], self.subblock_tau_list[-1], data['params'][-1], data['params'][0]
             aspect = np.abs((extent[1]-extent[0])/(extent[3]-extent[2]))
             plot_fluorescence_new(counts, extent, axes_list[0], max_counts=-1, labels=label, aspect=aspect)
 
@@ -1674,13 +1086,14 @@ class FieldProfilePulsed(PulsedESR):
 
         '''
 
-        counts = np.array(self.data['esr_counts'])
+        counts = np.array(self.data['count_data'])
 
         update_fluorescence(counts, axes_list[0], -1)
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
-class FieldProfileCW(FieldProfilePulsed):
+
+class FieldProfileCw(FieldProfilePulsed):
     _DEFAULT_SETTINGS = [
         Parameter('mw_power', -45.0, float, 'microwave power in dB'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
@@ -1707,7 +1120,6 @@ class FieldProfileCW(FieldProfilePulsed):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
         '''
@@ -1755,7 +1167,7 @@ class FieldProfileCW(FieldProfilePulsed):
         return pulse_sequences, tau_list, meas_time
 
 
-class TransportDqmaRfPhase(PulsedESRPolarized):
+class TransportDqmaRfPhase(PulsedEsrPolarized):
     """
         With a finite detuning of the RF from the nuclear spin frequency, we expect to see oscillations for long movmement times
         """
@@ -1825,8 +1237,6 @@ class TransportDqmaRfPhase(PulsedESRPolarized):
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'afg': AFG3022C, 'mw_gen_2': MicrowaveGenerator2, 'commander': Commander}
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
         """
@@ -2053,10 +1463,10 @@ class TransportDqmaRfPhase(PulsedESRPolarized):
         else:
             self.instruments['afg']['instance'].update({'ch2_phase': ch2_phase_current})
 
-    def _configure_frequency_array(self):
+    def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
         # it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
-        self.mw_frequencies = np.linspace(self.settings['rf_phase']['min_phase'], self.settings['rf_phase']['max_phase'], self.settings['rf_phase']['phase_points'])
+        self.params = np.linspace(self.settings['rf_phase']['min_phase'], self.settings['rf_phase']['max_phase'], self.settings['rf_phase']['phase_points'])
 
 
     def _plot(self, axislist, data=None):
@@ -2075,7 +1485,7 @@ class TransportDqmaRfPhase(PulsedESRPolarized):
             data = self.data
 
         if 'fits' in data.keys() and data['fits'] is not None and 1 == 2:
-            counts = data['esr_counts'][:, 1] / data['esr_counts'][:, 0]
+            counts = data['count_data'][:, 1] / data['count_data'][:, 0]
             tau = data['tau']
             fits = data['fits'] # amplitude, frequency, phase, offset
 
@@ -2087,15 +1497,15 @@ class TransportDqmaRfPhase(PulsedESRPolarized):
             rabi_freq = 1000*fits[1]/(2*np.pi)
             axislist[0].set_title('Rabi: {:0.1f}MHz, pi-half time: {:2.1f}ns, pi-time: {:2.1f}ns, 3pi-half time: {:2.1f}ns'.format(rabi_freq, pi_half_time, pi_time, three_pi_half_time))
         else:
-            if 'esr_counts' in data.keys():
+            if 'count_data' in data.keys():
                 num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
-                avg_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:num_daq_reads], axis=1)]))
-                first_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:1], axis=1)]))
-                avg_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:], axis=1)]))
-                first_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
+                avg_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:num_daq_reads], axis=1)]))
+                first_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:1], axis=1)]))
+                avg_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:], axis=1)]))
+                first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
-                plot_1d_simple_timetrace_ns(axislist[0], data['mw_frequencies'],[avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace_ns(axislist[0], data['params'],[avg_counts_1, avg_counts_2])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
@@ -2111,23 +1521,23 @@ class TransportDqmaRfPhase(PulsedESRPolarized):
         #            self.scripts['find_nv']._update_plot(axes_list)
         #        else:
 
-        x_data = self.data['mw_frequencies']
+        x_data = self.data['params']
 
 
         num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
-        avg_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:num_daq_reads], axis=1)]))
-        first_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:1], axis=1)]))
-        avg_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:], axis=1)]))
-        first_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:num_daq_reads + 1], axis=1)]))
+        avg_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:num_daq_reads], axis=1)]))
+        first_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:1], axis=1)]))
+        avg_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:], axis=1)]))
+        first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads + 1], axis=1)]))
 
         axis1 = axes_list[0]
-        if not self.data['esr_counts'] == []:
+        if not self.data['count_data'] == []:
             update_1d_simple(axis1, x_data, [avg_counts_1, avg_counts_2])
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
 
-class TransportDqmaMwPhase(PulsedESRPolarized):
+class TransportDqmaMwPhase(PulsedEsrPolarized):
     """
         With a finite detuning of the RF from the nuclear spin frequency, we expect to see oscillations for long movmement times
         """
@@ -2197,8 +1607,6 @@ class TransportDqmaMwPhase(PulsedESRPolarized):
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'afg': AFG3022C, 'mw_gen_2': MicrowaveGenerator2, 'commander': Commander}
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
         """
@@ -2420,10 +1828,10 @@ class TransportDqmaMwPhase(PulsedESRPolarized):
         self.instruments['mw_gen_2']['instance'].update({'phase': float(phase_current)})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_frequency_array(self):
+    def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
         # it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
-        self.mw_frequencies = np.linspace(self.settings['mw_phase']['min_phase'], self.settings['mw_phase']['max_phase'], self.settings['mw_phase']['phase_points'])
+        self.params = np.linspace(self.settings['mw_phase']['min_phase'], self.settings['mw_phase']['max_phase'], self.settings['mw_phase']['phase_points'])
 
 
     def _plot(self, axislist, data=None):
@@ -2442,7 +1850,7 @@ class TransportDqmaMwPhase(PulsedESRPolarized):
             data = self.data
 
         if 'fits' in data.keys() and data['fits'] is not None and 1 == 2:
-            counts = data['esr_counts'][:, 1] / data['esr_counts'][:, 0]
+            counts = data['count_data'][:, 1] / data['count_data'][:, 0]
             tau = data['tau']
             fits = data['fits'] # amplitude, frequency, phase, offset
 
@@ -2454,15 +1862,15 @@ class TransportDqmaMwPhase(PulsedESRPolarized):
             rabi_freq = 1000*fits[1]/(2*np.pi)
             axislist[0].set_title('Rabi: {:0.1f}MHz, pi-half time: {:2.1f}ns, pi-time: {:2.1f}ns, 3pi-half time: {:2.1f}ns'.format(rabi_freq, pi_half_time, pi_time, three_pi_half_time))
         else:
-            if 'esr_counts' in data.keys():
+            if 'count_data' in data.keys():
                 num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
-                avg_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:num_daq_reads], axis=1)]))
-                first_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:1], axis=1)]))
-                avg_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:], axis=1)]))
-                first_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
+                avg_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:num_daq_reads], axis=1)]))
+                first_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:1], axis=1)]))
+                avg_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:], axis=1)]))
+                first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
-                plot_1d_simple_timetrace_ns(axislist[0], data['mw_frequencies'],[avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace_ns(axislist[0], data['params'],[avg_counts_1, avg_counts_2])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
@@ -2478,24 +1886,24 @@ class TransportDqmaMwPhase(PulsedESRPolarized):
         #            self.scripts['find_nv']._update_plot(axes_list)
         #        else:
 
-        x_data = self.data['mw_frequencies']
+        x_data = self.data['params']
 
 
         num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
 
-        avg_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:num_daq_reads], axis=1)]))
-        first_counts_1 = np.transpose(np.array([np.average(self.data['esr_counts'][:, 0:1], axis=1)]))
-        avg_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:], axis=1)]))
-        first_counts_2 = np.transpose(np.array([np.average(self.data['esr_counts'][:, num_daq_reads:num_daq_reads + 1], axis=1)]))
+        avg_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:num_daq_reads], axis=1)]))
+        first_counts_1 = np.transpose(np.array([np.average(self.data['count_data'][:, 0:1], axis=1)]))
+        avg_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:], axis=1)]))
+        first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads + 1], axis=1)]))
 
         axis1 = axes_list[0]
-        if not self.data['esr_counts'] == []:
+        if not self.data['count_data'] == []:
             update_1d_simple(axis1, x_data, [avg_counts_1, avg_counts_2])
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
 
 
-class MicrowaveRotationAxis(PulsedESRPolarized):
+class MicrowaveRotationAxis(PulsedEsrPolarized):
     """
     With a finite detuning of the RF from the nuclear spin frequency, we expect to see oscillations for long movmement times
     """
@@ -2526,8 +1934,6 @@ class MicrowaveRotationAxis(PulsedESRPolarized):
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'afg_iq': AFG3022C_02, 'mw_gen_2': MicrowaveGenerator2, 'commander': Commander}
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
         """
@@ -2605,17 +2011,17 @@ class MicrowaveRotationAxis(PulsedESRPolarized):
                                                             angle_idle=self.settings['mw_phase']['idle_phase'])
         self.instruments['afg_iq']['instance'].align_phase()
 
-    def _configure_frequency_array(self):
+    def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
         # it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
-        self.mw_frequencies = np.linspace(self.settings['mw_phase']['min_phase'], self.settings['mw_phase']['max_phase'],
-                                          self.settings['mw_phase']['phase_points'])
+        self.params = np.linspace(self.settings['mw_phase']['min_phase'], self.settings['mw_phase']['max_phase'],
+                                  self.settings['mw_phase']['phase_points'])
 
     def _add_mw_switch_to_sequences(self, pulse_sequences):
         return pulse_sequences
 
 
-class RamseyFreqSweep(PulsedESR):
+class RamseyFreqSweep(PulsedEsr):
     """
     Takes a Ramsey measurement with fixed duration of pi/2 pulse and phase accumulation time, while sweeping the frequency. This is to precisely find a
     detuning. For example, consider a 15N NV: with fast pi/2 pulses we will see Ramsey fringes due to the detunings from the two 15N hyperfine
@@ -2643,8 +2049,6 @@ class RamseyFreqSweep(PulsedESR):
         Parameter('mw_generator_switching_time', .01, float,
                   'time wait after switching center frequencies on generator (s)')
     ]
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _create_pulse_sequences(self):
 

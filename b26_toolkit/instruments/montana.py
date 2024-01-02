@@ -19,7 +19,7 @@
 from pylabcontrol.core import Instrument, Parameter
 import time, datetime
 import pandas as pd
-import os, tailer
+#import os, tailer
 
 TEMP_INDICES = {'platform_temp': 3, 'stage_1_temp': 5, 'stage_2_temp': 6}
 

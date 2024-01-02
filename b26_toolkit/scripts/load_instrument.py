@@ -15,5 +15,5 @@ class LoadInstrument(Script):
     ]
     _SCRIPTS = {}
     #_INSTRUMENTS = {'arduino': ArduinoZero}
-    _INSTRUMENTS = {'afg': AFG3022C, 'arduino': ArduinoZero}
+    _INSTRUMENTS = {'arduino': ArduinoZero}
 

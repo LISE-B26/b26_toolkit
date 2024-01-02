@@ -173,7 +173,11 @@ class PulseBlaster(Instrument):
     ])
 
     PULSE_PROGRAM = ctypes.c_int(0)
-    LONG_DELAY_THRESHOLD = 640
+    #LONG_DELAY_THRESHOLD = 640
+    # Had some issues with setting it to 640 (why was it even 640??). This should be much higher, since the PB manual mentions using the long delay feature
+    # for pulse lengths beyond 8.59s.
+    LONG_DELAY_THRESHOLD = 8e9
+
 
     PB_INSTRUCTIONS = {
         'CONTINUE': ctypes.c_int(0),
@@ -181,7 +185,8 @@ class PulseBlaster(Instrument):
         'LOOP': ctypes.c_int(2),
         'END_LOOP': ctypes.c_int(3),
         'BRANCH': ctypes.c_int(6),
-        'LONG_DELAY': ctypes.c_int(7)
+        'LONG_DELAY': ctypes.c_int(7),
+        'WAIT': ctypes.c_int(8)
     }
 
     def __init__(self, name=None, settings=None):
@@ -589,7 +594,7 @@ class PulseBlaster(Instrument):
                 self.PBCommand(pb_state_change.channel_bits, remainder, command, command_arg))
             return instruction_list
 
-    def create_commands(self, pb_state_changes, num_loops=1):
+    def create_commands(self, pb_state_changes, num_loops=1, num_loops_w_pause=None):
         """
         Creates a list of commands to program the pulseblaster with, assuming that the user wants to loop over the
         state changes indicated in pb_state_changes for num_loops number of times. This function properly figures out
@@ -611,22 +616,37 @@ class PulseBlaster(Instrument):
         # otherwise, loop over all of the given state changes for num_loops, and then leave pulseblaster in steady-state
         # settings
         pb_commands = []
-        pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
 
-        for index in range(1, len(pb_state_changes)-1):
-            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
+        if num_loops_w_pause is None:
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
 
-        pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
-        pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
+            for index in range(1, len(pb_state_changes)-1):
+                pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
 
-        # print('>>>>>> JG 20180321 create_commands')
-        # # JG 20180321 tmp ==== begin
-        # for command in pb_commands:
-        #     if command.duration < 15:
-        #         print('JG 20180321 command', command)
-        #         raise RuntimeError("Detected command with duration <15ns.")
-        # # JG 20180321 tmp ==== end
+            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
+            # PBCommand = namedtuple('PBCommand', ('channel_bits', 'duration', 'command', 'command_arg'))
 
+            # Reset PB outputs to original settings after finishing commands
+            # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
+            pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
+
+        else:
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops_w_pause)))
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
+
+            for index in range(1, len(pb_state_changes) - 1):
+                pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
+
+            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=1)
+
+
+            pb_commands.append(self.PBCommand(self.settings2bits(), 200, command='WAIT', command_arg=len(pb_commands)))
+
+            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
+
+            # Reset PB outputs to original settings after finishing commands
+            # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
+            pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
 
         return pb_commands
 
@@ -644,7 +664,7 @@ class PulseBlaster(Instrument):
         """
         return float(num_loops * max([pulse.start_time + pulse.duration for pulse in pulses])) / 1E6
 
-    def program_pb(self, pulse_collection, num_loops=1):
+    def program_pb(self, pulse_collection, num_loops=1, num_loops_w_pause=None):
         """
         programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
         is called. The pulse collection must contain at least 2 pulses. Currently, we do not support time resolution below
@@ -657,6 +677,7 @@ class PulseBlaster(Instrument):
         Returns:
 
         """
+
 
         # check for errors in the given pulse_collection
         assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
@@ -671,18 +692,22 @@ class PulseBlaster(Instrument):
             assert pulse.duration > 1, \
                 'found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
 
+        timer_start = time.time()
+
         # process the pulse collection into a format that is designed to deal with the low-level spincore API
         delayed_pulse_collection = self.create_physical_pulse_seq(pulse_collection)
         self.estimated_runtime = self.estimate_runtime(delayed_pulse_collection, num_loops)
         pb_state_changes = self.generate_pb_sequence(delayed_pulse_collection)
-        pb_commands = self.create_commands(pb_state_changes, num_loops)
-        # print(pb_commands)
+        pb_commands = self.create_commands(pb_state_changes, num_loops, num_loops_w_pause)
+
+        #print('Time after create command: %.2e' % (time.time() - timer_start))
+
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
 
         #MM: Updated 061719 to switch 15 ns to min_pulse_dur
         for command in pb_commands:
-            if command.duration < self.settings['min_pulse_dur']:# 15:
+            if command.duration < self.settings['min_pulse_dur']:
                 print('less than min pulse duration!!')
                 print(command)
                 print(command.duration)
@@ -694,6 +719,8 @@ class PulseBlaster(Instrument):
         assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'
         self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
         self.pb.pb_start_programming(self.PULSE_PROGRAM)
+
+        #print('Time after start program: %.2e' % (time.time() - timer_start))
 
         for pb_instruction in pb_commands:
             # note that change types to the appropriate c type, as well as set certain bits in the channel bits to 1 in
@@ -707,7 +734,7 @@ class PulseBlaster(Instrument):
                 print(pb_commands)
                 print(pb_instruction.duration)
                 print(pb_instruction)
-            assert return_value >=0, 'There was an error while programming the pulseblaster'
+            assert return_value >= 0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 
     def start_pulse_seq(self):
@@ -719,11 +746,13 @@ class PulseBlaster(Instrument):
         """
 
         self.pb.pb_start()
+        #print(self.pb.pb_read_status() & 0b100 == 0b100)
         assert self.pb.pb_read_status() & 0b100 == 0b100, 'pulseblaster did not begin running after start() called.'
 
-        if(self.settings['PB_type'] == 'PCI'): #leave USB PB connection open to stop it later
+        if(self.settings['PB_type'] == 'PCI'):  #leave USB PB connection open to stop it later
             self.pb.pb_close()
         self.sequence_start_time = datetime.datetime.now()
+
     def stop_pulse_seq(self):
         """
         Stops pulse sequence. Only needs to be called for USB pulseblasters. Requires that the PB-computer connection
@@ -866,20 +895,35 @@ if __name__ == '__main__':
     pb.test_stop()
     '''
 
-    for i in range(0,4):
-        pb.update({'laser': {'channel': i}})
-        pb.update({'laser': {'status': bool(1)}})
+    #for i in range(0,3):
+    #    pb.update({'laser': {'channel': i}})
+    #    pb.update({'laser': {'status': bool(1)}})
 
-        time.sleep(1)
+    #    time.sleep(.2)
 
+    pb.update({'laser': {'status': False}})
 
-    # import time
-    #
-    # pb = B26PulseBlaster()
-    # pb.update({'off_channel': {'channel': 6}})
-    # for i in [0 if i % 2 == 0 else 1 for i in range(5)]:
-    #     pb.update({'off_channel': {'status': bool(i)}})
-    #     time.sleep(.5)
+    pulse_collection = [Pulse('laser', 0, 100000), Pulse('apd_readout', 0, 200000)]
+    pb.program_pb(pulse_collection, num_loops=4, num_loops_w_pause=2)
+
+    pb.pb.pb_start()
+    print(pb.pb.pb_read_status() & 0b100 == 0b100)
+
+    time.sleep(.001)
+    print(pb.pb.pb_read_status() & 0b100 == 0b100)
+    pb.pb.pb_start()
+
+    print(pb.pb.pb_read_status() & 0b100 == 0b100)
+    pb.pb.pb_close()
+    pb.program_pb(pulse_collection, num_loops=4, num_loops_w_pause=2)
+
+    pb.pb.pb_start()
+    print(pb.pb.pb_read_status() & 0b100 == 0b100)
+
+    time.sleep(.001)
+    print(pb.pb.pb_read_status() & 0b100 == 0b100)
+    pb.pb.pb_start()
+
 
 
 

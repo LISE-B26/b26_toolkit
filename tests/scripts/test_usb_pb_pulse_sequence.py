@@ -1,10 +1,10 @@
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments.pulse_blaster import Pulse
 
 from pylabcontrol.core import Parameter
 
 
-class TestUsbPbPulseSequence(PulsedExperimentBaseScript):
+class TestUsbPbPulseSequence(PulsedExperimentGeneric):
 
     _DEFAULT_SETTINGS = [Parameter('num_averages', 100000, int, 'number of averages'),]
 

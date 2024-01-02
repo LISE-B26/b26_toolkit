@@ -23,8 +23,6 @@ import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
 from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold, MDT693A
-from b26_toolkit.scripts import FindNV
-
 
 try:
     from b26_toolkit.instruments import SMC100
@@ -34,14 +32,12 @@ except:
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage, GalvoScanPhotodiode
-# from pylabcontrol.scripts import FPGA_GalvoScan
+from b26_toolkit.scripts import GalvoScan, FindNv, SetLaser, TakeImage, GalvoScanPhotodiode
 
 
 class AutoFocusGeneric(Script):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective is focused.
     """
 
     _DEFAULT_SETTINGS = [
@@ -481,10 +477,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 #
 #         return p2
 
+
 class AutoFocusDAQ(AutoFocusGeneric):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
+                is focused.
     """
 
     # _DEFAULT_SETTINGS = []
@@ -560,15 +557,14 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
 
+
 class AutoFocusDAQMax(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_piezo': MDT693A
     }
-    '''
-
+    """
     Runs an autofocus daq script but instead of going to the maximum point found by the fit, goes to the maximum point in the data
-
-    '''
+    """
 
     def _function(self):
         #update piezo settings
@@ -583,14 +579,14 @@ class AutoFocusDAQMax(AutoFocusDAQ):
 
 
 class AutoFocusDAQCold(AutoFocusDAQ):
-    '''
-
+    """
     Same as AutoFocusDAQ but uses the z_piezo for the cold setup (moves the z focus slowly)
+    """
 
-    '''
     _INSTRUMENTS = {
         'z_piezo': PiezoControllerCold
     }
+
 
 class AutoFocusDaqSMC(AutoFocusDAQ):
     _INSTRUMENTS = {
@@ -628,10 +624,10 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
             self.settings['z_axis_center_position'] = self.instruments['z_driver']['instance'].read_probes('position')
         AutoFocusGeneric._function(self)
 
+
 class AutoFocusDAQWarm(AutoFocusDAQ):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective is focused.
     """
 
     # _DEFAULT_SETTINGS = []
@@ -640,18 +636,20 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         'z_piezo': PiezoController
     }
 
+
 class AutoFocusPhotodiode(AutoFocusDAQ):
     _SCRIPTS = {
         'take_image': GalvoScanPhotodiode
     }
 
+
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """
-    Adds NV finding to autofocus to compensate for z-xy coupling
+    Adds FindNv to autofocus to compensate for z-xy coupling
     """
     _SCRIPTS = {
         'take_image': GalvoScan,
-        'find_NV': FindNV,
+        'find_NV': FindNv,
         'set_laser': SetLaser
     }
     _INSTRUMENTS = {
@@ -680,6 +678,7 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         """
         self.scripts['find_NV'].run()
         self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
+
 
 class AutoFocusDaqMDT693A(AutoFocusDAQ):
     _INSTRUMENTS = {
@@ -894,6 +893,7 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
+
 
 class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
     _INSTRUMENTS = {
@@ -1158,6 +1158,7 @@ class AutoFocusCameraSMC(AutoFocusGeneric):
             self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
         time.sleep(wait_time)
 
+
 class AutoFocusDaqOptotune(AutoFocusDAQ):
     _INSTRUMENTS = {
         'ELens': OptotuneLens
@@ -1193,6 +1194,7 @@ class AutoFocusDaqOptotune(AutoFocusDAQ):
         if self.settings['use_current_z_axis_position']:
             self.settings['z_axis_center_position'] = self.instruments['ELens']['instance'].read_probes('current')
         AutoFocusGeneric._function(self)
+
 
 if __name__ == '__main__':
 

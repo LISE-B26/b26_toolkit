@@ -26,7 +26,7 @@ from b26_toolkit.plotting.plots_1d import plot_esr
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 import time
 
-class ESR_FM_Dither(Script):
+class EsrFmDither(Script):
     """
     This class runs ESR on an NV center, outputing microwaves using a MicrowaveGenerator and reading in NV counts using
     a DAQ. It uses FM using AO2 on the DAQ, which is off by a few MHz but may be faster than the other ESR script.
@@ -301,7 +301,8 @@ class ESR_FM_Dither(Script):
 
         """
         new_figure_list = [figure_list[1]]
-        return super(ESR_FM_Dither, self).get_axes_layout(new_figure_list)
+        return super(EsrFmDither, self).get_axes_layout(new_figure_list)
+
 
 if __name__ == '__main__':
     script = {}

@@ -18,16 +18,16 @@
 
 import numpy as np
 import time
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, RFGenerator, MicrowaveGenerator2, AFG3022C, Commander
 from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
 from pylabcontrol.core import Parameter
-from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts import FindNv, Esr
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
 import random
 from copy import deepcopy
 
-class NuclearRabiSRS(PulsedExperimentBaseScript): # FF_20220725
+class NuclearRabiSrs(PulsedExperimentGeneric): # FF_20220725
     """
 This script measures Rabi oscillations of a nuclear spin coupled to an NV center. This uses the SRS to drive the RF coil, as opposed to the AFG3022C.
     """
@@ -93,7 +93,7 @@ This script measures Rabi oscillations of a nuclear spin coupled to an NV center
         self.instruments['rf_gen']['instance'].update({'amplitude_rf': self.settings['rf_pulses']['rf_power']})
         self.instruments['rf_gen']['instance'].update({'frequency': self.settings['rf_pulses']['rf_frequency']})
 
-        super(NuclearRabiSRS, self)._function()
+        super(NuclearRabiSrs, self)._function()
 
         if 'counts' in self.data.keys() and 'tau' in self.data.keys():
             counts = self.data['counts'][:, 1] / self.data['counts'][:, 0]
@@ -215,7 +215,7 @@ This script measures Rabi oscillations of a nuclear spin coupled to an NV center
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
 
-class NuclearRabi(PulsedExperimentBaseScript): # FF_20220725
+class NuclearRabi(PulsedExperimentGeneric): # FF_20220725
     """
 This script measures Rabi oscillations of a nuclear spin coupled to an NV center.
     """
@@ -266,7 +266,7 @@ This script measures Rabi oscillations of a nuclear spin coupled to an NV center
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'afg': AFG3022C, 'commander': Commander}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def dbm_to_vpp(self, dbm):
         dbm = float(dbm)
@@ -474,7 +474,7 @@ class RabiPolarized(NuclearRabi):
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator,
                     'afg': AFG3022C, 'mw_gen_2': MicrowaveGenerator2}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def _configure_instruments_start_of_script(self):
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
@@ -4537,7 +4537,7 @@ class TransportDqmaMovement(RabiPolarized):
         ])
     ]
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def _configure_instruments_for_tau(self, tau):
         num_tau = len(self.data['tau']) - 4  # Actual number of tau values
@@ -4937,7 +4937,7 @@ class TransportDqmaMovementSingle(RabiPolarized):
         ])
     ]
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def _configure_instruments_for_tau(self, tau):
         phase = float(np.pi*2*self.settings['rf_pulses']['final_pi_half_pulse_phase_vary_rate'] * tau/1e9)
@@ -5420,7 +5420,7 @@ class TransportDqmaMovementRfPhase(RabiPolarized):
         ])
     ]
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def _configure_instruments_for_tau(self, phase):
         num_tau = len(self.data['tau'])-4  # Actual number of tau values
@@ -5789,7 +5789,7 @@ class TransportDqmaMovementPiPulseTime(RabiPolarized):
         ])
     ]
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
 
     def _configure_instruments_for_tau(self, tau):
 

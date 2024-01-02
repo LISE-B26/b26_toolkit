@@ -45,7 +45,8 @@ class TakeImage(Script):
         plot_fluorescence_new(self.data['image_data'], self.data['extent'], axes_list[0])
 
 if __name__ == '__main__':
-    script, failed, instruments = Script.load_and_append(script_dict={'TakeImage': 'TakeImage'})
-
-    print(script)
-    print(failed)
+    # script, failed, instruments = Script.load_and_append(script_dict={'TakeImage': 'TakeImage'})
+    #
+    # print(script)
+    # print(failed)
+    pass

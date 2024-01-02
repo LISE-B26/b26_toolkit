@@ -26,9 +26,13 @@ from b26_toolkit.plotting.plots_1d import plot_counts, update_counts,  plot_psd
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
 
-class Daq_Read_Counter_TimeTrace(Script):
+
+class DaqReadCounterTimeTrace(Script):
     """
-This script reads the Counter input from the DAQ for a give duration and plots the time trace.
+    This script reads the Counter input from the DAQ for a given duration and plots the time trace. This is a more accurately timed version of DaqReadCounter.
+    DaqReadCounter continuously runs a DAQ task over and over again, so there's some timing inaccuracy from the DAQ overhead and computer/DAQ clock differences.
+    This script runs a single DAQ task and waits until it finishes, so the timing is entirely handled by the DAQ clock and should be reliable.
+    Downside is there's no realtime info on counts.
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
@@ -53,7 +57,7 @@ This script reads the Counter input from the DAQ for a give duration and plots t
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'counts':[]}
+        self.data = {'counts': []}
 
 
     def get_daq_task(self, number_of_samples):
@@ -86,12 +90,26 @@ This script reads the Counter input from the DAQ for a give duration and plots t
             self.log('total measurement time must be positive. Abort script')
             return
 
-        self.progress = 50
+        self.progress = 0
         self.updateProgress.emit(self.progress)
 
         daq_task = self.get_daq_task(number_of_samples)
         # start counter and scanning sequence
         self.daq.run(daq_task)
+
+        if self.settings['total_int_time']/100 < 1:
+            time_divisions = int(self.settings['total_int_time'] / 1)
+            if time_divisions == 0:
+                time_divisions = 1
+        else:
+            time_divisions = 100
+
+        print(time_divisions)
+        for t in range(int(time_divisions)):
+            print(self.settings['total_int_time']/time_divisions)
+            time.sleep(self.settings['total_int_time']/time_divisions)
+            self.progress = float(t)/time_divisions*100
+            self.updateProgress.emit(self.progress)
 
         data, _ = self.daq.read(daq_task)
 
@@ -101,7 +119,7 @@ This script reads the Counter input from the DAQ for a give duration and plots t
         self.data['counts'] = counts * sample_rate/1000  # multiply by the sample rate to get kcounts /second
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter_TimeTrace, self).plot(figure_list)
+        super(DaqReadCounterTimeTrace, self).plot(figure_list)
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
@@ -116,13 +134,15 @@ This script reads the Counter input from the DAQ for a give duration and plots t
             plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
 
     def _update_plot(self, axes_list):
-        if self.data:
+        pass
+        if self.data and 1 != 1:
             axis_timetrace, axis_fft = axes_list
 
             update_counts(axes_list[0], self.data['counts'])
 
-## work in progress (JG) write generic timetrace class
-class Daq_TimeTrace_Generic(Script):
+
+# work in progress (JG) write generic timetrace class
+class DaqTimeTraceGeneric(Script):
     """
 This script reads the Counter input from the DAQ for a give duration and plots the time trace.
 Future: plot also the PSD
@@ -249,7 +269,7 @@ Future: plot also the PSD
         self.data['counts'] = counts * sample_rate/1000  # multiply by the sample rate to get kcounts /second
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter_TimeTrace, self).plot(figure_list)
+        super(DaqReadCounterTimeTrace, self).plot(figure_list)
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
@@ -269,8 +289,9 @@ Future: plot also the PSD
 
             update_counts(axes_list[0], self.data['counts'])
 
-## work in progress (JG) write generic timetrace class
-class Daq_TimeTrace_NI9402_NI9219(Script):
+
+# work in progress (JG) write generic timetrace class
+class DaqTimeTraceNi9402Ni9219(Script):
     """
     This script reads the Counter input from the DAQ for a give duration and plots the time trace.
         """
@@ -400,7 +421,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
                 daq.stop(task)
 
     def plot(self, figure_list):
-        super(Daq_TimeTrace_NI9402_NI9219, self).plot(figure_list)
+        super(DaqTimeTraceNi9402Ni9219, self).plot(figure_list)
 
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
@@ -433,10 +454,11 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
     #         update_counts(axes_list[0], self.data['counts'])
 
 
-class Daq_TimeTrace_NI6259(Daq_TimeTrace_NI9402_NI9219):
+class DaqTimeTraceNi6259(DaqTimeTraceNi9402Ni9219):
     _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
 
-class Daq_TimeTrace_NI6259_PD(Daq_TimeTrace_NI9402_NI9219): # ER 20200731
+
+class DaqTimeTraceNi6259Pd(DaqTimeTraceNi9402Ni9219): # ER 20200731
 
     '''
 

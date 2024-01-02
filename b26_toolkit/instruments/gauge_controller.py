@@ -149,7 +149,7 @@ class PressureGauge(Instrument):
 
         self.serial_connection.write(self.ENQ)
         err_msg_and_pressure = self.serial_connection.readline().rstrip(self.LF).rstrip(self.CR).decode()
-        #print(err_msg_and_pressure)
+        print(err_msg_and_pressure)
 
         err_msg = err_msg_and_pressure[0]
         pressure = float(err_msg_and_pressure[3:])
@@ -235,7 +235,7 @@ class ChamberPressureGauge(PressureGauge):
     _possible_com_ports = ['COM' + str(i) for i in range(0, 256)]
 
     _DEFAULT_SETTINGS = Parameter([
-            Parameter('port', 'COM27', _possible_com_ports, 'com port to which the gauge controller is connected'),
+            Parameter('port', 'COM10', _possible_com_ports, 'com port to which the gauge controller is connected'),
             Parameter('timeout', 2.0, float, 'amount of time to wait for a response '
                                              'from the gauge controller for each query'),
             Parameter('baudrate', 9600, int, 'baudrate of serial communication with gauge'),

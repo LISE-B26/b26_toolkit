@@ -17,17 +17,18 @@
 """
 
 import numpy as np
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_tracking import PulsedExperimentTracking
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.scripts import SelectPoints
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay
-from b26_toolkit.scripts import ESR
+from b26_toolkit.scripts import Esr
 from .rabi import Rabi
 
-class T1(PulsedExperimentBaseScript):  # ER 10.21.2017
+class T1(PulsedExperimentTracking):  # ER 10.21.2017
     """
-This script sweeps the readout pulse duration. Uses a double_init scheme
+    This script sweeps the readout pulse duration. Uses a double_init scheme
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulse', [
@@ -37,16 +38,9 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
             Parameter('pi_time', 30.0, float, 'pi time in ns')
         ]),
         Parameter('tau_times', [
-<<<<<<< HEAD
             Parameter('min_time', 20, float, 'minimum time for T1 (in ns)'),
             Parameter('max_time', 200000, float, 'total time for T1 (in ns)'),
             Parameter('time_step', 1000, float, 'time step increment of readout pulse duration (in ns)')
-=======
-            Parameter('min_time', 15, float, 'minimum time for T1 (in ns)'),
-            Parameter('max_time', 200, float, 'total time for T1 (in ns)'),
-            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000, 1000000, 5000000],
-                      'time step increment of readout pulse duration (in ns)')
->>>>>>> 2a3c074d8a53d5df7ccf8c5df8e42263428fead5
         ]),
         Parameter('read_out', [
             Parameter('nv_reset_time', 7000, int, 'time with laser on to reset state'),
@@ -188,9 +182,10 @@ This script sweeps the readout pulse duration. Uses a double_init scheme
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-class T1SingleInit(PulsedExperimentBaseScript): # ER 5.25.2017
+
+class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
     """
-This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1. To avoid needing a pi pulse we only do this once on ms = 0
+    This script measures the T1 by measuring the decay of the ms = 0 population,into +/-1. To avoid needing a pi pulse we only do this once on ms = 0
     """
     _DEFAULT_SETTINGS = [
         Parameter('tau_times', [
@@ -293,69 +288,67 @@ This script takes a T1 by measuring the decay of the ms = 0 population,into +/-1
             axislist[0].hold(True)
 
             axislist[0].plot(tau, fit_exp_decay(tau, *fits), 'k', lw=3)
-
-         #   axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz, pi-time: {:2.1f}ns, pi-half-time: {:2.1f}ns, 3pi_half_time: {:2.1f}ns, Rabi freq: {2.1f}MHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9, pi_time, pi_half_time, three_pi_half_time, rabi_freq))
             axislist[0].set_title('T1 decay of ms = 0 population')
         else:
             super(T1SingleInit, self)._plot(axislist)
             axislist[0].set_title('T1 decay of ms = 0 population')
 
-class T1_double_init_many_NVs(Script):
-    _DEFAULT_SETTINGS = [
-        Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
-    ]
-    _INSTRUMENTS = {}
-    _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi, 'T1': T1}
-
-    def _function(self):
-        for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
-            if self._abort:
-                break
-            find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
-            find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
-            find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
-            find_NV_rabi.run()
-            self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
-            self.scripts['ESR'].run()
-            fit_params = self.scripts['ESR'].data['fit_params']
-            if fit_params is None:
-                continue
-            if len(fit_params) == 4:
-                freqs = [fit_params[2]]
-            elif len(fit_params == 6):
-                if self.settings['esr_peak'] == 'lower':
-                    freqs = [fit_params[4]]
-                elif self.settings['esr_peak'] == 'upper':
-                    freqs = [fit_params[5]]
-                elif self.settings['esr_peak'] == 'both':
-                    freqs = [fit_params[4], fit_params[5]]
-            for freq in freqs:
-                if self._abort:
-                    break
-                rabi = self.scripts['Rabi']
-                rabi.settings['tag'] = 'rabi_NV' + str(num)
-                rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
-                rabi.run()
-                rabi_fit = rabi.data['fits']
-                if rabi_fit is None:
-                    continue
-                pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
-                pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
-                find_NV_T1 = self.scripts['T1'].scripts['find_nv']
-                find_NV_T1.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
-                find_NV_T1.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
-                T1 = self.scripts['T1']
-                T1.settings['mw_pulse']['mw_frequency'] = float(freq)
-                T1.settings['mw_pulse']['pi_time'] = float(pi_time)
-                T1.settings['tag'] = 't1_' + '_NV' + str(num)
-                T1.run()
-
-    def plot(self, figure_list):
-        if self._current_subscript_stage is not None:
-            if self._current_subscript_stage['current_subscript'] is not None:
-                self._current_subscript_stage['current_subscript'].plot(figure_list)
-
-
-    def skip_next(self):
-        for script in self.scripts.values():
-            script.stop()
+# class T1_double_init_many_NVs(Script):
+#     _DEFAULT_SETTINGS = [
+#         Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
+#     ]
+#     _INSTRUMENTS = {}
+#     _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi, 'T1': T1}
+#
+#     def _function(self):
+#         for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
+#             if self._abort:
+#                 break
+#             find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
+#             find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
+#             find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
+#             find_NV_rabi.run()
+#             self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
+#             self.scripts['ESR'].run()
+#             fit_params = self.scripts['ESR'].data['fit_params']
+#             if fit_params is None:
+#                 continue
+#             if len(fit_params) == 4:
+#                 freqs = [fit_params[2]]
+#             elif len(fit_params == 6):
+#                 if self.settings['esr_peak'] == 'lower':
+#                     freqs = [fit_params[4]]
+#                 elif self.settings['esr_peak'] == 'upper':
+#                     freqs = [fit_params[5]]
+#                 elif self.settings['esr_peak'] == 'both':
+#                     freqs = [fit_params[4], fit_params[5]]
+#             for freq in freqs:
+#                 if self._abort:
+#                     break
+#                 rabi = self.scripts['Rabi']
+#                 rabi.settings['tag'] = 'rabi_NV' + str(num)
+#                 rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
+#                 rabi.run()
+#                 rabi_fit = rabi.data['fits']
+#                 if rabi_fit is None:
+#                     continue
+#                 pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
+#                 pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
+#                 find_NV_T1 = self.scripts['T1'].scripts['find_nv']
+#                 find_NV_T1.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
+#                 find_NV_T1.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
+#                 T1 = self.scripts['T1']
+#                 T1.settings['mw_pulse']['mw_frequency'] = float(freq)
+#                 T1.settings['mw_pulse']['pi_time'] = float(pi_time)
+#                 T1.settings['tag'] = 't1_' + '_NV' + str(num)
+#                 T1.run()
+#
+#     def plot(self, figure_list):
+#         if self._current_subscript_stage is not None:
+#             if self._current_subscript_stage['current_subscript'] is not None:
+#                 self._current_subscript_stage['current_subscript'].plot(figure_list)
+#
+#
+#     def skip_next(self):
+#         for script in self.scripts.values():
+#             script.stop()

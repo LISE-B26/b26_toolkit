@@ -33,7 +33,7 @@ from pylabcontrol.core.helper_functions import datetime_from_str
 from b26_toolkit.data_processing.esr_signal_processing import get_lorentzian_fit_starting_values, fit_lorentzian, fit_double_lorentzian
 
 
-from b26_toolkit.scripts.find_nv import FindNV
+from b26_toolkit.scripts.find_nv import FindNv
 
 from win32com.client import Dispatch
 import pythoncom
@@ -365,7 +365,7 @@ def manual_correction(folder, target_folder, fit_data_set, nv_type_manual, b_fie
                 #             pos_init = data_pos['initial_point']
 
                 # plot NV image
-                FindNV.plot_data([ax[1]], data_pos)
+                FindNv.plot_data([ax[1]], data_pos)
 
                 # plot data and fits
                 # print("fit_params: ", fit_params)

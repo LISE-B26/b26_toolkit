@@ -5,7 +5,7 @@ from b26_toolkit.scripts import SetLaser, ZISweeper
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 
 
-class GalvoScanZI(GalvoScanGeneric):
+class GalvoScanZi(GalvoScanGeneric):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
     resulting in an image in the current field of view of the objective.

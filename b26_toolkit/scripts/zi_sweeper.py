@@ -17,14 +17,10 @@
 """
 
 from collections import deque
-
 import numpy as np
 import time
-
-
-from b26_toolkit.plotting.plots_1d import plot_psd, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.core import Script, Parameter
-
 from b26_toolkit.instruments import ZIHF2
 
 

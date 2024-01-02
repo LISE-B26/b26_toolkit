@@ -8,7 +8,7 @@ import time
 # from b26_toolkit.pylabcontrol.plotting.plots_1d import plot_esr
 # from b26_toolkit.pylabcontrol.data_processing.esr_signal_processing import fit_esr
 
-class ESRTwoFreqContinuous(Script):
+class EsrTwoFreqContinuous(Script):
     """
     This script alternatingly outputs two microwave frequencies and measured fluourescent counts for each. The difference in counts is output continuously.
     This serves as a real time signal for the magnetic field splitting if one frequency is near the dip of the esr spectrum and the other far away as a reference.

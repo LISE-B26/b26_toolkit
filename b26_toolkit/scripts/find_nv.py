@@ -21,21 +21,17 @@ from copy import deepcopy
 import numpy as np
 import trackpy as tp
 from matplotlib import patches
-import matplotlib.patheffects as pe
 
-from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan, GalvoScanSafe
+from b26_toolkit.scripts.galvo_scan.galvo_scan_pulses import GalvoScanPulsed
 from b26_toolkit.scripts.set_laser import SetLaser
 
 
-class FindNV(Script):
+class FindNv(Script):
     """
-GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
-resulting in an image in the current field of view of the objective.
-
-Known issues:
-    1.) if fits are poor, check  sweep_range. It should extend significantly beyond end of NV on both sides.
+    Takes a GalvoScan, identifies the NV, and runs SetLaser to park the laser on the NV
+    Known issue: if fits are poor, check sweep_range. It should extend significantly beyond end of NV on both sides.
     """
 
     _DEFAULT_SETTINGS = [
@@ -45,6 +41,7 @@ Known issues:
                    ]),
         Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
         Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
+        Parameter('settle_time', .0002, float, 'wait time between points to allow galvo to settle'),
         Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
         Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
@@ -112,16 +109,16 @@ Known issues:
 
         def min_mass_adjustment(min_mass):
             #COMMENT_ME
-            return (min_mass - 2)
+            return min_mass - 2
 
         self.scripts['take_image'].settings['point_a'].update({'x': self.settings['initial_point']['x'], 'y': self.settings['initial_point']['y']})
         self.scripts['take_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
         self.scripts['take_image'].update({'RoI_mode': 'center'})
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
         self.scripts['take_image'].update({'time_per_pt': self.settings['time_per_pt']})
+        self.scripts['take_image'].update({'settle_time': self.settings['settle_time']})
 
-        self.scripts['take_image'].run(verbose=True)
-
+        self.scripts['take_image'].run(verbose=False)
 
         self.data['image_data'] = deepcopy(self.scripts['take_image'].data['image_data'])
         self.data['extent'] = deepcopy(self.scripts['take_image'].data['extent'])
@@ -132,7 +129,7 @@ Known issues:
             brightest_pt = self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
             self.data['maximum_point'] = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
         else:
-            while True: # modified ER 5/27/2017 to implement tracking
+            while True:  # modified ER 5/27/2017 to implement tracking
                 locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
                 po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
                 if len(locate_info) == 0:
@@ -174,11 +171,10 @@ Known issues:
         # So we just move the laser to the initial point (usually where we think the NV is before running the script)
         if self.scripts['take_image'].safety_threshold_exceeded:
             self.scripts['set_laser'].settings['point'].update(self.settings['initial_point'])
-            self.scripts['set_laser'].run(verbose=True)
+            self.scripts['set_laser'].run(verbose=self.verbose)
         elif self.settings['adjust_laser']:
             self.scripts['set_laser'].settings['point'].update(self.data['maximum_point'])
-            self.scripts['set_laser'].run(verbose=True)
-            self.scripts['set_laser'].run()
+            self.scripts['set_laser'].run(verbose=self.verbose)
 
 
     @staticmethod
@@ -212,6 +208,7 @@ Known issues:
         else:
             self.scripts['take_image']._plot(axes_list)
             self.plot_data(axes_list, data)
+        axes_list[0].set_title('Confocal Image (FindNv)')
 
     def _update_plot(self, axes_list):
         """
@@ -245,17 +242,17 @@ Known issues:
 
         # create a new figure list that contains only figure 1, this assures that the super.get_axes_layout doesn't
         # empty the plot contained on figure 2
-        return super(FindNV, self).get_axes_layout([figure_list[0]])
+        return super(FindNv, self).get_axes_layout([figure_list[0]])
 
 
-class FindNvSafe(FindNV):
+class FindNvSafe(FindNv):
     """
+    Takes a GalvoScan, identifies the NV, and runs SetLaser to park the laser on the NV
+    Known issue: if fits are poor, check sweep_range. It should extend significantly beyond end of NV on both sides.
     Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
     Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
     destroying the string underneath
     """
-
-
 
     _DEFAULT_SETTINGS = [
         Parameter('initial_point',
@@ -263,7 +260,8 @@ class FindNvSafe(FindNV):
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
         Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
-        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1], 'time in s to measure at each point'),
+        Parameter('time_per_pt', .002, float),
+        Parameter('settle_time', .001, float),
         Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
         Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
         Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
@@ -272,7 +270,8 @@ class FindNvSafe(FindNV):
         Parameter('pick_brightest_pt', True, bool, 'check to simply set_laser on the brightess point in the scan, '
                                                    'otherwise run a fitting algorithm to determine the center'),
         Parameter('adjust_laser', True, bool, 'set laser spot on NV location'),
-        Parameter('safety_threshold', 10, float, 'when a line contains a pixel exceeding this threshold (kCt/s), the PulseBlaster will turn off the laser')
+        Parameter('safety_threshold', 10, float, 'when a line contains a pixel exceeding this threshold (kCt/s), the PulseBlaster will turn off the laser'),
+        Parameter('turn_off_laser_after', True, bool, 'turn off laser after scan')
     ]
 
     _INSTRUMENTS = {}
@@ -281,25 +280,123 @@ class FindNvSafe(FindNV):
 
     def _function(self):
         self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
+        self.scripts['take_image'].update({'turn_off_laser_after': self.settings['turn_off_laser_after']})
         super(FindNvSafe, self)._function()
 
 
-# class FindNV_cDAQ(FindNV):
-#     """
-# GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
-# resulting in an image in the current field of view of the objective.
-#
-# Known issues:
-#     1.) if fits are poor, check  sweep_range. It should extend significantly beyond end of NV on both sides.
-#     """
-#
-#     _SCRIPTS = {'take_image': GalvoScan_cDAQ, 'set_laser': SetLaser_cDAQ}
-#
-#
-#
-#     if __name__ == '__main__':
-#         script, failed, instruments = Script.load_and_append(script_dict={'FindMaxCounts': 'FindMaxCounts'})
-#
-#         print(script)
-#         print(failed)
-#         print(instruments)
+class FindNvPulsed(FindNvSafe):
+    """
+    Takes a GalvoScan with laser pulses (instead of leaving it on the whole time), identifies the NV, and runs SetLaser to park the laser on the NV
+    Known issue: if fits are poor, check sweep_range. It should extend significantly beyond end of NV on both sides.
+    Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
+    Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
+    destroying the string underneath
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('initial_point',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
+        Parameter('time_per_pt', .002, float),
+        Parameter('laser_pulse_duration', 500, float, 'duration of each laser pulse (ns)'),
+        Parameter('laser_off_time', 500, float, 'time between each laser pulse (ns'),
+        Parameter('settle_time', .001, float),
+        Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
+        Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
+        Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
+        Parameter('number_of_attempts', 5, int, 'Number of times to decrease min_mass if an NV is not found'),
+        Parameter('center_on_current_location', False, bool, 'check to use current galvo location rather than initial pt'),
+        Parameter('pick_brightest_pt', True, bool, 'check to simply set_laser on the brightess point in the scan, '
+                                                   'otherwise run a fitting algorithm to determine the center'),
+        Parameter('adjust_laser', True, bool, 'set laser spot on NV location'),
+        Parameter('safety_threshold', 10, float, 'when a line contains a pixel exceeding this threshold (kCt/s), the PulseBlaster will turn off the laser'),
+        Parameter('turn_off_laser_after', True, bool, 'turn off laser after scan')
+    ]
+    """
+    Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
+    Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
+    destroying the string underneath
+    """
+
+    _SCRIPTS = {'take_image': GalvoScanPulsed, 'set_laser': SetLaser}
+
+    def _function(self):
+        self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
+        self.scripts['take_image'].update({'turn_off_laser_after': self.settings['turn_off_laser_after']})
+        self.is_valid()
+        super(FindNvPulsed, self)._function()
+
+    def is_valid(self, pulse_sequences=None, verbose=True):
+        """
+        Validates the pulse sequence, also displays the laser/MW duty cycle
+        Returns: None
+        """
+        self.scripts['take_image'].settings['laser_pulse_duration'] = self.settings['laser_pulse_duration']
+        self.scripts['take_image'].settings['laser_off_time'] = self.settings['laser_off_time']
+        return self.scripts['take_image'].is_valid()
+
+
+class FindNvStrobe(FindNvSafe):
+    """
+    Takes a GalvoScan with laser pulses (instead of leaving it on the whole time), identifies the NV, and runs SetLaser to park the laser on the NV
+    Known issue: if fits are poor, check sweep_range. It should extend significantly beyond end of NV on both sides.
+    Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
+    Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
+    destroying the string underneath
+    """
+    from b26_toolkit.scripts.galvo_scan.galvo_scan_strobe import GalvoScanStrobe
+
+    _DEFAULT_SETTINGS = [
+        Parameter('initial_point',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('sweep_range', .025, float, 'voltage range to sweep over to find a max'),
+        Parameter('time_per_pt', .002, float),
+        Parameter('read_out', [
+            Parameter('meas_time', 340, float, 'measurement time (in ns)'),
+            Parameter('nv_reset_time', 800, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 80, int, 'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_readout', 260, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('settle_time', .0002, float, 'wait time between points to allow galvo to settle'),
+        Parameter('num_points', 22, int, 'number of points to sweep in the sweep range'),
+        Parameter('nv_size', 11, int, 'TEMP: size of nv in pixels - need to be refined!!'),
+        Parameter('min_mass', 11, int, 'TEMP: brightness of nv - need to be refined!!'),
+        Parameter('number_of_attempts', 5, int, 'Number of times to decrease min_mass if an NV is not found'),
+        Parameter('center_on_current_location', False, bool, 'check to use current galvo location rather than initial pt'),
+        Parameter('pick_brightest_pt', True, bool, 'check to simply set_laser on the brightess point in the scan, '
+                                                   'otherwise run a fitting algorithm to determine the center'),
+        Parameter('adjust_laser', True, bool, 'set laser spot on NV location'),
+        Parameter('safety_threshold', 10, float, 'when a line contains a pixel exceeding this threshold (kCt/s), the PulseBlaster will turn off the laser'),
+        Parameter('turn_off_laser_after', True, bool, 'turn off laser after scan')
+    ]
+    """
+    Same as FindNv, but automatically uses the AOM to turn off the laser when the fluorescence exceeds a defined threshold.
+    Micromagnet tends to show up with high counts when hit by the laser; this script hopes to avoid accidentally overheating a magnet with the laser and
+    destroying the string underneath
+    """
+
+    _SCRIPTS = {'take_image': GalvoScanStrobe, 'set_laser': SetLaser}
+
+    def _function(self):
+        self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
+        self.scripts['take_image'].update({'turn_off_laser_after': self.settings['turn_off_laser_after']})
+        self.is_valid()
+        super(FindNvStrobe, self)._function()
+
+    def is_valid(self, pulse_sequences=None, verbose=True):
+        """
+        Validates the pulse sequence, also displays the laser/MW duty cycle
+        Returns: None
+        """
+        self.scripts['take_image'].settings['read_out'] = self.settings['read_out']
+        self.scripts['take_image'].settings['time_per_pt'] = self.settings['time_per_pt']
+        return self.scripts['take_image'].is_valid()
+
+    def _plot(self, axes_list, data = None):
+        super(FindNvStrobe, self)._plot(axes_list, data)
+        axes_list[0].set_title('Stroboscopic Confocal Image (FindNv)')
+
+

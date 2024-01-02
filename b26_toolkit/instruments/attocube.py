@@ -198,27 +198,27 @@ class ANC300(Attocube):
         for key, value in settings.items():
             split_key = key.split('_', 1)
 
-            # if axis setting
-            if split_key[0] in self._AXES:
-                # updates axis parameters
-                if split_key[1] == 'step_amplitude':
-                    self._set_amplitude(self._convert_axis(split_key[0]), value)
-                elif split_key[1] == 'freq':
-                    self._set_frequency(self._convert_axis(split_key[0]), value)
-                elif split_key[1] == 'offset':
-                    self._set_offset(self._convert_axis(split_key[0]), value)
+            if self.ser is not None:
+                if split_key[0] in self._AXES:
+                    # updates axis parameters
+                    if split_key[1] == 'step_amplitude':
+                        self._set_amplitude(self._convert_axis(split_key[0]), value)
+                    elif split_key[1] == 'freq':
+                        self._set_frequency(self._convert_axis(split_key[0]), value)
+                    elif split_key[1] == 'offset':
+                        self._set_offset(self._convert_axis(split_key[0]), value)
+                    else:
+                        raise ValueError('No such key')
+
+                # update connection parameters
+                elif key == 'port':
+                    self.ser.port = value
+                elif key == 'baudrate':
+                    self.ser.baudrate = value
+                elif key == 'timeout':
+                    self.ser.timeout = value
                 else:
                     raise ValueError('No such key')
-
-            # update connection parameters
-            elif key == 'port':
-                self.ser.port = value
-            elif key == 'baudrate':
-                self.ser.baudrate = value
-            elif key == 'timeout':
-                self.ser.timeout = value
-            else:
-                raise ValueError('No such key')
 
     def _connect(self, port, baudrate=38400, timeout=1.):
         '''
@@ -343,9 +343,10 @@ class ANC300(Attocube):
 
             if mode == 'input':
                 # Enable DC-input
+                self._set_filter(axis, 16)
                 self.ser.write('setdci {} {}\n'.format(axis, 'on').encode())
                 self._get_OK()
-                self._set_filter(axis, 16)
+                #self._set_filter(axis, 16)
 
     def get_pattern(self, axis, dir):
         '''
@@ -429,7 +430,7 @@ class ANC300(Attocube):
 
         # Start capacitance measurement
         self._set_mode(axis, 'capacitance')
-        #self.ser.write('setm {} cap\n'.format(axis).encode())
+        # self.ser.write('setm {} cap\n'.format(axis).encode())
 
         # Wait for capacitance measurement to finish
         self.ser.write('capw {}\n'.format(axis).encode())
@@ -574,8 +575,8 @@ class ANC300(Attocube):
         }
 
     def read_probes(self, key):
-        assert key in list(self._PROBES.keys())
-        assert isinstance(key, str)
+        #assert key in list(self._PROBES.keys())
+        #assert isinstance(key, str)
 
         if key in [el + '_step_amplitude' for el in self._AXES]:
             return self._get_amplitude(self._convert_axis(key.split('_')[0]))
@@ -860,7 +861,7 @@ class ANC350(Attocube):
             return self._cap_measure(self._convert_axis(key[0]))
 
 if __name__ == '__main__':
-    print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
+    #print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
 
     """
     try:
@@ -888,6 +889,7 @@ if __name__ == '__main__':
         print(pattern)
         
     """
+    print('start')
     a = ANC300()
     #a.update({'z_offset': 34})
     print(a)
@@ -895,6 +897,9 @@ if __name__ == '__main__':
     current_time = time.strftime("%H:%M:%S", t)
     print(current_time)
     print(a.read_probes('z_offset'))
+    a._set_mode(1, 'ground')
+    a._set_mode(2, 'ground')
+    a._set_mode(3, 'ground')
 
     #a.update({'z_step_amplitude': 25})
     #print(a.read_probes('z_step_amplitude'))
