@@ -86,11 +86,11 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
 
     def _configure_param_array(self):
         """
-        Contruct the parameter array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
+        Contruct the parameter array and store it in a variable called 'self.params'. Despite the naming, it's just a list of parameters to be swept;
         it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
         :return:
         """
-
+        self.params = []
         raise NotImplementedError
 
     def _function(self, in_data=None):
@@ -413,12 +413,13 @@ class ParamSweepFastGeneric(ParamSweepGeneric):
     def _run_sweep(self, pulse_sequences, num_loops_sweep, num_daq_reads, verbose=False):
         # We just take the first pulse sequence, because they should be all the same for PulsedESR-type scripts
         if self.first_time_program_PB:
-            self.instruments['PB']['instance'].program_pb(self.pulse_sequences[0],
-                                                          num_loops=self.settings['averaging_block_size'], num_loops_w_pause=self.sweep_params['param_points'])
+            self.instruments['PB']['instance'].program_pb(self.pulse_sequences[0], num_loops=self.settings['averaging_block_size'])
             self.first_time_program_PB = False
+
 
         # We use a lower-level start function because start_pulse_seq() closes the connection the PB after starting the pulse seq
         # Here we program the PB such that it waits for a start command after measuring an averaging block for each frequency, so we need to keep the comm open
+        self.instruments['PB']['instance'].pb.pb_reset()
         self.instruments['PB']['instance'].pb.pb_start()
 
         # Allocate some time for the PB to run before moving on to the next MW freq/parameter

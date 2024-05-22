@@ -65,7 +65,7 @@ class GalvoScan(GalvoScanGeneric):
 
     _SCRIPTS = {}
 
-    def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path=None):
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
         Initializes GalvoScan script for use in gui
 
@@ -130,10 +130,12 @@ class GalvoScan(GalvoScanGeneric):
             pass
 
         sample_rate = float(1) / self.settings['settle_time']
-        self.daq_out.settings['analog_output'][
-            self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate
-        self.daq_out.settings['analog_output'][
-            self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = sample_rate
+        if 'x' in self.settings['point_a']:
+            self.daq_out.settings['analog_output'][
+                self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate
+        if 'y' in self.settings['point_a']:
+            self.daq_out.settings['analog_output'][
+                self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = sample_rate
         self.daq_in.settings['digital_input'][
             self.settings['DAQ_channels']['counter_channel']]['sample_rate'] = sample_rate
 
@@ -396,7 +398,7 @@ class GalvoScanSafe(GalvoScan):
         Returns:
 
         """
-        if self.settings['turn_off_laser_after']:
+        if 'turn_off_laser_after' in self.settings and self.settings['turn_off_laser_after']:
             self.instruments['PB']['instance'].update({'laser': {'status': False}})
 
 

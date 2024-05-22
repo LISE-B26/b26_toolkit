@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
         #a.digital_write(3, 0)
         for i in range(20):
-            a.digital_write(1, 1)
+            a.digital_write(13, 1)
             time.sleep(100e-3)
-            a.digital_write(1, 0)
+            a.digital_write(13, 0)
             time.sleep(100e-3)

@@ -18,7 +18,7 @@
 import time
 import numpy as np
 
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
 
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
@@ -41,7 +41,7 @@ from datetime import datetime
 """
 import time
 import numpy as np
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
 from b26_toolkit.instruments import CryoStation
@@ -300,7 +300,7 @@ class RecordPressuresTemperature(Script):
         labs = [l.get_label() for l in lns]
         #ax2.legend(lns, labs, loc=0)
 
-        axes_list[0].set_title('Pressure: %.3e Torr; Temp A: %.3f $\pm$%.3f K; Temp B: %.3f $\pm$%.3f K'%
+        axes_list[0].set_title('Pressure: %.3e Torr; Temp A: %.3f ${{\pm}}$%.3f K; Temp B: %.3f ${{\pm}}$%.3f K'%
                                (self.data['chamber_pressures'][-1],
                                 self.data['temperaturesA'][-1], np.std(self.data['temperaturesA'][-10:-1]),
                                 self.data['temperaturesB'][-1], np.std(self.data['temperaturesB'][-10:-1])))

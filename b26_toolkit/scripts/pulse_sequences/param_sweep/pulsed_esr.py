@@ -120,18 +120,18 @@ class PulsedEsr(ParamSweepGeneric):
             self.params = [self.settings['freq_start']]
         elif self.settings['range_type'] == 'start_stop':
             if self.settings['freq_start'] > self.settings['freq_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Error: end freq must be larger than start freq when range_type is start_stop.', flag='error')
                 self._abort = True
 
             if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
-                self.log('start or stop frequency out of bounds')
+                self.log('Error: start or stop frequency out of bounds.', flag='error')
                 self._abort = True
 
             self.params = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
 
         elif self.settings['range_type'] == 'center_range':
             if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self.log('Error: end freq (range) must be smaller than 2x start freq (center) when range_type is center_range.', flag='error')
                 self._abort = True
             self.params = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
                                       self.settings['freq_start'] + self.settings['freq_stop'] / 2, self.settings['freq_points'])
@@ -368,18 +368,18 @@ class PulsedEsrFast(ParamSweepFastGeneric):
             self.params = [self.settings['freq_start']]
         elif self.settings['range_type'] == 'start_stop':
             if self.settings['freq_start'] > self.settings['freq_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Error: end freq must be larger than start freq when range_type is start_stop..', flag='error')
                 self._abort = True
 
             if self.settings['freq_start'] < 0 or self.settings['freq_stop'] > 4.05E9:
-                self.log('start or stop frequency out of bounds')
+                self.log('Error: start or stop frequency out of bounds.', flag='error')
                 self._abort = True
 
             self.params = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
 
         elif self.settings['range_type'] == 'center_range':
             if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self.log('End freq(range) must be smaller than 2x start freq (center) when range_type is center_range.', flag='error')
                 self._abort = True
             self.params = np.linspace(self.settings['freq_start'] - self.settings['freq_stop'] / 2,
                                       self.settings['freq_start'] + self.settings['freq_stop'] / 2, self.settings['freq_points'])
@@ -451,7 +451,7 @@ class PulsedEsrUpperLower(PulsedEsrFast):
         Parameter('freq_stop_upper', 1e8, float, 'end frequency of scan in Hz'),
         Parameter('range_type', 'center_range', ['start_stop', 'center_range'],
                   'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 40, int, 'number of frequencies in scan in Hz'),
+        Parameter('freq_points', 40, int, 'number of frequencies for each upper and lower scans'),
         Parameter('read_out', [
             Parameter('meas_time', 34, float, 'measurement time (in ns)'),
             Parameter('nv_reset_time', 800, int, 'time with laser on to reset state'),
@@ -493,11 +493,11 @@ class PulsedEsrUpperLower(PulsedEsrFast):
 
         if self.settings['range_type'] == 'start_stop':
             if freq_start_lower > freq_stop_lower or freq_start_upper > freq_stop_upper:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Error: end freq must be larger than start freq when range_type is start_stop..', flag='error')
                 self._abort = True
 
             if freq_start_lower < 0 or freq_stop_lower > 4.05E9 or freq_start_upper < 0 or freq_stop_upper > 4.05E9:
-                self.log('start or stop frequency out of bounds')
+                self.log('Error: start or stop frequency out of bounds.', flag='error')
                 self._abort = True
 
             self.mw_frequencies_upper = np.linspace(freq_start_upper, freq_stop_upper, freq_points)
@@ -505,17 +505,17 @@ class PulsedEsrUpperLower(PulsedEsrFast):
 
         elif self.settings['range_type'] == 'center_range':
             if freq_start_lower < 2 * freq_stop_lower or freq_start_upper < 2 * freq_stop_upper:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self.log('Error: end freq (range) must be smaller than 2x start freq (center) when range_type is center_range.', flag='error')
                 self._abort = True
             self.mw_frequencies_lower = np.linspace(freq_start_lower - freq_stop_lower / 2,
                                                     freq_start_lower + freq_stop_lower / 2, freq_points)
             self.mw_frequencies_upper = np.linspace(freq_start_upper - freq_stop_upper / 2,
                                                     freq_start_upper + freq_stop_upper / 2, freq_points)
         if np.max(self.mw_frequencies_lower) > np.min(self.mw_frequencies_upper):
-            self.log('WARNING: Lower frequency scan overlaps with higher frequency scan')
+            self.log('Warning: Lower frequency scan overlaps with higher frequency scan', flag='reminder')
 
         self.params = np.concatenate((self.mw_frequencies_lower, self.mw_frequencies_upper))
-        self.settings['freq_points'] *= 2
+        # self.settings['freq_points'] *= 2  # This causes the script to double its freq points every time it's run as a subscript!!!
 
     def get_axes_layout(self, figure_list):
         """

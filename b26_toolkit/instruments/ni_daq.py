@@ -95,6 +95,7 @@ class DAQ(Instrument):
     try:
         dll_path = get_config_value('NIDAQ_DLL_PATH',
                                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt'))
+        print(dll_path)
 
         if not os.name == 'nt':
             # checks for windows. If not on windows, check for your OS and add
@@ -659,6 +660,7 @@ class DAQ(Instrument):
 
         task_name = self._add_to_tasklist('ai', task)
 
+
         channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
         if 'analog_input' not in list(self.settings.keys()):
             raise ValueError('This DAQ does not support analog input')
@@ -685,6 +687,101 @@ class DAQ(Instrument):
                                                             self.settings['analog_input'][channel]['sample_rate']),
                                                            DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                            uInt64(task['sample_num'])))
+
+        return task_name
+
+    def setup_AI_multi_channel(self, channels, num_samples_to_acquire, continuous=False, clk_source=""):
+        """
+        Initializes an input channel to read on
+        Args:
+            channel: Channel to read input
+            num_samples_to_acquire: number of samples to acquire on that channel
+        """
+
+        task = {
+            'task_handle': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+
+        task_name = self._add_to_tasklist('ais', task)
+
+        channel_list = ''.encode('ascii')
+        for c in channels:
+            channel_list += (self.settings['device'] + '/' + c + ',').encode('ascii')
+        channel_list = channel_list[:-1]  # Gets rid of the last comma
+
+        if 'analog_input' not in list(self.settings.keys()):
+            raise ValueError('This DAQ does not support analog input')
+        task['task_handle'] = TaskHandle(0)
+        task['sample_num'] = num_samples_to_acquire * len(channels)
+        data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
+        # now, on with the program
+
+        if not (clk_source == ""):
+            clk_source = self.tasklist[clk_source]['counter_out_PFI_str']
+
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
+                                                              DAQmx_Val_Cfg_Default,
+                                                              float64(-10.0), float64(10.0),
+                                                              DAQmx_Val_Volts, None))
+        if not continuous:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
+                self.settings['analog_input'][channels[0]]['sample_rate']),
+                                                               DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
+                                                               uInt64(task['sample_num'])))
+        else:
+            self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
+                self.settings['analog_input'][channels[0]]['sample_rate']),
+                                                               DAQmx_Val_Rising, DAQmx_Val_ContSamps,
+                                                               uInt64(task['sample_num'])))
+
+        return task_name
+
+    def setup_AI_triggered(self, channel, num_samples_to_acquire, clk_source="", trig_source=""):
+        """
+        Initializes an input channel to read on
+        Args:
+            channel: Channel to read input
+            num_samples_to_acquire: number of samples to acquire on that channel
+        """
+
+        task = {
+            'task_handle': None,
+            'sample_num': None,
+            'sample_rate': None,
+            'num_samples_per_channel': None,
+            'timeout': None
+        }
+
+        task_name = self._add_to_tasklist('ai', task)
+
+        channel_list = (self.settings['device'] + '/' + channel).encode('ascii') # ER 20180626
+        if 'analog_input' not in list(self.settings.keys()):
+            raise ValueError('This DAQ does not support analog input')
+        task['task_handle'] = TaskHandle(0)
+        task['sample_num'] = num_samples_to_acquire
+        data = numpy.zeros((task['sample_num'],), dtype=numpy.float64)
+        # now, on with the program
+
+        if not (clk_source == ""):
+            clk_source = self.tasklist[clk_source]['counter_out_PFI_str']
+
+        self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
+        self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
+                                                              DAQmx_Val_Cfg_Default,
+                                                              float64(-10.0), float64(10.0),
+                                                              DAQmx_Val_Volts, None))
+        self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
+                                                       self.settings['analog_input'][channel]['sample_rate']),
+                                                       DAQmx_Val_Rising, DAQmx_Val_FiniteSamps,
+                                                       uInt64(task['sample_num'])))
+        self._check_error(self.nidaq.DAQmxCfgDigEdgeStartTrig(task['task_handle'],
+                                                              trig_source,
+                                                              DAQmx_Val_Rising))
 
         return task_name
 
@@ -758,9 +855,26 @@ class DAQ(Instrument):
         Returns: array of ctypes.c_long with the voltage data
         """
         task = self.tasklist[task_name]
+
         data = (float64 * task['sample_num'])()
         samples_per_channel_read = int32()
         self._check_error(self.nidaq.DAQmxReadAnalogF64(task['task_handle'], task['sample_num'], float64(10.0),
+                                                        DAQmx_Val_GroupByChannel, ctypes.byref(data), #data.ctypes.data, ER 20180626
+                                                        task['sample_num'], ctypes.byref(samples_per_channel_read), None))
+
+        return data, samples_per_channel_read
+
+    def read_AI_multi_channel(self, task_name):
+        """
+        Only difference is that I replaced number of samples to read from task['sample_num'] to -1
+        Reads the AI voltage values from the buffer
+        Returns: array of ctypes.c_long with the voltage data
+        """
+        task = self.tasklist[task_name]
+
+        data = (float64 * task['sample_num'])()
+        samples_per_channel_read = int32()
+        self._check_error(self.nidaq.DAQmxReadAnalogF64(task['task_handle'], -1, float64(10.0),
                                                         DAQmx_Val_GroupByChannel, ctypes.byref(data), #data.ctypes.data, ER 20180626
                                                         task['sample_num'], ctypes.byref(samples_per_channel_read), None))
 
@@ -804,6 +918,8 @@ class DAQ(Instrument):
     def read(self, task_name):
         if 'ctr' in task_name:
             return(self.read_counter(task_name))
+        elif 'ais' in task_name:
+            return(self.read_AI_multi_channel(task_name))
         elif 'ai' in task_name:
             return(self.read_AI(task_name))
         else:
@@ -1520,6 +1636,7 @@ class NI9263_02(DAQ):
         self._check_error(self.nidaq.DAQmxCfgDigEdgeStartTrig(task['task_handle'],
                                                               trig_source,
                                                               DAQmx_Val_Rising))
+
         self._check_error(self.nidaq.DAQmxWriteAnalogF64(task['task_handle'],
                                                          int32(task['sample_num']),
                                                          0,
@@ -1619,15 +1736,16 @@ def buffersize_to_time(size, ticks=56):
 
 
 # if __name__ == '__main__':
+#     from matplotlib import pyplot as plt
 #
 #     daq_di, failed_di = Instrument.load_and_append({'daq': NI9402})
 #     daq_ao, failed_ao = Instrument.load_and_append({'daq': NI9263_02})
 #
 #
 #     sample_rate = 100000
-#     daq_ao['daq'].settings['analog_output']['ao0']['sample_rate'] = sample_rate
+#     daq_ao['daq'].settings['analog_output']['ao2']['sample_rate'] = sample_rate
 #     period = 500e-6
-#     t_end = period
+#     t_end = period*5
 #     t_array = np.linspace(0, t_end, int(t_end*sample_rate))
 #     waveform = np.sin(2*np.pi*t_array/period)
 #     waveform = signal.sawtooth(2 * np.pi * t_array / period, 0.5) + 1
@@ -1636,7 +1754,7 @@ def buffersize_to_time(size, ticks=56):
 #     trig_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
 #     print(trig_source)
 #     clk_source = ('/cDAQ1Mod2/PFI2').encode('ascii')
-#     task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
+#     task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao2'],
 #                                             waveform=waveform, trig_source=trig_source)
 #     #task = daq_ao['daq'].setup_AO_triggered_single(channels=['ao0'],
 #     #                                        waveform=waveform, clk_source=clk_source, trig_source=trig_source)
@@ -1644,8 +1762,12 @@ def buffersize_to_time(size, ticks=56):
 #     daq_ao['daq'].run(task)
 #
 #     time.sleep(5)
+#
+#     plt.plot(t_array, waveform)
+#     plt.show()
 
-if __name__ == '__main__':
+
+# if __name__ == '__main__':
 
     # def stop(task_name):
     #     #remove task to be cleared from tasklist
@@ -1695,32 +1817,147 @@ if __name__ == '__main__':
     #     print()
     #     daq.stop(ctrtask)
 
-    pt = (0, 0)
-    pt = np.transpose(np.column_stack((pt[0], pt[1])))
-    pt = (np.repeat(pt, 2, axis=1))
+
+def rising_edge(data, thresh):
+    sign = data >= thresh
+    pos = np.where(np.convolve(sign, [1, -1]) == 1)
+    return pos[0]
+
+
+if __name__ == '__main__':
+    import numpy as np
+    from matplotlib import pyplot as plt
+    from b26_toolkit.instruments.thorlabs_kcube import B26KDC001x, B26KDC001y
+
+    #time_per_pt = 0.015
+    x_start = 4.9
+    x_end = x_start + 0.2
+    y_start = 4.9
+    y_end = y_start + 0.2
+    n = 50
+    ny = 50
+    time_per_pt = 0.01*40/n
+    y_array = np.linspace(y_start, y_end, ny)
+    vel = (x_end - x_start) / n / time_per_pt
+    print('Requested scan vel: %.3f mm/s' % vel)
+    #assert vel < 0.45
+
+    cube_x = B26KDC001x()
+    cube_y = B26KDC001y()
+
+    daq_ai, failed_ai = Instrument.load_and_append({'daq': NI9215})
+    sample_rate = 10000
+    t_end = time_per_pt * n
+    daq_ai['daq'].settings['analog_input']['ai0']['sample_rate'] = sample_rate
+    daq_ai['daq'].settings['analog_input']['ai2']['sample_rate'] = sample_rate
+
+    cube_x.settings['velocity'] = vel
+    cube_x.set_velocity()
+
+    cube_y.settings['velocity'] = 2
+    cube_y.set_velocity()
+    img = []
+    y_array = np.insert(y_array, 0, y_array[0])
+
+    reverse_dir = False
+    margin = (x_end - x_start) / n * 2
+    t_margin = 0.1 / 0.2 * (x_end-x_start)
+
+    trigger_config = {'trigger1Mode': 13,
+                      'trigger1Polarity': 1,
+                      'trigger2Mode': 0,
+                      'trigger2Polarity': 1}
+
+    trigger_params = {'triggerStartPositionFwd': x_start,
+                      'triggerIntervalFwd': (x_end - x_start) / n,
+                      'triggerPulseCountFwd': n,
+                      'triggerStartPositionRev': x_end,
+                      'triggerIntervalRev': (x_end - x_start) / n,
+                      'triggerPulseCountRev': n,
+                      'triggerPulseWidth': 5000,
+                      'cycleCount': ny*n}
+
+    trigger_config_dummy = {'trigger1Mode': 0,
+                      'trigger1Polarity': 0,
+                      'trigger2Mode': 0,
+                      'trigger2Polarity': 1}
+
+
+    # cube_x.settings['position'] = float(x_start - margin)
+    # cube_x.set_position()
+    # assert cube_x.set_trigger_config(trigger_config_dummy) == 0
+    assert cube_x.set_trigger_params(trigger_params) == 0
+    # assert cube_x.set_trigger_config(trigger_config) == 0
+
+    for i, y in enumerate(y_array):
+        t_start = time.time()
+        print(i)
+        cube_y.settings['position'] = float(y)
+        cube_y.set_position()
+
+        cube_x.settings['velocity'] = 2
+        cube_x.set_velocity()
+        cube_x.settings['position'] = float(x_start - margin)
+        cube_x.set_position()
+        print(cube_x.get_position())
+        assert cube_x.set_trigger_config(trigger_config) == 0
+
+        task = daq_ai['daq'].setup_AI_multi_channel(['ai0', 'ai2'], int((t_end+t_margin)*sample_rate), continuous=False)
+        daq_ai['daq'].run(task)
+
+        if reverse_dir:
+            print('REVERSE!')
+            cube_x.settings['position'] = float(x_start - margin)
+            cube_x.set_position()
+        else:
+            print('FORWARD!')
+            cube_x.settings['velocity'] = vel
+            cube_x.set_velocity()
+            cube_x.settings['position'] = float(x_end + margin)
+            cube_x.set_position()
+
+        raw_data, num_read = daq_ai['daq'].read(task)
+        daq_ai['daq'].stop(task)
+
+        data = [float(value) for value in raw_data]
+
+        if reverse_dir:
+            data = data[::-1]
+
+        t_array = np.linspace(0, t_end, int((t_end+t_margin)*sample_rate))*1000
+
+        data_1 = np.array(data[:int(np.shape(data)[0]/2)])
+        data_2 = np.array(data[int(np.shape(data)[0]/2):])
+
+        pixel_edges = rising_edge(data_2, 3)
+        print('Detected %i edges!' % len(pixel_edges))
+        pixels = np.split(data_1, pixel_edges)[1:]
+        pixels = [np.max(pixel)-np.min(pixel) for pixel in pixels]
+        t_trigger = np.split(t_array, pixel_edges)[1:]
+        t_trigger = [np.min(t_block) for t_block in t_trigger]
+        t_trigger = np.diff(t_trigger)
+
+        plt.plot(t_array, data_1)
+        plt.plot(t_array, data_2/5*(np.max(data_1)-np.min(data_1)))
+        plt.show()
+
+        #print('Trigger times: ')
+        #print(np.min(t_trigger), np.max(t_trigger), np.average(t_trigger))
+
+        img.append(pixels)
+        print('Time elapsed %.1f'%(time.time()-t_start))
+
+    cube_x._close_device()
+    cube_y._close_device()
+
+    img = np.array(img[1:])
+    print(np.shape(img))
+    plt.imshow(img)
+    plt.show()
 
 
 
-    daq, failed = Instrument.load_and_append({'daq': NI9263})
-    daq = daq['daq']
 
-    # Is it faster to prepare tasks beforehand?
-    n = 100
-    # Prep beforehand
-    t_start = time.time()
-    tasks = []
-    for x in np.linspace(0, .5, n):
-        tasks.append(daq.setup_AO(['ao1'], [x]))
-    for task in tasks:
-        daq.run(task)
-        daq.waitToFinish(task)
-        daq.stop(task)
-    print(time.time()-t_start)
 
-    t_start = time.time()
-    for x in np.linspace(0, .5, n):
-        task = daq.setup_AO(['ao1'], [x])
-        daq.run(task)
-        daq.waitToFinish(task)
-        daq.stop(task)
-    print(time.time()-t_start)
+
+

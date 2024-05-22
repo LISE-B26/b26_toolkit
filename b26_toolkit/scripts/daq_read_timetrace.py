@@ -23,7 +23,7 @@ import numpy as np
 
 from b26_toolkit.instruments import NI6259,PiezoController
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
 
 # JG: NOT FINISHED JUST COPIED CODE AND DIDN"T ADAPT IT YET
 class SimplePiezoSweep(Script):

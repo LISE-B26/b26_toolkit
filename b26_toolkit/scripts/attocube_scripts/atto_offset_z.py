@@ -39,5 +39,6 @@ class AttoOffsetZ(Script):
         and the direction and number specified in settings
         """
         attocube = self.instruments['ANC300']['instance']
+        # attocube._set_filter( 3, 16)
         attocube._set_offset(3, self.settings['z_offset'])
         self.log('Z-axis Attocube offset changed to %.1f V' % attocube.read_probes('z_offset'))

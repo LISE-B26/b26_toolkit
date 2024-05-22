@@ -59,7 +59,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         Parameter('settle_time', .001, float, 'wait time between points to allow galvo to settle'),
         Parameter('samples_per_point', 24, int, 'number of samples per pt, each sample takes as long as the settle time'),
         #Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
-        Parameter('statistics', 'mean', ['mean', 'std', 'min-max'], 'value to plot based on the samples'),
+        Parameter('statistics', 'min-max', ['mean', 'std', 'min-max'], 'value to plot based on the samples'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         #Parameter('scanner', 'kinematic_mount', ['kinematic_mount', 'galvo'], 'choose whether to use galvo or kinematic mount to scan the sample'),
         Parameter('DAQ_channels',
@@ -72,7 +72,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'NI9215': NI9215, 'NI9402': NI9402, 'NI9263': NI9263}
+    _INSTRUMENTS = {'NI9215': NI9215, 'NI9402': NI9402, 'NI9263_02': NI9263_02}
 
     _SCRIPTS = {}
 

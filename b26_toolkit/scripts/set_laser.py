@@ -289,14 +289,11 @@ class SetAtto(SetAttoPiezoController):
         #self.log_message()
 
 
-class SetLaserInterferometer(SetAttoPiezoController):
+class SetLaserInterferometer(SetLaser):
     """
     Simply SetLaser with a different scaling factor for the voltages. Wrote this to set IR laser spot using kinematic mount piezos, but can be much more general.
     """
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9263_02': NI9263_02}
-
-    def scale(self):
-        return 15
+    _INSTRUMENTS = {'NI9263_02': NI9263_02}
 
 
 class SetLaserSingleAxis(SetLaser):

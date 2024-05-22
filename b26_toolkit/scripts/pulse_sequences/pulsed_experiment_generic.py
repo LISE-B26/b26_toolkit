@@ -21,9 +21,10 @@ from copy import deepcopy
 import numpy as np
 import time
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
-import random, datetime
+import random
+import datetime
 import time as t
 
 # ER 20210302 CHANGE HERE TO 1e4 if you want
@@ -210,6 +211,8 @@ class PulsedExperimentGeneric(Script):
             time_elapsed = t.time() - time_start
             self.log("Completed average block %i of %i in %s" %
                      (average_loop + 1, int(num_1E5_avg_pb_programs), str(datetime.timedelta(seconds=time_elapsed))[:-7]))
+            if 'loop_delay' in self.settings:
+                time.sleep(self.settings['loop_delay'])
 
         if remainder != 0 and not self._abort:
             self.current_averages = self.num_averages
@@ -248,7 +251,7 @@ class PulsedExperimentGeneric(Script):
             # The following does not work for pulsedelays; you need to comment out the 'if' for it to work.
             # if counts != []:
             #     plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['cousants'])
-            plot_1d_simple_timetrace_ns(axes_list[0], data['tau'], [data['counts']])
+            plot_1d_simple_timetrace(axes_list[0], data['tau'], [data['counts']])
             plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
 
     def _update_plot(self, axes_list):
@@ -263,7 +266,7 @@ class PulsedExperimentGeneric(Script):
         counts = self.data['counts']
         x_data = self.data['tau']
         axis1 = axes_list[0]
-        if not counts == []:
+        if not counts is []:
             update_1d_simple(axis1, x_data, [counts])
         axis2 = axes_list[1]
         update_pulse_plot(axis2, self.pulse_sequences[self.sequence_index])
@@ -316,6 +319,7 @@ class PulsedExperimentGeneric(Script):
 
             timer_start = time.time()
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
+
             #print('Time for running single seq: %.2e' % float(time.time() - timer_start))
 
             # self.result_current is added here for pulsed_esr. In a usual pulse sequence (e.g. Rabi), there are 2
@@ -385,7 +389,13 @@ class PulsedExperimentGeneric(Script):
             daq = self.instruments['NI9402']['instance']
 
         timer_start = time.time()
-        self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
+        try:
+            self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
+        except AssertionError:
+            self.log('Error programming PB, aborting script')
+            self._abort = True
+            return np.zeros(num_daq_reads)
+
         #print('Time after program PB: %.2e' % (time.time() - timer_start))
 
         # TODO(AK): figure out if timeout is actually needed
@@ -909,7 +919,7 @@ class PulsedExperimentGeneric(Script):
         if logging:
             if invalid_tau_list:
                 self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
-                         "included: " + str(invalid_tau_list))
+                         "included: " + str(invalid_tau_list), flag='reminder')
             else:
                 self.log("All generated pulse sequences are valid. No tau times will be skipped.")
 
@@ -939,30 +949,31 @@ class PulsedExperimentGeneric(Script):
 
         if scenario == 'before_block' and self.settings['track_nv']['before_block']:
             self.log('Running FindNv before averaging block')
-            self.scripts['find_nv'].run(verbose=False)
+            self.scripts['find_nv'].run(verbose=True)
             self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
         if scenario == 'force':
             self.log('Running FindNv on manual request')
-            self.scripts['find_nv'].run(verbose=False)
+            self.scripts['find_nv'].run(verbose=True)
             self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
         elif scenario == 'check_threshold' and self.settings['track_nv']['below_threshold']:
             threshold = self.settings['track_nv']['threshold']
             init_fluor = self.settings['track_nv']['init_fluor']
             findnv_attempts = 0
             counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
-            self.log('Counts are below threshold; running FindNv')
             while counts_unsatisfactory:
-                self.scripts['find_nv'].run(verbose=False)
+                self.log('Counts are below threshold; running FindNv')
+                self.scripts['find_nv'].run(verbose=True)
                 self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
                 findnv_attempts += 1
                 threshold *= 0.9
                 counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
                 if findnv_attempts >= 3:
-                    self.log('FindNv was unsuccessful after 5 attempts. Aborting script')
+                    self.log('FindNv was unsuccessful after 5 attempts. Aborting script', flag='error')
                     abort_script = True
                     break
                 elif counts_unsatisfactory:
-                    self.log('Counts still below threshold after FindNv, running FindNv again with lower threshold of %.1f kCt/s' % (threshold*init_fluor))
+                    self.log('Counts still below threshold after FindNv, running FindNv again with lower threshold of %.1f kCt/s' % (threshold*init_fluor),
+                             flag='reminder')
 
         return abort_script
 

@@ -108,7 +108,7 @@ class StroboscopicSweep(Script):
         # contruct the frequency array
         if self.settings['range_type'] == 'start_stop':
             if freq_start > freq_stop:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Warning: end freqmust be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
 
             if freq_start < self.afg.FREQ_MIN or freq_stop > self.afg.FREQ_MAX: # freq range of the SRS
@@ -119,7 +119,7 @@ class StroboscopicSweep(Script):
 
         elif self.settings['range_type'] == 'center_range':
             if freq_start < 2 * freq_stop:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self.log('Warning: end freq(range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
 
             freq_values = np.linspace(freq_start - freq_stop / 2,

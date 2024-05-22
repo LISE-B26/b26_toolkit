@@ -159,7 +159,7 @@ class FindNv(Script):
                     min_mass = min_mass_adjustment(min_mass)
                     attempt_num += 1
                 else:
-                    self.log('FindNV did not find an NV --- setting laser to initial point instead, setting fluorescence to zero')
+                    self.log('Warning: FindNv did not find an NV --- setting laser to initial point instead, setting fluorescence to zero')
                     self.data['fluorescence'] = 0.0
                     break
 

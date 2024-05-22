@@ -103,7 +103,7 @@ class PulsedExperimentTracking(PulsedExperimentGeneric):
                 threshold *= 0.9
                 counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
                 if findnv_attempts >= 3:
-                    self.log('FindNv was unsuccessful after 5 attempts. Aborting script')
+                    self.log('Error: FindNv was unsuccessful after 5 attempts. Aborting script')
                     abort_script = True
                     break
                 elif counts_unsatisfactory:

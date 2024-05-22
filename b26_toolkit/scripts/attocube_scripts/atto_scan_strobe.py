@@ -68,7 +68,14 @@ class AttoScanAnc300Pulsed(GalvoScanStrobe):
                    Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
                    Parameter('freq', 2.87e9, float, 'start frequency of scan in Hz'),
                    Parameter('normalize_scan', False, bool, 'Normalize scan by taking each line twice, with MW off and on')
-                   ])
+                   ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 500, float, 'measurement time (in ns)'),
+            Parameter('nv_reset_time', 500, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 80, int, 'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 40, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 260, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ])
     ]
 
     _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator, 'NI6259': NI6259, 'NI9263': NI9263, 'NI9402': NI9402, 'ANC300': ANC300, 'PB': B26PulseBlaster}
@@ -94,19 +101,19 @@ class AttoScanAnc300Pulsed(GalvoScanStrobe):
                      + str(device_list) + '. Please choose one of these and try again.')
             raise AttributeError
 
-        line_scan_settings = self.scripts['pulsed_galvo_line_scan'].settings
+        line_scan_settings = self.scripts['pulsed_line_scan'].settings
         line_scan_settings['read_out'] = self.settings['read_out']
-        line_scan_settings['mw_generator_switching_time'] = self.settings['settle_time']
-        line_scan_settings['freq_start'] = self.settings['point_a']['x']
-        line_scan_settings['freq_stop'] = self.settings['point_b']['x']
-        line_scan_settings['freq_points'] = self.settings['num_points']['x']
+        line_scan_settings['settle_time'] = self.settings['settle_time']
+        line_scan_settings['voltage_start'] = self.settings['point_a']['x']
+        line_scan_settings['voltage_stop'] = self.settings['point_b']['x']
+        line_scan_settings['voltage_points'] = self.settings['num_points']['x']
         line_scan_settings['randomize'] = False
         if self.settings['RoI_mode'] == 'center':
             line_scan_settings['range_type'] = 'center_range'
         elif self.settings['RoI_mode'] == 'corner':
             line_scan_settings['range_type'] = 'start_stop'
 
-        sequence_duration = self.scripts['pulsed_galvo_line_scan']._create_pulse_sequences(get_duration=True)/1e9
+        sequence_duration = self.scripts['pulsed_line_scan']._create_pulse_sequences(get_duration=True)/1e9
         line_scan_settings['num_averages'] = int(self.settings['time_per_pt']/sequence_duration)
         line_scan_settings['averaging_block_size'] = line_scan_settings['num_averages']
         print('Running %i averages per pixel' % line_scan_settings['num_averages'])
@@ -119,5 +126,9 @@ class AttoScanAnc300Pulsed(GalvoScanStrobe):
         Returns: None
         """
 
-        self.scripts['pulsed_galvo_line_scan'].settings['read_out'] = self.settings['read_out']
-        return self.scripts['pulsed_galvo_line_scan'].is_valid()
+        self.scripts['pulsed_line_scan'].settings['read_out'] = self.settings['read_out']
+        return self.scripts['pulsed_line_scan'].is_valid()
+
+    def check_bounds(self):
+        # Need to implement proper attocube bounds later
+        pass

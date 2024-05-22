@@ -154,9 +154,9 @@ class Oscilloscope(Instrument):
             channel = str(settings['trigger']['channel'])
             self.osci.write(':TRIG:PULS:SOUR ' + channel)
             if 'mode' in settings['trigger']:
-                if settings['trigger'] is 'edge_pos':
+                if settings['trigger'] == 'edge_pos':
                     self.osci.write(':TRIG:EDGE:SLOP POS')
-                if settings['trigger'] is 'edge_neg':
+                if settings['trigger'] == 'edge_neg':
                     self.osci.write(':TRIG:EDGE:SLOP NEG')
 
             self.osci.write(':TRIG:EDGE:LEV ' + str(settings['trigger']['level']))

@@ -283,17 +283,19 @@ class AutoFocusGeneric(Script):
             except(ValueError, RuntimeError):
                 self.log(
                     'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
-                        self.data['sweep_voltages'][-1]))
+                        self.data['sweep_voltages'][-1]), flag='reminder')
             finally:
                 # even if there is an exception we want to script to continue
                 sweep_voltages = self.data['sweep_voltages']
                 if return_voltage is not None:
                     if return_voltage > sweep_voltages[-1]:
                         return_voltage = float(sweep_voltages[-1])
-                        self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
+                        self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage),
+                                 flag='reminder')
                     elif return_voltage < sweep_voltages[0]:
                         return_voltage = float(sweep_voltages[0])
-                        self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
+                        self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage),
+                                 flag='reminder')
 
         elif self.settings['fitting'] == 'max':
             end_pt = np.max(self.data['focus_function_result'])
@@ -615,7 +617,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
             z_driver.position = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} um'.format(position), flag='error')
         time.sleep(wait_time)
 
     def _function(self):
@@ -1155,7 +1157,7 @@ class AutoFocusCameraSMC(AutoFocusGeneric):
             z_driver.position = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} um'.format(position), flag='error')
         time.sleep(wait_time)
 
 
@@ -1186,7 +1188,7 @@ class AutoFocusDaqOptotune(AutoFocusDAQ):
             z_driver.current = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} mA'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} mA'.format(position), flag='error')
         time.sleep(wait_time)
 
     def _function(self):

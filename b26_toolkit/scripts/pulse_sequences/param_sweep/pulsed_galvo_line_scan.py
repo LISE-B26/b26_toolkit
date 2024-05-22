@@ -159,7 +159,7 @@ class PulsedGalvoLineScan(ParamSweepFastGeneric):
             self.params = [self.settings['voltage_start']]
         elif self.settings['range_type'] == 'start_stop':
             if self.settings['voltage_start'] > self.settings['voltage_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Warning: end freqmust be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
             self.params = np.linspace(self.settings['voltage_start'], self.settings['voltage_stop'], self.settings['voltage_points'])
 
@@ -440,13 +440,13 @@ class PulsedEsrLineScan(PulsedGalvoLineScan):
 
         if self.settings['range_type'] == 'start_stop':
             if self.settings['voltage_start'] > self.settings['voltage_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Warning: end freqmust be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
             self.params = np.linspace(self.settings['voltage_start'], self.settings['voltage_stop'], self.settings['voltage_points'])
 
         elif self.settings['range_type'] == 'center_range':
             self.params = np.linspace(self.settings['voltage_start'] - self.settings['voltage_stop'] / 2,
-                                      self.settings['voltage_start'] + self.settings['voltagestop'] / 2, self.settings['voltage_points'])
+                                      self.settings['voltage_start'] + self.settings['voltage_stop'] / 2, self.settings['voltage_points'])
 
         if np.min(self.params) < 0 or np.max(self.params) > 150:  # Set the limit to be 100 V. Might be able to increase this a bit in cryo
             self.log('start or stop voltage out of bounds')

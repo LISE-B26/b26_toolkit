@@ -21,7 +21,7 @@ class TLI_DeviceInfo(ctypes.Structure):
 class KDC001(Instrument):
     """
     Class to control the thorlabs KDC001 servo. Note that ALL DLL FUNCTIONS TAKING NUMERIC INPUT REQUIRE A SYSTEM.DECIMAL
-    VALUE. Check help doc at C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DotNet_API for the DLL api.
+    VALUE. Check help doc at C:/Program Files/Thorlabs/Kinesis/Thorlabs.MotionControl.DotNet_API for the DLL api.
     The class communicates with the device over USB.
     """
 
@@ -40,6 +40,7 @@ class KDC001(Instrument):
         sys.path.insert(0, 'C:\\Program Files\\Thorlabs\\Kinesis\\')
         clr.AddReference('ThorLabs.MotionControl.KCube.DCServoCLI')
         self._servo_library = ctypes.cdll.LoadLibrary('C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.KCube.DCServo.dll')
+
         #os.environ['PATH'] = '' + os.pathsep + os.environ['PATH']
        # self._servo_library = ctypes.cdll.LoadLibrary(r"C:\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.KCube.DCServo.dll")
 
@@ -49,7 +50,8 @@ class KDC001(Instrument):
         self._position_encoder2mm_conversion_factor = 34304
         self._velocity_encoder2mm_conversion_factor = 767367.49
         self._acceleration_encoder2mm_conversion_factor = 261.93
-        self._acceleration = 1 * self._acceleration_encoder2mm_conversion_factor # use hard-coded acceleration of 1 mm/s^2 (can be changed to parameter if we want)
+        self._angle_encoder2deg_conversion_factor = 1638.4 # 12288
+        self._acceleration = 4 * self._acceleration_encoder2mm_conversion_factor # use hard-coded acceleration of 1 mm/s^2 (can be changed to parameter if we want)
         self._manually_set_library_inputs_and_outputs()
         self._connect()
 
@@ -151,7 +153,7 @@ class KDC001(Instrument):
                 print("Serial No: ", device_info.serialNo)
                 print("USB PID: ", device_info.PID)
 
-        if self.settings['velocity'] > 0.0: # update the velocity if not set to default
+        if self.settings['velocity'] > 0.0:  # update the velocity if not set to default
             self.set_velocity()
 
         # open connection to the device. The other option is to NOT call _open_device, and require the script to handle device opening and closing
@@ -162,13 +164,13 @@ class KDC001(Instrument):
         # todo(emma): implement self.get_velocity()
         #self.velocity = self.get_velocity()
 
-    def set_position(self, verbose=True):
+    def set_position(self, verbose=False):
 
         """
         sets position of device in mm
         """
         position = ctypes.c_int(int(self._position_encoder2mm_conversion_factor * self.settings['position']))
-        self._servo_library.CC_MoveToPosition(self._serial_num, position) # command sent to device
+        self._servo_library.CC_MoveToPosition(self._serial_num, position)  # command sent to device
         message_type = ctypes.c_ushort(0)
         message_id = ctypes.c_ushort(0)
         message_data = ctypes.c_ulong(0)
@@ -232,7 +234,7 @@ class KDC001(Instrument):
         if verbose:
             print('Device closed')
 
-    def get_position(self, verbose=True):
+    def get_position(self, verbose=False):
 
         """
         returns position of stage in mm
@@ -242,26 +244,154 @@ class KDC001(Instrument):
             self._serial_num) / self._position_encoder2mm_conversion_factor
         if verbose:
             print('Position of device is currently {0} mm'.format(position))
+            print('Position of device is currently %i d.u.'%(position*self._position_encoder2mm_conversion_factor))
+            print('Position of device is currently %.3f deg' % (position * self._position_encoder2mm_conversion_factor/self._angle_encoder2deg_conversion_factor))
         return position
 
-    def get_velocity(self, verbose=True):
+    def get_velocity(self):
 
         """
         returns velocity (when moving) of stage in mm/s
         """
-       # raise NotImplementedError
 
         ## todo: fix the input arguments of get_velocity ER 20180519
-        velocity_pointer_type = ctypes.POINTER(ctypes.c_long) #ctypes.POINTER(ctypes.c_long)#ctypes.LP_c_long()#ctypes.POINTER(ctypes.c_int)
-        acceleration_pointer_type = ctypes.POINTER(ctypes.c_long) #ctypes.POINTER(ctypes.c_long)#ctypes.LP_c_long()#ctypes.POINTER(ctypes.c_int)
-        velocity_pointer = ctypes.byref(ctypes.c_long())#velocity_pointer_type()
-        acceleration_pointer = ctypes.byref(ctypes.c_long())#acceleration_pointer_type()
-        vel = self._servo_library.CC_GetVelParams(self.serial_num, velocity_pointer, acceleration_pointer)
-        if verbose:
-            print('Velocity of device is currently {0} mm/s'.format(vel))
-        return vel
+        velocity_pointer = ctypes.pointer(ctypes.c_int())#velocity_pointer_type()
+        acceleration_pointer = ctypes.pointer(ctypes.c_int())#acceleration_pointer_type()
+        vel = self._servo_library.CC_GetVelParams(self._serial_num, acceleration_pointer, velocity_pointer)
 
-    def set_velocity(self, verbose=True):
+        return velocity_pointer.contents.value/self._velocity_encoder2mm_conversion_factor, acceleration_pointer.contents.value/self._acceleration_encoder2mm_conversion_factor
+
+    def get_trigger_config(self):
+
+        """
+        Configure trigger 1&2 type (e.g. trigger at max velocity or at certain steps), and set trigger polarity
+        :return:
+        """
+        """
+        Trigger mode:
+        0: Trigger disabled
+        1: Trigger Input - General purpose logic input
+        2: Trigger Input - Move relative using relative move parameters
+        3: Trigger Input - Move absolute using absolute move parameters
+        4: Trigger Input - Perform a Home action
+        10: Trigger Output - General purpose output
+        11: Trigger Output - Set when device moving
+        12: Trigger Output - Set when at max velocity
+        13: Trigger Output - Set when at predefine position steps
+        14: Trigger Output - TBD mode
+        
+        Trigger polarity:
+        0: Low
+        1: High
+        """
+        trigger1Mode_pointer = ctypes.pointer(ctypes.c_int16())
+        trigger1Polarity_pointer = ctypes.pointer(ctypes.c_int16())
+        trigger2Mode_pointer = ctypes.pointer(ctypes.c_int16())
+        trigger2Polarity_pointer = ctypes.pointer(ctypes.c_int16())
+
+        self._servo_library.CC_GetTriggerConfigParams(self._serial_num, trigger1Mode_pointer, trigger1Polarity_pointer,
+                                                      trigger2Mode_pointer, trigger2Polarity_pointer)
+
+        trigger1Mode = trigger1Mode_pointer.contents.value
+        trigger1Polarity = trigger1Polarity_pointer.contents.value
+        trigger2Mode = trigger2Mode_pointer.contents.value
+        trigger2Polarity = trigger2Polarity_pointer.contents.value
+
+        return trigger1Mode, trigger1Polarity, trigger2Mode, trigger2Polarity
+
+    def set_trigger_config(self, trigger_config):
+
+        """
+        Configure trigger 1&2 type (e.g. trigger at max velocity or at certain steps), and set trigger polarity
+        :return:
+        """
+        """
+        Trigger mode:
+        0: Trigger disabled
+        1: Trigger Input - General purpose logic input
+        2: Trigger Input - Move relative using relative move parameters
+        3: Trigger Input - Move absolute using absolute move parameters
+        4: Trigger Input - Perform a Home action
+        10: Trigger Output - General purpose output
+        11: Trigger Output - Set when device moving
+        12: Trigger Output - Set when at max velocity
+        13: Trigger Output - Set when at predefine position steps
+        14: Trigger Output - TBD mode
+
+        Trigger polarity:
+        0: Low
+        1: High
+        """
+
+        trigger1Mode_pointer = ctypes.c_int16(int(trigger_config['trigger1Mode']))
+        trigger1Polarity_pointer = ctypes.c_int16(int(trigger_config['trigger1Polarity']))
+        trigger2Mode_pointer = ctypes.c_int16(int(trigger_config['trigger2Mode']))
+        trigger2Polarity_pointer = ctypes.c_int16(int(trigger_config['trigger2Polarity']))
+
+        set_trigger_config = self._servo_library.CC_SetTriggerConfigParams(self._serial_num, trigger1Mode_pointer, trigger1Polarity_pointer,
+                                                      trigger2Mode_pointer, trigger2Polarity_pointer)
+
+        return set_trigger_config
+
+
+    def get_trigger_params(self, verbose=True):
+
+        """
+        Returns trigger parameters
+        """
+
+        triggerStartPositionFwd_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerIntervalFwd_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerPulseCountFwd_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerStartPositionRev_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerIntervalRev_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerPulseCountRev_pointer = ctypes.pointer(ctypes.c_int32())
+        triggerPulseWidth_pointer = ctypes.pointer(ctypes.c_int32())
+        cycleCount_pointer = ctypes.pointer(ctypes.c_int32())
+
+
+        # Returns 0 if no error. Variable not used
+        get_trigger_params = self._servo_library.CC_GetTriggerParamsParams(self._serial_num, triggerStartPositionFwd_pointer, triggerIntervalFwd_pointer,
+                                                                       triggerPulseCountFwd_pointer, triggerStartPositionRev_pointer,
+                                                                       triggerIntervalRev_pointer, triggerPulseCountRev_pointer, triggerPulseWidth_pointer,
+                                                                       cycleCount_pointer)
+
+        # All distances in mm, all time values in us
+        triggerStartPositionFwd = triggerStartPositionFwd_pointer.contents.value / self._position_encoder2mm_conversion_factor
+        triggerIntervalFwd = triggerIntervalFwd_pointer.contents.value / self._position_encoder2mm_conversion_factor
+        triggerPulseCountFwd = triggerPulseCountFwd_pointer.contents.value
+        triggerStartPositionRev = triggerStartPositionRev_pointer.contents.value / self._position_encoder2mm_conversion_factor
+        triggerIntervalRev = triggerIntervalRev_pointer.contents.value / self._position_encoder2mm_conversion_factor
+        triggerPulseCountRev = triggerPulseCountRev_pointer.contents.value
+        triggerPulseWidth = triggerPulseWidth_pointer.contents.value
+        cycleCount = cycleCount_pointer.contents.value
+
+        return triggerStartPositionFwd, triggerIntervalFwd, triggerPulseCountFwd, triggerStartPositionRev, triggerIntervalRev, triggerPulseCountRev, \
+               triggerPulseWidth, cycleCount
+
+    def set_trigger_params(self, trigger_params, verbose=True):
+        """
+        :param trigger_params: Dictionary containing trigger parameters
+        :param verbose:
+        :return:
+        """
+
+        triggerStartPositionFwd_pointer = ctypes.c_int32(int(trigger_params['triggerStartPositionFwd'] * self._position_encoder2mm_conversion_factor))
+        triggerIntervalFwd_pointer = ctypes.c_int32(int(trigger_params['triggerIntervalFwd'] * self._position_encoder2mm_conversion_factor))
+        triggerPulseCountFwd_pointer = ctypes.c_int32(int(trigger_params['triggerPulseCountFwd']))
+        triggerStartPositionRev_pointer = ctypes.c_int32(int(trigger_params['triggerStartPositionRev'] * self._position_encoder2mm_conversion_factor))
+        triggerIntervalRev_pointer = ctypes.c_int32(int(trigger_params['triggerIntervalRev'] * self._position_encoder2mm_conversion_factor))
+        triggerPulseCountRev_pointer = ctypes.c_int32(int(trigger_params['triggerPulseCountRev']))
+        triggerPulseWidth_pointer = ctypes.c_int32(int(trigger_params['triggerPulseWidth']))
+        cycleCount_pointer = ctypes.c_int32(int(trigger_params['cycleCount']))
+
+        set_trigger_params = self._servo_library.CC_SetTriggerParamsParams(self._serial_num, triggerStartPositionFwd_pointer, triggerIntervalFwd_pointer,
+                                                                       triggerPulseCountFwd_pointer, triggerStartPositionRev_pointer,
+                                                                       triggerIntervalRev_pointer, triggerPulseCountRev_pointer, triggerPulseWidth_pointer,
+                                                                       cycleCount_pointer)
+        return set_trigger_params
+
+    def set_velocity(self):
 
         """
         sets velocity (when moving) of stage in mm/s
@@ -274,11 +404,20 @@ class KDC001(Instrument):
         velocity = ctypes.c_int(int(self._velocity_encoder2mm_conversion_factor * self.settings['velocity']))
         acceleration = ctypes.c_int(int(self._acceleration))
         self._servo_library.CC_SetVelParams(self._serial_num, acceleration, velocity)
-        if verbose:
-            pass
-          #  set_vel = self.get_velocity()
-          # todo(emma): implement get_velocity()
-           # print('Device velocity was set to {0} mm/s'.format(set_vel))
+
+    def set_acceleration(self, acc):
+
+        """
+        sets acceleration (when moving) of stage in mm/s^2
+        """
+        # maximum velocity of instrument
+        max_acc = 4
+        if acc > max_acc:
+            acc = max_acc
+
+        velocity = ctypes.c_int(int(self._velocity_encoder2mm_conversion_factor * self.settings['velocity']))
+        acceleration = ctypes.c_int(int(self._acceleration_encoder2mm_conversion_factor * acc))
+        self._servo_library.CC_SetVelParams(self._serial_num, acceleration, velocity)
 
     def update(self, settings, verbose=True):
         super(KDC001, self).update(settings)
@@ -313,20 +452,21 @@ class B26KDC001x(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27002905, int, 'serial number written on device'),
+        #Parameter('serial_number', 27002905, int, 'serial number written on device'),
+        Parameter('serial_number', 27501971, int, 'serial number written on device'),
         Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
-                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
+                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used'),
     ])
 
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
         self.max_pos = 25.5
-        self.min_pos = 0.
+        self.min_pos = -3.
         super(B26KDC001x, self).__init__()
 
-    def set_position(self, verbose=True):
+    def set_position(self, verbose=False):
         '''
 
         sets position of the stage x if safety limits are met
@@ -347,7 +487,7 @@ class B26KDC001y(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27501971, int, 'serial number written on device'),
+        Parameter('serial_number', 27001862, int, 'serial number written on device'),
         Parameter('position', 25.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
@@ -357,7 +497,7 @@ class B26KDC001y(KDC001):
 
     def __init__(self, name=None, settings=None):
         self.max_pos = 25.5
-        self.min_pos = 0.
+        self.min_pos = -3.
         super(B26KDC001y, self).__init__()
 
     def set_position(self, verbose=True):
@@ -374,6 +514,7 @@ class B26KDC001y(KDC001):
             print('didnt make the safety cut! doing nothing')
           #  raise AttributeError('position is outside safety limits!! Doing nothing.')
 
+
 class B26KDC001z(KDC001):
     '''
 
@@ -381,8 +522,8 @@ class B26KDC001z(KDC001):
 
     '''
     _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
-        Parameter('serial_number', 27001862, int, 'serial number written on device'),
-        Parameter('position', 3.0, float, 'servo position (0 to 25) [mm]'),
+        Parameter('serial_number', 27001863, int, 'serial number written on device'),
+        Parameter('position', 25.0, float, 'servo position (0 to 25) [mm]'),
         Parameter('velocity', 0.0, float,
                   'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used')
     ])
@@ -390,14 +531,14 @@ class B26KDC001z(KDC001):
     _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
 
     def __init__(self, name=None, settings=None):
-        self.max_pos = 25.5  # for mal/warm1, MM 20190813
-        self.min_pos = 0.
+        self.max_pos = 25.5
+        self.min_pos = -3.
         super(B26KDC001z, self).__init__()
 
     def set_position(self, verbose=True):
         '''
 
-        sets position of the stage z if safety limits are met
+        sets position of the stage y if safety limits are met
 
         '''
 
@@ -408,13 +549,97 @@ class B26KDC001z(KDC001):
             print('didnt make the safety cut! doing nothing')
           #  raise AttributeError('position is outside safety limits!! Doing nothing.')
 
-if __name__ == '__main__':
-    a = B26KDC001x()
-    #b = B26KDC001y()
-    #c = B26KDC001z()
-    #a.home()
-    #b.home()
-    #c.home()
 
-  #  a.set_velocity()
-    #a.get_position()
+class LockboxToggleArm(KDC001):
+    '''
+
+    Same as KDC001 except adds safety limits and specifies serial number for the y axis
+
+    '''
+    _DEFAULT_SETTINGS = Parameter([ # NB the serial number and min_, max_pos values will be overwritten
+        Parameter('serial_number', 27002905, int, 'serial number written on device'),
+        Parameter('position', 25, float, 'servo position (0 to 25) [mm]'),
+        Parameter('velocity', 0.0, float,
+                  'servo velocity (0 to 2.6) [mm/s]. If set to zero, instrument default will be used'),
+        Parameter('lock', False, bool, 'toggle locking lever on front panel')
+    ])
+
+    _PROBES = {'position': 'current position of stage', 'velocity':'current velocity of stage', 'serial_number': 'serial number of device'}
+
+    def __init__(self, name=None, settings=None):
+        self.max_pos = 35  # for mal/warm1, MM 20190813
+        self.min_pos = 25
+        super(LockboxToggleArm, self).__init__()
+
+    def set_position(self, verbose=False):
+        '''
+
+        sets position of the stage z if safety limits are met
+
+        '''
+
+        # check if safety limits are met
+        if self.settings['position'] <= self.max_pos and self.settings['position'] >= self.min_pos:
+            self._set_position(verbose=verbose)
+        else:
+            print('didnt make the safety cut! doing nothing')
+          #  raise AttributeError('position is outside safety limits!! Doing nothing.')
+
+    def _set_position(self, verbose=False):
+
+        """
+        sets position of device in mm
+        """
+        position = ctypes.c_int(int(self._angle_encoder2deg_conversion_factor * self.settings['position']))
+        self._servo_library.CC_MoveToPosition(self._serial_num, position)  # command sent to device
+        message_type = ctypes.c_ushort(0)
+        message_id = ctypes.c_ushort(0)
+        message_data = ctypes.c_ulong(0)
+        if verbose:
+            print('Device is moving to indicated position ({0} deg)'.format(self.settings['position']))
+
+        # wait for it to actually move
+        self._servo_library.CC_WaitForMessage(self._serial_num, message_type, message_id, message_data)
+        while message_type.value != 2 or message_id.value != 1:
+            self._servo_library.CC_WaitForMessage(self._serial_num, message_type, message_id, message_data)
+
+        if verbose:
+            position = self.get_position(verbose=True)
+            print('Device now at position {0} deg'.format(position))
+
+    def get_position(self, verbose=False):
+
+        """
+        returns position of stage in deg
+        """
+
+        position = self._servo_library.CC_GetPosition(
+            self._serial_num) / self._angle_encoder2deg_conversion_factor
+        if verbose:
+            print('Position of device is currently %.3f deg' % position)
+        return position
+
+    def update(self, settings, verbose=True):
+        super(KDC001, self).update(settings)
+        if self._settings_initialized:
+            for key, value in settings.items():
+                if key == 'position':
+                    self.set_position(verbose=verbose)
+                elif key == 'velocity':
+                    self.set_velocity(verbose=verbose)
+                elif key == 'lock':
+                    if settings['lock']:
+                        self.settings['position'] = self.min_pos
+                        self.set_position()
+                    else:
+                        self.settings['position'] = self.max_pos
+                        self.set_position()
+
+
+if __name__ == '__main__':
+    a = LockboxToggleArm()
+    print(a.get_position(verbose=True))
+    a.settings['position'] = 26
+    a.set_position()
+    print(a.get_position(verbose=True))
+    a._close_device()

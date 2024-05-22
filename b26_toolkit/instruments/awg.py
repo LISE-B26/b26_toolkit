@@ -60,7 +60,7 @@ class AFG3022C(Instrument):
         # NOTE: needed for pulses too
 
         Parameter('ch1_enable', False, bool, 'enable output CH1'),
-        Parameter('ch1_function', 'Arb',
+        Parameter('ch1_function', 'DC',
                   ['Sine', 'Square', 'Ramp', 'Pulse', 'Arb', 'Sin(x)/x', 'Noise', 'DC', 'Gaussian', 'Lorentz',
                    'Exponential Rise', 'Exponential Decay', 'Haversine'],
                   'Function CH1'),
@@ -68,9 +68,9 @@ class AFG3022C(Instrument):
                   'run mode of CH1. "Unimplemented" means the AFG is either in sweep or modulation mode; '
                   'choosing "unimplemented" will simply set it to "continuous"'),
         Parameter('ch1_frequency', 1e6, float, 'frequency in Hz'),
-        Parameter('ch1_amplitude', 0.5, float, 'output amplitude peak to peak in volts'),
+        Parameter('ch1_amplitude', 1.00, float, 'output amplitude peak to peak in volts'),
         Parameter('ch1_phase', 0.0, float, 'output phase in radians'),
-        Parameter('ch1_offset', 0.0, float, 'DC offset of waveform, in volts'),
+        Parameter('ch1_offset', 0.45, float, 'DC offset of waveform, in volts'),
         Parameter('ch1_invert_polarity', False, bool, 'invert polarity of output'),
         Parameter('ch1_burst_mode', 'Trigger', ['Trigger', 'Gate'], 'Select burst mode, only applies if "Burst" is selected in ch1_mode. '
                                                                     'AFG is triggered on positive edge of external signal.'),
@@ -78,21 +78,21 @@ class AFG3022C(Instrument):
         Parameter('ch1_pulse_duty_cycle', 50, float, 'duty cycle (%%) of pulse waveform setting range is 0.001%% to 99.999%% in increments of 0.001'),
 
         Parameter('ch2_enable', False, bool, 'enable output CH1'),
-        Parameter('ch2_function', 'Arb',
+        Parameter('ch2_function', 'Sine',
                   ['Sine', 'Square', 'Ramp', 'Pulse', 'Arb', 'Sin(x)/x', 'Noise', 'DC', 'Gaussian', 'Lorentz',
                    'Exponential Rise', 'Exponential Decay', 'Haversine'],
                   'Function CH1'),
-        Parameter('ch2_run_mode', 'Continuous', ['Continuous', 'Burst', 'Unimplemented'],
+        Parameter('ch2_run_mode', 'Burst', ['Continuous', 'Burst', 'Unimplemented'],
                   'run mode of CH2. "Unimplemented" means the AFG is either in sweep or modulation mode; '
                   'choosing "unimplemented" will simply set it to "continuous"'),
-        Parameter('ch2_frequency', 1e6, float, 'frequency in Hz'),
-        Parameter('ch2_amplitude', 0.5, float, 'output amplitude peak to peak in volts'),
+        Parameter('ch2_frequency', 4e6, float, 'frequency in Hz'),
+        Parameter('ch2_amplitude', 1.0, float, 'output amplitude peak to peak in volts'),
         Parameter('ch2_phase', 0.0, float, 'output phase in radians'),
         Parameter('ch2_offset', 0.0, float, 'DC offset of waveform, in volts'),
         Parameter('ch2_invert_polarity', False, bool, 'invert polarity of output'),
         Parameter('ch2_burst_mode', 'Trigger', ['Trigger', 'Gate'], 'Select burst mode, only applies if "Burst" is selected in ch1_mode. '
                                                                     'AFG is triggered on positive edge of external signal.'),
-        Parameter('ch2_burst_ncycles', 1, int, 'number of cycles in each burst, anything above 1e6 will be interpreted as "infinite" by the AFG'),
+        Parameter('ch2_burst_ncycles', 10, int, 'number of cycles in each burst, anything above 1e6 will be interpreted as "infinite" by the AFG'),
         Parameter('ch2_pulse_duty_cycle', 50, float, 'duty cycle (%%) of pulse waveform setting range is 0.001%% to 99.999%% in increments of 0.001'),
         ])
 
@@ -539,18 +539,11 @@ class AFG3021C(AFG3022C):
 
 
 if __name__ == '__main__':
-    #arb_iq = AFG3022C_02()
-    #print(arb_iq.afg)
-    #print(arb_iq)
-    #arb.update({'ch1_function': 'Pulse'})
-    #arb.update({'ch1_run_mode': 'Continuous'})
-    #arb.update({'ch1_burst_mode': 'Trigger'})
-    #arb.update({'ch1_burst_ncycles': 1})
-    #arb_iq.configure_iq(angle=np.pi, pulse_length=1e-6, angle_idle=0)
-    #for angle in np.linspace(0,2*np.pi,100):
-    #    arb_iq.configure_iq(angle=angle, pulse_length=286, angle_idle=0)
-    #print(AFG3022C_02._DEFAULT_SETTINGS.valid_values['ch1_run_mode'])
-
-    arb = AFG3021C()
-    #print(arb)
-    #print(arb.afg.query('*RST').strip())
+    arb = AFG3022C()
+    arb.update({'ch2_enable': True})
+    arb.update({'ch2_frequency': 4e6})
+    arb.update({'ch2_amplitude': 1.0})
+    arb.update({'ch2_run_mode': 'Burst'})
+    arb.update({'ch2_burst_ncycles': int(10)})
+    arb.afg.write('TRIG:SOUR EXT')
+    arb.afg.write('TRIG:SEQ:IMM')

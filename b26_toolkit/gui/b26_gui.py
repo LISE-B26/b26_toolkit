@@ -4,7 +4,7 @@ from b26_toolkit.gui.b26_load_dialog import LoadDialogB26
 from PyQt5.QtWidgets import QLabel, QGraphicsOpacityEffect
 import os
 from pylabcontrol.core import Script
-
+from PyQt5 import QtGui
 
 class ControlMainWindowB26(MainWindow):
 
@@ -20,6 +20,7 @@ class ControlMainWindowB26(MainWindow):
         #self.setStyleSheet("background-color: gray")
         self.setStyleSheet("background-image: url(C:/Users/Experiment/Pictures/heaven2.png); background-repeat: no-repeat;")
         self.tree_scripts.setAlternatingRowColors(False)
+        self.setWindowIcon(QtGui.QIcon('poop.png'))
 
 
     def load_scripts(self, verbose=False):

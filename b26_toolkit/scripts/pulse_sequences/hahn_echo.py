@@ -18,7 +18,7 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
-from b26_toolkit.instruments import NI6259, NI9402, NI9263_02, B26PulseBlaster, MicrowaveGenerator, Pulse
+from b26_toolkit.instruments import NI6259, NI9402, NI9263_02, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
@@ -54,7 +54,7 @@ class HahnEcho(PulsedExperimentGeneric):  # ER 5.25.2017
     ]
 
     #041619 MM added cDAQ
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
     from b26_toolkit.scripts.find_nv import FindNvStrobe
     _SCRIPTS = {'find_nv': FindNvStrobe}
 
@@ -266,6 +266,119 @@ class HahnEcho(PulsedExperimentGeneric):  # ER 5.25.2017
             super(HahnEcho, self)._plot(axislist)
             axislist[0].set_title('Hahn Echo mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
+
+class XY8k(HahnEcho): # ER 5.25.2017
+    """
+    Frankie's version of XY8k; the original one by Emma seems to have a mistake right before the last pi/2 or 3pi/2 pulse.
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('pi_pulse_time_i', 50.0, float, 'time duration of a pi pulse (in ns) for the mw_channel'),
+            Parameter('pi_pulse_time_q', 50.0, float, 'time duration of a pi pulse (in ns)'),
+            Parameter('pi_half_pulse_time_q', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
+            Parameter('three_pi_half_pulse_time_q',  25.0, float, 'time duration of a pi/2 pulse (in ns)'),
+            Parameter('k', 1, int, 'number of pi pulse blocks of 8 in the XY8-k sequence')
+        ]),
+        Parameter('tau_times', [
+            Parameter('min_time', 500, float, 'minimum time between pi pulses'),
+            Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
+            Parameter('time_step', 200, float,
+                  'time step increment of time between pi pulses (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 1000, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+    ]
+
+
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
+    from b26_toolkit.scripts.find_nv import FindNvStrobe
+    _SCRIPTS = {'find_nv': FindNvStrobe}
+
+
+    def _create_pulse_sequences(self):
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        '''
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+        #tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],
+                             self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list)  # 20180731 ER convert to list
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel_i = 'microwave_i'
+        microwave_channel_q = 'microwave_q'
+        pi_time_i = self.settings['mw_pulses']['pi_pulse_time_i']
+        pi_time_q = self.settings['mw_pulses']['pi_pulse_time_q']
+        pi_half_time_q = self.settings['mw_pulses']['pi_half_pulse_time_q']
+        three_pi_half_time_q = self.settings['mw_pulses']['three_pi_half_pulse_time_q']
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+        k = int(self.settings['mw_pulses']['k'])
+
+        for tau in tau_list:
+            current_time = 0
+            pulse_sequence = []
+            for part in range(2):
+                pulse_sequence += [Pulse(microwave_channel_q, current_time + laser_off_time, pi_half_time_q)]
+                current_time += laser_off_time + pi_half_time_q
+
+                for k_index in range(k):
+                    for i in range(8):
+                        if i == 0:
+                            pulse_sequence += [Pulse(microwave_channel_i, current_time + tau, pi_time_i)]
+                            current_time += tau + pi_time_i
+                        elif i in [1, 3, 4, 6]:
+                            pulse_sequence += [Pulse(microwave_channel_q, current_time + 2 * tau, pi_time_q)]
+                            current_time += 2 * tau + pi_time_q
+                        elif i in [2, 5, 7]:
+                            pulse_sequence += [Pulse(microwave_channel_i, current_time + 2 * tau, pi_time_i)]
+                            current_time += 2 * tau + pi_time_i
+                    current_time += tau
+
+                if part == 0:
+                    pulse_sequence += [Pulse(microwave_channel_q, current_time, pi_half_time_q)]
+                    pulse_sequence += [Pulse('laser', current_time + pi_half_time_q + delay_mw_readout, nv_reset_time)]
+                    pulse_sequence += [Pulse('apd_readout', current_time + pi_half_time_q + delay_mw_readout + delay_readout, meas_time)]
+                    current_time += pi_half_time_q + delay_mw_readout + nv_reset_time
+
+                elif part == 1:
+                    pulse_sequence += [Pulse(microwave_channel_q, current_time, three_pi_half_time_q)]
+                    pulse_sequence += [Pulse('laser', current_time + three_pi_half_time_q + delay_mw_readout, nv_reset_time)]
+                    pulse_sequence += [Pulse('apd_readout', current_time + three_pi_half_time_q + delay_mw_readout + delay_readout, meas_time)]
+                    current_time += three_pi_half_time_q + delay_mw_readout + nv_reset_time
+
+
+
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
 
 
 # class HahnEcho_bothIQ(PulsedExperimentGeneric): # ER 20181013

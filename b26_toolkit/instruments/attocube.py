@@ -162,7 +162,8 @@ class ANC300(Attocube):
         Parameter('y_offset', 0, float, 'offset (V) on y axis'),
         Parameter('z_step_amplitude', 30, float, 'stepping amplitude (V) on z axis'),
         Parameter('z_freq', 100, int, 'z frequency in Hz'),
-        Parameter('z_offset', 0, float, 'offset (V) on z axis')
+        Parameter('z_offset', 0, float, 'offset (V) on z axis'),
+        Parameter('ground_all', False, bool, 'check this to ground x, y, and z Attocubes')
     ])
     _WRITE_TIMEOUT = 0.03  # in seconds
 
@@ -217,6 +218,9 @@ class ANC300(Attocube):
                     self.ser.baudrate = value
                 elif key == 'timeout':
                     self.ser.timeout = value
+                elif key == 'ground_all':
+                    for i in [1, 2, 3]:
+                        self._set_mode(i, 'ground')
                 else:
                     raise ValueError('No such key')
 
@@ -242,7 +246,7 @@ class ANC300(Attocube):
 
     def _get_serial(self, axis):
         '''
-        Sets frequency of attocube axis
+        Sets serial of attocube axis
         :param axis: axis number to set (int)
         '''
         return self._get_param(axis, 'getser', '')
@@ -286,8 +290,8 @@ class ANC300(Attocube):
         :param offset: offset to set axis to in V (float)
         '''
         if self.serial_numbers[axis][:6] == 'ANM300':
+            # self._set_filter(axis, bandwidth=16)
             self._set_mode(axis, 'offset')
-
             self.ser.write('seta {} {}\n'.format(axis, offset).encode())
             self._get_OK()
         else:

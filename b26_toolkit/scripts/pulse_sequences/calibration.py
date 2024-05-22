@@ -21,7 +21,7 @@ from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import Pulsed
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import cose_with_decay, fit_exp_decay
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses
 
 
 class ReadoutStartTime(PulsedExperimentGeneric):  # ER 10.21.2017
@@ -521,7 +521,7 @@ class ReadoutStartTimeWithoutMW(PulsedExperimentGeneric):
         counts = data['counts']
         x_data = data['tau']
         axis1 = axes_list[0]
-        plot_1d_simple_timetrace_ns(axis1, x_data, [counts])
+        plot_1d_simple_timetrace(axis1, x_data, [counts])
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
 

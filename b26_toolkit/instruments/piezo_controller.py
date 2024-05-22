@@ -34,7 +34,7 @@ class PiezoController(Instrument):
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage'),
-        Parameter('max_voltage', 150., float, 'maximum allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
+        Parameter('max_voltage', 150, [75, 100, 150], 'max allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -217,7 +217,7 @@ class MDT693A(Instrument):
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .5, float, 'connection timeout'),
         Parameter('voltage', 1.0, float, 'current voltage'),
-        Parameter('max_voltage', 150., float, 'maximum allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
+        Parameter('max_voltage', 150, [75, 100, 150], 'max allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -368,7 +368,7 @@ class MDT693A_2(MDT693A):
 if __name__ == '__main__':
      a = MDT693A('hi')
      a.axis = 'x'
-     #a.set_voltage(56.0)
+     #a.set_voltage(80.1)
      print(a.read_probes('voltage'))
      #a.set_voltage(0)
      #print(a.read_probes('voltage'))

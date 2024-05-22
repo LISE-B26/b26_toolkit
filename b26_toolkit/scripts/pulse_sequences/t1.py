@@ -26,7 +26,7 @@ from b26_toolkit.data_processing.fit_functions import fit_exp_decay
 from b26_toolkit.scripts import Esr
 from .rabi import Rabi
 
-class T1(PulsedExperimentTracking):  # ER 10.21.2017
+class T1(PulsedExperimentGeneric):  # ER 10.21.2017
     """
     This script sweeps the readout pulse duration. Uses a double_init scheme
     """

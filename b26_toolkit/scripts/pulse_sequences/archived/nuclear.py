@@ -20,7 +20,7 @@ import numpy as np
 import time
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, RFGenerator, MicrowaveGenerator2, AFG3022C, Commander
-from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace_ns, update_1d_simple
+from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace, update_1d_simple
 from pylabcontrol.core import Parameter
 from b26_toolkit.scripts import FindNv, Esr
 from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
@@ -966,7 +966,7 @@ class TransportDebugSingleSWAP(RabiPolarized):
                 # first_counts = self.data['counts'][:, 1:2]
 
                 # plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [data['counts']])
-                plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
+                plot_1d_simple_timetrace(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title(
                 'Nuclear Rabi rf_power:{:0.1f}dBm, rf_freq:{:0.3f} MHz'.format(self.settings['rf_pulses']['rf_power'],
@@ -2297,7 +2297,7 @@ class NuclearRabiRepetitiveReadout(RabiPolarized):
                 #first_counts = self.data['counts'][:, 1:2]
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [data['counts']])
-                plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
+                plot_1d_simple_timetrace(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Nuclear Rabi rf_power:{:0.1f}dBm, rf_freq:{:0.3f} MHz'.format(self.settings['rf_pulses']['rf_power'], self.settings['rf_pulses']['rf_frequency']*1e-6))
             axislist[0].legend(labels=('Ref Fluorescence', 'First Readout', 'Avg Readout'), fontsize=8)
@@ -2547,7 +2547,7 @@ class NuclearRabiConsecutive(NuclearRabiRepetitiveReadout):
                 #first_counts = self.data['counts'][:, 1:2]
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [data['counts']])
-                plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
+                plot_1d_simple_timetrace(axislist[0], data['tau'], [ref_counts, first_counts, avg_counts])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Nuclear Rabi rf_power:{:0.1f}dBm, rf_freq:{:0.3f} MHz'.format(self.settings['rf_pulses']['rf_power'], self.settings['rf_pulses']['rf_frequency']*1e-6))
             axislist[0].legend(labels=('Ref Fluorescence', 'First Readout', 'Avg Readout'), fontsize=8)
@@ -3930,7 +3930,7 @@ class TransportDqma(RabiPolarized):
                 first_counts_2 = np.transpose(np.array([np.average(self.data['counts'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
-                plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace(axislist[0], data['tau'], [avg_counts_1, avg_counts_2])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             #[0].legend(labels=('Nuclear State 0 (first readout)', 'Nuclear State 1 (first readout)', 'Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
@@ -4838,7 +4838,7 @@ class TransportDqmaMovement(RabiPolarized):
                 x_data = self.data['tau'][:num_tau]
                 avg_counts_0 = np.transpose(np.array([np.average(self.data['counts'][:num_tau, :num_daq_reads], axis=1)]))
                 #avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][num_tau:, :num_daq_reads], axis=1)]))
-                plot_1d_simple_timetrace_ns(axislist[0], x_data, [avg_counts_0])
+                plot_1d_simple_timetrace(axislist[0], x_data, [avg_counts_0])
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
@@ -5319,7 +5319,7 @@ class TransportDqmaMovementSingle(RabiPolarized):
             if 'counts' in data.keys():
                 num_daq_reads = self.settings['read_out']['repetitive_readout']['m']
                 avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][:, 0:num_daq_reads], axis=1)]))
-                plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1])
+                plot_1d_simple_timetrace(axislist[0], data['tau'], [avg_counts_1])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
@@ -5690,7 +5690,7 @@ class TransportDqmaMovementRfPhase(RabiPolarized):
                 x_data = self.data['tau'][:num_tau]
                 avg_counts_0 = np.transpose(np.array([np.average(self.data['counts'][:num_tau, :num_daq_reads], axis=1)]))
                 #avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][num_tau:, :num_daq_reads], axis=1)]))
-                plot_1d_simple_timetrace_ns(axislist[0], x_data, [avg_counts_0])
+                plot_1d_simple_timetrace(axislist[0], x_data, [avg_counts_0])
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
@@ -6037,7 +6037,7 @@ class TransportDqmaMovementPiPulseTime(RabiPolarized):
                 x_data = self.data['tau'][:num_tau]
                 avg_counts_0 = np.transpose(np.array([np.average(self.data['counts'][:num_tau, :num_daq_reads], axis=1)]))
                 avg_counts_1 = np.transpose(np.array([np.average(self.data['counts'][num_tau:, :num_daq_reads], axis=1)]))
-                plot_1d_simple_timetrace_ns(axislist[0], x_data, [avg_counts_0, avg_counts_1])
+                plot_1d_simple_timetrace(axislist[0], x_data, [avg_counts_0, avg_counts_1])
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'],[avg_counts_1])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')

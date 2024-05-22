@@ -186,7 +186,8 @@ def find_nv_peaks(freq, data, width_Hz=0.005e9, initial_threshold = 0.00, steps_
 
     # smooth signal with filter
     # int(width_pts/2)*2*3+1: to get a window size about three times the width and odd number
-    win = signal.gaussian(int(width_pts / 2) * 2 * 3 + 1, std=width_pts)
+    win = signal.windows.gaussian(int(width_pts / 2) * 2 * 3 + 1, std=width_pts)
+
 
     sig_filtered = signal.convolve(sig, win, mode='same') / sum(win)
     max_idx, max_pts = find_peaks_pts(sig_filtered, width_pts, initial_threshold, steps_size)

@@ -131,7 +131,6 @@ class Pulse(object):
         return is_overlapping
 
 
-
 class PulseBlaster(Instrument):
     """
     This Instrument controls a SpinCore Pulseblaster
@@ -169,14 +168,15 @@ class PulseBlaster(Instrument):
         ]),
         Parameter('clock_speed', 500.0, [100.0, 250.0, 400.0, 500.], 'Clock speed of the pulse blaster [MHz]'),
         Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
+        # Min pulse duration setting can be removed. Min pulse duration is 5 clock cycles. Can be even shorter with short pulse feature, but doesn't seem implemented in code
         Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
     ])
 
     PULSE_PROGRAM = ctypes.c_int(0)
-    #LONG_DELAY_THRESHOLD = 640
-    # Had some issues with setting it to 640 (why was it even 640??). This should be much higher, since the PB manual mentions using the long delay feature
-    # for pulse lengths beyond 8.59s.
-    LONG_DELAY_THRESHOLD = 8e9
+    # LONG_DELAY_THRESHOLD = 640
+    # Had some issues with setting it to 640 (why was it even 640??). We only need the long delay feature when 32 bits aren't enough to specify the length of
+    # the pulse; for a 500 MHz clock, this is 8.59s (just as website specified: https://www.spincore.com/products/PulseBlasterESR-PRO/)
+    LONG_DELAY_THRESHOLD = 8.5e9
 
 
     PB_INSTRUCTIONS = {
@@ -204,7 +204,6 @@ class PulseBlaster(Instrument):
         except WindowsError:
             self.is_conneted = False
             warnings.warn("Pulseblaster DLL not found. If it should be present, check the path:")
-            #print(('Expected dll_path: ', dll_path)) # ER 20201009
             print(('Expected dll_path: ', self.dll_path)) # ER 20201009
 
         self.is_conneted = False
@@ -213,6 +212,12 @@ class PulseBlaster(Instrument):
         self.estimated_runtime = None
         self.sequence_start_time = None
 
+
+    def min_pulse_dur(self):
+        """
+        :return: Minimum pulse duration in ns (5 clock cycles)
+        """
+        return int(1e3/self.settings['clock_speed']*5)
 
     def prepare_function_calls(self):
 
@@ -225,37 +230,37 @@ class PulseBlaster(Instrument):
         prepares fields in self.pb for the input arguments of the ctypes functions used in this instrument file.
 
         '''
-        self.pb.pb_get_version.restype = (ctypes.c_char_p)
-        self.pb.pb_get_error.restype = (ctypes.c_char_p)
-        self.pb.pb_read_status.restype = (ctypes.c_int)
+        self.pb.pb_get_version.restype = ctypes.c_char_p
+        self.pb.pb_get_error.restype = ctypes.c_char_p
+        self.pb.pb_read_status.restype = ctypes.c_int
 
-        self.pb.pb_count_boards.restype = (ctypes.c_int)
+        self.pb.pb_count_boards.restype = ctypes.c_int
 
-        self.pb.pb_init.restype = (ctypes.c_int)
+        self.pb.pb_init.restype = ctypes.c_int
 
-        self.pb.pb_select_board.argtype = (ctypes.c_int)
-        self.pb.pb_select_board.restype = (ctypes.c_int)
+        self.pb.pb_select_board.argtype = ctypes.c_int
+        self.pb.pb_select_board.restype = ctypes.c_int
 
-        self.pb.pb_set_debug.argtype = (ctypes.c_int)
-        self.pb.pb_set_debug.restype = (ctypes.c_int)
+        self.pb.pb_set_debug.argtype = ctypes.c_int
+        self.pb.pb_set_debug.restype = ctypes.c_int
 
-        self.pb.pb_set_defaults.restype = (ctypes.c_int)
+        self.pb.pb_set_defaults.restype = ctypes.c_int
 
-        self.pb.pb_core_clock.argtype = (ctypes.c_double)
-        self.pb.pb_core_clock.restype = (ctypes.c_int)
+        self.pb.pb_core_clock.argtype = ctypes.c_double
+        self.pb.pb_core_clock.restype = ctypes.c_int
 
         self.pb.pb_write_register.argtype = (ctypes.c_int, ctypes.c_int)
-        self.pb.pb_write_register.restype = (ctypes.c_int)
+        self.pb.pb_write_register.restype = ctypes.c_int
 
-        self.pb.pb_start_programming.argtype = (ctypes.c_int)
-        self.pb.pb_start_programming.restype = (ctypes.c_int)
+        self.pb.pb_start_programming.argtype = ctypes.c_int
+        self.pb.pb_start_programming.restype = ctypes.c_int
 
-        self.pb.pb_stop_programming.restype = (ctypes.c_int)
+        self.pb.pb_stop_programming.restype = ctypes.c_int
 
-        self.pb.pb_start.restype = (ctypes.c_int)
-        self.pb.pb_stop.restype = (ctypes.c_int)
-        self.pb.pb_reset.restype = (ctypes.c_int)
-        self.pb.pb_close.restype = (ctypes.c_int)
+        self.pb.pb_start.restype = ctypes.c_int
+        self.pb.pb_stop.restype = ctypes.c_int
+        self.pb.pb_reset.restype = ctypes.c_int
+        self.pb.pb_close.restype = ctypes.c_int
 
         self.pb.pb_inst_pbonly.argtype = (
             ctypes.c_uint,  # flags
@@ -264,58 +269,29 @@ class PulseBlaster(Instrument):
             ctypes.c_double,  # length
         )
 
-    def test_new(self):
-        #Added by MM on 060419 to debug new pb
-        print('Starting test')
-        self.pb.pb_reset()
-        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
-        self.pb.pb_core_clock(500)
-        self.pb.pb_start_programming(self.PULSE_PROGRAM)
-        #0b111000000000000000000000
-        start = self.pb.pb_inst_pbonly(0x00, self.PB_INSTRUCTIONS['CONTINUE'], 0, ctypes.c_double(200e06))
-        #start= self.pb.pb_inst_pbonly(ctypes.c_int((settings|0xE00000)),
-                                      # self.PB_INSTRUCTIONS['CONTINUE'], 0, ctypes.c_double(200e06))
-        self.pb.pb_inst_pbonly(0x00, self.PB_INSTRUCTIONS['BRANCH'], start, ctypes.c_double(200e06))
-        self.pb.pb_stop_programming()
-        self.pb.pb_start()
-       #time.sleep(10)
-       #assert(self.pb.pb_stop() == 0)
-        self.pb.pb_close()
-
-    def test_stop(self):
-        self.pb.pb_init()
-        assert(self.pb.pb_stop() == 0)
-        self.pb.pb_close()
-
     def update(self, settings):
         # call the update_parameter_list to update the parameter list
         super(PulseBlaster, self).update(settings)
-        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
-        #self.pb.pb_reset()
-       # print("Clock: {}".format(self.settings['clock_speed']))
+        assert self.pb.pb_init() == 0, 'Could not initialize the PulseBlaster on pb_init() command.'
         self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
         self.pb.pb_start_programming(self.PULSE_PROGRAM)
-       # print("settings: {}".format(self.settings2bits()))
-       # print(self.settings)
-        start = self.pb.pb_inst_pbonly(ctypes.c_int((self.settings2bits() | 0xE00000)), self.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(5.0e8))
-       # print("start: {}".format(start))
-        address = self.pb.pb_inst_pbonly(ctypes.c_int(self.settings2bits() | 0xE00000), self.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(start), ctypes.c_double(5.0e8))
-       # print("address: {}".format(address))
+        start = self.pb.pb_inst_pbonly(ctypes.c_int((self.settings2bits() | 0xE00000)),
+                                       self.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(5e8)))
+        address = self.pb.pb_inst_pbonly(ctypes.c_int((self.settings2bits() | 0xE00000)),
+                                         self.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(1), ctypes.c_double(int(5e8)))
+        # print("address: {}".format(address))+
 
         # need three 1's (0xE00000) at the start of the bitstring sent to the PB card to get the card to work
 
         # See here for explanation: http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml
-        assert address >= 0, "An invalid parameter was sent to the pulseblaster"
+        # assert address >= 0, "An invalid parameter was sent to the pulseblaster"
         self.pb.pb_stop_programming()
         self.pb.pb_start()
-
-      #  print("status: {}".format(self.pb.pb_read_status()))
-        assert (self.pb.pb_read_status() & 0b100) == 0b100, 'pulseblaster did not begin running after start() called.'
-
+        assert (self.pb.pb_read_status() & 0b100) == 0b100, 'PulseBlaster did not begin running after start() called.'
         self.pb.pb_close()
 
     def settings2bits(self):
-        #COMMENT_ME
+        # Convert settings of PB outputs to bit string (e.g. all outputs off correspond to a string of 0s)
         bits = 0
         for output, output_params in self.settings.items():
             if isinstance(output_params, dict) and 'channel' in output_params and 'status' in output_params:
@@ -416,28 +392,29 @@ class PulseBlaster(Instrument):
 
         """
 
-        # find the start time of the earliest pulse
+        # Start time of earliest pulse
         min_pulse_time = np.min([pulse.start_time for pulse in pulse_collection])
 
         assert min_pulse_time >= 0, 'pulse with negative start time detected, that is not a valid pulse'
 
-        # changed by ER 20180219 to compensate for pulse durations or rise times that aren't at integer multiples of clock period
-        clock_T = 1.0e3 / self.settings['clock_speed']  # clock period in ns
+        # Round pulse durations to be integer multiples of clock period
+        clock_period = 1.0e3 / self.settings['clock_speed']  # clock period in ns
 
-        # add delays to each pulse
+        # Add delays to each pulse
         delayed_pulse_collection = [Pulse(pulse.channel_id,
-                                          np.round((pulse.start_time - self.get_delay(pulse.channel_id))/clock_T)*clock_T, np.round(pulse.duration/clock_T)*clock_T)
+                                          np.round((pulse.start_time - self.get_delay(pulse.channel_id))/clock_period)*clock_period,
+                                          np.round(pulse.duration/clock_period)*clock_period)
                                     for pulse in pulse_collection]
 
-        # make sure the pulses start at same time as min_pulse_time
+        # Make sure the pulses start at same time as min_pulse_time
         delayed_min_pulse_time = np.min([pulse.start_time for pulse in delayed_pulse_collection])
         if delayed_min_pulse_time < min_pulse_time:
             delayed_pulse_collection = [Pulse(pulse.channel_id,
-                                                   np.round((pulse.start_time - delayed_min_pulse_time + min_pulse_time)/clock_T)*clock_T,
-                                                   np.round(pulse.duration/clock_T)*clock_T)
+                                                   np.round((pulse.start_time - delayed_min_pulse_time + min_pulse_time)/clock_period)*clock_period,
+                                                   np.round(pulse.duration/clock_period)*clock_period)
                                         for pulse in delayed_pulse_collection]
 
-        # return the sorted list of pulses, sorted by when they start
+        # Return the sorted list of pulses, sorted by when they start
         return delayed_pulse_collection
 
     def generate_pb_sequence(self, pulses):
@@ -508,7 +485,7 @@ class PulseBlaster(Instrument):
 
     def _get_long_delay_breakdown(self, pb_state_change, command='CONTINUE', command_arg=0):
         """
-        returns a list of PBCommand objects that correspond to a given state change and command, properly splitting up
+        Returns a list of PBCommand objects that correspond to a given state change and command, properly splitting up
         the state change into LONG_DELAY commands if necessary. The outputted list will always have the given command as
         the *last* command in the list.
 
@@ -533,7 +510,7 @@ class PulseBlaster(Instrument):
 
         # If the remaining time after filling with LONG_DELAYs is smaller than the minimum instruction duration,
         # split one LONG_DELAY command into one 'CONTINUE' command and one command of the type passed in
-        if remainder < self.settings['min_pulse_dur'] and num_long_delays > 2:
+        if remainder < self.min_pulse_dur() and num_long_delays > 2:
             num_long_delays -= 1
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD,
@@ -547,7 +524,7 @@ class PulseBlaster(Instrument):
             return instruction_list
 
         # if there aren't any more LONG_DELAYs after doing this, just send in two commands
-        elif remainder < self.settings['min_pulse_dur'] and num_long_delays == 2:
+        elif remainder < self.min_pulse_dur() and num_long_delays == 2:
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD / 2,
                                command='CONTINUE', command_arg=0))
@@ -563,7 +540,7 @@ class PulseBlaster(Instrument):
             return instruction_list
 
         # if there aren't any more LONG_DELAYs after doing this, just send in two commands
-        elif remainder < self.settings['min_pulse_dur'] and num_long_delays == 1:
+        elif remainder < self.min_pulse_dur() and num_long_delays == 1:
             instruction_list.append(
                 self.PBCommand(pb_state_change.channel_bits, self.LONG_DELAY_THRESHOLD / 2,
                                command='CONTINUE', command_arg=0))
@@ -572,7 +549,7 @@ class PulseBlaster(Instrument):
                                self.LONG_DELAY_THRESHOLD / 2 + remainder, command, command_arg))
             return instruction_list
 
-        # you cannot call LONG_DELAY once, so youhave to call two CONTINUE instead of you were going to
+        # you cannot call LONG_DELAY once, so you have to call two CONTINUE instead of you were going to
         # have it loop only once.
         elif num_long_delays == 1:
             instruction_list.append(
@@ -594,61 +571,39 @@ class PulseBlaster(Instrument):
                 self.PBCommand(pb_state_change.channel_bits, remainder, command, command_arg))
             return instruction_list
 
-    def create_commands(self, pb_state_changes, num_loops=1, num_loops_w_pause=None):
+    def create_commands(self, pb_state_changes, num_loops=1):
         """
         Creates a list of commands to program the pulseblaster with, assuming that the user wants to loop over the
         state changes indicated in pb_state_changes for num_loops number of times. This function properly figures out
         when to use the LONG_DELAY pulseblaster command vs. CONTINUE, and also leaves the pulseblaster back in its
-        steady-state condition when finished.
+        steady-state conditions (following self.instruments.settings) when finished.
+
 
         Args:
             pb_state_changes: An ordered collection of state changes for the pulseblaster
-            num_loops: the number of times the user wants to loop through the state changes
-
+            num_loops: the number of times the user wants to loop through the state changes (inner loop)
         Returns:
             An ordered list of PBComnmand objects to program the pulseblaster with.
 
         """
-
         if len(pb_state_changes) == 0:
             return []
 
-        # otherwise, loop over all of the given state changes for num_loops, and then leave pulseblaster in steady-state
-        # settings
         pb_commands = []
 
-        if num_loops_w_pause is None:
-            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
+        pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
 
-            for index in range(1, len(pb_state_changes)-1):
-                pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
+        for index in range(1, len(pb_state_changes)-1):
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
 
-            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
-            # PBCommand = namedtuple('PBCommand', ('channel_bits', 'duration', 'command', 'command_arg'))
+        pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
 
-            # Reset PB outputs to original settings after finishing commands
-            # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
-            pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
-
-        else:
-            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops_w_pause)))
-            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[0], command='LOOP', command_arg=num_loops)))
-
-            for index in range(1, len(pb_state_changes) - 1):
-                pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes[index], command='CONTINUE')))
-
-            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=1)
-
-
-            pb_commands.append(self.PBCommand(self.settings2bits(), 200, command='WAIT', command_arg=len(pb_commands)))
-
-            pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
-
-            # Reset PB outputs to original settings after finishing commands
-            # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
-            pb_commands.append(self.PBCommand(self.settings2bits(), 100, command='BRANCH', command_arg=len(pb_commands)))
+        # Revert PB outputs to original settings after finishing commands
+        # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
+        pb_commands.append(self.PBCommand(self.settings2bits(), 1000, command='BRANCH', command_arg=len(pb_commands)))
 
         return pb_commands
+
 
     @staticmethod
     def estimate_runtime(pulses, num_loops=1):
@@ -664,11 +619,11 @@ class PulseBlaster(Instrument):
         """
         return float(num_loops * max([pulse.start_time + pulse.duration for pulse in pulses])) / 1E6
 
-    def program_pb(self, pulse_collection, num_loops=1, num_loops_w_pause=None):
+    def program_pb(self, pulse_collection, num_loops=1):
         """
-        programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
+        Programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
         is called. The pulse collection must contain at least 2 pulses. Currently, we do not support time resolution below
-        15 ns.
+        15 ns (FF: is this still true?).
 
         Args:
             pulse_collection: A collection of Pulse objects
@@ -678,59 +633,53 @@ class PulseBlaster(Instrument):
 
         """
 
-
-        # check for errors in the given pulse_collection
-        assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
+        # Check for errors in the given pulse_collection
+        # assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
         assert num_loops < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
         if self.find_overlapping_pulses(pulse_collection):
-            print('these are the pulses sent to the pulse blaster: ', pulse_collection)
-            raise AttributeError('found overlapping pulses in given pulse collection')
+            print('Pulses sent to the pulseblaster: ', pulse_collection)
+            raise AttributeError('Found overlapping pulses in given pulse collection')
 
         for pulse in pulse_collection:
             assert pulse.start_time == 0 or pulse.start_time > 1, \
-                'found a start time that was between 0 and 1. Remember pulse times are in nanoseconds!'
+                'Found a start time between 0 and 1. Remember pulse times are in nanoseconds!'
             assert pulse.duration > 1, \
-                'found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
+                'Found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
 
-        timer_start = time.time()
-
-        # process the pulse collection into a format that is designed to deal with the low-level spincore API
+        # Process the pulse collection into a format compatible with the low-level spincore API
         delayed_pulse_collection = self.create_physical_pulse_seq(pulse_collection)
         self.estimated_runtime = self.estimate_runtime(delayed_pulse_collection, num_loops)
         pb_state_changes = self.generate_pb_sequence(delayed_pulse_collection)
-        pb_commands = self.create_commands(pb_state_changes, num_loops, num_loops_w_pause)
+        pb_commands = self.create_commands(pb_state_changes, num_loops)
 
-        #print('Time after create command: %.2e' % (time.time() - timer_start))
+        assert len(pb_commands) < 4096, "Generated a number of commands too long (>= 4096) for the pulseblaster!"
 
-
-        assert len(pb_commands) < 4096, "Generated a number of commands too long for the pulseblaster!"
-
-        #MM: Updated 061719 to switch 15 ns to min_pulse_dur
         for command in pb_commands:
-            if command.duration < self.settings['min_pulse_dur']:
+            if command.duration < self.min_pulse_dur():
                 print('less than min pulse duration!!')
                 print(command)
                 print(command.duration)
                 print(pb_commands)
                 raise RuntimeError("Detected command with duration < min_pulse_dur.")
 
-
-        # begin programming the pulseblaster
-        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblsater on pb_init() command.'
+        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
         self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
         self.pb.pb_start_programming(self.PULSE_PROGRAM)
 
-        #print('Time after start program: %.2e' % (time.time() - timer_start))
-
         for pb_instruction in pb_commands:
-            # note that change types to the appropriate c type, as well as set certain bits in the channel bits to 1 in
+            # note tha
+            # t change types to the appropriate c type, as well as set certain bits in the channel bits to 1 in
             # order to properly output the signal
-            return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits | 0xE00000),
+            # return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits | 0xE00000),
+            #                                       self.PB_INSTRUCTIONS[pb_instruction.command],
+            #                                       ctypes.c_int(int(pb_instruction.command_arg)),
+            #                                       ctypes.c_double(int(pb_instruction.duration)))
+            return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits),
                                                   self.PB_INSTRUCTIONS[pb_instruction.command],
                                                   ctypes.c_int(int(pb_instruction.command_arg)),
-                                                  ctypes.c_double(pb_instruction.duration))
+                                                  ctypes.c_double(int(pb_instruction.duration)))
             if return_value < 0:
-                print('error!!!')
+                print('Pulseblaster instruction error!')
                 print(pb_commands)
                 print(pb_instruction.duration)
                 print(pb_instruction)
@@ -746,10 +695,9 @@ class PulseBlaster(Instrument):
         """
 
         self.pb.pb_start()
-        #print(self.pb.pb_read_status() & 0b100 == 0b100)
         assert self.pb.pb_read_status() & 0b100 == 0b100, 'pulseblaster did not begin running after start() called.'
 
-        if(self.settings['PB_type'] == 'PCI'):  #leave USB PB connection open to stop it later
+        if self.settings['PB_type'] == 'PCI':  # leave USB PB connection open to stop it later
             self.pb.pb_close()
         self.sequence_start_time = datetime.datetime.now()
 
@@ -765,7 +713,7 @@ class PulseBlaster(Instrument):
         self.pb.pb_close()
 
     def wait(self):
-        #COMMENT_ME
+        # COMMENT_ME
         if self.estimated_runtime is None or self.sequence_start_time is None:
             return
         if (datetime.datetime.now() - self.sequence_start_time).microseconds/1000.0 < self.estimated_runtime:
@@ -775,7 +723,7 @@ class PulseBlaster(Instrument):
         self.sequence_start_time = None
 
     def _get_channel(self, channel_id):
-        #COMMENT_ME
+        # COMMENT_ME
         if isinstance(channel_id, (int, float)):
             return channel_id
         elif isinstance(channel_id, str):
@@ -788,12 +736,13 @@ class PulseBlaster(Instrument):
         raise AttributeError(
             'channel id must be either an integer or a string. Instead, this was passed in: {0}'.format(channel_id))
 
+
 class B26PulseBlaster(PulseBlaster):
     # COMMENT_ME
     _DEFAULT_SETTINGS = Parameter([
         Parameter('laser', [
             Parameter('channel', 0, int, 'channel to which laser is connected'),
-            Parameter('status', True, bool, 'True if voltage is high to the laser, false otherwise'),
+            Parameter('status', False, bool, 'True if voltage is high to the laser, false otherwise'),
             Parameter('delay_time', 350.2, float, 'delay time between pulse sending time and laser switch on [ns]')
         ]),
         Parameter('apd_readout', [
@@ -813,13 +762,13 @@ class B26PulseBlaster(PulseBlaster):
         ]),
         Parameter('microwave_switch', [
             Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
-            Parameter('status', True, bool, 'True if voltage is high to the microwave switch, false otherwise'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
         Parameter('atto_trig', [
             Parameter('channel', 4, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
-            Parameter('delay_time', 250, float, 'delay time between pulse sending time and atto_trig on [ns]')
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and atto_trig on [ns]')
         ]),
         Parameter('rf_i', [
             Parameter('channel', 5, int, 'channel to which the rf p trigger is connected to'),
@@ -853,15 +802,15 @@ class B26PulseBlaster(PulseBlaster):
 
     _PROBES = {}
 
-    def __init__(self, name=None, settings=None):
-        #COMMENT_ME
-        super(B26PulseBlaster, self).__init__(name, settings)
+    # def __init__(self, name=None, settings=None):
+    #     #COMMENT_ME
+    #     super(B26PulseBlaster, self).__init__(name, settings)
 
 
-    def update(self, settings):
-        # call the update_parameter_list to update the parameter list
-        # oh god this is confusing
-        super(B26PulseBlaster, self).update(settings)
+    # def update(self, settings):
+    #     # call the update_parameter_list to update the parameter list
+    #     # oh god this is confusing
+    #     super(B26PulseBlaster, self).update(settings)
 
     def read_probes(self, key):
         pass
@@ -875,55 +824,305 @@ class B26PulseBlaster(PulseBlaster):
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
 
 
+class PulseBlasterHwTrig(B26PulseBlaster):
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('laser', [
+            Parameter('channel', 0, int, 'channel to which laser is connected'),
+            Parameter('status', False, bool, 'True if voltage is high to the laser, false otherwise'),
+            Parameter('delay_time', 350.2, float, 'delay time between pulse sending time and laser switch on [ns]')
+        ]),
+        Parameter('apd_readout', [
+            Parameter('channel', 1, int, 'channel to which the daq is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the daq, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and daq acknowledgement [ns]')
+        ]),
+        Parameter('microwave_i', [
+            Parameter('channel', 2, int, 'channel to which the microwave p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave p trigger, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time betweepulse sending time and microwave p trigger [ns]')
+        ]),
+        Parameter('microwave_q', [
+            Parameter('channel', 8, int, 'channel to which the microwave q trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
+        ]),
+        Parameter('microwave_switch', [
+            Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
+        ]),
+        Parameter('atto_trig', [
+            Parameter('channel', 4, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and atto_trig on [ns]')
+        ]),
+        Parameter('rf_i', [
+            Parameter('channel', 5, int, 'channel to which the rf p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('rf_switch', [
+            Parameter('channel', 6, int, 'channel to which the rf switch is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_i_2', [
+            Parameter('channel', 7, int, 'channel to which the microwave p trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('microwave_q_2', [
+            Parameter('channel', 9, int, 'channel to which the microwave q trigger is connected to'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('spacer', [
+            Parameter('channel', 10, int, 'placeholder channel to control the length of pulse sequences, do not actually use the physical output!'),
+            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+        ]),
+        Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
+        Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
+    ])
+
+    _PROBES = {}
+
+    def program_pb(self, pulse_collection_laser, pulse_collection_mw, num_loops_laser, num_loops_mw):
+        """
+        Programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
+        is called. The pulse collection must contain at least 2 pulses. Currently, we do not support time resolution below
+        15 ns (FF: is this still true?).
+
+        Args:
+            pulse_collection: A collection of Pulse objects
+            num_loops: The number of times to perform the given pulse collection
+
+        Returns:
+        """
+
+        # Check for errors in the given pulse_collection
+        # assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
+        assert num_loops_laser < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
+        assert num_loops_mw < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
+
+        for pulse_collection in [pulse_collection_laser, pulse_collection_mw]:
+            if self.find_overlapping_pulses(pulse_collection):
+                print('Pulses sent to the pulseblaster: ', pulse_collection)
+                raise AttributeError('Found overlapping pulses in given pulse collection')
+            for pulse in pulse_collection:
+                assert pulse.start_time == 0 or pulse.start_time > 1, \
+                    'Found a start time between 0 and 1. Remember pulse times are in nanoseconds!'
+                assert pulse.duration > 1, \
+                    'Found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
+
+        # Process the pulse collection into a format compatible with the low-level spincore API
+        delayed_pulse_collection_laser = self.create_physical_pulse_seq(pulse_collection_laser)
+        delayed_pulse_collection_mw = self.create_physical_pulse_seq(pulse_collection_mw)
+
+        self.estimated_runtime = self.estimate_runtime(pulse_collection_laser, num_loops_laser) + self.estimate_runtime(pulse_collection_mw, num_loops_mw)
+        pb_state_changes_laser = self.generate_pb_sequence(pulse_collection_laser)
+        pb_state_changes_mw = self.generate_pb_sequence(pulse_collection_mw)
+        pb_commands = self.create_commands(pb_state_changes_laser, pb_state_changes_mw, num_loops_laser, num_loops_mw)
+
+        assert len(pb_commands) < 4096, "Generated a number of commands too long (>= 4096) for the pulseblaster!"
+
+        for command in pb_commands:
+            if command.duration < self.min_pulse_dur():
+                print('less than min pulse duration!!')
+                print(command)
+                print(command.duration)
+                print(pb_commands)
+                raise RuntimeError("Detected command with duration < min_pulse_dur.")
+
+        assert self.pb.pb_init() == 0, 'Could not initialize the pulseblaster on pb_init() command.'
+        self.pb.pb_core_clock(ctypes.c_double(self.settings['clock_speed']))
+        self.pb.pb_start_programming(self.PULSE_PROGRAM)
+
+        for pb_instruction in pb_commands:
+            # return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits | 0xE00000),
+            #                                       self.PB_INSTRUCTIONS[pb_instruction.command],
+            #                                       ctypes.c_int(int(pb_instruction.command_arg)),
+            #                                       ctypes.c_double(int(pb_instruction.duration)))
+            return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits),
+                                                  self.PB_INSTRUCTIONS[pb_instruction.command],
+                                                  ctypes.c_int(int(pb_instruction.command_arg)),
+                                                  ctypes.c_double(int(pb_instruction.duration)))
+            if return_value < 0:
+                print('Pulseblaster instruction error!')
+                print(pb_commands)
+                print(pb_instruction.duration)
+                print(pb_instruction)
+            assert return_value >= 0, 'There was an error while programming the pulseblaster'
+        self.pb.pb_stop_programming()
+
+    def create_commands(self, pb_state_changes_laser, pb_state_changes_mw, num_loops_laser, num_loops_mw, verbose=False):
+        """
+        Creates a list of commands to program the pulseblaster with. In PulseBlasterHwTrig the code has a different structure than create_commands in
+        PulseBlaster. Here we first loop through pb_state_changes_laser for num_loops_laser and then loop through pb_states_changes_mw for num_loops_mw.
+        In both loops the PB waits for a hardware trigger before sending out pulses. Therefore, we end up with a synchronized pulse train of laser initialization
+        pulses and then pi pulses.
+
+        Not implemented yet: The conventional way of dealing with pulse delays (e.g. AOM delay) is to simply shift the pulse forward by the delay time. However,
+        the PB cannot wait for a hardware trigger while sending out a pulse simultaneously. The current workaround is to simply shift forward the laser pulses
+        by a num of pulse train periods longer than the delay time.
+
+        Args:
+            pb_state_changes_laser: An ordered collection of state changes for the PB for controlling the laser; this needs to fit inside one period of the pulse train
+            pb_state_changes_mw: An ordered collection of state changes for the PB for controlling the laser; this needs to fit inside one period of the pulse train
+            num_loops_laser: number of iterations of the laser pulse collection
+            num_loops_mw: number of iterations of the MW pulse collection
+            verbose: if True, prints out all the PB commands
+
+        Returns:
+            An ordered list of PBComnmand objects to program the pulseblaster with.
+        """
+
+        if len(pb_state_changes_laser) + len(pb_state_changes_mw) == 0:
+            print('0 state changes requested; create_commands() did not produce any PB commands.')
+            return []
+
+        pb_commands = []
+
+        # Briefly turn off all PB outputs before running sequence
+        pb_commands.append(self.PBCommand(0, 1000, command='CONTINUE', command_arg=0))
+        for j in range(num_loops_laser):
+            pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=0))
+            for index in range(0, len(pb_state_changes_laser) - 1):
+                pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_laser[index], command='CONTINUE')))
+            pb_commands += self._get_long_delay_breakdown(pb_state_changes_laser[-1], command='CONTINUE', command_arg=0)
+
+        loop_begin_index = len(pb_commands)
+        pb_commands.append(self.PBCommand(0, 10, command='LOOP', command_arg=num_loops_mw))
+        # Wait command needs a minimum of 5 clock cycles. Command arg is unused.
+        pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=len(pb_commands)))
+        for index in range(0, len(pb_state_changes_mw)-1):
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_mw[index], command='CONTINUE')))
+        pb_commands += self._get_long_delay_breakdown(pb_state_changes_mw[-1], command='END_LOOP', command_arg=loop_begin_index)
+
+        pb_commands.append(self.PBCommand(0, 10, command='BRANCH', command_arg=1))
+
+        if verbose:
+            print('Output from create_commands:')
+            for command in pb_commands:
+                print(command)
+        return pb_commands
+
+    def start_pulse_seq(self):
+        """
+        Starts the pulse sequence programmed in program_pb, and confirms that the PulseBlaster is running.
+        Unlike in the original PulseBlaster class, this runs pb_reset() before running pb_start() to ensure that the PB starts from the beginning of the seq
+
+        Returns:
+
+        """
+        print('You are using PB HW Trig')
+        self.pb.pb_reset()
+        super(PulseBlasterHwTrig, self).start_pulse_seq()
+        #
+        #
+        # self.pb.pb_start()
+        # assert self.pb.pb_read_status() & 0b100 == 0b100, 'pulseblaster did not begin running after start() called.'
+        #
+        # if self.settings['PB_type'] == 'PCI':  # leave USB PB connection open to stop it later
+        #     self.pb.pb_close()
+        # self.sequence_start_time = datetime.datetime.now()
+
+
 if __name__ == '__main__':
-    # for i in range(5):
-    #     pulse_collection = [Pulse(channel_id=1, start_time=0, duration=2000),
-    #                         Pulse(channel_id=1, start_time=2000, duration=2000),
-    #                         Pulse(channel_id=1, start_time=4000, duration=2000),
-    #                         Pulse(channel_id=0, start_time=6000, duration=2000)]
-    #     pulse_collection = [Pulse('apd_readout', i, 100) for i in range(0, 2000, 200)]
-    #     pb.program_pb(pulse_collection, num_loops=5E5)
-    #     pb.start_pulse_seq()
-    #     pb.wait()
-    #     print('finished #{0}!'.format(i))
+    inst = PulseBlasterHwTrig()
+    inst.pb.pb_init()
+    inst.pb.pb_stop()
+    print('{:04b}'.format(inst.pb.pb_read_status()))
+    inst.pb.pb_close()
 
-    import time
-    pb = B26PulseBlaster()
-    '''
-    pb.test_new()
-    time.sleep(5)
-    pb.test_stop()
-    '''
+if __name__ == '__main2__':
+    for i in range(1):
+        import time
+        # time.sleep(.1)
+        from b26_toolkit.instruments.awg import AFG3022C
+        arb = AFG3022C()
+        arb.update({'ch2_enable': True})
+        arb.update({'ch2_frequency': 4e6})
+        arb.update({'ch2_amplitude': 1.0})
+        arb.update({'ch2_run_mode': 'Burst'})
+        arb.update({'ch2_burst_ncycles': int(10000000)})
+        arb.afg.write('TRIG:SOUR EXT')
 
-    #for i in range(0,3):
-    #    pb.update({'laser': {'channel': i}})
-    #    pb.update({'laser': {'status': bool(1)}})
 
-    #    time.sleep(.2)
+        inst = B26PulseBlaster()
+        inst.update({'atto_trig': {'status': False}})
+        # inst.update({'spacer': {'delay_time': 0.0}})
+        # inst.update({'atto_trig': {'status': False}})
 
-    pb.update({'laser': {'status': False}})
-
-    pulse_collection = [Pulse('laser', 0, 100000), Pulse('apd_readout', 0, 200000)]
-    pb.program_pb(pulse_collection, num_loops=4, num_loops_w_pause=2)
-
-    pb.pb.pb_start()
-    print(pb.pb.pb_read_status() & 0b100 == 0b100)
-
-    time.sleep(.001)
-    print(pb.pb.pb_read_status() & 0b100 == 0b100)
-    pb.pb.pb_start()
-
-    print(pb.pb.pb_read_status() & 0b100 == 0b100)
-    pb.pb.pb_close()
-    pb.program_pb(pulse_collection, num_loops=4, num_loops_w_pause=2)
-
-    pb.pb.pb_start()
-    print(pb.pb.pb_read_status() & 0b100 == 0b100)
-
-    time.sleep(.001)
-    print(pb.pb.pb_read_status() & 0b100 == 0b100)
-    pb.pb.pb_start()
+        # del inst
+        # inst = B26PulseBlaster()
+        # inst.update(inst.settings)
 
 
 
+        # inst.pb.pb_init()
+        # print('{:04b}'.format(inst.pb.pb_read_status()))
+        # inst.pb.pb_core_clock(ctypes.c_double(inst.settings['clock_speed']))
+        # inst.pb.pb_start_programming(inst.PULSE_PROGRAM)
+        #
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(1), ctypes.c_double(int(1000)))
+        #
+        # inst.pb.pb_stop_programming()
+        # inst.pb.pb_start()
+        # inst.pb.pb_close()
 
+
+
+        pulse_collection = [Pulse('atto_trig', 10, int(80)), Pulse('rf_i', 10, int(160))]
+
+        inst.program_pb(pulse_collection, num_loops=1)
+
+        print('{:04b}'.format(inst.pb.pb_read_status()))
+        inst.pb.pb_reset()
+        inst.pb.pb_start()
+        inst.pb.pb_close()
+
+        time.sleep(.1)
+
+        arb.afg.write('TRIG:SEQ:IMM')
+
+
+
+        # inst.pb.pb_init()
+        # print('{:04b}'.format(inst.pb.pb_read_status()))
+        # inst.pb.pb_core_clock(ctypes.c_double(inst.settings['clock_speed']))
+        # inst.pb.pb_start_programming(inst.PULSE_PROGRAM)
+        #
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['WAIT'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['LOOP'], ctypes.c_int(7), ctypes.c_double(int(100)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1e8)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['END_LOOP'], ctypes.c_int(2), ctypes.c_double(int(100)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(5), ctypes.c_double(int(1000)))
+        #
+        # inst.pb.pb_stop_programming()
+        # inst.pb.pb_reset()
+        # inst.pb.pb_start()
+        # inst.pb.pb_close()
+
+
+        # inst.pb.pb_init()
+        # print('{:04b}'.format(inst.pb.pb_read_status()))
+        # inst.pb.pb_core_clock(ctypes.c_double(inst.settings['clock_speed']))
+        # inst.pb.pb_start_programming(inst.PULSE_PROGRAM)
+        #
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['LOOP'], ctypes.c_int(7), ctypes.c_double(int(1000)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['WAIT'], ctypes.c_int(0), ctypes.c_double(int(100)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1000)))
+        # # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['CONTINUE'], ctypes.c_int(0), ctypes.c_double(int(1e8)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(16), inst.PB_INSTRUCTIONS['END_LOOP'], ctypes.c_int(1), ctypes.c_double(int(100)))
+        # inst.pb.pb_inst_pbonly(ctypes.c_int(0), inst.PB_INSTRUCTIONS['BRANCH'], ctypes.c_int(5), ctypes.c_double(int(1000)))
+        #
+        # inst.pb.pb_stop_programming()
+        # inst.pb.pb_reset()
+        # inst.pb.pb_start()
+        # inst.pb.pb_close()

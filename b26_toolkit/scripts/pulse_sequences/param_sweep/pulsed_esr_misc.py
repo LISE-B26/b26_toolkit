@@ -19,7 +19,7 @@ import numpy as np
 from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_esr import PulsedEsr
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator, AFG3022C, Commander, AFG3022C_02
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter
 import time as t
@@ -823,7 +823,7 @@ class CnotPowerSweep(PulsedEsr):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_frequency', 2.82e9, float, 'frequency of hyperfine transition'),
-            Parameter('microwave_channel', 'i', ['i', 'q', 'i_2', 'q_2'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', 'i', ['i', 'q', 'i_2', 'q_2', 'alternate i and q'], 'Channel to use for mw pulses'),
             Parameter('tau_mw', 80, float, 'the time duration of the microwaves in ns'),
             Parameter('n', 0, int, 'number of pi-pulses, the larger n is the more accurate we can determine the correct power for a pi-pulse'),
             Parameter('spacing', 100, float, 'spacing in ns between consecutive pi-pulses')
@@ -865,7 +865,18 @@ class CnotPowerSweep(PulsedEsr):
         delay_readout = self.settings['read_out']['delay_readout']
         mw_tau = self.settings['mw_pulses']['tau_mw']
         spacing = self.settings['mw_pulses']['spacing']
-        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        if self.settings['mw_pulses']['microwave_channel'] == 'alternate i and q':
+            alternate = True
+            microwave_channel_1 = 'microwave_i'
+            microwave_channel_2 = 'microwave_q'
+        elif self.settings['mw_pulses']['microwave_channel'] == 'alternate i_2 and q_2':
+            alternate = True
+            microwave_channel_1 = 'microwave_i_2'
+            microwave_channel_2 = 'microwave_q_2'
+        else:
+            alternate = False
+            microwave_channel_1 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
 
         laser_off_time = self.settings['read_out']['laser_off_time']
         meas_time = self.settings['read_out']['meas_time']
@@ -885,17 +896,14 @@ class CnotPowerSweep(PulsedEsr):
             # if tau is 0 there is actually no mw pulse
             if tau > 0:
                 for i in range(n):
-                    pulse_sequence.append(Pulse(microwave_channel,
-                                                current_time,
-                                                mw_tau))
+                    if alternate and i % 2 == 1:  # Alternate to MW chan 2 for odd-numbered pulses
+                        pulse_sequence.append(Pulse(microwave_channel_2, current_time, mw_tau))
+                    else:
+                        pulse_sequence.append(Pulse(microwave_channel_1, current_time, mw_tau))
                     current_time += mw_tau + spacing
 
-            pulse_sequence.append(Pulse('laser',
-                                        current_time,
-                                        nv_reset_time))
-            pulse_sequence.append(Pulse('apd_readout',
-                                        current_time + delay_readout,
-                                        meas_time))
+            pulse_sequence.append(Pulse('laser', current_time, nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout', current_time + delay_readout, meas_time))
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
@@ -906,9 +914,9 @@ class CnotPowerSweep(PulsedEsr):
         # print('successfully turned off microwave switch')
 
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q':
+        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
             mw_gen_instrument = 'mw_gen'
-        elif mw_channel == 'i_2' or mw_channel == 'q_2':
+        elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
 
         self.instruments[mw_gen_instrument]['instance'].update({'modulation_type': 'IQ'})
@@ -917,16 +925,27 @@ class CnotPowerSweep(PulsedEsr):
         self.instruments[mw_gen_instrument]['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
         self.instruments[mw_gen_instrument]['instance'].update({'enable_output': True})
 
+    def define_sweep_parameters(self):
+        """
+        Define name of sweep parameters. Since this script is generic, it is coded with variables like 'param_start'.
+        This function redirects the code to look for the corresponding settings in _DEFAULT_SETTINGS
+        :return:
+        """
+        self.sweep_params = {'param_start': self.settings['power_start'],
+                             'param_stop': self.settings['power_stop'],
+                             'param_points': self.settings['power_points'],
+                             'param_switching_time': self.settings['mw_generator_switching_time']}
 
 
     def _configure_instruments_start_of_sweep(self, power_current):
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q':
+        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
             mw_gen_instrument = 'mw_gen'
-        elif mw_channel == 'i_2' or mw_channel == 'q_2':
+        elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
 
         self.instruments[mw_gen_instrument]['instance'].update({'amplitude': float(power_current)})
+        self.instruments[mw_gen_instrument]['instance'].update({'enable_modulation': False})
 
     def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
@@ -934,7 +953,7 @@ class CnotPowerSweep(PulsedEsr):
 
         if self.settings['range_type'] == 'start_stop':
             if self.settings['power_start'] > self.settings['power_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Warning: end freqmust be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
 
 
@@ -944,6 +963,40 @@ class CnotPowerSweep(PulsedEsr):
 
             self.params = np.linspace(self.settings['power_start'] - self.settings['power_stop'] / 2,
                                       self.settings['power_start'] + self.settings['power_stop'] / 2, self.settings['power_points'])
+
+
+class RabiPowerSweep(CnotPowerSweep):
+    """
+    Sweeps the power to optimize a pi-pulse given a fixed pi time.
+
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_frequency', 2.82e9, float, 'frequency of hyperfine transition'),
+            Parameter('microwave_channel', 'i', ['i', 'q', 'alternate i and q'], 'Channel to use for mw pulses'),
+            Parameter('tau_mw', 80, float, 'the time duration of the microwaves in ns'),
+            Parameter('n', 0, int, 'number of pi-pulses, the larger n is the more accurate we can determine the correct power for a pi-pulse'),
+            Parameter('spacing', 100, float, 'spacing in ns between consecutive pi-pulses')
+        ]),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
+        Parameter('power_start', -20, float, 'start frequency of scan in Hz'),
+        Parameter('power_stop', -10, float, 'end frequency of scan in Hz'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('power_points', 100, int, 'number of frequencies in scan in Hz'),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset electronic spin'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')
+    ]
+
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
+
 
 
 class FieldProfilePulsed(PulsedEsr):
@@ -1505,7 +1558,7 @@ class TransportDqmaRfPhase(PulsedEsrPolarized):
                 first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
-                plot_1d_simple_timetrace_ns(axislist[0], data['params'],[avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace(axislist[0], data['params'], [avg_counts_1, avg_counts_2])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)
@@ -1870,7 +1923,7 @@ class TransportDqmaMwPhase(PulsedEsrPolarized):
                 first_counts_2 = np.transpose(np.array([np.average(self.data['count_data'][:, num_daq_reads:num_daq_reads+1], axis=1)]))
 
                 #plot_1d_simple_timetrace_ns(axislist[0], data['tau'], [first_counts_1, first_counts_2, avg_counts_1, avg_counts_2])
-                plot_1d_simple_timetrace_ns(axislist[0], data['params'],[avg_counts_1, avg_counts_2])
+                plot_1d_simple_timetrace(axislist[0], data['params'], [avg_counts_1, avg_counts_2])
                 plot_pulses(axislist[1], self.pulse_sequences[self.sequence_index])
             axislist[0].set_title('Coherent Transport w/ Direct Quantum Memory Access')
             axislist[0].legend(labels=('Nuclear State 0 (avg readout)', 'Nuclear State 1 (avg readout)'), fontsize=8)

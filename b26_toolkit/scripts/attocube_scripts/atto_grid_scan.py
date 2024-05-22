@@ -17,9 +17,11 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import time
-from b26_toolkit.instruments import PiezoController
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan
+from b26_toolkit.instruments.piezo_controller import PiezoController
+from b26_toolkit.instruments import B26KDC001x, B26KDC001z, B26KDC001y, NI9219
 from b26_toolkit.scripts.set_laser import SetLaser, SetLaserSingleAxis
+from b26_toolkit.scripts.daq_read_ai import Daq_Read_Analog
 from b26_toolkit.scripts.pulse_sequences.laser_pulses import PulsedReadout
 from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_esr import PulsedEsrFast
 from pylabcontrol.core import Parameter, Script
@@ -108,15 +110,19 @@ class AttoGridScanGeneric(Script):
         self.y_array = self.y_array.tolist()
 
         self.point_index = 0
+
+        xNum_array = list(range(0, Nx))
+        pixels_completed = 0
         for yNum in range(0, Ny):
             self.move_piezo(0, self.y_array[yNum], direction='y')
-            for xNum in range(0, Nx):
+            for xNum in xNum_array:
+                print(xNum_array)
                 if self._abort:
                     break
-                print('Moving piezo to %.1f, %.1f' % ((self.x_array[xNum], self.y_array[yNum])))
+
+                # print('Moving piezo to %.1f, %.1f' % ((self.x_array[xNum], self.y_array[yNum])))
                 self.move_piezo(self.x_array[xNum], self.y_array[yNum], direction='x')
                 time.sleep(self.settings['settle_time'])
-                #self.data['actual_Vx'][yNum*Nx+xNum], self.data['actual_Vy'][yNum*Nx+xNum] = self.read_piezo()
 
                 self.progress = float(yNum * Nx + xNum) / (Nx * Ny) * 100
                 self.updateProgress.emit(int(self.progress))
@@ -126,18 +132,21 @@ class AttoGridScanGeneric(Script):
                         self.scripts['find_nv'].run(verbose=False)
 
                         # Move piezo to the set location again. For some reason, FindNv seems to affect the DAQ outputs to the Attocube
-                        print('Moving piezo (again) to %.1f, %.1f' % ((self.x_array[xNum], self.y_array[yNum])))
+                        print('Moving piezo (again) to %.1f, %.1f' % (self.x_array[xNum], self.y_array[yNum]))
                         self.move_piezo(self.x_array[xNum], self.y_array[yNum])
                         time.sleep(.5)
 
                 point_value = self.read_point()
                 self.data['point_value'][yNum, xNum] = point_value
 
-                self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
-
-                #print('Current acquisition {:02d}/{:02d}'.format(yNum * Nx + xNum, Nx * Ny))
-
+                pixels_completed += 1
+                print(pixels_completed)
+                self.progress = float(pixels_completed) / (Nx * Ny) * 100
+                print(self.progress)
                 self.updateProgress.emit(int(self.progress))
+
+            if 'scan_mode' in self.settings and self.settings['scan_mode'] == 'meander':
+                xNum_array = xNum_array[::-1]
 
         # set end position after scan based on ending_behavior setting
         if self.settings['ending_behavior'] == 'leave_at_corner':
@@ -549,6 +558,98 @@ class GalvoGridScanPulsed(AttoGridScanGeneric):
 
     def check_bounds(self):
         pass
+
+
+class ServoGridScanFringes(AttoGridScanGeneric):
+    _DEFAULT_SETTINGS = [
+        Parameter('point_a',
+                  [Parameter('x', 0, float, 'x-coordinate'),
+                   Parameter('y', 0, float, 'y-coordinate')
+                   ]),
+        Parameter('point_b',
+                  [Parameter('x', 1.0, float, 'x-coordinate'),
+                   Parameter('y', 1.0, float, 'y-coordinate')
+                   ]),
+        Parameter('RoI_mode', 'corner', ['center', 'corner'], 'mode to calculate region of interest.\n \
+                                                   corner: pta and ptb are diagonal corners of rectangle.\n \
+                                                   center: pta is center and pta is extend or rectangle'),
+        Parameter('num_points',
+                  [Parameter('x', 10, int, 'number of x points to scan, if 1 then perform a line scan along the other axis'),
+                   Parameter('y', 10, int, 'number of y points to scan, if 1 then perform a line scan along the other axis')
+                   ]),
+        Parameter('scan_mode', 'meander', ['meander', 'book'], 'Meander: scan from left to right, and then back to left for the next line, etc; '
+                                                               'Book: always scan from left to right'),
+        Parameter('statistics', 'min-max', ['min-max', 'mean', 'std']),
+        Parameter('settle_time', 0.05, float, 'time (s) to wait after moving to a new point, before taking data'),
+        Parameter('Tracking', [
+            Parameter('on/off', False, bool, 'used to turn on tracking'),
+            Parameter('every_N', 1, int, 'track every n points')]),
+        Parameter('ending_behavior', 'leave_at_corner', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
+                  'return to the corn')
+    ]
+
+    _INSTRUMENTS = {'XServo': B26KDC001x, 'YServo': B26KDC001y}
+    _SCRIPTS = {'daq_read_ai': Daq_Read_Analog}
+
+    def check_bounds(self):
+        pass
+
+    def setup_scan(self):
+        servo_x = self.instruments['XServo']['instance']
+        servo_y = self.instruments['YServo']['instance']
+        servo_x.settings['velocity'] = 4
+        print(servo_x.get_velocity())
+        servo_x.set_velocity()
+        servo_y.settings['velocity'] = 2.2
+        servo_y.set_velocity()
+
+    def move_piezo(self, x, y, direction='both'):
+        servo_x = self.instruments['XServo']['instance']
+        servo_y = self.instruments['YServo']['instance']
+        if direction == 'x':
+            servo_x.settings['position'] = x
+            t_start = time.time()
+            servo_x.set_position()
+            print('Time to move piezo in x: %.3f'%(time.time()-t_start))
+        elif direction == 'y':
+            servo_y.settings['position'] = y
+            servo_y.set_position()
+        elif direction == 'both':
+            servo_x.settings['position'] = x  # update the position setting of the instrument
+            servo_y.settings['position'] = y
+            servo_x.set_position()  # actually move the instrument to that location. If this is not within the safety
+            servo_y.set_position()  # limits of the instruments, it will not actually move and say so in the log
+        else:
+            raise ValueError
+
+    def read_point(self):
+        """
+        Take ESR (for a 2D scan of B field)
+        Returns: measured value at given pt, with other data that won't be plotted
+        """
+
+        self.scripts['daq_read_ai'].run(verbose=False)
+        time.sleep(self.settings['settle_time'])
+
+        data = self.scripts['daq_read_ai'].data['voltage']
+        self.daq_data = data
+        if data:  # Need this conditional because data might be empty list if abort in the middle of Daq Read Analog
+            if self.settings['statistics'] == 'mean':
+                value_from_data = np.mean(data)
+            elif self.settings['statistics'] == 'std':
+                value_from_data = np.std(data)
+            elif self.settings['statistics'] == 'min-max':
+                value_from_data = np.max(data) - np.min(data)
+
+        return value_from_data
+
+    def read_point_disabled(self):
+        """
+        Take ESR (for a 2D scan of B field)
+        Returns: measured value at given pt, with other data that won't be plotted
+        """
+
+        return 0
 
 
 if __name__ == '__main__':
