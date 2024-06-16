@@ -21,7 +21,6 @@ from copy import deepcopy
 import numpy as np
 import trackpy as tp
 from matplotlib import patches
-import matplotlib.patheffects as pe
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 from pylabcontrol.core import Script, Parameter
@@ -97,17 +96,9 @@ Known issues:
         if self.settings['center_on_current_location']:
             # fixed for cold setup and new DAQ ER 6/4/17
             #daq_pt = self.scripts['take_image'].instruments['daq']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
-            daq_pt = self.scripts['take_image'].instruments['NI6259']['instance'].get_analog_voltages([self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'], self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
-
+            daq_pt = self.scripts['set_laser'].instruments['NI6259']['instance'].get_analog_voltages([self.scripts['set_laser'].settings['DAQ_channels']['x_ao_channel'], self.scripts['set_laser'].settings['DAQ_channels']['y_ao_channel']])
             self.settings['initial_point'].update({'x': daq_pt[0], 'y': daq_pt[1]})
-
         initial_point = self.settings['initial_point']
-
-        if not (self.settings['safety_min_x'] < initial_point['x'] < self.settings['safety_max_x'] and
-                self.settings['safety_min_y'] < initial_point['y'] < self.settings['safety_max_y']):
-            self.log('initial point is outside the safe zone for the laser. Please select a reasonable initial point.')
-            return
-
         nv_size = self.settings['nv_size']
         min_mass = self.settings['min_mass']
 
@@ -126,7 +117,9 @@ Known issues:
         self.scripts['take_image'].settings['point_b'].update({'x': self.settings['sweep_range'], 'y': self.settings['sweep_range']})
         self.scripts['take_image'].update({'RoI_mode': 'center'})
         self.scripts['take_image'].settings['num_points'].update({'x': self.settings['num_points'], 'y': self.settings['num_points']})
-        self.scripts['take_image'].update({'time_per_pt': self.settings['time_per_pt']})
+
+        if 'time_per_pt' in self.scripts['take_image'].settings:
+            self.scripts['take_image'].update({'time_per_pt': self.settings['time_per_pt']})
 
         self.scripts['take_image'].run()
 
@@ -141,7 +134,14 @@ Known issues:
             self.data['maximum_point'] = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
         else:
             while True: # modified ER 5/27/2017 to implement tracking
-                locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass)
+
+                try:
+                    print('before')
+                    locate_info = tp.locate(self.data['image_data'], nv_size, minmass=min_mass, engine='python')
+                    print('after')
+                except:
+                    self.log('Error raised in trackpy.locate')
+                    return
                 po = [self.data['initial_point']['x'], self.data['initial_point']['y']]
                 if len(locate_info) == 0:
                     self.data['maximum_point'] = {'x': float(po[0]), 'y': float(po[1])}
@@ -149,7 +149,7 @@ Known issues:
 
                     # all the points that have been identified as valid NV centers
                     pts = [self.pixel_to_voltage(p, self.data['extent'], np.shape(self.data['image_data'])) for p in
-                           locate_info[['x', 'y']].as_matrix()]
+                           locate_info[['x', 'y']].values]
 
                     if len(pts) > 1:
                         self.log('FindNV found more than one NV in the scan image. Selecting the one closest to initial point.')
@@ -159,7 +159,7 @@ Known issues:
                     counter = 0
                     for p in pts: # record maximum counts = fluorescence
                         if p[1] == self.data['maximum_point']['y']:
-                            self.data['fluorescence'] = 2*locate_info[['signal']].as_matrix()[counter]
+                            self.data['fluorescence'] = 2*locate_info[['signal']].values[counter]
                             print('fluorescence of the NV, kCps: %i' % self.data['fluorescence'][0])
                             counter += 1
                     break
@@ -289,23 +289,3 @@ class FindNvSafe(FindNV):
         self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
         super(FindNvSafe, self)._function()
 
-
-# class FindNV_cDAQ(FindNV):
-#     """
-# GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
-# resulting in an image in the current field of view of the objective.
-#
-# Known issues:
-#     1.) if fits are poor, check  sweep_range. It should extend significantly beyond end of NV on both sides.
-#     """
-#
-#     _SCRIPTS = {'take_image': GalvoScan_cDAQ, 'set_laser': SetLaser_cDAQ}
-#
-#
-#
-#     if __name__ == '__main__':
-#         script, failed, instruments = Script.load_and_append(script_dict={'FindMaxCounts': 'FindMaxCounts'})
-#
-#         print(script)
-#         print(failed)
-#         print(instruments)

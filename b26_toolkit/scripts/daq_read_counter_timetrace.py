@@ -280,7 +280,8 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
         Parameter('acquisition_time', 3.0, float, 'Total acquisition time (s)'),
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for analog in'),
-        Parameter('ctr_or_ai', 'ctr', ['ctr', 'ai'], 'select ctr or ai')
+        Parameter('ctr_or_ai', 'ctr', ['ctr', 'ai'], 'select ctr or ai'),
+        Parameter('num_averages', 1, int, 'number of averages for psd')
     ]
 
     _INSTRUMENTS = {'daq_ai': NI9219, 'daq_counter': NI9402}
@@ -299,7 +300,6 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'counts': [], 'ai':[]}
 
     def setup_daq_tasks(self, number_of_samples):
         """
@@ -314,13 +314,15 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         """
 
-
         daq_counter = self.instruments['daq_counter']['instance']
         # initialize APD thread
         ctrtask = daq_counter.setup_counter(
             self.settings['counter_channel'], number_of_samples + 1,
             continuous_acquisition=False
         )
+
+        if self.settings['ctr_or_ai'] == 'ctr':
+            return [[daq_counter, ctrtask]]
 
         daq_ai = self.instruments['daq_ai']['instance']
         aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
@@ -370,6 +372,7 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
         #     self.daq = self.instruments['NI6259']['instance']
         # elif self.settings['daq_type'] == 'cDAQ':
         #     self.daq = self.instruments['NI9402']['instance']
+        self.data = {'counts': [], 'ai':[]}
 
         sample_rate = float(1) / self.settings['integration_time']
         self.setup_daq(sample_rate)
@@ -384,26 +387,38 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
 
         # self.progress = 50
         # self.updateProgress.emit(self.progress)
+        self.data['start_time'] = time.time() # in seconds
 
-        daq_tasks = self.setup_daq_tasks(number_of_samples)
+        for i in range(self.settings['num_averages']):
+            daq_tasks = self.setup_daq_tasks(number_of_samples)
 
-        # DS20191016 Record start time
-        # print('Start time: {}'.format(time.time()))
-        start_time = time.time() # in seconds
+            # DS20191016 Record start time
+            # print('Start time: {}'.format(time.time()))
 
-        for daq, task in daq_tasks:
-            # start task
-            if daq is not None:
-                daq.run(task)
+            for daq, task in daq_tasks:
+                # start task
+                if daq is not None:
+                    daq.run(task)
 
-        self.data = self.read_daq_data(daq_tasks, sample_rate)
-        self.data['start_time'] = start_time
+            data = self.read_daq_data(daq_tasks, sample_rate)
+
+            if self.settings['ctr_or_ai'] == 'ai':
+                self.data['ai'].append(data['ai'])
+            else:
+                self.data['counts'].append(data['counts'])
+
+
+            for daq, task in daq_tasks:
+                # start task
+                if daq is not None:
+                    daq.stop(task)
 
         # clean up
-        for daq, task in daq_tasks:
-            # start task
-            if daq is not None:
-                daq.stop(task)
+        if self.settings['ctr_or_ai'] == 'ai':
+            self.data['ai'] = np.array(self.data['ai']).transpose()
+        else:
+            self.data['counts'] = np.array(self.data['counts']).transpose()
+
 
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
@@ -412,21 +427,25 @@ class Daq_TimeTrace_NI9402_NI9219(Script):
             data = self.data
 
         if self.settings['ctr_or_ai'] == 'ctr':
-            plotting_data = data['counts']
+            plotting_data = np.array(data['counts'])
         else:
-            plotting_data = data['ai']
+            plotting_data = np.array(data['ai'])
+        if len(plotting_data) == 0:
+            return
+        print(plotting_data.shape)
+        # plot_counts(axes_list[0], plotting_data[0], int_time=self.settings['integration_time'])
+        psdAvg = np.zeros(int(plotting_data.shape[0] / 2 + 1))
 
-
-        for signal in [plotting_data]: #ER 20190130
-            if len(signal) > 0:
+        for i in range(plotting_data.shape[1]): #ER 20190130
+            if len(plotting_data[:, i]) > 0:
                 # 20191105 ER get rid of normalization
                 #plot_counts(axes_list[0], signal/np.mean(signal))
-                plot_counts(axes_list[0], signal, int_time=self.settings['integration_time'])
                 #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
-                freq, psd = power_spectral_density(signal, self.settings['integration_time'])
+                freq, psd = power_spectral_density(plotting_data[:, i], self.settings['integration_time'])
+                psdAvg += psd
 
                # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
-                plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
+        plot_psd(freq[1:], psdAvg[1:] / plotting_data.shape[1], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
 
 
     # def _update_plot(self, axes_list):

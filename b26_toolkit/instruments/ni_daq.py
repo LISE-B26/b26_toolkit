@@ -165,8 +165,8 @@ class DAQ(Instrument):
                                 [
                                     Parameter('channel', 0, list(range(0, 32)), 'input channel'),
                                     Parameter('sample_rate', 1000.0, float, 'input sample rate (Hz)'),
-                                    Parameter('min_voltage', -10.0, float, 'minimum input voltage'),
-                                    Parameter('max_voltage', 10.0, float, 'maximum input voltage')
+                                    Parameter('min_voltage', -1.0, float, 'minimum input voltage'),
+                                    Parameter('max_voltage', 1.0, float, 'maximum input voltage')
                                 ]
                                 ),
                       Parameter('ai1',
@@ -658,7 +658,7 @@ class DAQ(Instrument):
         self._check_error(self.nidaq.DAQmxCreateTask("", ctypes.byref(task['task_handle'])))
         self._check_error(self.nidaq.DAQmxCreateAIVoltageChan(task['task_handle'], channel_list, '',
                                                               DAQmx_Val_Cfg_Default,
-                                                              float64(-10.0), float64(10.0),
+                                                              float64(-0.1), float64(0.1),
                                                               DAQmx_Val_Volts, None))
         if not continuous:
             self._check_error(self.nidaq.DAQmxCfgSampClkTiming(task['task_handle'], clk_source, float64(
@@ -1090,7 +1090,7 @@ class NI9263(DAQ):
     class.
     """
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('device', 'cDAQ1Mod1', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1','cDAQ1Mod5'],
+        Parameter('device', 'cDAQ1Mod1_b26', ['cDAQ9184-1BA7633Mod3', 'cDAQ9184-1BA7633Mod4', 'cDAQ9184-1BA7633Mod1', 'cDAQ1Mod1_b26','cDAQ1Mod5', 'cDAQ1Mod1'],
                   'Name of DAQ device - check in NiMax'),
         Parameter('override_buffer_size', -1, int, 'Buffer size for manual override (unused if -1)'),
         Parameter('ao_read_offset', .005, float, 'Empirically determined offset for reading ao voltages internally'),

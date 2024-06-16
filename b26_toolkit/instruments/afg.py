@@ -316,7 +316,9 @@ class AFG3021C(Instrument): # Emma Rosenfeld 20170822
     # def pulse_sequence_ch2(self, pulse_sequence):
     #     self.__pulse_sequence_ch2 = self._pulse_to_points(pulse_sequence)
 
-if __name__ == '__main__':
+# class RigolDG812(Instrument):
+
+# if __name__ == '__main__':
     # from pylabcontrol.core import Instrument
     #
     # instruments =        {"MicrowaveGenerator": {
@@ -344,10 +346,10 @@ if __name__ == '__main__':
     # print(instr)
     # print(loaded_failed)
     # import pylabcontrol.instruments.microwave_generator MicrowaveGenerator
-    pulse_sequence_ch1 = [Pulse('', 0, 10, amplitude=1000), Pulse('', 20, 10, amplitude=2000)]
-    arb = AWG(pulse_sequence_ch1=pulse_sequence_ch1)
-    settings = {'enable_output_ch1': True, 'function_ch1': 'Arb'}
-    arb.update(settings)
+    # pulse_sequence_ch1 = [Pulse('', 0, 10, amplitude=1000), Pulse('', 20, 10, amplitude=2000)]
+    # arb = AWG(pulse_sequence_ch1=pulse_sequence_ch1)
+    # settings = {'enable_output_ch1': True, 'function_ch1': 'Arb'}
+    # arb.update(settings)
     # mw = MicrowaveGenerator(settings={'enable_modulation': True, 'frequency': 3000000000.0, 'dev_width': 32000000.0, 'pulse_modulation_function': 'External', 'phase': 0, 'port': 27, 'modulation_type': 'FM', 'enable_output': False, 'GPIB_num': 0, 'amplitude': -60, 'modulation_function': 'External'})
 
     print(arb.awg)

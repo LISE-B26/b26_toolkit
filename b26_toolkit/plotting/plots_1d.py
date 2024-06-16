@@ -161,7 +161,7 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
 
     # assign colors for certain specific channels
     if pulse_colors is None:
-        pulse_colors = {'laser': '#50FF00', 'microwave_i': 'r', 'apd_readout': 'k'}
+        pulse_colors = {'laser': '#50FF00', 'microwave_i': 'm', 'apd_readout': 'k', 'red_laser': 'r'}
 
     # find the maximum time from the list of pulses
     max_time = max([pulse.start_time + pulse.duration for pulse in pulse_collection])
@@ -231,7 +231,7 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
 
     # assign colors for certain specific channels
     if pulse_colors is None:
-        pulse_colors = {'laser': '#50FF00', 'microwave_i': 'r', 'apd_readout': 'k'}
+        pulse_colors = {'laser': '#50FF00', 'microwave_i': 'm', 'apd_readout': 'k', 'red_laser': 'r'}
 
     # get a list of unique instruments from the pulses
     instrument_names_old = [str(label.get_text()) for label in axis.get_yticklabels()]
@@ -464,9 +464,9 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
 
     #assert len(axis.lines) == len(counts_list)
     if len(axis.lines) != len(counts_list) and fit_in_plot is False: # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
-        print('Number of lines to plot is not equal to number of counts lists!!!')
-        print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
-              ' (they should be the same!!)')
+        # print('Number of lines to plot is not equal to number of counts lists!!!')
+        # print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
+        #       ' (they should be the same!!)')
         #print('counts_list: ', counts_list)
         return
 

@@ -30,7 +30,7 @@ class PiezoController(Instrument):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('axis', 'x', ['x', 'y', 'z'], '"x", "y", or "z" axis'),
-        Parameter('port', 'COM8', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
+        Parameter('port', 'COM7', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
         Parameter('voltage', 0.0, float, 'current voltage')
@@ -49,7 +49,6 @@ class PiezoController(Instrument):
             self.connect(port = self.settings['port'], baudrate = self.settings['baudrate'], timeout = self.settings['timeout'])
         except Exception:
             print('No Piezo Controller Detected')
-            raise
 
     def connect(self, port, baudrate, timeout):
         """
@@ -113,7 +112,7 @@ class PiezoController(Instrument):
         if key in ['voltage']:
             self.ser.write((self.settings['axis'] + 'voltage?\r').encode())
             xVoltage = self.ser.readline()
-            print(xVoltage, float(xVoltage[1:-3].strip()))
+            print(xVoltage)
             return(float(xVoltage[1:-3].strip()))
         elif key in ['voltage_limit']:
             self.ser.write(('vlimit?\r').encode())

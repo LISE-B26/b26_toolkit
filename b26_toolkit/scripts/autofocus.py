@@ -23,7 +23,6 @@ import numpy as np
 import scipy as sp
 from PyQt5.QtCore import pyqtSlot
 from b26_toolkit.instruments import PiezoController, MaestroLightControl, OptotuneLens, PiezoControllerCold, MDT693A
-from b26_toolkit.scripts import FindNV
 
 try:
     from b26_toolkit.instruments import SMC100
@@ -33,8 +32,7 @@ except:
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import GalvoScan, FindNV, SetLaser, TakeImage, GalvoScanPhotodiode
-# from pylabcontrol.scripts import FPGA_GalvoScan
+from b26_toolkit.scripts import GalvoScan, SetLaser, TakeImage, GalvoScanPhotodiode, FindNV
 
 
 class AutoFocusGeneric(Script):
@@ -186,15 +184,15 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
                 self.data['current_image'] = deepcopy(self.scripts['take_image'].data['image_data'])
 
-                if index > 0 and self.settings['focusing_optimizer'] == 'max':
-                    # Change initial point to last brightess point; this helps staying on the NV if there's a lot of lateral-Z coupling in the focus
-                    brightest_pt = np.unravel_index(self.data['current_image'].argmax(), self.data['current_image'].shape)
-                    brightest_pt = brightest_pt[::-1]
-                    brightest_pt = pixel_to_voltage(brightest_pt, self.scripts['take_image'].data['extent'], np.shape(self.data['current_image']))
-                              #self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
-                    self.maximum_point = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
-                    self.scripts['take_image'].settings['point_a'].update(self.maximum_point)
-                    print('take image pt a updated to %s' % str(self.maximum_point))
+                # if index > 0 and self.settings['focusing_optimizer'] == 'max':
+                #     # Change initial point to last brightess point; this helps staying on the NV if there's a lot of lateral-Z coupling in the focus
+                #     brightest_pt = np.unravel_index(self.data['current_image'].argmax(), self.data['current_image'].shape)
+                #     brightest_pt = brightest_pt[::-1]
+                #     brightest_pt = pixel_to_voltage(brightest_pt, self.scripts['take_image'].data['extent'], np.shape(self.data['current_image']))
+                #               #self.pixel_to_voltage(brightest_pt, self.data['extent'], np.shape(self.data['image_data']))
+                #     self.maximum_point = {'x': float(brightest_pt[0]), 'y': float(brightest_pt[1])}
+                #     self.scripts['take_image'].settings['point_a'].update(self.maximum_point)
+                #     print('take image pt a updated to %s' % str(self.maximum_point))
 
                 # calculate focusing function for this sweep
                 self.data['focus_function_result'].append(
@@ -408,79 +406,6 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
-#
-# class AutoFocusNIFPGA(AutoFocusGeneric):
-#     """
-# Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-#             is focused.
-#     """
-#
-#     _SCRIPTS = {
-#         # 'take_image': FPGA_GalvoScan
-#     }
-#
-#     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
-#         """
-#         Example of a script that emits a QT signal for the gui
-#         Args:
-#             name (optional): name of script, if empty same as class name
-#             settings (optional): settings for this script, if empty same as default settings
-#         """
-#         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
-#
-#     def _step_piezo(self, voltage, wait_time):
-#         """
-#         steps the piezo.  Has to be overwritten specifically for each different hardware realization
-#         voltage: target piezo voltage
-#         wait_time: settle time after voltage step
-#         """
-#         fpga_instr = self.scripts['take_image'].instruments['FPGA_GalvoScan']['instance']
-#         # set the voltage on the piezo
-#         fpga_instr.piezo = float(voltage)
-#         time.sleep(wait_time)
-#
-#     def fit_focus(self):
-#         '''
-#         fit the data and set piezo to focus spot
-#         '''
-#         gaussian = lambda x, noise, amp, center, width: noise + amp * np.exp(
-#             -1.0 * (np.square((x - center)) / (2 * (width ** 2))))
-#
-#         noise_guess = np.min(self.data['focus_function_result'])
-#         amplitude_guess = np.max(self.data['focus_function_result']) - noise_guess
-#         center_guess = np.mean(self.data['sweep_voltages'])
-#         width_guess = 0.8
-#
-#         reasonable_params = [noise_guess, amplitude_guess, center_guess, width_guess]
-#
-#         try:
-#             p2, success = sp.optimize.curve_fit(gaussian, self.data['sweep_voltages'],
-#                                                 self.data['focus_function_result'], p0=reasonable_params,
-#                                                 bounds=([0, [np.inf, np.inf, 100., 100.]]), max_nfev=2000)
-#
-#             self.log('Found fit parameters: ' + str(p2))
-#
-#             if p2[2] > sweep_voltages[-1]:
-#                 fpga_instr.piezo = float(sweep_voltages[-1])
-#                 self.log(
-#                     'Best fit found center to be above max sweep range, setting voltage to max, {0} V'.format(
-#                         sweep_voltages[-1]))
-#             elif p2[2] < sweep_voltages[0]:
-#                 fpga_instr.piezo = float(sweep_voltages[0])
-#                 self.log(
-#                     'Best fit found center to be below min sweep range, setting voltage to min, {0} V'.format(
-#                         sweep_voltages[0]))
-#             else:
-#                 fpga_instr.piezo = float(p2[2])
-#         except(ValueError):
-#             p2 = [0, 0, 0, 0]
-#             average_voltage = np.mean(self.data['sweep_voltages'])
-#             self.log(
-#                 'Could not converge to fit parameters, setting piezo to middle of sweep range, {0} V'.format(
-#                     average_voltage))
-#             fpga_instr.piezo = float(average_voltage)
-#
-#         return p2
 
 class AutoFocusDAQ(AutoFocusGeneric):
     """
@@ -531,9 +456,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
         # ER 20191016 only works on alice / computer with NI6259
-        daq_pt = self.scripts['take_image'].instruments['NI6259']['instance'].get_analog_voltages(
-            [self.scripts['take_image'].settings['DAQ_channels']['x_ao_channel'],
-             self.scripts['take_image'].settings['DAQ_channels']['y_ao_channel']])
+        daq_pt = self.scripts['take_image'].get_galvo_location()
 
        # galvo_position = self.scripts['take_image'].get_galvo_location()
         # galvo_position = self.scripts['take_image'].instruments['daq']['instance'].get_analog_out_voltages([
@@ -564,6 +487,16 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
         if self.settings['use_current_z_axis_position']:
             self.settings['z_axis_center_position'] = self.instruments['z_piezo']['instance'].read_probes('voltage')
         AutoFocusGeneric._function(self)
+
+
+class AutoFocusDAQPulsed(AutoFocusDAQ):
+    from b26_toolkit.scripts.galvo_scan.galvo_scan_pulsed import GalvoScanPulsed
+    _SCRIPTS = {'take_image': GalvoScanPulsed}
+
+class AutoFocusDAQOsci(AutoFocusDAQ):
+    from b26_toolkit.scripts.galvo_scan.galvo_scan_osci import GalvoScanOsci
+    _SCRIPTS = {'take_image': GalvoScanOsci}
+
 
 class AutoFocusDAQMax(AutoFocusDAQ):
     _INSTRUMENTS = {
@@ -634,6 +567,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
             self.settings['z_axis_center_position'] = self.instruments['z_driver']['instance'].read_probes('position')
         AutoFocusGeneric._function(self)
 
+
 class AutoFocusDAQWarm(AutoFocusDAQ):
     """
 Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
@@ -645,6 +579,7 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     _INSTRUMENTS = {
         'z_piezo': PiezoController
     }
+
 
 class AutoFocusPhotodiode(AutoFocusDAQ):
     _SCRIPTS = {
@@ -686,6 +621,7 @@ class AutoFocusDAQNVTracking(AutoFocusDAQ):
         """
         self.scripts['find_NV'].run()
         self.scripts['take_image'].settings['point_a'] = self.scripts['find_NV'].data['maximum_point']
+
 
 class AutoFocusDaqMDT693A(AutoFocusDAQ):
     _INSTRUMENTS = {
@@ -900,6 +836,7 @@ class AutoFocusTwoPoints(AutoFocusDAQ):
 
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
+
 
 class AutoFocusTwoPointsFR(AutoFocusDaqSMC):
     _INSTRUMENTS = {
@@ -1218,7 +1155,7 @@ if __name__ == '__main__':
     #     data_path='c:\\')
 
 
-    # scripts, loaded_failed, instruments = Script.load_and_append({"af": 'AutoFocusNIFPGA'})
+    scripts, loaded_failed, instruments = Script.load_and_append({"af": 'AutoFocusDAQ'})
     # print('===++++++===========++++++===========++++++========')
     # print(scripts)
     # print('===++++++===========++++++===========++++++========')

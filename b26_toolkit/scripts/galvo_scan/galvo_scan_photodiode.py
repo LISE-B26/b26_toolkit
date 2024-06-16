@@ -21,6 +21,7 @@ import numpy as np
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, NI9215, NI9263_02
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
+from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 
 
 class GalvoScanPhotodiode(GalvoScanGeneric):
@@ -72,7 +73,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {'NI9215': NI9215, 'NI9402': NI9402, 'NI9263': NI9263}
+    _INSTRUMENTS = {'NI9215': NI9215, 'NI9402': NI9402, 'NI9263': NI9263, 'NI6259':  NI6259}
 
     _SCRIPTS = {}
 
@@ -104,8 +105,9 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
 
         # defines which daqs contain the input and output based on user selection of daq interface
         if self.settings['daq_type'] == 'PCI':
-            self.daq_in = self.instruments['daq']['instance']
-            self.daq_out = self.instruments['daq']['instance']
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+            self.daq_clk = self.instruments['NI6259']['instance']
 
         elif self.settings['daq_type'] == 'cDAQ': # ER 20181221 these lines will fail on other computers since key for daq instrument is now just 'daq'
             self.daq_in = self.instruments['NI9215']['instance']
@@ -182,7 +184,6 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
             elif self.settings['statistics'] == 'min-max':
                 processed_data[i] = np.max(xLineData_block)-np.min(xLineData_block)
 
-        print(processed_data)
         return processed_data*1e3
 
     def get_galvo_location(self):
@@ -224,6 +225,15 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         if np.any(np.abs(self.x_array) > 2) or np.any(np.abs(self.y_array) > 2):
             self.log('Exceeded galvo range!')
             raise AttributeError
+
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        plot_fluorescence_new(data['image_data'],
+                              data['extent'], axes_list[0],
+                              max_counts=self.settings['max_counts_plot'],
+                              labels=['Interferometer fringe scan', r'V$_x$ [V]', r'V$_y$ [V]', 'mV'])
 
 class KinematicMountScanPhotodiode(GalvoScanPhotodiode):
 

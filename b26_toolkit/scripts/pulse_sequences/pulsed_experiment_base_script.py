@@ -20,20 +20,14 @@ import itertools
 from copy import deepcopy
 
 import numpy as np
-import time
 from b26_toolkit.scripts import FindNV, ESR
-from b26_toolkit.scripts.autofocus import AutoFocusDAQ, AutoFocusDaqMDT693A, AutoFocusDAQCold
+from b26_toolkit.scripts.autofocus import AutoFocusDAQ
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, Commander
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
 import random, datetime
 import time as t
 
-#ER 20210302 CHANGE HERE TO 1e4 if you want
-MAX_BLOCK_SIZE = 1048576  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
-                                 #pulseblaster stores this value in 22 bits in its register
-                                # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
-                                # if too large
 
 
 
@@ -47,6 +41,12 @@ standard Script such as plotting.
 To use this class, the inheriting class need only overwrite _create_pulse_sequences to create the proper pulse sequence
 for a given experiment
     """
+    # ER 20210302 CHANGE HERE TO 1e4 if you want
+    MAX_BLOCK_SIZE = 1048576  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
+    # pulseblaster stores this value in 22 bits in its register
+    # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
+    # if too large
+
     _DEFAULT_SETTINGS = [
         Parameter('averaging_block_size', 50000, int, 'number of averages in each averaging block, '
                                                       'too small of a block size probably introduces a larger relative overhead from reading DAQ/updating plots'),
@@ -75,11 +75,12 @@ for a given experiment
             Parameter('no_iq_overlap', True, bool,'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
         ]),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'),
-        Parameter('save_full', False, bool, 'save every average')
+        Parameter('save_full', False, bool, 'save every average'),
+        Parameter('save_raw', False, bool, 'save every individual readout')
     ]
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDAQCold}
+    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR, 'autofocus': AutoFocusDAQ}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -95,7 +96,7 @@ for a given experiment
 
         self.ref_index = 0
 
-        if self.settings['averaging_block_size'] > MAX_BLOCK_SIZE:
+        if self.settings['averaging_block_size'] > self.MAX_BLOCK_SIZE:
             raise Exception('block size too large')
 
     def _calc_progress(self, index):
@@ -155,12 +156,9 @@ for a given experiment
 
         # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
 
-        print('Turning off microwave switch')
         self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
-        print('Successfully turned off microwave switch')
         # remember if laser was on prior to this script
         self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
-        print('Laser status was %s before this script began.' % self.laser_status_before_script)
 
         # retrieve initial mw carrier frequency to protect against bad fits in NV ESR tracking
         last_mw = self.scripts['esr'].instruments['microwave_generator']['instance'].frequency
@@ -198,10 +196,10 @@ for a given experiment
         (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, self.settings['averaging_block_size']) # Name is not accurate anymore, block size is no longer fixed to 1e5, FF
         # run find_nv if tracking is on ER 5/30/2017
         if self.settings['Tracking']['on/off']:
-            self.instruments['PB']['instance'].update({'laser': {'status': True}})
+            # self.instruments['PB']['instance'].update({'laser': {'status': True}})
             self.scripts['find_nv'].run()
             #self.sleep(5)
-            self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+            # self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
             if self.scripts['find_nv'].data['fluorescence'] == 0.0: # if it doesn't find an NV, abort the experiment
                 self.log('Could not find an NV in FindNV.')
                 self._abort = True
@@ -300,6 +298,8 @@ for a given experiment
         if self.settings['save_full']: # ER 20210331
             print('num avgs in initialize ', self.num_averages)
             self.data['full_contrast'] = np.zeros((int(self.num_averages/self.settings['averaging_block_size']), len(self.pulse_sequences)))
+        if self.settings['save_raw']:
+            self.data['raw_counts'] = []
 
     def _plot(self, axes_list, data=None):
         """
@@ -411,31 +411,35 @@ for a given experiment
                 # track to the NV if necessary ER 5/31/17
                 if 'commander' in self.instruments and self.instruments['commander']['instance'].settings['find_nv']:
                     self.log('Running FindNV on manual request')
-                    self.instruments['PB']['instance'].update({'laser': {'status': True}})
+                    # self.instruments['PB']['instance'].update({'laser': {'status': True}})
                     self.scripts['find_nv'].run()
-                    self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+                    # self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
                     self.instruments['commander']['instance'].update({'find_nv': False})
 
 
                 if 'commander' in self.instruments and self.instruments['commander']['instance'].settings['autofocus']:
                     self.log('Running Autofocus on manual request')
-                    self.instruments['PB']['instance'].update({'laser': {'status': True}})
+                    # self.instruments['PB']['instance'].update({'laser': {'status': True}})
                     self.scripts['autofocus'].run()
-                    self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+                    # self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
                     self.instruments['commander']['instance'].update({'autofocus': False})
 
                 counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
                 if self.settings['Tracking']['on/off'] and counts_unsatisfactory:
-                    self.instruments['PB']['instance'].update({'laser': {'status': True}})
+                    self.log('unsatisfactory counts: {} kcounts/s'.format(counts_temp))
+                    # self.instruments['PB']['instance'].update({'laser': {'status': True}})
                     self.scripts['find_nv'].run()
-                    self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
+                    # self.instruments['PB']['instance'].update({'laser': {'status': self.laser_status_before_script}})
                     self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
                     find_nv_attempts += 1
                     if find_nv_attempts > 5:
-                        reduction_factor = 0.9
-                        init_fluor = init_fluor * reduction_factor
-                        self.log('FindNV has failed 4 times to match threshold, lowering expectations by 20%% to  %i kC/s'%(init_fluor*reduction_factor))
+                        if threshold * init_fluor > counts_temp:
+                            change_factor = 0.9
+                        else:
+                            change_factor = 1.1
+                        init_fluor = init_fluor * change_factor
+                        self.log('FindNV has failed 4 times to match threshold, changing expectations by factor of {} to  {} kC/s'.format(change_factor, init_fluor * change_factor))
                     else:
                         print('FindNV attempts so far: %i'%find_nv_attempts)
                 else:
@@ -493,12 +497,9 @@ for a given experiment
             daq = self.instruments['NI9402']['instance']
         self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
 
-        # TODO(AK): figure out if timeout is actually needed
-        timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
-
         if num_daq_reads != 0:
-            task = self._daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
-            self._daq.run(task)
+            task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+            daq.run(task)
 
         self.instruments['PB']['instance'].start_pulse_seq()
 
@@ -522,6 +523,9 @@ for a given experiment
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
             print('stopping pulse seq: ')
             self.instruments['PB']['instance'].stop_pulse_seq()
+
+        if self.settings['save_raw']:
+            self.data['raw_counts'].append(result_array)
 
         return result
 

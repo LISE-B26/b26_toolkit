@@ -2,8 +2,12 @@
 from pylabcontrol.gui.windows_and_widgets.main_window import MainWindow
 from b26_toolkit.gui.b26_load_dialog import LoadDialogB26
 from PyQt5.QtWidgets import QLabel, QGraphicsOpacityEffect
+from PyQt5.QtCore import pyqtSlot
 import os
 from pylabcontrol.core import Script
+from playsound import playsound
+from glob import glob
+import random
 
 
 class ControlMainWindowB26(MainWindow):
@@ -13,13 +17,15 @@ class ControlMainWindowB26(MainWindow):
     =============== Starting B26 toolkit  =============\n\
     ======================================================\n\n'
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, argv=None):
 
         super(ControlMainWindowB26, self).__init__(filename)
         #self.setStyleSheet("background-color: #fae6fb;")
         #self.setStyleSheet("background-color: gray")
-        self.setStyleSheet("background-image: url(C:/Users/Experiment/Pictures/heaven2.png); background-repeat: no-repeat;")
+        # self.setStyleSheet("background-image: url(C:/Users/Experiment/Pictures/jojo.jpg); opacity: 0.01;")
         self.tree_scripts.setAlternatingRowColors(False)
+        if argv is not None and len(argv) > 1:
+            self.sound = argv[1] == 'True'
 
 
     def load_scripts(self, verbose=False):
@@ -71,3 +77,14 @@ class ControlMainWindowB26(MainWindow):
             # delete instances of new instruments/scripts that have been deselected
             for name in removed_scripts:
                 del self.scripts[name]
+
+    @pyqtSlot()
+    def script_finished(self):
+        super(ControlMainWindowB26, self).script_finished()
+        if self.sound:
+            mp3s = glob('../media/sound/*.mp3')
+            if len(mp3s) > 0:
+                try:
+                    playsound(random.choice(mp3s), block=False)
+                except:
+                    print('Could not play sound')

@@ -45,8 +45,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the \n \
 GNU General Public License for more details. \n\n \
 You should have received a copy of the GNU General Public License \n \
 along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.")
-
-        ex = b26_gui.ControlMainWindowB26(filepath)
+        ex = b26_gui.ControlMainWindowB26(filepath, argv=sys.argv)
 
         app.setWindowIcon(QtGui.QIcon('magnet_and_nv.ico'))
 

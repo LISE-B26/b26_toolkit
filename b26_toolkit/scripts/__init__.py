@@ -17,10 +17,11 @@
 """
 
 # # from test_script import ScriptTest
+from .set_laser import SetLaser
 from .galvo_scan.galvo_scan import GalvoScan
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
 from .find_nv import FindNV
-from .set_laser import SetLaser, SetAtto, SetLaserInterferometer
+from .set_laser import SetAtto, SetLaserInterferometer
 from .daq_read_counter import Daq_Read_Counter
 from .take_image_camera import TakeImage
 from .esr import ESR, ESR_tracking, ESR_simple_lowerupper, ESR_simple
@@ -30,13 +31,6 @@ from .spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
 from .zi_sweeper import ZISweeper
 from .zi_high_res_sweep import ZISweeperHighResolution
 from .atto_scan import AttoStep
-# # from .pulse_sequences import XY8_k, T1, Rabi, PDD, XY4, T1SingleInit, PulsedESR, \
-# #     HahnEcho, XY4, XYXY, ReadoutStartTimeWithoutMW, ReadoutStartTime, ReadoutDuration, CPMG, \
-# #     HahnEchoManyNVs, RabiPowerSweepSingleTau
-from .pulse_sequences.rabi import Rabi
-#from .pulse_sequences.pulsed_esr import PulsedESR
-from .esr_and_rabi import ESRAndRabi
-# from .spec_analyzer_get_spectrum import KeysightGetSpectrum
 from .light_control import ApplyLightControlSettings, CameraOn
 from .correlate_images import Track_Correlate_Images, Take_And_Correlate_Images
 from .autofocus import AutoFocusDAQ, AutoFocusTwoPoints, AutoFocusTwoPointsFR, AutoFocusDaqSMC, AutoFocusCameraSMC, AutoFocusDAQCold, AutoFocusDAQMax
@@ -50,6 +44,10 @@ from .arduino_servo_flip import ToggleCameraView
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
 from .daq_read_counter_timetrace import Daq_TimeTrace_NI6259, Daq_TimeTrace_NI9402_NI9219
 from .pulse_sequences.stroboscopic_readout import StroboscopicReadout
-from .galvo_scan.galvo_scan_pulses import GalvoScanStrobed
+from .galvo_scan.galvo_scan_pulsed import GalvoScanPulsed
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
-from .oscope_timetrace import OScope_Timetrace
+from .oscope_timetrace import OscilloscopeTimetrace
+from .autofocus import AutoFocusDAQPulsed
+from .find_nv_pulsed import FindNVPulsed
+from .pulse_sequences.rabi import Rabi
+from .esr_and_rabi import ESRAndRabi

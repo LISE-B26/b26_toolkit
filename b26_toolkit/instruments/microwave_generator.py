@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import visa
+import pyvisa as visa
 import pyvisa.errors
 
 from pylabcontrol.core import Parameter, Instrument
@@ -33,7 +33,7 @@ class MicrowaveGenerator(Instrument):
         # SHOULD BE 4
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 5, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('port', 22, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -203,11 +203,9 @@ class MicrowaveGenerator(Instrument):
         elif param == 'pulse_modulation_function':
             return 'PFNC'
         elif param == 'dev_width':
-            if self.read_probes('modulation_type') == 'FM':
-                if self.read_probes('modulation_function') == 'Noise':
-                    return 'FNDV'
-                return 'FDEV'
-            raise KeyError('non-FM dev width not implemented yet')
+            if self.read_probes('modulation_function') == 'Noise':
+                return 'FNDV'
+            return 'FDEV'
         elif param == 'mod_rate':
             return 'RATE'
         else:
@@ -334,7 +332,7 @@ class RFGenerator(MicrowaveGenerator):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 14, list(range(0, 31)), 'GPIB or COM port on which to connect'),
+        Parameter('port', 19, list(range(0, 31)), 'GPIB or COM port on which to connect'),
         ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_rf_output', False, bool, 'BNC output enabled'),

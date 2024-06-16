@@ -80,13 +80,13 @@ class GalvoScan(GalvoScanGeneric):
         device_list = NI6259.get_connected_devices()
         if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
             self.settings['daq_type'] = 'cDAQ'
-        # # defines which daqs contain the input and output based on user selection of daq interface
-        # if self.settings['daq_type'] == 'PCI':
-        #     self.daq_in = self.instruments['NI6259']['instance']
-        #     self.daq_out = self.instruments['NI6259']['instance']
-        # elif self.settings['daq_type'] == 'cDAQ':
-        #     self.daq_in = self.instruments['NI9402']['instance']
-        #     self.daq_out = self.instruments['NI9263']['instance']
+        # defines which daqs contain the input and output based on user selection of daq interface
+        if self.settings['daq_type'] == 'PCI':
+            self.daq_in = self.instruments['NI6259']['instance']
+            self.daq_out = self.instruments['NI6259']['instance']
+        elif self.settings['daq_type'] == 'cDAQ':
+            self.daq_in = self.instruments['NI9402']['instance']
+            self.daq_out = self.instruments['NI9263']['instance']
 
     def setup_scan(self):
         """
@@ -176,7 +176,7 @@ class GalvoScan(GalvoScanGeneric):
         Returns: list with two floats, which give the x and y position of the galvo mirror
         """
         if self.settings['daq_type'] == 'PCI':
-            initial_position = self.daq_out.get_analog_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
+            initial_position = self.instruments['NI6259']['instance'].get_analog_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
         else:
             initial_position = []
         return initial_position

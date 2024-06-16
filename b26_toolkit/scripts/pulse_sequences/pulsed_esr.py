@@ -22,7 +22,7 @@ from copy import deepcopy
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator, AFG3022C, Commander, AFG3022C_02
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace_ns, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq, plot_pulsedesr
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-from b26_toolkit.scripts import FindNV, ESR
+from b26_toolkit.scripts import FindNV, ESR, FindNVPulsed
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr, fit_double_lorentzian, double_lorentzian
 import time as t
@@ -58,7 +58,7 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNVPulsed, 'esr': ESR}
 
     def _configure_instruments_start_of_script(self):
         """
@@ -487,7 +487,6 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
         """
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(mw_frequency_current)})
 
-
 class PulsedESRFast(PulsedESR):
     """
     Faster version of PulsedESR. PulsedESR is the "proper" sequence for it has separate readout windows for reference and signal fluorescence, but the DAQ read
@@ -520,8 +519,7 @@ class PulsedESRFast(PulsedESR):
         Parameter('mw_generator_switching_time', .01, float,
                   'time wait after switching center frequencies on generator (s)')
     ]
-
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNVPulsed, 'esr': ESR}
 
     def _create_pulse_sequences(self):
 
@@ -571,6 +569,90 @@ class PulsedESRFast(PulsedESR):
 
             pulse_sequences.append(pulse_sequence)
         return pulse_sequences, tau_list, meas_time_long
+
+class PulsedESRResonant(PulsedESR):
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
+        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
+        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
+            Parameter('red_on_time', 1000, int, 'time that red laser is on'),
+            Parameter('red_off_time', 1000, int, 'time off after red laser'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('mw_generator_switching_time', .01, float,
+                  'time wait after switching center frequencies on generator (s)'),
+        Parameter('measure_ref', True, bool, 'add sequence to measure ms=0 state as reference')
+    ]
+
+    def _create_pulse_sequences(self):
+
+        '''
+
+        Returns: pulse_sequences, num_averages, tau_list
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+
+        '''
+
+        tau = self.settings['tau_mw']
+        pulse_sequences = []
+        tau_list = [tau]
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        red_on_time = self.settings['read_out']['red_on_time']
+        red_off_time = self.settings['read_out']['red_off_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = [Pulse('laser', red_off_time + tau + 2 * 40, nv_reset_time)]
+
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence += [
+                    Pulse(microwave_channel, red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time, tau)]
+
+            pulse_sequence += [
+                Pulse('red_laser',
+                      red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout,
+                      red_on_time),
+                Pulse('apd_readout',
+                      red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout + delay_readout,
+                      meas_time)
+            ]
+
+            if self.settings['measure_ref']:
+                end_first_seq = red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout + delay_readout + red_on_time + red_off_time
+
+                pulse_sequence += [
+                    Pulse('laser', end_first_seq, nv_reset_time),
+                    Pulse('red_laser', end_first_seq + nv_reset_time + laser_off_time, red_on_time),
+                    Pulse('apd_readout', end_first_seq + nv_reset_time + laser_off_time + delay_readout, meas_time)
+                ]
+
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+        return pulse_sequences, tau_list, self.settings['read_out']['meas_time']
 
 class PulsedESRFastSingle(PulsedESRFast):
     """

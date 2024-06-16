@@ -1,12 +1,14 @@
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from pylabcontrol.core import Script, Parameter
 import numpy as np
-from b26_toolkit.scripts import SetLaser, OScope_Timetrace
+from b26_toolkit.scripts import SetLaser
+from b26_toolkit.instruments import RigolOscilloscope
+import time
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
 
-class GalvoScanTimetrace(GalvoScanGeneric):
+class GalvoScanOsci(GalvoScanGeneric):
     _DEFAULT_SETTINGS = [
         Parameter('point_a',
                   [Parameter('x', 0, float, 'x-coordinate'),
@@ -23,15 +25,19 @@ class GalvoScanTimetrace(GalvoScanGeneric):
                   [Parameter('x', 64, int, 'number of x points to scan'),
                    Parameter('y', 64, int, 'number of y points to scan')
                    ]),
-        # Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1],
+                  'time in s to measure at each point'),
+        Parameter('offset', 0.0, float, 'voltage offset [V]'),
+        Parameter('vert_scale', 0.001, float, 'voltage scale [V]'),
+        Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
                   'return to the corn'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
-    _INSTRUMENTS = {}
+    _INSTRUMENTS = {'oscope': RigolOscilloscope}
 
-    _SCRIPTS = {'osci_timetrace': OScope_Timetrace, 'SetLaser': SetLaser}
+    _SCRIPTS = {'SetLaser': SetLaser}
 
     def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):
         '''
@@ -46,11 +52,17 @@ class GalvoScanTimetrace(GalvoScanGeneric):
 
         '''
         Script.__init__(self, name=name, settings=settings, instruments=instruments, scripts=scripts, log_function=log_function, data_path=data_path)
+        self.oscope = self.instruments['oscope']['instance']
 
     def setup_scan(self):
         """
         setup the scan, i.e. identify the instruments and set up sample rate and such
         """
+        self.oscope.settings['vert_scale'] = self.settings['vert_scale']
+        self.oscope.update(self.oscope.settings)
+        self.oscope.settings['offset'] = self.settings['offset']
+        self.oscope.update(self.oscope.settings)
+        self.oscope.set_auto_trigger(self.settings['time_per_pt'] / 10.0)
         self.scripts['SetLaser'].settings['daq_type'] = 'PCI'
         self.data['voltage'] = []
 
@@ -59,25 +71,14 @@ class GalvoScanTimetrace(GalvoScanGeneric):
         set_laser_script.settings['point']['y'] = y_pos
 
         line_data = np.zeros(len(self.x_array))
-
-        self.data['psd'].append([])
-
         for i in range(len(self.x_array)):
             if self._abort:
                 break
 
             set_laser_script.settings['point']['x'] = self.x_array[i]
             set_laser_script.run()
-
-            if self.scripts['osci_timetrace'].settings['num_traces'] != 1:
-                print("WARNING. OSCI TIMETRACE num_traces should be `")
-
-            self.scripts['osci_timetrace'].run()
-            # TODO: replace this with osci references
-            voltages = self.scripts['osci_timetrace'].data['voltage']
-
-            line_data[i] = np.mean(voltages)
-            self.data['voltage'][-1].append(voltages)
+            time.sleep(self.settings['time_per_pt'])
+            line_data[i] = self.oscope.get_std_voltage()
 
         return line_data
 
