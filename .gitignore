@@ -223,6 +223,7 @@ dmypy.json
 
 ### Python Patch ###
 .venv/
+venv38/
 
 key
 key.pub
