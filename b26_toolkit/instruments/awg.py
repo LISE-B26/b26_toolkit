@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import visa, time
+import pyvisa as visa
 import pyvisa.errors
 import numpy as np
 from pylabcontrol.core import Parameter, Instrument

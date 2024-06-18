@@ -21,10 +21,8 @@ from PIL import Image as im
 from scipy import signal
 from scipy.ndimage import shift as image_shift
 import trackpy as tp
-from skimage.filters import sobel
 from skimage import data
-from skimage.feature import register_translation
-from skimage.feature.register_translation import _upsampled_dft
+from skimage.registration import phase_cross_correlation as register_translation
 from b26_toolkit.data_processing import find_image_shift
 
 def compare_galvos(image, image_extent, offset_image):

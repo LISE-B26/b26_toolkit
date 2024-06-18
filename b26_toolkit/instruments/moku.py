@@ -49,34 +49,37 @@ class Moku(Instrument):
 
 class MokuLockInAmplifier(Moku):
     _LIA_INPUT_CHANNEL = 1
-    OUTPUT_MAIN_OPTIONS = ['X', 'Y', 'R', 'Theta', 'Offset', None]
-    OUTPUT_AUX_OPTIONS = ['Y', 'Theta', 'Demod', 'Aux', 'Offset', None]
+    _OUTPUT_MAIN_OPTIONS = ['X', 'Y', 'R', 'Theta', 'Offset', None]
+    _OUTPUT_AUX_OPTIONS = ['Y', 'Theta', 'Demod', 'Aux', 'Offset', None]
+    _MONITOR_CHANNELS = [1, 2]
+    _MONITOR_SOURCES = [None, 'Input1', 'Input2', 'ISignal', 'QSignal', 'MainOutput', 'AuxOutput', 'Demod']
+    _DEMOD_MODES = ['Internal', 'External', 'ExternalPLL', None]
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('input', [
             Parameter('impedance', '1MOhm', ['50Ohm', '1MOhm'], 'input impedance'),
             Parameter('coupling', 'DC', ['DC', 'AC'], 'input coupling'),
             Parameter('attenuation', '0dB', ['0dB', '20dB'], 'input attenuation'),
-            Parameter('strict', True, bool, 'Disable all implicit conversions and coercions')
         ]),
         Parameter('output', [
-            Parameter('main', 'R', OUTPUT_MAIN_OPTIONS, 'Source for the Main LIA output'),
-            Parameter('aux', 'Demod', OUTPUT_AUX_OPTIONS, 'Source for the Auxiliary LIA output'),
+            Parameter('main', 'R', _OUTPUT_MAIN_OPTIONS, 'Source for the Main LIA output'),
+            Parameter('aux', 'Demod', _OUTPUT_AUX_OPTIONS, 'Source for the Auxiliary LIA output'),
             Parameter('main_offset', 0., float, 'Main output DC offset [V]'),
             Parameter('aux_offset', 0., float, 'Aux output DC offset [V]'),
-            Parameter('strict', True, bool, 'Disable all implicit conversions and coercions')
+        ]),
+        Parameter('monitor', [
+            Parameter('source_1', 'MainOutput', _MONITOR_SOURCES, 'Monitor channel 1 source'),
+            Parameter('source_2', 'AuxOutput', _MONITOR_SOURCES, 'Monitor channel 2 source'),
         ]),
         Parameter('output_aux_amplitude', 0.1, float, 'aux output amplitude'),
         Parameter('demodulation', [
-            Parameter('mode', 'Internal', ['Internal', 'External', 'ExternalPLL', None]),
+            Parameter('mode', 'Internal', _DEMOD_MODES, 'demodulation mode'),
             Parameter('frequency', 100000., float, 'demodulation frequency [Hz]'),
             Parameter('phase', 0., float, 'phase of demodulation [degrees]'),
-            Parameter('strict', True, bool, 'Disable all implicit conversions and coercions')
         ]),
         Parameter('low_pass_filter', [
             Parameter('corner_freq', 10., float, 'corner frequency of filter [Hz]'),
             Parameter('slope', 'Slope6dB', ['Slope6dB', 'Slope12dB', 'Slope18dB', 'Slope24dB'], 'slope per octave'),
-            Parameter('strict', True, bool, 'Disable all implicit conversions and coercions')
         ]),
         Parameter('gain', [
             Parameter('main', 0., float, 'Main output gain [dB]'),
@@ -85,7 +88,6 @@ class MokuLockInAmplifier(Moku):
             Parameter('aux_invert', False, bool, 'Invert auxiliary channel gain'),
             Parameter('main_gain_range', '0dB', ['0dB', '14dB'], 'Main output gain range'),
             Parameter('aux_gain_range', '0dB', ['0dB', '14dB'], 'aux output gain range'),
-            Parameter('strict', True, bool, 'Disable all implicit conversions and coercions')
         ])
     ])
 
@@ -128,6 +130,10 @@ class MokuLockInAmplifier(Moku):
                 # frequency doesnt matter when aux output is not set to oscillator
                 self._instrument.set_aux_output(frequency=self.settings['demodulation']['frequency'],
                                                 amplitude=self.settings[key])
+            elif key == 'monitor':
+                self._instrument.set_monitor(1, self.settings['monitor']['source_1'])
+                self._instrument.set_monitor(2, self.settings['monitor']['source_2'])
+
 
     @property
     def demod_frequency(self):
@@ -138,13 +144,23 @@ class MokuLockInAmplifier(Moku):
         self.update({'demodulation': {'frequency': frequency}})
 
     @property
+    def demod(self):
+        return self._instrument.get_demodulation()['mode']
+
+    @demod.setter
+    def demod(self, mode):
+        if mode not in self._DEMOD_MODES:
+            raise KeyError('{} is not an allowed. Please choose one of {}'.format(mode, self._DEMOD_MODES))
+        self.update({'demodulation': {'mode': mode}})
+
+    @property
     def output_main(self):
         return self._instrument.get_outputs()['main']
 
     @output_main.setter
     def output_main(self, om):
-        if om not in self.OUTPUT_MAIN_OPTIONS:
-            raise KeyError('{} is not an allowed. Please choose one of {}'.format(om, self.OUTPUT_MAIN_OPTIONS))
+        if om not in self._OUTPUT_MAIN_OPTIONS:
+            raise KeyError('{} is not an allowed. Please choose one of {}'.format(om, self._OUTPUT_MAIN_OPTIONS))
         self.update({'output': {'main': om}})
 
     @property
@@ -153,8 +169,8 @@ class MokuLockInAmplifier(Moku):
 
     @output_aux.setter
     def output_aux(self, om):
-        if om not in self.OUTPUT_AUX_OPTIONS:
-            raise KeyError('{} is not an allowed. Please choose one of {}'.format(om, self.OUTPUT_AUX_OPTIONS))
+        if om not in self._OUTPUT_AUX_OPTIONS:
+            raise KeyError('{} is not an allowed. Please choose one of {}'.format(om, self._OUTPUT_AUX_OPTIONS))
         self.update({'output': {'aux': om}})
 
     @property
@@ -164,4 +180,15 @@ class MokuLockInAmplifier(Moku):
     @output_aux_amplitude.setter
     def output_aux_amplitude(self, oaa):
         self.update({'output_aux_amplitude': oaa})
+
+    def set_monitor(self, channel, source):
+        if channel in self._MONITOR_CHANNELS and source in self._MONITOR_SOURCES:
+            self._instrument.set_monitor(channel, source)
+        else:
+            raise KeyError('not allowed channel or source')
+
+    def set_pll(self):
+        self._instrument.set_pll()
+
+
 

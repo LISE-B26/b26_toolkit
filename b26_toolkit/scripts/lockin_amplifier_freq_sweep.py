@@ -2,7 +2,7 @@ from pylabcontrol.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9402, MokuLockInAmplifier
+from b26_toolkit.instruments import RFGenerator, NI6259, NI9402, MokuLockInAmplifier
 from b26_toolkit.plotting.plots_1d import plot_esr
 
 
@@ -15,13 +15,9 @@ import random
 class LockInAmpliferFreqSweep(Script):
 
     _DEFAULT_SETTINGS = [
-        Parameter('voltage_amp', 0.1, float, 'voltage amplitude [V]'),
+        Parameter('voltage', 0.1, float, 'voltage [Vpp]'),
         Parameter('freq_start', 10000., float, 'start frequency of scan'),
         Parameter('freq_stop', 20000., float, 'end frequency of scan'),
-        Parameter('output_options', [
-            Parameter('output_1', 'R', ['X', 'Y', 'R', 'Theta'], 'set output 1'),
-            Parameter('output_2', 'Theta', ['Y', 'Theta', None], 'set output 2')
-        ]),
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'], 'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('freq_points', 100, int, 'number of frequencies in scan'),
         Parameter('integration_time', 0.05, float, 'The TOTAL integration time'),
@@ -37,15 +33,13 @@ class LockInAmpliferFreqSweep(Script):
 
     _SCRIPTS = {}
 
-    def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path = None):
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        self._DEFAULT_SETTINGS += LockInAmpliferFreqSweep._DEFAULT_SETTINGS
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
-        # defines which daqs contain the input and output based on user selection of daq interface
         self._lia = self.instruments['lia']['instance']
 
-    def setup_lia(self):
-        self._lia.output_aux_amplitude = self.settings['voltage_amp']
-        # self._lia.output_main = self.settings['output_options']['output_1']
-        self._lia.output_aux = 'Demod'
+    def _setup_instruments(self):
+        raise NotImplementedError
 
     def get_freq_array(self):
         '''
@@ -86,6 +80,44 @@ class LockInAmpliferFreqSweep(Script):
         return freq_values, freq_range
 
     def run_sweep(self, freq_values):
+        raise NotImplementedError
+
+    def _function(self):
+        """
+        This is the actual function that will be executed. It uses only information that is provided in the settings property
+        will be overwritten in the __init__
+        """
+
+        # setup the microwave generator
+        self._setup_instruments()
+
+
+        # get the frequencices of the sweep
+        freq_values, freq_range = self.get_freq_array()
+        self.data = {'frequency': freq_values}
+
+        # get the data for a single sweep. These are raw data.
+        self.run_sweep(freq_values)
+
+        if self.settings['turn_off_after']:
+            self._lia.output_aux = None
+
+
+class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
+    _DEFAULT_SETTINGS = [
+        Parameter('output_options', [
+            Parameter('output_1', 'R', ['X', 'Y', 'R', 'Theta'], 'output for monitor 1'),
+            Parameter('output_2', None, ['Y', 'Theta', None], 'output for monitor 2')
+        ])
+    ]
+
+    def _setup_instruments(self):
+        self._lia.output_aux_amplitude = self.settings['voltage']
+        self._lia.output_aux = 'Demod'
+        self._lia.output_main = None
+        self._lia.set_monitor(1, 'MainOutput')
+
+    def run_sweep(self, freq_values):
         output_1 = self.settings['output_options']['output_1']
         output_2 = self.settings['output_options']['output_2']
 
@@ -119,55 +151,77 @@ class LockInAmpliferFreqSweep(Script):
 
             self.updateProgress((freq_index + 1) / len(indices) * 100.)
 
-    def _function(self):
-        """
-        This is the actual function that will be executed. It uses only information that is provided in the settings property
-        will be overwritten in the __init__
-        """
+class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
+    _DEFAULT_SETTINGS = [
+        Parameter('output_options', 'R,Theta', ['R,Theta', 'X,Y'], 'output options for monitors')
+    ]
 
-        self.lines = []
+    _INSTRUMENTS = {
+        'lia': MokuLockInAmplifier,
+        'rf_gen': RFGenerator
+    }
 
-        start_time = time.time()
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path = None):
+        super().__init__(instruments, scripts=scripts, name=name, settings=settings, log_function=log_function, data_path=data_path)
+        # defines which daqs contain the input and output based on user selection of daq interface
+        self._rf_gen = self.instruments['rf_gen']['instance']
 
-        # setup the microwave generator
-        self.setup_lia()
+    def _setup_instruments(self):
+        def _dBm_to_vpp(dbm):
+            return np.power(10., dbm / 20.) * np.sqrt(0.008 * 50)
 
+        self._lia.set_monitor(1, 'MainOutput')
+        self._lia.set_monitor(2, 'AuxOutput')
+        self._lia.demod = 'ExternalPLL'
+        self._lia.set_pll()
 
-        # get the frequencices of the sweep
-        freq_values, freq_range = self.get_freq_array()
-        self.data = {'frequency': freq_values}
+        outputs = self.settings['output_options'].split(',')
+        self._lia.output_main = outputs[0]
+        self._lia.output_aux = outputs[1]
 
-        # get the data for a single sweep. These are raw data.
-        self.run_sweep(freq_values)
+        self._rf_gen.update({'enable_modulation': False,
+                             'amplitude_rf': _dBm_to_vpp(self.settings['voltage'])})
 
-        if self.settings['turn_off_after']:
-            self._lia.output_aux = None
+    def run_sweep(self, freq_values):
 
-    def _plot(self, axes_list, data = None):
-        """
-        plotting function for esr
-        Args:
-            axes_list: list of axes objects on which to plot plots the esr on the first axes object
-            data: data (dictionary that contains keys frequency, data and fit_params) if not provided use self.data
-        Returns:
+        # initialize data arrays
+        self.data['output'] = np.zeros([2, len(freq_values)])
+        indices = list(range(len(freq_values)))
 
-        """
+        if self.settings['randomize']:
+            random.shuffle(indices)
 
-        if data is None:
-            data = self.data
+        for freq_index in range(len(indices)):
+            if self._abort:
+                break
 
-        plot_esr(axes_list[0], data['frequency'], data['output'], data['fit_params'])
+            freq = freq_values[indices[freq_index]]
 
-    def get_axes_layout(self, figure_list):
-        """
-        returns the axes objects the script needs to plot its data
-        the default creates a single axes object on each figure
-        This can/should be overwritten in a child script if more axes objects are needed
-        Args:
-            figure_list: a list of figure objects
-        Returns:
-            axes_list: a list of axes objects
+            # change MW frequency
+            self._rf_gen.update({'frequency': float(freq)})
+            time.sleep(self.settings['switching_time'])
 
-        """
-        new_figure_list = [figure_list[1]]
-        return super(ESR_simple, self).get_axes_layout(new_figure_list)
+            self._lia.start_data_streaming(duration=self.settings['integration_time'],
+                                           sample_rate=self.settings['sample_rate'])
+            time.sleep(self.settings['integration_time'])
+            self.data['output'][0, indices[freq_index]] = np.mean(self._lia.stream_data['ch1'])
+            self.data['output'][1, indices[freq_index]] = np.mean(self._lia.stream_data['ch2'])
+
+            self.updateProgress((freq_index + 1) / len(indices) * 100.)
+
+# class StartPll(Script):
+#     _DEFAULT_SETTINGS =
+#
+#     _INSTRUMENTS = {
+#         'lia': MokuLockInAmplifier,
+#         'rf_gen': RFGenerator
+#     }
+#
+#     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+#         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function,
+#                         data_path=data_path)
+#         self._lia = self.instruments['lia']['instance']
+#         self._rf_gen
+#
+#     def _function(self):
+
