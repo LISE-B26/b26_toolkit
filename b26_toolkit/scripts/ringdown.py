@@ -1,6 +1,6 @@
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import B26PulseBlaster
-from b26_toolkit.scripts import Daq_TimeTrace_NI6259
+from b26_toolkit.scripts import Daq_TimeTrace_NI6259, PhaseLockedLoop
 
 import time
 import numpy as np
@@ -84,3 +84,24 @@ class Ringdown(Daq_TimeTrace_NI6259):
                     daq.stop(task)
 
         self.data['counts'] = np.array(self.data['counts']).transpose()
+
+class RingdownLia(Ringdown):
+    _SCRIPTS = {'pll': PhaseLockedLoop}
+
+    def _function(self):
+        lia = self.scripts['pll'].instruments['lia']['instance']
+        self.instruments['PB']['instance'].update({self.settings['pb_channel']: {'status': True}})
+        self.scripts['pll'].settings['start_or_stop'] = True
+        self.scripts['pll'].run()
+        time.sleep(self.settings['holdon'])
+
+        lia.start_data_streaming(self.settings['acquisition_time'], rate=(1. / self.settings['integration_time']))
+        time.sleep(self.settings['holdoff'])
+        self.instruments['PB']['instance'].update({self.settings['pb_channel']: {'status': False}})
+        time.sleep(self.settings['integration_time'] - self.settings['holdoff'])
+        self.data = {'amplitude': lia.stream_data['ch1']}
+
+    
+
+        
+    

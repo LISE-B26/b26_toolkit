@@ -100,14 +100,22 @@ class LockInAmpliferFreqSweep(Script):
         self.run_sweep(freq_values)
 
         if self.settings['turn_off_after']:
-            self._lia.output_aux = None
+            self._lia.output_aux = 'None'
+    
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        axes_list[0].set_xlabel('frequency [Hz]')
+        axes_list[0].set_ylabel('signal [V]')
+        axes_list[0].plot(data['frequency'], data[''])
 
 
 class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
     _DEFAULT_SETTINGS = [
         Parameter('output_options', [
             Parameter('output_1', 'R', ['X', 'Y', 'R', 'Theta'], 'output for monitor 1'),
-            Parameter('output_2', None, ['Y', 'Theta', None], 'output for monitor 2')
+            Parameter('output_2', 'None', ['Y', 'Theta', 'None'], 'output for monitor 2')
         ])
     ]
 
@@ -178,7 +186,8 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
 
         self._lia.output_main, self._lia.output_aux = self.settings['output_options'].split(',')
 
-        self._rf_gen.update({'enable_modulation': False,
+        self._rf_gen.update({'enable_output': True,
+                             'enable_modulation': False,
                              'amplitude_rf': _vpp_to_dBm(self.settings['voltage'])})
 
     def run_sweep(self, freq_values):
@@ -210,6 +219,7 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
 
 class PhaseLockedLoop(Script):
     _DEFAULT_SETTINGS = [
+        Parameter('start_or_stop', True, bool, 'start or stop PLL'),
         Parameter('voltage', 0.1, float, 'voltage [Vpp]'),
         Parameter('starting_freq', 10000., float, 'starting frequency of PLL [Hz]'),
         Parameter('phase', 0., float, 'set phase to lock to')
@@ -228,11 +238,12 @@ class PhaseLockedLoop(Script):
         self._lia = self.instruments['lia']['instance']
         self._rf_gen = self.instruments['rf_gen']['instance']
 
-    def _setup_instruments(self):
+    def _start_pll(self):
         def _vpp_to_dBm(vpp):
             return 30. * np.log10(vpp ** 2 / (8 * 50))
         
         self._rf_gen.update({'enable_modulation': True,
+                             'enable_output': True,
                              'modulation_type': 'FM',
                              'modulation_function': 'External',
                              'frequency': self.settings['starting_freq'],
@@ -247,7 +258,13 @@ class PhaseLockedLoop(Script):
         self._lia.set_pll()
         self._lia.pid = 'Aux'
 
+    def _stop_pll(self):
+        self._lia.output_aux = 'None'
+
     def _function(self):
-        self._setup_instruments()
+        if self.settings['start_or_stop']:
+            self._start_pll()
+        else:
+            self._stop_pll()
         
         
