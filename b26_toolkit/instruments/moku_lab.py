@@ -73,8 +73,9 @@ class MokuLockInAmplifier(MokuLab):
     _OUTPUT_MAIN_OPTIONS = ['X', 'Y', 'R', 'Theta', 'Offset', 'None']
     _OUTPUT_AUX_OPTIONS = ['Y', 'Theta', 'Demod', 'Aux', 'Offset', 'None']
     _MONITOR_CHANNELS = [1, 2]
-    _MONITOR_SOURCES = ['Off', 'Input1', 'Input2', 'ISignal', 'QSignal', 'MainOutput', 'AuxOutput', 'Demod']
+    _MONITOR_SOURCES = ['None', 'Input1', 'Input2', 'ISignal', 'QSignal', 'MainOutput', 'AuxOutput', 'Demod']
     _DEMOD_MODES = ['Internal', 'External', 'ExternalPLL', 'None']
+    _PID_CHANNELS = ['Main', 'Aux', 'None']
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('input', [
@@ -109,6 +110,11 @@ class MokuLockInAmplifier(MokuLab):
             Parameter('aux_invert', False, bool, 'Invert auxiliary channel gain'),
             Parameter('main_gain_range', '0dB', ['0dB', '14dB'], 'Main output gain range'),
             Parameter('aux_gain_range', '0dB', ['0dB', '14dB'], 'aux output gain range'),
+        ]),
+        Parameter('pid', [
+            Parameter('channel', 'Aux', _PID_CHANNELS, 'channel to pid on'),
+            Parameter('prop_gain', 1., float, 'proprotional gain in PID, [dB]'),
+            Parameter('int_crossover', 100., float, 'int crossover frequency [Hz]'),
         ])
     ])
 
@@ -143,7 +149,10 @@ class MokuLockInAmplifier(MokuLab):
             elif key == 'monitor':
                 self._instrument.set_monitor(1, self.settings['monitor']['source_1'])
                 self._instrument.set_monitor(2, self.settings['monitor']['source_2'])
-
+            elif key == 'pid':
+                pid_settings = self.settings[key]
+                self._instrument.use_pid(pid_settings['channel'])
+                self._instrument.set_by_frequency(**pid_settings)
 
     @property
     def demod_frequency(self):
@@ -199,7 +208,18 @@ class MokuLockInAmplifier(MokuLab):
 
     def set_pll(self):
         self._instrument.set_pll()
+    @property
+    def pid(self):
+        return self._instrument.get_pid()
+    
+    @pid.setter
+    def pid(self, pid_channel):
+        self.update({'pid': {'channel': pid_channel}})
 
-if __name__ == '__main__':
-    lia = MokuLockInAmplifier()
-    print(lia.output_aux_amplitude)
+    @property
+    def phase_shift(self):
+        return self._instrument.get_demodulation()['phase']
+    
+    @phase_shift.setter
+    def phase_shift(self, ps):
+        self._instrument.set_demodulation(self.settings['demodulation']['mode'], phase=ps)

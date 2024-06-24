@@ -106,7 +106,15 @@ class LockInAmpliferFreqSweep(Script):
         self.run_sweep(freq_values)
 
         if self.settings['turn_off_after']:
-            self._lia.output_aux = None
+            self._lia.output_aux = 'None'
+    
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        axes_list[0].set_xlabel('frequency [Hz]')
+        axes_list[0].set_ylabel('signal [V]')
+        axes_list[0].plot(data['frequency'], data[''])
 
 
 class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
@@ -173,20 +181,20 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
         self._rf_gen = self.instruments['rf_gen']['instance']
 
     def _setup_instruments(self):
-        def _dBm_to_vpp(dbm):
-            return np.power(10., dbm / 20.) * np.sqrt(0.008 * 50)
+        def _vpp_to_dBm(vpp):
+            return 30. * np.log10(vpp ** 2 / (8 * 50))
 
         self._lia.set_monitor(1, 'MainOutput')
         self._lia.set_monitor(2, 'AuxOutput')
         self._lia.demod = 'ExternalPLL'
         self._lia.set_pll()
+        
 
-        outputs = self.settings['output_options'].split(',')
-        self._lia.output_main = outputs[0]
-        self._lia.output_aux = outputs[1]
+        self._lia.output_main, self._lia.output_aux = self.settings['output_options'].split(',')
 
-        self._rf_gen.update({'enable_modulation': False,
-                             'amplitude_rf': _dBm_to_vpp(self.settings['voltage'])})
+        self._rf_gen.update({'enable_output': True,
+                             'enable_modulation': False,
+                             'amplitude_rf': _vpp_to_dBm(self.settings['voltage'])})
 
     def run_sweep(self, freq_values):
 
@@ -215,23 +223,52 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
 
             self.updateProgress((freq_index + 1) / len(indices) * 100.)
 
-# class StartPll(Script):
-#     _DEFAULT_SETTINGS =
-#
-#     _INSTRUMENTS = {
-#         'lia': MokuLockInAmplifier,
-#         'rf_gen': RFGenerator
-#     }
-#
-#     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
-#         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function,
-#                         data_path=data_path)
-#         self._lia = self.instruments['lia']['instance']
-#         self._rf_gen
-#
-#     def _function(self):
+class PhaseLockedLoop(Script):
+    _DEFAULT_SETTINGS = [
+        Parameter('start_or_stop', True, bool, 'start or stop PLL'),
+        Parameter('voltage', 0.1, float, 'voltage [Vpp]'),
+        Parameter('starting_freq', 10000., float, 'starting frequency of PLL [Hz]'),
+        Parameter('phase', 0., float, 'set phase to lock to')
+    ]
 
-if __name__ == '__main__':
-    script = {}
-    instr = {}
-    script, failed, instr = Script.load_and_append({'lia': LockInAmplifierFreqSweepInternal}, script, instr)
+    _INSTRUMENTS = {
+        'lia': MokuLockInAmplifier,
+        'rf_gen': RFGenerator
+    }
+
+    _SCRIPTS = {}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function,
+                        data_path=data_path)
+        self._lia = self.instruments['lia']['instance']
+        self._rf_gen = self.instruments['rf_gen']['instance']
+
+    def _start_pll(self):
+        def _vpp_to_dBm(vpp):
+            return 30. * np.log10(vpp ** 2 / (8 * 50))
+        
+        self._rf_gen.update({'enable_modulation': True,
+                             'enable_output': True,
+                             'modulation_type': 'FM',
+                             'modulation_function': 'External',
+                             'frequency': self.settings['starting_freq'],
+                             'ampltitude_rf': _vpp_to_dBm(self.settings['voltage'])})
+        
+        self._lia.set_monitor(1, 'MainOutput')
+        self._lia.set_monitor(2, 'AuxOutput')
+        self._lia.output_main = 'R'
+        self._lia.output_aux = 'Theta'
+        self._lia.demod = 'ExternalPLL'
+        self._lia.phase_shift = self.settings['phase']
+        self._lia.set_pll()
+        self._lia.pid = 'Aux'
+
+    def _stop_pll(self):
+        self._lia.output_aux = 'None'
+
+    def _function(self):
+        if self.settings['start_or_stop']:
+            self._start_pll()
+        else:
+            self._stop_pll()
