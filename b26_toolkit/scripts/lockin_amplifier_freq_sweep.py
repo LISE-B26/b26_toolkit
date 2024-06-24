@@ -60,7 +60,11 @@ class LockInAmpliferFreqSweep(Script):
                 self.log('start or stop frequency out of bounds')
                 self._abort = True
 
-            freq_values = np.linspace(self.settings['freq_start'], self.settings['freq_stop'], self.settings['freq_points'])
+            freq_values = np.linspace(self.settings['freq_start'],
+                                      self.settings['freq_stop'],
+                                      self.settings['freq_points'],
+                                      dtype=float)
+
             freq_range = max(freq_values) - min(freq_values)
 
         elif self.settings['range_type'] == 'center_range':
@@ -68,7 +72,9 @@ class LockInAmpliferFreqSweep(Script):
                 self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
             freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
-                                      self.settings['freq_start']+self.settings['freq_stop']/2, self.settings['freq_points'])
+                                      self.settings['freq_start']+self.settings['freq_stop']/2,
+                                      self.settings['freq_points'],
+                                      dtype=float)
             freq_range = max(freq_values) - min(freq_values)
 
             if self.settings['freq_stop'] > 1e9:
@@ -107,14 +113,14 @@ class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
     _DEFAULT_SETTINGS = [
         Parameter('output_options', [
             Parameter('output_1', 'R', ['X', 'Y', 'R', 'Theta'], 'output for monitor 1'),
-            Parameter('output_2', None, ['Y', 'Theta', None], 'output for monitor 2')
+            Parameter('output_2', 'None', ['Y', 'Theta', 'None'], 'output for monitor 2')
         ])
     ]
 
     def _setup_instruments(self):
         self._lia.output_aux_amplitude = self.settings['voltage']
         self._lia.output_aux = 'Demod'
-        self._lia.output_main = None
+        self._lia.output_main = 'None'
         self._lia.set_monitor(1, 'MainOutput')
 
     def run_sweep(self, freq_values):
@@ -122,7 +128,7 @@ class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
         output_2 = self.settings['output_options']['output_2']
 
         outputs = [output_1]
-        if output_2 is not None and output_1 != output_2:
+        if output_2 != 'None' and output_1 != output_2:
             outputs.append(output_2)
 
         # initialize data arrays
@@ -139,13 +145,13 @@ class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
             freq = freq_values[indices[freq_index]]
 
             # change MW frequency
-            self._lia.demod_frequency = freq
+            self._lia.demod_frequency = float(freq)
             time.sleep(self.settings['switching_time'])
 
             for i in range(len(outputs)):
                 self._lia.output_main = outputs[i]
                 self._lia.start_data_streaming(duration=self.settings['integration_time'],
-                                               sample_rate=self.settings['sample_rate'])
+                                               rate=self.settings['sample_rate'])
                 time.sleep(self.settings['integration_time'])
                 self.data['output'][i, indices[freq_index]] = np.mean(self._lia.stream_data['ch1'])
 
@@ -225,3 +231,7 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
 #
 #     def _function(self):
 
+if __name__ == '__main__':
+    script = {}
+    instr = {}
+    script, failed, instr = Script.load_and_append({'lia': LockInAmplifierFreqSweepInternal}, script, instr)

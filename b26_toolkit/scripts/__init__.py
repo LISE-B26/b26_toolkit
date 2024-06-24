@@ -51,3 +51,4 @@ from .autofocus import AutoFocusDAQPulsed
 from .find_nv_pulsed import FindNVPulsed
 from .pulse_sequences.rabi import Rabi
 from .esr_and_rabi import ESRAndRabi
+from .lockin_amplifier_freq_sweep import LockInAmplifierFreqSweepInternal

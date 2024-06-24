@@ -19,14 +19,19 @@
 from pylabcontrol.core import Parameter, Instrument
 from moku import instruments
 
-class Moku(Instrument):
+class MokuLab(Instrument):
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('ip_address', 'Moku', str, 'ip address of Moku'),
+        Parameter('ipv6_address', '[fe80::72b3:d5ff:fe87:b4f9%11]', str, 'ip address of Moku'),
     ])
 
-    def __del__(self):
-        self.end_data_acquisiton()
-        self._instrument.relinquish_ownership()
+    _PROBES = {}
+
+    def read_probes(self, key = None):
+        pass
+
+    # def __del__(self):
+    #     # self.end_data_streaming()
+    #     self._instrument.relinquish_ownership()
 
     def start_data_streaming(self, duration, mode='Normal', rate=1000):
         if self._is_connected:
@@ -35,6 +40,21 @@ class Moku(Instrument):
             raise ConnectionError('instrument not connected yet')
 
     def end_data_streaming(self):
+        if self._is_connected:
+            try:
+                self._instrument.stop_streaming()
+            except:
+                self.log('no stream to stop')
+        else:
+            raise ConnectionError('instrument not connected yet')
+
+    def start_data_logging(self, duration=1., mode='Normal', rate=1000):
+        if self._is_connected:
+            self._instrument.start_logging(duration, mode=mode, rate=rate)
+        else:
+            raise ConnectionError('instrument not connected yet')
+
+    def stop_data_logging(self):
         if self._is_connected:
             self._instrument.stop_streaming()
         else:
@@ -47,13 +67,14 @@ class Moku(Instrument):
         else:
             raise ConnectionError('instrument not connected yet')
 
-class MokuLockInAmplifier(Moku):
+
+class MokuLockInAmplifier(MokuLab):
     _LIA_INPUT_CHANNEL = 1
-    _OUTPUT_MAIN_OPTIONS = ['X', 'Y', 'R', 'Theta', 'Offset', None]
-    _OUTPUT_AUX_OPTIONS = ['Y', 'Theta', 'Demod', 'Aux', 'Offset', None]
+    _OUTPUT_MAIN_OPTIONS = ['X', 'Y', 'R', 'Theta', 'Offset', 'None']
+    _OUTPUT_AUX_OPTIONS = ['Y', 'Theta', 'Demod', 'Aux', 'Offset', 'None']
     _MONITOR_CHANNELS = [1, 2]
-    _MONITOR_SOURCES = [None, 'Input1', 'Input2', 'ISignal', 'QSignal', 'MainOutput', 'AuxOutput', 'Demod']
-    _DEMOD_MODES = ['Internal', 'External', 'ExternalPLL', None]
+    _MONITOR_SOURCES = ['Off', 'Input1', 'Input2', 'ISignal', 'QSignal', 'MainOutput', 'AuxOutput', 'Demod']
+    _DEMOD_MODES = ['Internal', 'External', 'ExternalPLL', 'None']
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('input', [
@@ -93,30 +114,19 @@ class MokuLockInAmplifier(Moku):
 
     def __init__(self, name=None, settings=None):
         super().__init__(name, settings)
-        self._instrument = instruments.LockInAmp(super().settings['ip_address'])
+        self._instrument = instruments.LockInAmp(super()._DEFAULT_SETTINGS['ipv6_address'], force_connect=True)
         self._is_connected = True
 
     def update(self, settings):
-        if not self._settings_initialized:
-            return
+        super().update(settings)
 
         for key, value in settings.items():
             if key == 'input':
                 self.settings[key].update(value)
                 self._instrument.set_frontend(self._LIA_INPUT_CHANNEL, **self.settings[key])
-                # self._lia.set_frontend(self._LIA_INPUT_CHANNEL,
-                #                        impedance=value['impedance'],
-                #                        coupling=value['coupling'],
-                #                        attenuation=value['attenuation'],
-                #                        strict=value['strict'])
             elif key == 'output':
                 self.settings[key].update(value)
                 self._instrument.set_outputs(**self.settings[key])
-                # self._lia.set_outputs(main=value['main'],
-                #                       aux=value['aux'],
-                #                       main_offset=value['main_offset'],
-                #                       aux_offset=value['aux_offset'],
-                #                       strict=value['strict'])
             elif key == 'demodulation':
                 self.settings[key].update(value)
                 self._instrument.set_demodulation(**self.settings[key])
@@ -190,5 +200,6 @@ class MokuLockInAmplifier(Moku):
     def set_pll(self):
         self._instrument.set_pll()
 
-
-
+if __name__ == '__main__':
+    lia = MokuLockInAmplifier()
+    print(lia.output_aux_amplitude)

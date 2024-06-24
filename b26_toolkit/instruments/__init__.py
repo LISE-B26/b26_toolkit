@@ -38,4 +38,4 @@ from .arduino import ArduinoZero
 from .commander import Commander
 from .temperature_controller import TemperatureController, LakeShore211
 from .red_laser import WlmMonitorSiV
-from .moku import MokuLockInAmplifier
+from .moku_lab import MokuLockInAmplifier
