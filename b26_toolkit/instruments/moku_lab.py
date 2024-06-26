@@ -18,6 +18,9 @@
 
 from pylabcontrol.core import Parameter, Instrument
 from moku import instruments
+import numpy as np
+import time
+
 
 class MokuLab(Instrument):
     _DEFAULT_SETTINGS = Parameter([
@@ -33,9 +36,10 @@ class MokuLab(Instrument):
     #     # self.end_data_streaming()
     #     self._instrument.relinquish_ownership()
 
-    def start_data_streaming(self, duration, mode='Normal', rate=1000):
+    def start_data_streaming(self, duration, mode='Normal', rate=1000, trigger_source=None, trigger_level=None):
         if self._is_connected:
-            return self._instrument.start_streaming(duration=duration, mode=mode, rate=rate)
+            return self._instrument.start_streaming(duration=duration, mode=mode, rate=rate, trigger_source=trigger_source,
+                                                    trigger_level=trigger_level)
         else:
             raise ConnectionError('instrument not connected yet')
 
@@ -48,9 +52,10 @@ class MokuLab(Instrument):
         else:
             raise ConnectionError('instrument not connected yet')
 
-    def start_data_logging(self, duration=1., mode='Normal', rate=1000):
+    def start_data_logging(self, duration=1., mode='Normal', rate=1000, trigger_source=None, trigger_level=None):
         if self._is_connected:
-            self._instrument.start_logging(duration, mode=mode, rate=rate)
+            self._instrument.start_logging(duration, mode=mode, rate=rate, trigger_source=trigger_source,
+                                           trigger_level=trigger_level)
         else:
             raise ConnectionError('instrument not connected yet')
 
@@ -60,10 +65,49 @@ class MokuLab(Instrument):
         else:
             raise ConnectionError('instrument not connected yet')
 
-    @property
-    def stream_data(self):
+    def get_stream_data(self, num_samples, channel='both', mean=True):
+        if channel not in ['1', '2', 'both']:
+            raise ValueError('channel must be one of {}'.format(['1', '2', 'both']))
         if self._is_connected:
-            return self._instrument.get_stream_data()
+            stream_data = [[], []]
+            summed = [0, 0]
+            count = 0
+            if channel == 'both':
+                channel = '12'
+
+            # try:
+            #     while True:
+            #         if self._abort:
+            #             break
+            #         chunk = self._instrument.get_stream_data()
+            #         count += len(chunk['time'])
+            #         for c in channel:
+            #             if mean:
+            #                 summed[int(c) - 1] += np.sum(chunk['ch' + c])
+            #             else:
+            #                 stream_data[int(c) - 1].extend(chunk['ch' + c])
+            # except Exception as e:
+            #     if count < num_samples:
+            #         raise IOError('incorrect number of samples received')
+
+            while count < num_samples:
+                if self._abort:
+                    break
+                chunk = self._instrument.get_stream_data()
+                count += len(chunk['time'])
+                for c in channel:
+                    if mean:
+                        summed[int(c) - 1] += np.sum(chunk['ch' + c])
+                    else:
+                        stream_data[int(c) - 1].extend(chunk['ch' + c])
+            self._instrument._reset_stream_config()
+            if mean:
+                out = np.divide(summed, num_samples)
+            else:
+                out = stream_data
+            if len(channel) == 1:
+                return out[int(channel) - 1]
+            return out
         else:
             raise ConnectionError('instrument not connected yet')
 
@@ -100,7 +144,7 @@ class MokuLockInAmplifier(MokuLab):
             Parameter('phase', 0., float, 'phase of demodulation [degrees]'),
         ]),
         Parameter('low_pass_filter', [
-            Parameter('corner_freq', 10., float, 'corner frequency of filter [Hz]'),
+            Parameter('corner_frequency', 10., float, 'corner frequency of filter [Hz]'),
             Parameter('slope', 'Slope6dB', ['Slope6dB', 'Slope12dB', 'Slope18dB', 'Slope24dB'], 'slope per octave'),
         ]),
         Parameter('gain', [
@@ -117,6 +161,20 @@ class MokuLockInAmplifier(MokuLab):
             Parameter('int_crossover', 100., float, 'int crossover frequency [Hz]'),
         ])
     ])
+
+    _PROBES = {
+        'low_pass_filter': _DEFAULT_SETTINGS.info['low_pass_filter'],
+        'demodulation': _DEFAULT_SETTINGS.info['demodulation'],
+        'output_aux_amplitude': _DEFAULT_SETTINGS.info['output_aux_amplitude']
+    }
+
+    def read_probes(self, key):
+        if key == 'low_pass_filter':
+            return self._instrument.get_filter()
+        elif key == 'demodulation':
+            return self._instrument.get_demodulation()
+        elif key == 'output_aux_amplitude':
+            return self._instrument.get_aux_output()['amplitude']
 
     def __init__(self, name=None, settings=None):
         super().__init__(name, settings)
@@ -138,7 +196,8 @@ class MokuLockInAmplifier(MokuLab):
                 self._instrument.set_demodulation(**self.settings[key])
             elif key == 'low_pass_filter':
                 self.settings[key].update(value)
-                self._instrument.set_filter(**self.settings[key])
+                self._instrument.set_filter(self.settings[key]['corner_freq'],
+                                            slope=self.settings[key]['slope'])
             elif key == 'gain':
                 self.settings[key].update(value)
                 self._instrument.set_gain(**self.settings[key])
@@ -223,3 +282,9 @@ class MokuLockInAmplifier(MokuLab):
     @phase_shift.setter
     def phase_shift(self, ps):
         self._instrument.set_demodulation(self.settings['demodulation']['mode'], phase=ps)
+
+if __name__ == '__main__':
+    lia = MokuLockInAmplifier()
+    lia.set_monitor(1, 'MainOutput')
+    lia.set_monitor(2, 'AuxOutput')
+    print(lia._instrument.get_gain())

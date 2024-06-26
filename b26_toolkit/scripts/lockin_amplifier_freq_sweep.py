@@ -2,8 +2,9 @@ from pylabcontrol.core import Script, Parameter
 
 # import standard libraries
 import numpy as np
+from scipy.signal import periodogram
 from b26_toolkit.instruments import RFGenerator, NI6259, NI9402, MokuLockInAmplifier
-from b26_toolkit.plotting.plots_1d import plot_esr
+from b26_toolkit.tools.utils import get_freq_array
 
 
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
@@ -25,10 +26,16 @@ class LockInAmpliferFreqSweep(Script):
         Parameter('switching_time', .01, float, 'time wait after switching center frequencies on generator (s)'),
         Parameter('turn_off_after', False, bool, 'if true MW output is turned off after the measurement'),
         Parameter('randomize', True, bool, 'check to randomize esr frequencies'),
+        # Parameter('daq_type', 'Moku', ['Moku', 'PCI'], 'daq type for data acquisition'),
+        # Parameter('daq_channels', [
+        #     Parameter('ai_main', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'ai channel for main output'),
+        #     Parameter('ai_aux', 'ai1', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'ai channel for main output'),
+        # ])
     ]
 
     _INSTRUMENTS = {
-        'lia': MokuLockInAmplifier
+        'lia': MokuLockInAmplifier,
+        'NI6259': NI6259,
     }
 
     _SCRIPTS = {}
@@ -41,69 +48,55 @@ class LockInAmpliferFreqSweep(Script):
     def _setup_instruments(self):
         raise NotImplementedError
 
-    def get_freq_array(self):
-        '''
-        Construct a list of values through which we will sweep a parameter.
-        Function is called get_freq_array, but the array does not have to be frequency. Can be e.g. voltage values for a piezo
-
-        Returns:
-            freq_values: array of the parameter values to be tested
-            freq_range: the range of the parameter values to be tested, i.e. maximum frequency - minumum frequency
-        '''
-
-        if self.settings['range_type'] == 'start_stop':
-            if self.settings['freq_start'] > self.settings['freq_stop']:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
-                self._abort = True
-
-            if self.settings['freq_start'] < 0.001 or self.settings['freq_stop'] > 200e6: # freq range of the SRS
-                self.log('start or stop frequency out of bounds')
-                self._abort = True
-
-            freq_values = np.linspace(self.settings['freq_start'],
-                                      self.settings['freq_stop'],
-                                      self.settings['freq_points'],
-                                      dtype=float)
-
-            freq_range = max(freq_values) - min(freq_values)
-
-        elif self.settings['range_type'] == 'center_range':
-            if self.settings['freq_start'] < 2 * self.settings['freq_stop']:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
-                self._abort = True
-            freq_values = np.linspace(self.settings['freq_start']-self.settings['freq_stop']/2,
-                                      self.settings['freq_start']+self.settings['freq_stop']/2,
-                                      self.settings['freq_points'],
-                                      dtype=float)
-            freq_range = max(freq_values) - min(freq_values)
-
-            if self.settings['freq_stop'] > 1e9:
-                self.log('freq_stop (range) is quite large --- did you mean to set \'range_type\' to \'start_stop\'? ')
-        else:
-            self.log('unknown range parameter. Abort script')
-            self._abort = True
-
-        return freq_values, freq_range
-
-    def run_sweep(self, freq_values):
+    def _run_sweep(self, freq_values):
         raise NotImplementedError
+
+    # def _setup_daq(self):
+    #     self.daq = self.instruments['NI6259']['instance']
+    #     self.tasks = []
+    #     for chan in ['ai_main', 'ai_aux']:
+    #         self.daq.settings['analog_input'][self.settings['daq_channels'][chan]]['sample_rate'] = self.settings['sample_rate']
+    #         self.tasks.append(self.daq.setup_AI(self.settings['daq_channels'][chan],
+    #                           self.settings['integration_time'] * self.settings['sample_rate'],
+    #                           continuous=False))
+
+    # def _read_data(self, channel='1'):
+    #     if self.settings['daq_type'] == 'Moku':
+    #         self._lia.start_data_streaming(duration=self.settings['integration_time'],
+    #                                        rate=self.settings['sample_rate'])
+    #         return self._lia.get_stream_data(self.settings['integration_time'] * self.settings['sample_rate'], channel='1')
+    #     elif self.settings['daq_type'] == 'PCI':
+    #         if channel == 'both':
+    #             self.daq.run(self.tasks)
+    #             self.data.read(self.tasks)
+    #         else:
+    #             self.daq.run(self.tasks[int(channel) - 1])
+
+
 
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
+        # if self.settings['daq_type'] != 'Moku':
+        #     self._setup_daq()
 
         # setup the microwave generator
         self._setup_instruments()
 
 
         # get the frequencices of the sweep
-        freq_values, freq_range = self.get_freq_array()
+
+        freq_values = get_freq_array(self.settings['freq_start'],
+                                     self.settings['freq_stop'],
+                                     self.settings['freq_points'],
+                                     self.settings['range_type'])
+
         self.data = {'frequency': freq_values}
 
         # get the data for a single sweep. These are raw data.
-        self.run_sweep(freq_values)
+        self._run_sweep(freq_values)
 
         if self.settings['turn_off_after']:
             self._lia.output_aux = 'None'
@@ -112,9 +105,33 @@ class LockInAmpliferFreqSweep(Script):
         if data is None:
             data = self.data
 
-        axes_list[0].set_xlabel('frequency [Hz]')
-        axes_list[0].set_ylabel('signal [V]')
-        axes_list[0].plot(data['frequency'], data[''])
+        if len(self.outputs) == 2 and self.outputs[1] == 'Theta':
+            for i in range(data['output'].shape[0]):
+                axes_list[i].set_xlabel('frequency [Hz]')
+                axes_list[i].set_ylabel('signal [V]')
+                axes_list[i].plot(data['frequency'], data['output'][i, :], label=self.outputs[i])
+                axes_list[i].legend()
+        else:
+            axes_list[0].set_xlabel('frequency [Hz]')
+            axes_list[0].set_ylabel('signal [V]')
+            for i in range(data['output'].shape[0]):
+                axes_list[0].plot(data['frequency'], data['output'][i, :], label=self.outputs[i])
+            axes_list[0].legend()
+
+    def _update_plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        if len(self.outputs) == 2 and self.outputs[1] == 'Theta':
+            for i in range(data['output'].shape[0]):
+                axes_list[i].lines[0].set_ydata(data['output'][i, :])
+                axes_list[i].relim()
+                axes_list[i].autoscale_view()
+        else:
+            for i in range(data['output'].shape[0]):
+                axes_list[0].lines[i].set_ydata(data['output'][i, :])
+            axes_list[0].relim()
+            axes_list[0].autoscale_view()
 
 
 class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
@@ -126,21 +143,24 @@ class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
     ]
 
     def _setup_instruments(self):
+        output_1 = self.settings['output_options']['output_1']
+        output_2 = self.settings['output_options']['output_2']
+
+        self.outputs = [output_1]
+        if output_2 != 'None' and output_1 != output_2:
+            self.outputs.append(output_2)
+
+
         self._lia.output_aux_amplitude = self.settings['voltage']
         self._lia.output_aux = 'Demod'
         self._lia.output_main = 'None'
         self._lia.set_monitor(1, 'MainOutput')
 
-    def run_sweep(self, freq_values):
-        output_1 = self.settings['output_options']['output_1']
-        output_2 = self.settings['output_options']['output_2']
+    def _run_sweep(self, freq_values):
 
-        outputs = [output_1]
-        if output_2 != 'None' and output_1 != output_2:
-            outputs.append(output_2)
 
         # initialize data arrays
-        self.data['output'] = np.zeros([len(outputs), len(freq_values)])
+        self.data['output'] = np.zeros([len(self.outputs), len(freq_values)])
         indices = list(range(len(freq_values)))
 
         if self.settings['randomize']:
@@ -156,14 +176,15 @@ class LockInAmplifierFreqSweepInternal(LockInAmpliferFreqSweep):
             self._lia.demod_frequency = float(freq)
             time.sleep(self.settings['switching_time'])
 
-            for i in range(len(outputs)):
-                self._lia.output_main = outputs[i]
+            for i in range(len(self.outputs)):
+                self._lia.output_main = self.outputs[i]
                 self._lia.start_data_streaming(duration=self.settings['integration_time'],
                                                rate=self.settings['sample_rate'])
-                time.sleep(self.settings['integration_time'])
-                self.data['output'][i, indices[freq_index]] = np.mean(self._lia.stream_data['ch1'])
+                self.data['output'][i, indices[freq_index]] = self._lia.get_stream_data(self.settings['integration_time'] * self.settings['sample_rate'],
+                                                                                        channel='1')
 
-            self.updateProgress((freq_index + 1) / len(indices) * 100.)
+            self.progress = int((freq_index + 1) / len(indices) * 100.)
+            self.updateProgress.emit(self.progress)
 
 class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
     _DEFAULT_SETTINGS = [
@@ -179,18 +200,20 @@ class LockInAmplifierFreqSweepExternal(LockInAmpliferFreqSweep):
         super().__init__(instruments, scripts=scripts, name=name, settings=settings, log_function=log_function, data_path=data_path)
         # defines which daqs contain the input and output based on user selection of daq interface
         self._rf_gen = self.instruments['rf_gen']['instance']
+        self.outputs = []
 
     def _setup_instruments(self):
         def _vpp_to_dBm(vpp):
             return 30. * np.log10(vpp ** 2 / (8 * 50))
 
+        self.outputs = self.settings['output_options'].split(',')
+
         self._lia.set_monitor(1, 'MainOutput')
         self._lia.set_monitor(2, 'AuxOutput')
         self._lia.demod = 'ExternalPLL'
         self._lia.set_pll()
-        
 
-        self._lia.output_main, self._lia.output_aux = self.settings['output_options'].split(',')
+        self._lia.output_main, self._lia.output_aux = self.outputs
 
         self._rf_gen.update({'enable_output': True,
                              'enable_modulation': False,
@@ -244,7 +267,7 @@ class PhaseLockedLoop(Script):
         self._lia = self.instruments['lia']['instance']
         self._rf_gen = self.instruments['rf_gen']['instance']
 
-    def _start_pll(self):
+    def start_pll(self):
         def _vpp_to_dBm(vpp):
             return 30. * np.log10(vpp ** 2 / (8 * 50))
         
@@ -264,11 +287,40 @@ class PhaseLockedLoop(Script):
         self._lia.set_pll()
         self._lia.pid = 'Aux'
 
-    def _stop_pll(self):
+    def stop_pll(self):
         self._lia.output_aux = 'None'
 
     def _function(self):
         if self.settings['start_or_stop']:
-            self._start_pll()
+            self.start_pll()
         else:
-            self._stop_pll()
+            self.stop_pll()
+
+class TempMeasurePll(Script):
+    _DEFAULT_SETTINGS = [
+        Parameter('integration_time', 0.05, float, 'The TOTAL integration time'),
+        Parameter('sample_rate', 100, int, 'sample rate in [Hz]'),
+    ]
+
+    _SCRIPTS = {'pll': PhaseLockedLoop}
+
+    def _function(self):
+        self.scripts['pll'].start_pll()
+        lia = self.scripts['pll'].instruments['lia']['instance']
+
+        lia.start_data_streaming(duration=self.settings['integration_time'],
+                                 rate=self.settings['sample_rate'])
+        self.data = {'voltage': lia.get_stream_data(self.settings['integration_time'] * self.settings['sample_rate'],
+                                                    channel='1', mean=False)}
+
+        self.scripts['pll'].stop_pll()
+
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        f, psd = periodogram(data['voltage'], fs=self.settings['sample_rate'])
+        axes_list[0].semilogy(f, psd)
+        axes_list[0].set_x_label('frequency [Hz]')
+        axes_list[0].set_y_label('psd [V^2 / Hz]')
+

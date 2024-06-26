@@ -26,6 +26,9 @@ class ControlMainWindowB26(MainWindow):
         self.tree_scripts.setAlternatingRowColors(False)
         if argv is not None and len(argv) > 1:
             self.sound = argv[1] == 'True'
+        else:
+            self.sound = False
+
 
 
     def load_scripts(self, verbose=False):
