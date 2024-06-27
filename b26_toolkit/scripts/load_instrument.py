@@ -16,4 +16,3 @@ class LoadInstrument(Script):
     _SCRIPTS = {}
     #_INSTRUMENTS = {'arduino': ArduinoZero}
     _INSTRUMENTS = {'rf_gen': RFGenerator}
-

@@ -6,7 +6,7 @@ import threading
 from copy import deepcopy
 
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.scripts import FindNV, SetMagneticCoils, ESR, Take_And_Correlate_Images
+from b26_toolkit.scripts import FindNv, SetMagneticCoils, Esr, TakeAndCorrelateImages
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 from b26_toolkit.data_processing.coordinate_conversions import cartesian_to_spherical
 
@@ -24,7 +24,7 @@ This script determines the orientation of a given NV
 
     _INSTRUMENTS = {}
 
-    _SCRIPTS = {'FindNV': FindNV, 'SetMagneticCoils': SetMagneticCoils, 'ESR': ESR, 'Correlate': Take_And_Correlate_Images}
+    _SCRIPTS = {'FindNV': FindNv, 'SetMagneticCoils': SetMagneticCoils, 'ESR': Esr, 'Correlate': TakeAndCorrelateImages}
 
 
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):

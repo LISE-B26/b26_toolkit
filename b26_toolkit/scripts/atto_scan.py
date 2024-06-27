@@ -18,7 +18,7 @@
 import numpy as np
 import time
 from b26_toolkit.instruments import ANC300, ANC350, PiezoController, NI6259, NI9263, NI9402
-from b26_toolkit.scripts.daq_read_counter import Daq_Read_Counter, Daq_Read_Counter_NI6259
+from b26_toolkit.scripts.daq_read_counter import DaqReadCounter, Daq_Read_Counter_NI6259
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan
 from b26_toolkit.plotting.plots_1d import plot_counts_vs_pos, update_counts_vs_pos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_pos, update_fluorescence

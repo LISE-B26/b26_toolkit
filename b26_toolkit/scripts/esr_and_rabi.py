@@ -17,10 +17,10 @@
 """
 
 from pylabcontrol.core import Script
-from b26_toolkit.scripts import ESR, Rabi
+from b26_toolkit.scripts import Esr, Rabi
 
 
-class ESRAndRabi(Script):
+class EsrAndRabi(Script):
     """
     Does both an ESR experiment and a Rabi experiment on an NV, using the reference frequency from the esr data.
     """
@@ -29,7 +29,7 @@ class ESRAndRabi(Script):
 
     _INSTRUMENTS = {}
 
-    _SCRIPTS = {'esr': ESR, 'rabi': Rabi}
+    _SCRIPTS = {'esr': Esr, 'rabi': Rabi}
 
     def __init__(self, scripts, name = None, settings = None, log_function = None, timeout = 1000000000, data_path = None):
 

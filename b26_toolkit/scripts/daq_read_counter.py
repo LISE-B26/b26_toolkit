@@ -24,40 +24,26 @@ import matplotlib.pyplot as plt
 from b26_toolkit.instruments import NI6259, NI9402, NI9215, MicrowaveGenerator, PiezoController
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos, update_counts
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import FindNV
+from b26_toolkit.scripts import FindNv
 
 
-class Daq_Read_Counter(Script):
+class DaqReadCounter(Script):
     """
-This script reads the Counter input from the DAQ and plots it.
-
-WARNING: Only implemented either for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
-
-If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
-
+    This script reads the Counter input from the DAQ and plots it.
+    WARNING: Only implemented for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
+    If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
-        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
-        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'), # added by ER 20180606
-        Parameter('track_laser_power_photodiode1',
-                  [
-                      Parameter('on/off', False, bool,
-                                'If true, measure and normalize out laser power drifts during daq_read_counter'),
-                      Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'],
-                                'channel to use for analog input, to which the photodiode is connected')
-                  ]),
-        Parameter('track_laser_power_photodiode2',
-                  [
-                      Parameter('on/off', False, bool, 'If true, measure and save laser power drifts during daq_read_counter on this photodiode. Cant use both simultaneously'),
-                      Parameter('ai_channel', 'ai4', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'channel to use for photodiode 2, cant be the same as the track_laser_power photodiode')
-                  ])
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr2'], 'Daq channel used for counter'),
+        Parameter('total_int_time', -1, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
+        Parameter('trim_plot', -1, int, 'Keep only the last n data points to keep plot decluttered (saved data unaffected), (if -1 then no trim)'),
+        Parameter('num_plot', False, bool, 'Show a big number showing the last Daq value instead of a time series plot')
     ]
 
     _INSTRUMENTS = {'daq': NI9402}
 
-    _SCRIPTS = {
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -69,7 +55,9 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
+        self.data = {'counts': deque()}
+
+        plt.ioff()
 
 
     def _function(self):
@@ -78,76 +66,53 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
         will be overwritten in the __init__
         """
 
-        if self.settings['track_laser_power_photodiode1']['on/off'] and self.settings['track_laser_power_photodiode2']['on/off']:
-            print('cant use both photodiodes at the same time - only use one AI channel at a time, unfortunately :-(')
-            return
-
-        sample_rate = 1. / self.settings['integration_time']
-        normalization = self.settings['integration_time'] / .001
-        self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
-        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
-        self.last_value = 0
         sample_num = 2
+        sample_rate = float(sample_num) / self.settings['integration_time']
+        normalization = self.settings['integration_time']/.001/float(sample_num)
 
-        task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num, continuous_acquisition=True)
+        self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
 
-        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-            aitask = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode1']['ai_channel'], sample_num,
-                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
-                                          clk_source=task)
-
-        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
-            aitask2 = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode2']['ai_channel'], sample_num,
-                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
-                                          clk_source=task)
-            print('aitask2: ', aitask2)
+        self.data = {'counts': deque()}
+        self.last_value = 0
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
             max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
 
-        # start counter and scanning sequence
-        if (self.settings['track_laser_power_photodiode1']['on/off'] and not self.settings['track_laser_power_photodiode2']['on/off']):
-            self.instruments['daq']['instance'].run(aitask)
-        elif (self.settings['track_laser_power_photodiode2']['on/off'] and not self.settings['track_laser_power_photodiode1']['on/off']):
-            self.instruments['daq']['instance'].run(aitask2)
+        self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num, continuous_acquisition=True)
 
-        self.instruments['daq']['instance'].run(task)
+        self.instruments['daq']['instance'].run(self.task)
 
         # ER 20180827 wait for at least one clock tick to go by to start with a full clock tick of acquisition time for the first bin
         time.sleep(self.settings['integration_time'])
 
-        sample_index = 0 # keep track of samples made to know when to stop if finite integration time
+        err_sum = 0
+
+        sample_index = 0  # keep track of samples made to know when to stop if finite integration time
+        self.loop_iteration = 0
 
         while True:
             if self._abort:
                 break
-
+            self.loop_iteration += 1
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
-            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-                raw_data_laser, num_read_laser = self.instruments['daq']['instance'].read(aitask)
-            if self.settings['track_laser_power_photodiode2']['on/off'] == True:
-                raw_data_laser2, num_read_laser2 = self.instruments['daq']['instance'].read(aitask2)
 
-            raw_data, num_read = self.instruments['daq']['instance'].read(task)
-            #skip first read, which gives an anomolous value
-            if num_read.value == 1:
-                self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
-                time.sleep(2.0 / sample_rate)
+            raw_data, num_read = self.instruments['daq']['instance'].read(self.task)
+
+
+            if num_read.value < sample_num:
+                time.sleep(float(sample_num) / sample_rate)
                 continue
 
-            tmp_count = 0
-            for value in raw_data:
-                new_val = ((float(value) - self.last_value) / normalization)
-                self.data['counts'].append(new_val)
-                self.last_value = value
-                if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-                    self.data['laser_power'].append(raw_data_laser[tmp_count])
-                if self.settings['track_laser_power_photodiode2']['on/off'] == True:
-                    self.data['laser_power2'].append(raw_data_laser2[tmp_count])
+            if self.last_value == 0:
+                self.last_value = raw_data[0]
+                raw_data = raw_data[1:]
 
-                tmp_count = tmp_count + 1
+            for value in raw_data:
+                self.new_val = ((float(value) - self.last_value) / normalization)
+                self.data['counts'].append(self.new_val)
+                self.last_value = value
 
             if self.settings['total_int_time'] > 0:
                 self.progress = sample_index/max_samples
@@ -155,64 +120,84 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 
-            time.sleep(2.0 / sample_rate)
+            time.sleep(float(sample_num) / sample_rate)
             sample_index = sample_index + 1
             if self.settings['total_int_time'] > 0. and sample_index >= max_samples: # if the maximum integration time is hit
                 self._abort = True # tell the script to abort
 
+            def restart_loop():
+                self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num, continuous_acquisition=True)
+                self.instruments['daq']['instance'].run(self.task)
+                time.sleep(self.settings['integration_time'])
+                self.last_value = 0
+
+            # Script crashes after about 500 loops if the sampling rate is set to 1 kS/s
+            if self.loop_iteration > 200000 / sample_rate:
+                print(self.loop_iteration)
+                self.loop_iteration = 0
+                self.instruments['daq']['instance'].stop(self.task)
+                restart_loop()
+
         # clean up APD tasks
-        self.instruments['daq']['instance'].stop(task)
-        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-            self.instruments['daq']['instance'].stop(aitask)
-        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
-            self.instruments['daq']['instance'].stop(aitask2)
+        self.instruments['daq']['instance'].stop(self.task)
 
         self.data['counts'] = list(self.data['counts'])
 
-        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-            self.data['laser_power'] = list(self.data['laser_power'])
-            self.data['normalized_counts'] = list(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']))
-        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
-            self.data['laser_power2'] = list(self.data['laser_power2'])
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter, self).plot([figure_list[1]])
+        super(DaqReadCounter, self).plot([figure_list[1]])
 
     def _plot(self, axes_list, data = None):
-        # COMMENT_ME
+        axes_list[0].text(0.5, 0.65, 'IMPRECISE TIMING', fontsize=45, alpha=0.125,
+                          ha='center', va='center', transform=axes_list[0].transAxes)
+        axes_list[0].text(0.5, 0.25, 'NOT FOR QUANTITATIVE MEASUREMENTS', fontsize=30, alpha=0.125,
+                          ha='center', va='center', transform=axes_list[0].transAxes)
 
         if data is None:
             data = self.data
+            if self.settings['num_plot']:
+                self.plot_txt = axes_list[0].text(0.5, 0.5, '%.1f kCt/s' % 0, fontsize=80, ha='center', va='center', transform=axes_list[0].transAxes)
+                axes_list[0].set_axis_off()
 
         if len(data['counts']) > 0:
-            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
+            array_to_plot = np.delete(data['counts'], 0)
+            if self.settings['num_plot']:
+                if len(array_to_plot) > 1:
+                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
             else:
-                array_to_plot = np.delete(data['counts'], 0)
+                self.lns1 = axes_list[0].plot(array_to_plot, label='kCt/s')
 
-            plot_counts(axes_list[0], array_to_plot, self.settings['integration_time'])
-
-    def _update_plot(self, axes_list, data = None):
+    def _update_plot(self, axes_list, data=None):
         if data is None:
             data = self.data
 
         if data:
-            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
-                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']), 0)
+            array_to_plot = np.delete(data['counts'], 0)
+            if self.settings['num_plot']:
+                if len(array_to_plot) > 1:
+                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
             else:
-                array_to_plot = np.delete(data['counts'], 0)
+                if self.settings['trim_plot'] != -1 and len(data['counts']) > self.settings['trim_plot']:
+                        array_to_plot = array_to_plot[-self.settings['trim_plot']:]
+                self.lns1[0].set_ydata(array_to_plot)
+                self.lns1[0].set_xdata(range(0, len(array_to_plot)))
 
-            update_counts_vs_pos(axes_list[0], array_to_plot, self.settings['integration_time'] * np.arange(len(array_to_plot)))
+                axes_list[0].relim()
+                axes_list[0].autoscale_view()
 
 
-class Daq_Read_Counter_2_Channel(Script):
+class DaqReadCounterNi6259(DaqReadCounter):
     """
-This script reads the Counter input from the DAQ and plots it.
+    This script reads the Counter input from the DAQ and plots it.
+    WARNING: Only implemented for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
+    If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
+    """
+    _INSTRUMENTS = {'daq': NI6259}
 
-WARNING: Only implemented either for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
 
-If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
-
+class DaqReadCounter2Channel(Script):
+    """
+    Need description!
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
@@ -248,7 +233,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
 
     _INSTRUMENTS = {'daq': NI9402,  'microwave_generator': MicrowaveGenerator, 'piezo_controller': PiezoController}
 
-    _SCRIPTS = {'find_nv': FindNV}
+    _SCRIPTS = {'find_nv': FindNv}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -464,7 +449,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
 
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter_2_Channel, self).plot([figure_list[1]])
+        super(DaqReadCounter2Channel, self).plot([figure_list[1]])
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
@@ -477,7 +462,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             #if self.settings['trim_plot'] != -1 and len(data['counts_diff']) > self.settings['trim_plot']:
             #        array_to_plot = array_to_plot[:, -self.settings['trim_plot']:]
             self.lns1 = axes_list[0].plot(array_to_plot[0], color='black', label='Normalized count diff')
-            axes_list[0].axhline(y=0.0, color='grey', linestyle='-', alpha = .2)
+            axes_list[0].axhline(y=0.0, color='grey', linestyle='-', alpha=.2)
             self.ax2 = axes_list[0].twinx()
             self.lns2 = self.ax2.plot(array_to_plot[1], color='red', label='MW freq')
             self.ax2.set_ylabel('[Hz]')
@@ -506,28 +491,33 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
             self.ax2.autoscale_view()
 
 
-class Daq_Read_Counter_v2(Script):
+class DaqReadCounterOld(Script):
     """
-This script reads the Counter input from the DAQ and plots it.
-
-WARNING: Only implemented either for the PCI DAQ (NI6259) or cDAQ (NI9402) !!!!
-
-If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
-
+    Old version of DaqReadCounter. There was some issue with the DAQ bin counts, such that the first data point is always zero, and the counts were always
+    half that of FindNv. Not in use anymore.
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
-        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr2'], 'Daq channel used for counter'),
-        Parameter('total_int_time', -1, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
-        Parameter('trim_plot', -1, int, 'Keep only the last n data points to keep plot decluttered (saved data unaffected), (if -1 then no trim)'),
-        Parameter('histogram', False, bool, 'Plot histogram of counts'),
-        Parameter('num_plot', False, bool, 'Show a big number showing the last Daq value instead of a time series plot')
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
+        Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'), # added by ER 20180606
+        Parameter('track_laser_power_photodiode1',
+                  [
+                      Parameter('on/off', False, bool,
+                                'If true, measure and normalize out laser power drifts during daq_read_counter'),
+                      Parameter('ai_channel', 'ai2', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'],
+                                'channel to use for analog input, to which the photodiode is connected')
+                  ]),
+        Parameter('track_laser_power_photodiode2',
+                  [
+                      Parameter('on/off', False, bool, 'If true, measure and save laser power drifts during daq_read_counter on this photodiode. Cant use both simultaneously'),
+                      Parameter('ai_channel', 'ai4', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'channel to use for photodiode 2, cant be the same as the track_laser_power photodiode')
+                  ])
     ]
 
     _INSTRUMENTS = {'daq': NI9402}
 
-    _SCRIPTS = {}
-
+    _SCRIPTS = {
+    }
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -539,9 +529,7 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
-        self.data = {'counts': deque()}
-
-        plt.ioff()
+        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
 
 
     def _function(self):
@@ -550,56 +538,77 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
         will be overwritten in the __init__
         """
 
-        sample_num = 2
-        sample_rate = float(sample_num) / self.settings['integration_time']
-        normalization = self.settings['integration_time']/.001/float(sample_num)
+        if self.settings['track_laser_power_photodiode1']['on/off'] and self.settings['track_laser_power_photodiode2']['on/off']:
+            print('cant use both photodiodes at the same time - only use one AI channel at a time, unfortunately :-(')
+            return
 
+        sample_rate = float(2) / self.settings['integration_time']
+        normalization = self.settings['integration_time']/.001
         self.instruments['daq']['instance'].settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
-
-        self.data = {'counts': deque()}
+        self.data = {'counts': deque(), 'laser_power': deque(), 'normalized_counts': deque(), 'laser_power2': deque()}
         self.last_value = 0
+        sample_num = 2
+
+        task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num, continuous_acquisition=True)
+
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            aitask = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode1']['ai_channel'], sample_num,
+                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                          clk_source=task)
+
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            aitask2 = self.instruments['daq']['instance'].setup_AI(self.settings['track_laser_power_photodiode2']['ai_channel'], sample_num,
+                                          continuous=True, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                          clk_source=task)
+            print('aitask2: ', aitask2)
 
         # maximum number of samples if total_int_time > 0
         if self.settings['total_int_time'] > 0:
             max_samples = np.floor(self.settings['total_int_time']/self.settings['integration_time'])
 
-        self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'], sample_num,
-                                                                   continuous_acquisition=True)
+        # start counter and scanning sequence
+        if (self.settings['track_laser_power_photodiode1']['on/off'] and not self.settings['track_laser_power_photodiode2']['on/off']):
+            self.instruments['daq']['instance'].run(aitask)
+        elif (self.settings['track_laser_power_photodiode2']['on/off'] and not self.settings['track_laser_power_photodiode1']['on/off']):
+            self.instruments['daq']['instance'].run(aitask2)
 
-        self.instruments['daq']['instance'].run(self.task)
+        self.instruments['daq']['instance'].run(task)
 
         # ER 20180827 wait for at least one clock tick to go by to start with a full clock tick of acquisition time for the first bin
         time.sleep(self.settings['integration_time'])
 
-        err_sum = 0
-
-        sample_index = 0  # keep track of samples made to know when to stop if finite integration time
-        self.loop_iteration = 0
+        sample_index = 0 # keep track of samples made to know when to stop if finite integration time
 
         while True:
             if self._abort:
                 break
-            self.loop_iteration += 1
+
             # TODO: this is currently a nonblocking read so we add a time.sleep at the end so it doesn't read faster
             # than it acquires, this should be replaced with a blocking read in the future
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                raw_data_laser, num_read_laser = self.instruments['daq']['instance'].read(aitask)
+            if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+                raw_data_laser2, num_read_laser2 = self.instruments['daq']['instance'].read(aitask2)
 
-            raw_data, num_read = self.instruments['daq']['instance'].read(self.task)
+            raw_data, num_read = self.instruments['daq']['instance'].read(task)
 
-
-            if num_read.value < sample_num:
-                time.sleep(float(sample_num) / sample_rate)
+            #skip first read, which gives an anomolous value
+            if num_read.value == 1:
+                self.last_value = raw_data[0] #update running value to last measured value to prevent count spikes
+                time.sleep(2.0 / sample_rate)
                 continue
 
-            if self.last_value == 0:
-                self.last_value = raw_data[0]
-                raw_data = raw_data[1:]
-
+            tmp_count = 0
             for value in raw_data:
-                self.new_val = ((float(value) - self.last_value) / normalization)
-                #print('New_value:'+str(float(value) - self.last_value_a))
-                #print('Last_value:' + str(value))
-                self.data['counts'].append(self.new_val)
+                new_val = ((float(value) - self.last_value) / normalization)
+                self.data['counts'].append(new_val)
                 self.last_value = value
+                if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                    self.data['laser_power'].append(raw_data_laser[tmp_count])
+                if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+                    self.data['laser_power2'].append(raw_data_laser2[tmp_count])
+
+                tmp_count = tmp_count + 1
 
             if self.settings['total_int_time'] > 0:
                 self.progress = sample_index/max_samples
@@ -607,75 +616,58 @@ If you want to use it make sure that the right instrument is defined in _INSTRUM
                 self.progress = 50.
             self.updateProgress.emit(int(self.progress))
 
-            time.sleep(float(sample_num) / sample_rate)
+            time.sleep(2.0 / sample_rate)
             sample_index = sample_index + 1
             if self.settings['total_int_time'] > 0. and sample_index >= max_samples: # if the maximum integration time is hit
                 self._abort = True # tell the script to abort
 
-            def restart_loop():
-                self.task = self.instruments['daq']['instance'].setup_counter(self.settings['counter_channel'],
-                                                                           sample_num, continuous_acquisition=True)
-                self.instruments['daq']['instance'].run(self.task)
-                time.sleep(self.settings['integration_time'])
-                self.last_value = 0
-
-            # Script crashes after about 500 loops if the sampling rate is set to 1 kS/s
-            if self.loop_iteration > 200000 / sample_rate:
-                print(self.loop_iteration)
-                self.loop_iteration = 0
-                self.instruments['daq']['instance'].stop(self.task)
-                restart_loop()
-
-
         # clean up APD tasks
-        self.instruments['daq']['instance'].stop(self.task)
+        self.instruments['daq']['instance'].stop(task)
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            self.instruments['daq']['instance'].stop(aitask)
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            self.instruments['daq']['instance'].stop(aitask2)
 
         self.data['counts'] = list(self.data['counts'])
 
+        if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+            self.data['laser_power'] = list(self.data['laser_power'])
+            self.data['normalized_counts'] = list(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']))
+        if self.settings['track_laser_power_photodiode2']['on/off'] == True:
+            self.data['laser_power2'] = list(self.data['laser_power2'])
 
     def plot(self, figure_list):
-        super(Daq_Read_Counter_v2, self).plot([figure_list[1]])
+        super(DaqReadCounterOld, self).plot([figure_list[1]])
 
     def _plot(self, axes_list, data = None):
         # COMMENT_ME
 
         if data is None:
             data = self.data
-            if self.settings['num_plot']:
-                self.plot_txt = axes_list[0].text(0.5, 0.5, '%.1f kCt/s' % 0, fontsize=80, ha='center', va='center', transform=axes_list[0].transAxes)
-                axes_list[0].set_axis_off()
 
         if len(data['counts']) > 0:
-            array_to_plot = np.delete(data['counts'], 0)
-            if self.settings['num_plot']:
-                if len(array_to_plot) > 1:
-                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']),0)
             else:
-                self.lns1 = axes_list[0].plot(array_to_plot, label='kCt/s')
+                array_to_plot = np.delete(data['counts'], 0)
 
-    def _update_plot(self, axes_list, data=None):
+            plot_counts(axes_list[0], array_to_plot)
+
+    def _update_plot(self, axes_list, data = None):
         if data is None:
             data = self.data
 
         if data:
-            array_to_plot = np.delete(data['counts'], 0)
-            if self.settings['num_plot']:
-                if len(array_to_plot) > 1:
-                    self.plot_txt.set_text('%.1f kCt/s' % array_to_plot[-1])
+            if self.settings['track_laser_power_photodiode1']['on/off'] == True:
+                array_to_plot = np.delete(np.divide(np.multiply(self.data['counts'], np.mean(self.data['laser_power'])), self.data['laser_power']), 0)
             else:
-                if self.settings['trim_plot'] != -1 and len(data['counts']) > self.settings['trim_plot']:
-                        array_to_plot = array_to_plot[-self.settings['trim_plot']:]
-                self.lns1[0].set_ydata(array_to_plot)
-                self.lns1[0].set_xdata(range(0, len(array_to_plot)))
+                array_to_plot = np.delete(data['counts'], 0)
 
-                axes_list[0].relim()
-                axes_list[0].autoscale_view()
-
-class Daq_Read_Counter_NI6259(Daq_Read_Counter):
-    _INSTRUMENTS = {'daq': NI6259}
+            update_counts_vs_pos(axes_list[0], array_to_plot, self.settings['integration_time'] * np.arange(len(array_to_plot)))
 
 
-class Daq_Read_Counter_NI6259(Daq_Read_Counter):
+
+class Daq_Read_Counter_NI6259(DaqReadCounter):
     _INSTRUMENTS = {'daq': NI6259}
 
 if __name__ == '__main__':

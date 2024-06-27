@@ -1,0 +1,2 @@
+2023-12-06 03:26:02	 The filepath was invalid --- could not load settings. Loading blank GUI.
+2023-12-06 03:27:13	 The filepath was invalid --- could not load settings. Loading blank GUI.

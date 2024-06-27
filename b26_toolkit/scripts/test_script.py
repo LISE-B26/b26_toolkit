@@ -18,14 +18,15 @@
 
 from pylabcontrol.core import Script, Parameter
 
+
 class ScriptTest(Script):
     """
-Minimal Example Script that has only a single parameter (execution time)
+    Minimal example Script that has only a single parameter (execution time)
     """
 
     _DEFAULT_SETTINGS = [
         Parameter('execution_time', 0.1, float, 'execution time of script (s)'),
-        Parameter('p1', 0.1, float, 'asihdad')
+        Parameter('p1', 0.1, float, 'dummy')
     ]
 
     _INSTRUMENTS = {}
@@ -40,7 +41,6 @@ Minimal Example Script that has only a single parameter (execution time)
         """
         Script.__init__(self, name, settings, log_function= log_function, data_path = data_path)
 
-
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -48,7 +48,6 @@ Minimal Example Script that has only a single parameter (execution time)
         """
         import time
         time.sleep(self.settings['execution_time'])
-
 
 
 if __name__ == '__main__':

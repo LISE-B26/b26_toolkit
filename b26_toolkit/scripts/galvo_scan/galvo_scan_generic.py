@@ -45,8 +45,8 @@ class GalvoScanGeneric(Script):
                   [Parameter('x', 25, int, 'number of x points to scan'),
                    Parameter('y', 25, int, 'number of y points to scan')
                    ]),
-        Parameter('time_per_pt', .002, [.0001,.001, .002, .005, .01, .015, .02], 'time in s to measure at each point'),
-        Parameter('settle_time', .0002, [.0002], 'wait time between points to allow galvo to settle in seconds'),
+        Parameter('time_per_pt', .002, float, 'time in s to measure at each point'),
+        Parameter('settle_time', .0002, float, 'wait time between points to allow galvo to settle'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
         # Parameter('DAQ_channels',
         #            [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
@@ -101,7 +101,7 @@ class GalvoScanGeneric(Script):
         Returns:
         1 as default
         """
-        return 1
+        return [1, 1]
 
     def before_scan(self):
         """
@@ -138,12 +138,20 @@ class GalvoScanGeneric(Script):
         self.data['extent'] = self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
-        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)/self.scale()
-        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)/self.scale()
+        self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)/self.scale()[0]
+        self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)/self.scale()[1]
+
+        # Check if time/pt is a multiple of settle time; use a threshold because of floating point imprecision
+        if 'time_per_pt' in self.settings and (self._ACQ_TYPE == 'line' or self._ACQ_TYPE == 'point'):
+            modulo = self.settings['time_per_pt'] % self.settings['settle_time']
+            if modulo > self.settings['settle_time'] * 0.00001 and (self.settings['settle_time'] - modulo) > self.settings['settle_time'] * 0.00001:
+                self.log('Error: time per pt not divisible by settle time!')
+                self._abort = True
+
         try:
             self.check_bounds()
         except AttributeError:
-            return
+            self._abort = True
 
         if self._ACQ_TYPE == 'point':
             self.data['point_data'] = [] # stores the complete data acquired at each point, image_data holds only a scalar at each point
@@ -152,19 +160,18 @@ class GalvoScanGeneric(Script):
         try:
             self.setup_scan()
         except AttributeError:
-            return
+            self._abort = True
 
-        # initial_position = self.instruments['daq']['instance'].get_analog_out_voltages([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']])
-        initial_position = self.get_galvo_location()
-        if initial_position == []:
-            print('WARNING!! GALVO POSITION COULD NOT BE DETERMINED. SET ENDING ending_behavior TO leave_at_corner')
-            self.ending_behavior = 'leave_at_corner'
+        if self.settings['ending_behavior'] == 'return_to_start':
+            initial_position = self.get_galvo_location()
+            if initial_position == []:
+                self.log('Galvo position cannot be determined. Ending_behavior changed to leave_at_corner.')
+                self.ending_behavior = 'leave_at_corner'
 
         Nx, Ny = self.settings['num_points']['x'], self.settings['num_points']['y']
 
         for yNum in range(0, Ny):
-
-            if self._ACQ_TYPE == 'line':
+            if self._ACQ_TYPE == 'line' or self._ACQ_TYPE == 'grid':
                 if self._abort:
                     break
 
@@ -338,7 +345,7 @@ class GalvoScanGeneric(Script):
 
 
 # uncommented by Jan March 12th 2018. I think this is not used anymore
-class GalvoScanDAQ(GalvoScanGeneric):
+class GalvoScanDaq(GalvoScanGeneric):
     """
     GalvoScan uses the apd, daq, and galvo to sweep across voltages while counting photons at each voltage,
     resulting in an image in the current field of view of the objective.

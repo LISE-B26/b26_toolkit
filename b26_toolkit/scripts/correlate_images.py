@@ -27,7 +27,7 @@ from b26_toolkit.instruments import PiezoController
 
 
 
-class Take_And_Correlate_Images(Script):
+class TakeAndCorrelateImages(Script):
     '''
     Takes a galvo scan, compares it to a previous galvo scan to find the relative shift, and then updates a list of
     nvs based on this shift so that they will give the current coordinates of those nvs
@@ -127,7 +127,7 @@ class Take_And_Correlate_Images(Script):
                 self.scripts['GalvoScan']._update_plot(axes_list)
 
 
-class Track_Correlate_Images(Script):
+class TrackCorrelateImages(Script):
     '''
 Track_Correlate_Images:
 1.) Reads the current position of the galvo mirror: pt_0.
@@ -565,7 +565,7 @@ class atto_compen(Script):
                 self.scripts['ImageCorrelation']._update_plot(axes_list)
 
 if __name__ == '__main__':
-    script, failed, instr = Script.load_and_append({'Correlate_Images': Take_And_Correlate_Images})
+    script, failed, instr = Script.load_and_append({'Correlate_Images': TakeAndCorrelateImages})
 
     print(script)
     print(failed)

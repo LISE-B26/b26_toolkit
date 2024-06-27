@@ -21,10 +21,15 @@ import time, random
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9402, AFG3022C
 from b26_toolkit.plotting.plots_1d import plot_esr
+from b26_toolkit.instruments import NI6259, NI9402, AFG3021C
 
-TTL = 3.3 #V
+TTL = 3.3  # V
+
 
 class StroboscopicSweep(Script):
+    """
+    DaLi will never read this because he never writes doc strings for his code
+    """
 
     _DEFAULT_SETTINGS = [
         Parameter('sweep_avg', 1, int, 'number of sweep averages'),
@@ -105,7 +110,7 @@ class StroboscopicSweep(Script):
         # contruct the frequency array
         if self.settings['range_type'] == 'start_stop':
             if freq_start > freq_stop:
-                self.log('end freq. must be larger than start freq when range_type is start_stop. Abort script')
+                self.log('Warning: end freqmust be larger than start freq when range_type is start_stop. Abort script')
                 self._abort = True
 
             if freq_start < self.afg.FREQ_MIN or freq_stop > self.afg.FREQ_MAX: # freq range of the SRS
@@ -116,7 +121,7 @@ class StroboscopicSweep(Script):
 
         elif self.settings['range_type'] == 'center_range':
             if freq_start < 2 * freq_stop:
-                self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
+                self.log('Warning: end freq(range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
 
             freq_values = np.linspace(freq_start - freq_stop / 2,

@@ -33,7 +33,8 @@ class PiezoController(Instrument):
         Parameter('port', 'COM7', str, 'serial port on which to connect'),# COM15 before, COM3 warm setup
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .1, float, 'connection timeout'),
-        Parameter('voltage', 0.0, float, 'current voltage')
+        Parameter('voltage', 0.0, float, 'current voltage'),
+        Parameter('max_voltage', 150, [75, 100, 150], 'max allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -65,6 +66,8 @@ class PiezoController(Instrument):
         self.ser.write('echo=0\r'.encode()) #disables repetition of input commands in output
         self.ser.readlines()
         self._is_connected = True
+        self.voltage_limit = self.read_probes('voltage_limit')
+        print('Voltage lim: %i' % self.voltage_limit)
 
     def update(self, settings):
         """
@@ -213,7 +216,8 @@ class MDT693A(Instrument):
         Parameter('port', 'COM7', str, 'serial port on which to connect'),
         Parameter('baudrate', 115200, int, 'baudrate of connection'),
         Parameter('timeout', .5, float, 'connection timeout'),
-        Parameter('voltage', 1.0, float, 'current voltage')
+        Parameter('voltage', 1.0, float, 'current voltage'),
+        Parameter('max_voltage', 150, [75, 100, 150], 'max allowed voltage. This is specific to the piezo and is not the voltage limit of the piezo controller.')
     ])
 
     def __init__(self, name = None, settings = None):
@@ -246,6 +250,7 @@ class MDT693A(Instrument):
         self.ser.write('E\r'.encode()) #disables repetition of input commands in output
         self.ser.readlines()
         self._is_connected = True
+
 
     def update(self, settings):
         '''
@@ -291,9 +296,10 @@ class MDT693A(Instrument):
 
         if key in ['voltage']:
             self.ser.write((self.settings['axis'] + 'R?\r').encode())
-            xVoltage = self.ser.readline()
-            print(str(xVoltage)[-8:-4])
-            return(float(str(xVoltage)[-8:-4]))
+            xVoltage = str(self.ser.readline())
+            xVoltage = xVoltage.replace(']', '[')  # Get string between [ and ]
+            xVoltage = float(xVoltage.split('[')[1])
+            return xVoltage
         elif key in ['voltage_limit']:
             self.ser.write('XH?\r')
             vlimit = self.ser.readline()
@@ -327,11 +333,27 @@ class MDT693A(Instrument):
             voltage: voltage (in V) to set
 
         '''
-        self.ser.write((self.settings['axis'].upper() + 'V' + str(voltage) + '\r').encode())
-        successCheck = self.ser.readlines()
-        if successCheck[0] == '!':
-            message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
-            raise ValueError(message)
+
+        if voltage < 0 or voltage > self.settings['max_voltage']:
+            raise ValueError('Requested voltage exceeds piezo controller limit')
+
+        speed = 80  # V/s
+        current_voltage = self.voltage
+        num_pts = int(np.abs(voltage - current_voltage))+2
+        voltage_list = np.linspace(current_voltage, voltage, num_pts)
+
+        for voltage_fine in voltage_list:
+            self.ser.write((self.settings['axis'].upper() + 'V' + str(voltage_fine) + '\r').encode())
+            #successCheck = self.ser.readlines()
+            time.sleep(1/speed)
+
+            #if len(successCheck) == 0:
+            #    message = 'Something went wrong --- check that you are using the right port!'
+            #    raise ValueError(message)
+            #elif successCheck[0] == '!':
+            #    message = 'Setting voltage failed. Confirm that device is properly connected and a valid voltage was entered'
+            #    raise ValueError(message)
+
 
 class MDT693A_2(MDT693A):
     _DEFAULT_SETTINGS = Parameter([
@@ -346,5 +368,10 @@ class MDT693A_2(MDT693A):
 if __name__ == '__main__':
      a = MDT693A('hi')
      a.axis = 'x'
-     #a.set_voltage(56.0)
+     #a.set_voltage(80.1)
      print(a.read_probes('voltage'))
+     #a.set_voltage(0)
+     #print(a.read_probes('voltage'))
+     #a.set_voltage(120)
+     #print(a.voltage)
+    # a = MDT693A('hi', settings = {'port':'COM3'})

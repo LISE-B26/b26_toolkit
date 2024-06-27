@@ -22,21 +22,18 @@ import numpy as np
 from b26_toolkit.instruments import NI6259, NI9215, B26PulseBlaster
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.plotting.plots_1d import update_counts_vs_pos
 
 
 class Daq_Read_Analog(Script):
     """
-This script reads the analog input from the DAQ and plots it. ER 20180626
-
-ER made changes to the daq 20190325 without testing it -- new code (commented with ER and the date) needs to be tested!!
-
+    This script reads the analog input from the DAQ and plots it. ER 20180626
+    ER made changes to the daq 20190325 without testing it -- new code (commented with ER and the date) needs to be tested!!
     """
     _DEFAULT_SETTINGS = [
         Parameter('sampling_rate', 100, float, 'rate (Hz) at which samples are read by DAQ'),
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3', 'ai4'], 'Daq channel used for counter'),
         Parameter('total_int_time', 3.0, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
-        Parameter('max_len_to_plot', 1000, int, 'plots the last n samples'),
+        Parameter('max_len_to_plot', 10, int, 'plots the last n samples'),
         Parameter('daq_read_rate', 2, float, 'rate (Hz) at which samples are requested from the DAQ and plotted, default = 2'),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'), # ER 20190325
     ]
@@ -130,17 +127,13 @@ ER made changes to the daq 20190325 without testing it -- new code (commented wi
         # COMMENT_ME
 #        axes_list[0].hold(False)
         if data is None:
-            data = self.data
+            data = self.data_to_plot
 
         if data:
             axes_list[0].clear()
             plot_voltage(axes_list[0], data['voltage'])
 
-    def _update_plot(self, axes_list, data=None):
-        if data is None:
-            data = self.data
 
-        update_counts_vs_pos(axes_list[0], data['voltage'], np.linspace(0, len(data['voltage']), len(data['voltage'])))
 if __name__ == '__main__':
     script = {}
     instr = {}

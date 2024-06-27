@@ -30,7 +30,6 @@ class MicrowaveGenerator(Instrument):
     This class implements the Stanford Research Systems SG384 microwave generator. The class commuicates with the
     device over GPIB using pyvisa.
     """
-        # SHOULD BE 4
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
         Parameter('port', 22, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default

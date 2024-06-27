@@ -18,6 +18,7 @@
 
 from pylabcontrol.core import Instrument, Parameter
 import numpy as np
+from zhinst.toolkit import Session
 
 
 # =============== ZURCIH INSTRUMENTS =======================
@@ -258,3 +259,73 @@ https://www.zhinst.com/sites/default/files/LabOneProgrammingManual_34390_1.pdf
             return_variable = None
 
         return return_variable
+
+
+class Hf2Li(Instrument):
+    """
+    Instrument class to control the Zurich instrument lockin-amplifier
+    """
+
+    try:
+        from zhinst.toolkit import Session
+        _lib_detected = True
+    except ImportError:
+        _lib_detected = False
+
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('ip_address', '140.247.189.51', str, 'IP address of lock-in amplifier. Use "local host" if it\'s connected locally.'),
+        Parameter('port', 8005, int, 'Port to which lock-in amplifier is connected'),
+        Parameter('device_number', 'DEV1343', str, 'Device identifier, e.g. DEV1343')
+    ])
+
+    _PROBES = {}
+
+    '''
+    instrument class to talk to Zurich instrument HF2 lock in amplifier
+    '''
+    def __init__(self, name=None, settings=None):
+        super(Hf2Li, self).__init__(name, settings)
+        self.session = Session(self.settings['ip_address'], self.settings['port'], hf2=True)
+        self.device = self.session.connect_device(self.settings['device_number'])
+        self.clockbase = self.device.clockbase()
+
+        if self._lib_detected:
+            self._is_connected = True
+        self.update(self.settings)
+
+
+    def update(self, settings):
+        '''
+        updates the internal dictionary and sends changed values to instrument
+        Args:
+            commands: parameters to be set
+        '''
+        # call the update_parameter_list to update the parameter list
+        super(Hf2Li, self).update(settings)
+
+    def read_probes(self, key):
+        """
+        requests value from the instrument and returns it
+        Args:
+            key: name of requested value
+
+        Returns: reads values from instrument
+        """
+        assert key in list(self._PROBES.keys()), "key assertion failed {:s}".format(str(key))
+        return
+
+    @property
+    def is_connected(self):
+        """
+        check if instrument is active and connected and return True in that case
+        :return: bool
+        """
+        return self._is_connected
+
+
+if __name__ == '__main__':
+    zi = Hf2Li()
+    # zi.settings['demods']['0']['enable'] = True
+    # zi.settings['demods']['0']['oscselect'] = 2
+    # # zi.update({'demods': {'0': {'enable': True}}})
+    # # zi.update({'demods': {'0': {'oscselect': 4}}})

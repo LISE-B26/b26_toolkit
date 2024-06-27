@@ -15,9 +15,10 @@
     You should have received a copy of the GNU General Public License
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-import serial
 from pylabcontrol.core import Instrument, Parameter
 import time
+import serial
+
 
 class ArduinoUno(Instrument):
     _DEFAULT_SETTINGS = Parameter([
@@ -64,7 +65,6 @@ A library to interface Arduino through serial connection
 """
 import serial
 
-
 class ArduinoZero(Instrument):
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM14', str, 'COM port that arduino board is on'),
@@ -75,7 +75,7 @@ class ArduinoZero(Instrument):
             Parameter('status', False, bool, 'True if voltage is high, false otherwise')
         ]),
         Parameter('pellicles', [
-            Parameter('channel', 14, int, 'channel to which camera and LED pellicles are connected'),
+            Parameter('channel', 12, int, 'channel to which camera and LED pellicles are connected'),
             Parameter('status', False, bool, 'True if voltage is high, false otherwise')
         ]),
     ])
@@ -146,8 +146,6 @@ class ArduinoZero(Instrument):
                     self.digital_write(int(self.settings[key]['channel']), int(value['status']))
 
 
-
-
 if __name__ == '__main__':
         # instruments, failed = Instrument.load_and_append(instrument_dict={'GaugeController': PumpLinePressureGauge})
 
@@ -161,7 +159,7 @@ if __name__ == '__main__':
 
         #a.digital_write(3, 0)
         for i in range(20):
-            a.digital_write(1, 1)
+            a.digital_write(13, 1)
             time.sleep(100e-3)
-            a.digital_write(1, 0)
+            a.digital_write(13, 0)
             time.sleep(100e-3)

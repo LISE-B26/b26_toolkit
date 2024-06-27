@@ -19,10 +19,11 @@
 import matplotlib.patches as patches
 import numpy as np
 from matplotlib.collections import PatchCollection
+import matplotlib.ticker as mticker
 
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
-def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin', color='b'):
+def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     '''
     plots the power spectral density on to the canvas axes
     :param freq: x-values array of length N
@@ -42,13 +43,13 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin', color='b'):
 
 
     if y_scaling == 'log' and x_scaling == 'log':
-        axes.loglog(c_unit*freq, psd, color=color)
+        axes.loglog(c_unit*freq, psd)
     elif y_scaling == 'log' and x_scaling == 'lin':
-        axes.semilogy(c_unit*freq, psd, color=color)
+        axes.semilogy(c_unit*freq, psd)
     elif y_scaling == 'lin' and x_scaling == 'log':
-        axes.semilogx(c_unit*freq, psd, color=color)
+        axes.semilogx(c_unit*freq, psd)
     elif y_scaling == 'lin' and x_scaling == 'lin':
-        axes.plot(c_unit*freq, psd, color=color)
+        axes.plot(c_unit*freq, psd)
 
     axes.set_xlabel('frequency ({:s})'.format(unit))
 
@@ -130,15 +131,10 @@ def plot_pulsedesr(axes, frequency, fit_params=None, plot_marker_fit = 'r'):
         if len(fit_params) == 4:
             # single peak
             fit_data = lorentzian(frequency, *fit_params)
-            #title = 'ESR fo = {:0.4e}, wo = {:0.2e}, contrast0 = {:.2%}'.format(fit_params[2], fit_params[3],
-            #                                                                    np.abs(fit_params[1]) / fit_params[0])
+
         elif len(fit_params) == 6:
             # double peak
             fit_data = double_lorentzian(frequency, *fit_params)
-            print(fit_data)
-            #title = 'ESR f1 = {:0.4e} Hz, f2 = {:0.4e} Hz, wo = {:0.2e},\n contrast1 = {:.2%}, contrast2 = {:.2%}'.format(fit_params[4], fit_params[5],
-            #                                                                    fit_params[1],
-            #                                                                    np.abs(fit_params[2]) / fit_params[0], np.abs(fit_params[3]) / fit_params[0])
 
     if fit_data is not None:
         axes.plot(frequency, fit_data, plot_marker_fit)
@@ -201,6 +197,8 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
     axis.set_xlabel('time [ns]')
 
     xticks = np.array(axis.get_xticks())
+    ticks_loc = axis.get_xticks().tolist()
+    axis.xaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
 
     if np.sum(xticks > 1E9) > 0:
         axis.set_xticklabels(xticks/1e9)
@@ -261,6 +259,8 @@ def update_pulse_plot(axis, pulse_collection, pulse_colors=None):
 
 
         xticks = np.array(axis.get_xticks())
+        ticks_loc = axis.get_xticks().tolist()
+        axis.xaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
 
         if np.sum(xticks > 1E9) > 0:
             axis.set_xticklabels(xticks/1e9)
@@ -362,7 +362,7 @@ def plot_temperature(axis, data, sample_rate, update=False):
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
 
-def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', title=None):
+def plot_1d_simple_timetrace(axis, times, data_list, y_label='kCounts/sec', title=None, time_unit='ns'):
     """
     plots a time trace for a list of data assuming that the times are give in ns
     Args:
@@ -371,10 +371,22 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
         data_list: list of data (size MxN)
         y_label: (optional) label for y axis
         title:  (optional) title
+        ns: whether time units are in nanoseconds
 
     """
 
-    times = 1.*np.array(times) # cast onto numpy in case we got a list, which breaks some of the commands below
+    times = 1.*np.array(times)  # cast onto numpy in case we got a list, which breaks some of the commands below
+
+    if time_unit == 'ns':
+        times *= 1
+    elif time_unit == 'us':
+        times *= 1e3
+    elif time_unit == 'ms':
+        times *= 1e6
+    elif time_unit == 's':
+        times *= 1e9
+    else:
+        raise ValueError('Time unit of %s not recognized!' % str(time_unit))
 
     if max(times) < 1e3:
         x_label = 'time [ns]'
@@ -391,17 +403,15 @@ def plot_1d_simple_timetrace_ns(axis, times, data_list, y_label='kCounts/sec', t
     for counts in data_list:
         axis.plot(times, counts)
 
-    # axis.hold(False)
-
-
     axis.set_xlabel(x_label)
     axis.set_ylabel(y_label)
     axis.grid(True, alpha=.15)
+
     if title:
         axis.set_title(title)
     axis.set_xlim([min(times), max(times)])
 
-def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=None,alpha=1):
+def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', x_label = None, title=None,alpha=1):
     """
     plots a time trace for a list of data assuming that the times are give in ns
     Args:
@@ -415,17 +425,18 @@ def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', title=Non
 
     freqs = 1.*np.array(freqs) # cast onto numpy in case we got a list, which breaks some of the commands below
 
-    if max(freqs) < 1e3:
-        x_label = 'freq [Hz]'
-    elif max(freqs) < 1e6:
-        x_label = 'freq [kHz]'
-        freqs *= 1e-3
-    elif max(freqs) < 1e9:
-        x_label = 'freq [MHz]'
-        freqs *= 1e-6
-    elif max(freqs) < 1e12:
-        x_label = 'freq [GHz]'
-        freqs *= 1e-9
+    if x_label is None:
+        if max(freqs) < 1e3:
+            x_label = 'freq [Hz]'
+        elif max(freqs) < 1e6:
+            x_label = 'freq [kHz]'
+            freqs *= 1e-3
+        elif max(freqs) < 1e9:
+            x_label = 'freq [MHz]'
+            freqs *= 1e-6
+        elif max(freqs) < 1e12:
+            x_label = 'freq [GHz]'
+            freqs *= 1e-9
 
     for counts in data_list:
         axis.plot(freqs, counts, alpha=alpha)
@@ -457,17 +468,7 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
     if len(axis.lines) != len(counts_list):
         counts_list = np.transpose(counts_list)
 
-
-    #print('===>> JG 20181128: number of lines', len(axis.lines),' number of list ', len(counts_list), ' (they should be the same!!)')
-    # if len(axis.lines) != len(counts_list):
-    #     print('UUUUUU axes.lines:', len(axis.lines), 'len counts:', len(counts_list))
-
-    #assert len(axis.lines) == len(counts_list)
     if len(axis.lines) != len(counts_list) and fit_in_plot is False: # don't update the plot if the number of lines to plot isn't equal to the number of counts lists
-        # print('Number of lines to plot is not equal to number of counts lists!!!')
-        # print('===>> ER 20181201: number of lines', len(axis.lines), ' number of list ', len(counts_list),
-        #       ' (they should be the same!!)')
-        #print('counts_list: ', counts_list)
         return
 
     else:

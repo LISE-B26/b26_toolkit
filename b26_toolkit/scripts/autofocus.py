@@ -32,13 +32,12 @@ except:
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts import GalvoScan, SetLaser, TakeImage, GalvoScanPhotodiode, FindNV
+from b26_toolkit.scripts import GalvoScan, FindNv, SetLaser, TakeImage, GalvoScanPhotodiode
 
 
 class AutoFocusGeneric(Script):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective is focused.
     """
 
     _DEFAULT_SETTINGS = [
@@ -286,17 +285,19 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
             except(ValueError, RuntimeError):
                 self.log(
                     'Could not converge to fit parameters, keeping piezo at final position ({:0.3f}) V'.format(
-                        self.data['sweep_voltages'][-1]))
+                        self.data['sweep_voltages'][-1]), flag='reminder')
             finally:
                 # even if there is an exception we want to script to continue
                 sweep_voltages = self.data['sweep_voltages']
                 if return_voltage is not None:
                     if return_voltage > sweep_voltages[-1]:
                         return_voltage = float(sweep_voltages[-1])
-                        self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage))
+                        self.log('Best fit found center to be above max sweep range, setting voltage to max, {:0.3f} V'.format(return_voltage),
+                                 flag='reminder')
                     elif return_voltage < sweep_voltages[0]:
                         return_voltage = float(sweep_voltages[0])
-                        self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage))
+                        self.log('Best fit found center to be below min sweep range, setting voltage to min, {:0.3f} V'.format(return_voltage),
+                                 flag='reminder')
 
         elif self.settings['fitting'] == 'max':
             end_pt = np.max(self.data['focus_function_result'])
@@ -407,10 +408,11 @@ Autofocus: Takes images at different piezo voltages and uses a heuristic to figu
     def gaussian(self, x, noise, amp, center, width):
         return (noise + amp * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2)))))
 
+
 class AutoFocusDAQ(AutoFocusGeneric):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
+                is focused.
     """
 
     # _DEFAULT_SETTINGS = []
@@ -497,16 +499,13 @@ class AutoFocusDAQOsci(AutoFocusDAQ):
     from b26_toolkit.scripts.galvo_scan.galvo_scan_osci import GalvoScanOsci
     _SCRIPTS = {'take_image': GalvoScanOsci}
 
-
 class AutoFocusDAQMax(AutoFocusDAQ):
     _INSTRUMENTS = {
         'z_piezo': MDT693A
     }
-    '''
-
+    """
     Runs an autofocus daq script but instead of going to the maximum point found by the fit, goes to the maximum point in the data
-
-    '''
+    """
 
     def _function(self):
         #update piezo settings
@@ -521,11 +520,10 @@ class AutoFocusDAQMax(AutoFocusDAQ):
 
 
 class AutoFocusDAQCold(AutoFocusDAQ):
-    '''
-
+    """
     Same as AutoFocusDAQ but uses the z_piezo for the cold setup (moves the z focus slowly)
+    """
 
-    '''
     _INSTRUMENTS = {
         'z_piezo': PiezoControllerCold
     }
@@ -558,7 +556,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
             z_driver.position = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} um'.format(position), flag='error')
         time.sleep(wait_time)
 
     def _function(self):
@@ -570,8 +568,7 @@ class AutoFocusDaqSMC(AutoFocusDAQ):
 
 class AutoFocusDAQWarm(AutoFocusDAQ):
     """
-Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective
-            is focused.
+    Autofocus: Takes images at different piezo voltages and uses a heuristic to figure out the point at which the objective is focused.
     """
 
     # _DEFAULT_SETTINGS = []
@@ -586,13 +583,14 @@ class AutoFocusPhotodiode(AutoFocusDAQ):
         'take_image': GalvoScanPhotodiode
     }
 
+
 class AutoFocusDAQNVTracking(AutoFocusDAQ):
     """
-    Adds NV finding to autofocus to compensate for z-xy coupling
+    Adds FindNv to autofocus to compensate for z-xy coupling
     """
     _SCRIPTS = {
         'take_image': GalvoScan,
-        'find_NV': FindNV,
+        'find_NV': FindNv,
         'set_laser': SetLaser
     }
     _INSTRUMENTS = {
@@ -1098,8 +1096,9 @@ class AutoFocusCameraSMC(AutoFocusGeneric):
             z_driver.position = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} um'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} um'.format(position), flag='error')
         time.sleep(wait_time)
+
 
 class AutoFocusDaqOptotune(AutoFocusDAQ):
     _INSTRUMENTS = {
@@ -1128,7 +1127,7 @@ class AutoFocusDaqOptotune(AutoFocusDAQ):
             z_driver.current = float(position)
         except ValueError:
             raise
-            self.log('requested value not permitted. Did not set value to {:0.3f} mA'.format(position))
+            self.log('Error: requested value not permitted. Did not set value to {:0.3f} mA'.format(position), flag='error')
         time.sleep(wait_time)
 
     def _function(self):
@@ -1136,6 +1135,7 @@ class AutoFocusDaqOptotune(AutoFocusDAQ):
         if self.settings['use_current_z_axis_position']:
             self.settings['z_axis_center_position'] = self.instruments['ELens']['instance'].read_probes('current')
         AutoFocusGeneric._function(self)
+
 
 if __name__ == '__main__':
 

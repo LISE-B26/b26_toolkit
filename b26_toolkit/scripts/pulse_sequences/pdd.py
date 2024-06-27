@@ -16,11 +16,11 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter, Script
 
-class PDD(PulsedExperimentBaseScript):
+class Pdd(PulsedExperimentGeneric):
     """
 This script runs a PDD ( Periodic Dynamical Decoupling) sequence for different number of pi pulses.
 For a single pi-pulse this is a Hahn-echo sequence.
@@ -70,7 +70,7 @@ todo(emma): (make double_init sheme)
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency']})
-        super(PDD, self)._function()
+        super(Pdd, self)._function()
 
 
     def _create_pulse_sequences(self):

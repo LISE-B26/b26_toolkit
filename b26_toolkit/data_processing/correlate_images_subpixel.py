@@ -17,13 +17,9 @@
 """
 
 import numpy as np
-from PIL import Image as im
-from scipy import signal
 from scipy.ndimage import shift as image_shift
-import trackpy as tp
-from skimage import data
 from skimage.registration import phase_cross_correlation as register_translation
-from b26_toolkit.data_processing import find_image_shift
+
 
 def compare_galvos(image, image_extent, offset_image):
     """

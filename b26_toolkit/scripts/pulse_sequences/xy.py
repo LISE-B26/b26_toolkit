@@ -17,13 +17,12 @@
 """
 import numpy as np
 
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
-from b26_toolkit.scripts import FindNV, ESR
-from pylabcontrol.core import Parameter, Script
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
+from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
-class XY8_k(PulsedExperimentBaseScript): # ER 5.25.2017
+class XY8_k(PulsedExperimentGeneric): # ER 5.25.2017
     """
 This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
     """
@@ -59,7 +58,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
 #    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator} #ER 20181218
   #  _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
 
     def _function(self):
         #COMMENT_ME
@@ -230,7 +228,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
 
-class XY4(PulsedExperimentBaseScript):
+class XY4(PulsedExperimentGeneric):
     """
 This script runs an XY4 pulse sequence.
 todo(emma): (make double_init scheme)
@@ -368,7 +366,7 @@ todo(emma): (make double_init scheme)
         axislist[0].set_title('XY4')
         axislist[0].legend(labels=('Ref Fluorescence', 'XY4 data'), fontsize=8)
 
-class XYXY(PulsedExperimentBaseScript): # ER 5.25.2017
+class XYXY(PulsedExperimentGeneric): # ER 5.25.2017
     """
 Pulse sequence is X Y X Y X Y X Y .... to accumulate pulse errors and calibrate phase - typically a very short tau should be used
 Uses double_init scheme
@@ -561,3 +559,6 @@ Uses double_init scheme
             super(XYXY, self)._plot(axislist)
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
+
+
+

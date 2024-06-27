@@ -19,10 +19,10 @@
 
 import numpy as np
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_base_script import PulsedExperimentBaseScript
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_tracking import PulsedExperimentTracking
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_counts, update_counts_vs_pos
-from b26_toolkit.scripts import ESR
+from b26_toolkit.scripts import Esr
 
 
 class StroboscopicReadout(PulsedExperimentBaseScript):

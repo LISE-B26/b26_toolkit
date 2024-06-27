@@ -113,10 +113,12 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         colorbar_labels = [np.floor(x) for x in np.linspace(colorbar_min, colorbar_max, 5, endpoint=True)]
         if np.abs(colorbar_max - colorbar_min) > 4:
             colorbar.set_ticks(colorbar_labels)
+
         colorbar.mappable.set_clim(colorbar_min, colorbar_max)
         colorbar.update_normal(implot)
 
-def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, colorbar = None, labels = None, aspect=1):
+
+def plot_fluorescence_new(image_data, extent, axes_image, max_counts=-1, colorbar = None, labels = None, aspect=1):
     """
     plots fluorescence data in a 2D plot
     Args:
@@ -151,7 +153,6 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts = -1, color
     if np.isinf(colorbar_min):
         colorbar_min = -1
     implot.set_clim(colorbar_min, None)
-
 
     title, x_label, y_label, cbar_label = labels
     axes_image.set_xlabel(x_label)
@@ -230,8 +231,8 @@ def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, color
     if colorbar is None:
         colorbar = fig.colorbar(implot, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.mappable.set_clim(colorbar_min, colorbar_max)
     else:
         colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
         colorbar.set_ticks(colorbar_labels)
-        colorbar.set_clim(colorbar_min, colorbar_max)
+        colorbar.mappable.set_clim(colorbar_min, colorbar_max)

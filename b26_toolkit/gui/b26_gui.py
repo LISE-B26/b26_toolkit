@@ -8,7 +8,7 @@ from pylabcontrol.core import Script
 from playsound import playsound
 from glob import glob
 import random
-
+from PyQt5 import QtGui
 
 class ControlMainWindowB26(MainWindow):
 
@@ -29,6 +29,7 @@ class ControlMainWindowB26(MainWindow):
         else:
             self.sound = False
 
+        self.setWindowIcon(QtGui.QIcon('poop.png'))
 
 
     def load_scripts(self, verbose=False):
