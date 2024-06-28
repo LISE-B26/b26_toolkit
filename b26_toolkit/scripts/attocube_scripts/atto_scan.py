@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+import copy
 
 import numpy as np
 import time
@@ -247,7 +248,7 @@ class AttoScanPiezoController(GalvoScan):
         if data is None:
             data = self.data
 
-        labels = ['B-field Contour Scan (f = %.3e Hz)' % self.instruments['microwave_generator']['instance'].settings['frequency'], r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
+        labels = ['B-field Contour Scan (f = %.3e Hz)' % self.instruments['microwave_generator']['instance'].settings['frequency'], r'V$_x$ [V]', r'V$_y$ [V]', '[kCt/s]']
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'], labels=labels)
 
 
@@ -311,12 +312,12 @@ class AttoScanPulsed(AttoScan):
                    Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')])
     ]
 
-    _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator, 'NI6259': NI6259, 'NI9263': NI9263, 'NI9402': NI9402, 'ANC300': ANC300, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator, 'NI6259': NI6259, 'NI9263': NI9263, 'NI9402': NI9402, 'ANC300': ANC300, 'PB': B26PulseBlaster,
+                    'mw_gen': MicrowaveGenerator}
     _SCRIPTS = {'PulsedESRSingleBlind': LaserPiPulses}
     _ACQ_TYPE = 'line'
 
     def before_line_scan(self):
-
         self.scripts['PulsedESRSingleBlind'].run(verbose=False)
 
     def setup_scan(self):
@@ -336,7 +337,7 @@ class AttoScanPulsed(AttoScan):
         mw_duty_cycle = mw_duration / sequence_duration
 
         equiv_cw_power = self.scripts['PulsedESRSingleBlind'].settings['mw_power'] + np.log10(mw_duty_cycle)*10
-        self.log('MW duty cycle: %.2e; equiv. CW power: %.1f dBm' % (mw_duty_cycle, equiv_cw_power))
+        self.log('MW duty cycle: %.2e; avg power: %.1f dBm' % (mw_duty_cycle, equiv_cw_power))
         self.is_valid()
         super(AttoScanPulsed, self).setup_scan()
 
@@ -358,6 +359,21 @@ class AttoScanPulsed(AttoScan):
             self.instruments['microwave_generator']['instance'].update({'enable_output': True})
         else:
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
+
+        # Temporarily disable constant heat load function, which sends in
+        self.constant_microwave_heat_load = copy.deepcopy(self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable'])
+        self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable'] = False
+
+    def after_scan(self):
+        self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable'] = self.constant_microwave_heat_load
+        if self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable']:
+            self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+            self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+            self.instruments['mw_gen']['instance'].update({'amplitude': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_power']})
+            self.instruments['mw_gen']['instance'].update({'frequency': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_frequency']})
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+            self.instruments['mw_gen']['instance'].update({'enable_output': True})
+            self.instruments['PB']['instance'].mw_duty_cycle_loop()
 
     def is_valid(self, pulse_sequences=None, verbose=True):
         """
@@ -436,7 +452,6 @@ class AttoScanZSlicePulsed(AttoScanPulsed):
             self.instruments['microwave_generator']['instance'].update({'enable_output': False})
 
     def read_line(self, z_pos):
-        print(z_pos, float(self.x_array[0]))
         self.daq_out.set_analog_voltages({self.settings['DAQ_channels']['x_ao_channel']: float(self.x_array[0])})
         self.scripts['AttoOffsetZ'].settings['z_offset'] = float(z_pos)
         # print('Running AttoOffsetZ with z = %.1f' % z_pos)
@@ -555,5 +570,5 @@ class AttoScanZSlicePulsed(AttoScanPulsed):
             data = self.data
 
         labels = ['B-field Contour Scan Z Slice (f = %.3e Hz)' % self.instruments['microwave_generator']['instance'].settings['frequency'], r'V$_x$ [V]', r'V$_z$ [V]',
-                  'kcounts/sec']
+                  '[kCt/s]']
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'], labels=labels, aspect='auto')

@@ -1,33 +1,34 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
-class Cpmg(PulsedExperimentGeneric): # ER 5.25.2017
+class Cpmg(PulsedExperimentGeneric):
     """
-This script runs a CPMG on the NV to find the CPMG T2.
-To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+    This script runs a CPMG on the NV to find the CPMG T2.
+    To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
             Parameter('microwave_channel_pi2', 'q', ['i', 'q'], 'Channel to use for the mw pi/2 pulses'),
@@ -56,8 +57,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
-        #COMMENT_ME
-
+        # COMMENT_ME
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'enable_modulation': True}) # ER 20181018
@@ -76,8 +76,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
             self.log('t2 fit failed')
 
     def _create_pulse_sequences(self):
-        '''
-
+        """
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
@@ -85,12 +84,10 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
+        """
 
-        '''
         pulse_sequences = []
-        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
-        #                  self.settings['tau_times']['time_step'])
-        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+
         tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
@@ -200,12 +197,12 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
 
 class CpmgPdd(PulsedExperimentGeneric): # ER 5.25.2017
     """
-This script runs a PDD (periodic dynamical decoupling with a single unit) on the NV to measure the T2.
-To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+    This script runs a PDD (periodic dynamical decoupling with a single unit) on the NV to measure the T2.
+    To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
             Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
@@ -232,7 +229,7 @@ To symmetrize the sequence between the 0 and +/-1 state we reinitialize every ti
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
-        #COMMENT_ME
+        # COMMENT_ME
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})

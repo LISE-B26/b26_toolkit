@@ -19,10 +19,9 @@
 import time
 from collections import deque
 import numpy as np
-from scipy.ndimage.filters import uniform_filter1d
 import matplotlib.pyplot as plt
-from b26_toolkit.instruments import NI6259, NI9402, NI9215, MicrowaveGenerator, PiezoController
-from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos, update_counts
+from b26_toolkit.instruments import NI6259, NI9402, MicrowaveGenerator, PiezoController
+from b26_toolkit.plotting.plots_1d import plot_counts, update_counts_vs_pos
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import FindNv
 
@@ -376,11 +375,8 @@ class DaqReadCounter2Channel(Script):
                 if mw_freq < 2.87e9:
                     err_voltage = err_voltage * -1
                     print('Err voltage: '+ str(err_voltage))
-
                     print(np.all(np.abs(np.array(self.data['counts_diff'])[-8:]) < 0.03))
-                    #print(np.abs(self.attocube_voltage_initial - self.attocube_voltage) < 8)
                     print(np.average(np.array(self.data['counts_diff'])[-10:]) < .006)
-
 
                 if np.abs(err_voltage) < .5 and np.all(np.abs(np.array(self.data['counts_diff'])[-6:]) < 0.03) and np.average(np.array(self.data['counts_diff'])[-6:]) < .006:
                     self.instruments['piezo_controller']['instance'].axis = 'z'

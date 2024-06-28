@@ -16,21 +16,18 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pylabcontrol.core import Instrument, Parameter
 from collections import namedtuple
 import numpy as np
-import itertools, ctypes, datetime, time, warnings
-from pylabcontrol.core.read_write_functions import get_config_value
+import itertools, ctypes, datetime, warnings
 import os
-
-# Pulse = namedtuple('Pulse', ('channel_id', 'start_time', 'duration'))
-
+from pylabcontrol.core import Instrument, Parameter
+from pylabcontrol.core.read_write_functions import get_config_value
 
 class Pulse(object):
     """
     pulse object that defines a pulse that is sent to the microwave source
-
     """
+
     def __init__(self, channel_id, start_time, duration=None, end_time=None, amplitude=None):
 
         self.channel_id = channel_id
@@ -46,13 +43,10 @@ class Pulse(object):
 
     def __str__(self):
         """
-
-
         Returns: a representation of the Pulse object as a string, e.g.  when calling print()
-
         """
 
-        if('amplitude' in vars(self)):
+        if 'amplitude' in vars(self):
             return 'Pulse(id = {:s}, start = {:0.1f}ns, end = {:0.1f}ns, duration = {:0.1f}ns, amplitude = {:0.1f}V)'.format(
                 self.channel_id,
                 self.start_time,
@@ -68,12 +62,8 @@ class Pulse(object):
 
     def __repr__(self):
         """
-
-
         Returns: a representation of the Pulse object as a string, e.g.  when the default output
-
         """
-
 
         return self.__str__()
 
@@ -119,7 +109,6 @@ class Pulse(object):
 
         Returns:
             boolean
-
         """
 
         # this is the overlap condition for two pulses
@@ -376,7 +365,6 @@ class PulseBlaster(Instrument):
             for pulse1, pulse2 in itertools.combinations(pulse_list, 2):
                 if Pulse.is_overlapping(pulse1, pulse2):
                     overlapping_pulses.append(tuple(sorted([pulse1, pulse2], key=lambda pulse: pulse.start_time)))
-
         return overlapping_pulses
 
     def create_physical_pulse_seq(self, pulse_collection):
@@ -571,7 +559,7 @@ class PulseBlaster(Instrument):
                 self.PBCommand(pb_state_change.channel_bits, remainder, command, command_arg))
             return instruction_list
 
-    def create_commands(self, pb_state_changes, num_loops=1):
+    def create_commands(self, pb_state_changes, num_loops=1, loopback=False):
         """
         Creates a list of commands to program the pulseblaster with, assuming that the user wants to loop over the
         state changes indicated in pb_state_changes for num_loops number of times. This function properly figures out
@@ -598,9 +586,13 @@ class PulseBlaster(Instrument):
 
         pb_commands += self._get_long_delay_breakdown(pb_state_changes[-1], command='END_LOOP', command_arg=0)
 
-        # Revert PB outputs to original settings after finishing commands
-        # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
-        pb_commands.append(self.PBCommand(self.settings2bits(), 1000, command='BRANCH', command_arg=len(pb_commands)))
+        if loopback:
+            # Briefly turn off all outputs and loop back to the beginning of the sequence
+            pb_commands.append(self.PBCommand(0, self.min_pulse_dur(), command='BRANCH', command_arg=0))
+        else:
+            # Revert PB outputs to original settings after finishing commands
+            # e.g. if laser channel was ON before running the sequence, turn it back ON after sequence is done
+            pb_commands.append(self.PBCommand(self.settings2bits(), 1000, command='BRANCH', command_arg=len(pb_commands)))
 
         return pb_commands
 
@@ -619,7 +611,7 @@ class PulseBlaster(Instrument):
         """
         return float(num_loops * max([pulse.start_time + pulse.duration for pulse in pulses])) / 1E6
 
-    def program_pb(self, pulse_collection, num_loops=1):
+    def program_pb(self, pulse_collection, num_loops=1, loopback=False):
         """
         Programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
         is called. The pulse collection must contain at least 2 pulses. Currently, we do not support time resolution below
@@ -628,6 +620,7 @@ class PulseBlaster(Instrument):
         Args:
             pulse_collection: A collection of Pulse objects
             num_loops: The number of times to perform the given pulse collection
+            loopback: Loop back to beginning of sequence after the end, i.e. infinite repetitions
 
         Returns:
 
@@ -636,6 +629,10 @@ class PulseBlaster(Instrument):
         # Check for errors in the given pulse_collection
         # assert len(pulse_collection) > 1, 'pulse program must have at least 2 pulses'
         assert num_loops < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
+
+        if loopback:
+            print('Performing infinite repetitions of pulse sequence')
+
         if self.find_overlapping_pulses(pulse_collection):
             print('Pulses sent to the pulseblaster: ', pulse_collection)
             raise AttributeError('Found overlapping pulses in given pulse collection')
@@ -650,7 +647,7 @@ class PulseBlaster(Instrument):
         delayed_pulse_collection = self.create_physical_pulse_seq(pulse_collection)
         self.estimated_runtime = self.estimate_runtime(delayed_pulse_collection, num_loops)
         pb_state_changes = self.generate_pb_sequence(delayed_pulse_collection)
-        pb_commands = self.create_commands(pb_state_changes, num_loops)
+        pb_commands = self.create_commands(pb_state_changes, num_loops, loopback)
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long (>= 4096) for the pulseblaster!"
 
@@ -737,6 +734,7 @@ class PulseBlaster(Instrument):
             'channel id must be either an integer or a string. Instead, this was passed in: {0}'.format(channel_id))
 
 
+
 class B26PulseBlaster(PulseBlaster):
     # COMMENT_ME
     _DEFAULT_SETTINGS = Parameter([
@@ -750,15 +748,15 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the daq, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and daq acknowledgement [ns]')
         ]),
-        Parameter('microwave_i', [
-            Parameter('channel', 2, int, 'channel to which the microwave p trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the microwave p trigger, false otherwise'),
-            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave p trigger [ns]')
+        Parameter('microwave_iq', [
+            Parameter('channel', 2, int, 'channel to which the microwave iq trigger is connected to'),
+            Parameter('status', False, bool, 'True if outputting to channel q, False if outputting to channel i.'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave iq trigger [ns]')
         ]),
-        Parameter('microwave_q', [
-            Parameter('channel', 8, int, 'channel to which the microwave q trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
-            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
+        Parameter('microwave_polarity', [
+            Parameter('channel', 8, int, 'channel to which the microwave polarity trigger is connected to'),
+            Parameter('status', False, bool, 'True if input voltage is negative, False if input voltage is positive.'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave polarity trigger [ns]')
         ]),
         Parameter('microwave_switch', [
             Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
@@ -797,20 +795,17 @@ class B26PulseBlaster(PulseBlaster):
         ]),
         Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
         Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
-        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used'),
+        Parameter('constant_microwave_heat_load', [
+            Parameter('enable', False, bool, 'enable to send microwave pulses at fixed duty cycle to maintain heat load on sample between usual pulsed experiments'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('pulse_duration', 100, int, 'duration of microwave pulse (ns)'),
+            Parameter('duty_cycle', 0.01, float, 'duty cycle of microwave pulses')
+        ])
     ])
 
     _PROBES = {}
-
-    # def __init__(self, name=None, settings=None):
-    #     #COMMENT_ME
-    #     super(B26PulseBlaster, self).__init__(name, settings)
-
-
-    # def update(self, settings):
-    #     # call the update_parameter_list to update the parameter list
-    #     # oh god this is confusing
-    #     super(B26PulseBlaster, self).update(settings)
 
     def read_probes(self, key):
         pass
@@ -822,6 +817,26 @@ class B26PulseBlaster(PulseBlaster):
                 return key
 
         raise AttributeError('Could not find instrument name attached to channel {s}'.format(channel))
+
+    def mw_duty_cycle_loop(self):
+        """
+        Sends a simple MW pulse train with duty cycle specified in settings. Run this between usual pulse experiments to keep the heat load
+        on the sample constant, which reduces sample drift.
+        :return: None
+        """
+
+        duty_cycle = self.settings['constant_microwave_heat_load']['duty_cycle']
+        pulse_duration = self.settings['constant_microwave_heat_load']['pulse_duration']
+        assert duty_cycle < .99 and duty_cycle > 0
+
+        pulse_spacing = pulse_duration/duty_cycle - pulse_duration
+        pulse_spacing = int(int(pulse_spacing/self.min_pulse_dur())*self.min_pulse_dur())  # Round to multiple of min pulse duration
+
+        pulse_collection = [Pulse('microwave_switch', pulse_spacing, pulse_duration)]
+        print(pulse_collection)
+        self.program_pb(pulse_collection, num_loops=1, loopback=True)
+        self.start_pulse_seq()
+        # self.pb.pb_close()
 
 
 class PulseBlasterHwTrig(B26PulseBlaster):
@@ -836,15 +851,15 @@ class PulseBlasterHwTrig(B26PulseBlaster):
             Parameter('status', False, bool, 'True if voltage is high to the daq, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and daq acknowledgement [ns]')
         ]),
-        Parameter('microwave_i', [
-            Parameter('channel', 2, int, 'channel to which the microwave p trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the microwave p trigger, false otherwise'),
-            Parameter('delay_time', 0.2, float, 'delay time betweepulse sending time and microwave p trigger [ns]')
+        Parameter('microwave_iq', [
+            Parameter('channel', 2, int, 'channel to which the microwave iq trigger is connected to'),
+            Parameter('status', False, bool, 'True if outputting to channel q, False if outputting to channel i.'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave iq trigger [ns]')
         ]),
-        Parameter('microwave_q', [
-            Parameter('channel', 8, int, 'channel to which the microwave q trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the microwave q trigger, false otherwise'),
-            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave q trigger [ns]')
+        Parameter('microwave_polarity', [
+            Parameter('channel', 8, int, 'channel to which the microwave polarity trigger is connected to'),
+            Parameter('status', False, bool, 'True if input voltage is negative, False if input voltage is positive.'),
+            Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave polarity trigger [ns]')
         ]),
         Parameter('microwave_switch', [
             Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
@@ -883,12 +898,21 @@ class PulseBlasterHwTrig(B26PulseBlaster):
         ]),
         Parameter('clock_speed', 500, [100, 250, 400, 500], 'Clock speed of the pulse blaster [MHz]'),
         Parameter('min_pulse_dur', 2, [15, 20, 50, 2, 12], 'Minimum allowed pulse duration (ns)'),
-        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used')
+        Parameter('PB_type', 'PCI', ['PCI', 'USB'], 'Type of pulseblaster used'),
+        Parameter('constant_microwave_heat_load', [
+            Parameter('enable', False, bool,
+                      'enable to send microwave pulses at fixed duty cycle to maintain heat load on sample between usual pulsed experiments'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('pulse_duration', 100, int, 'duration of microwave pulse (ns)'),
+            Parameter('duty_cycle', 0.01, float, 'duty cycle of microwave pulses')
+        ])
     ])
 
     _PROBES = {}
 
-    def program_pb(self, pulse_collection_laser, pulse_collection_mw, num_loops_laser, num_loops_mw):
+    def program_pb(self, pulse_collection_laser, pulse_collection_mw, pulse_collection_mw2, pulse_collection_laser_mw, pulse_collection_spacer,
+                   num_loops_laser, num_loops_mw):
         """
         Programs the pulseblaster to perform the pulses in the given pulse_collection on the next time start_pulse_seq()
         is called. The pulse collection must contain at least 2 pulses. Currently, we do not support time resolution below
@@ -906,7 +930,7 @@ class PulseBlasterHwTrig(B26PulseBlaster):
         assert num_loops_laser < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
         assert num_loops_mw < (1 << 20), 'cannot have more than 2^20 (approx 1 million) loop iterations'
 
-        for pulse_collection in [pulse_collection_laser, pulse_collection_mw]:
+        for pulse_collection in [pulse_collection_laser, pulse_collection_mw, pulse_collection_mw2, pulse_collection_laser_mw, pulse_collection_spacer]:
             if self.find_overlapping_pulses(pulse_collection):
                 print('Pulses sent to the pulseblaster: ', pulse_collection)
                 raise AttributeError('Found overlapping pulses in given pulse collection')
@@ -917,13 +941,19 @@ class PulseBlasterHwTrig(B26PulseBlaster):
                     'Found a pulse duration less than 1. Remember durations are in nanoseconds, and you can\'t have a 0 duration pulse'
 
         # Process the pulse collection into a format compatible with the low-level spincore API
-        delayed_pulse_collection_laser = self.create_physical_pulse_seq(pulse_collection_laser)
-        delayed_pulse_collection_mw = self.create_physical_pulse_seq(pulse_collection_mw)
+        # delayed_pulse_collection_laser = self.create_physical_pulse_seq(pulse_collection_laser)
+        # delayed_pulse_collection_mw = self.create_physical_pulse_seq(pulse_collection_mw)
 
         self.estimated_runtime = self.estimate_runtime(pulse_collection_laser, num_loops_laser) + self.estimate_runtime(pulse_collection_mw, num_loops_mw)
         pb_state_changes_laser = self.generate_pb_sequence(pulse_collection_laser)
         pb_state_changes_mw = self.generate_pb_sequence(pulse_collection_mw)
-        pb_commands = self.create_commands(pb_state_changes_laser, pb_state_changes_mw, num_loops_laser, num_loops_mw)
+        pb_state_changes_mw2 = self.generate_pb_sequence(pulse_collection_mw2)
+        pb_state_changes_laser_mw = self.generate_pb_sequence(pulse_collection_laser_mw)
+        pb_state_changes_spacer = self.generate_pb_sequence(pulse_collection_spacer)
+
+        pb_commands = self.create_commands(pb_state_changes_laser, pb_state_changes_mw, pb_state_changes_mw2,
+                                           pb_state_changes_laser_mw, pb_state_changes_spacer,
+                                           num_loops_laser, num_loops_mw)
 
         assert len(pb_commands) < 4096, "Generated a number of commands too long (>= 4096) for the pulseblaster!"
 
@@ -956,7 +986,8 @@ class PulseBlasterHwTrig(B26PulseBlaster):
             assert return_value >= 0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 
-    def create_commands(self, pb_state_changes_laser, pb_state_changes_mw, num_loops_laser, num_loops_mw, verbose=False):
+    def create_commands(self, pb_state_changes_laser, pb_state_changes_mw, pb_state_changes_mw2, pb_state_changes_laser_mw, pb_state_changes_spacer,
+                        num_loops_laser, num_loops_mw, verbose=False):
         """
         Creates a list of commands to program the pulseblaster with. In PulseBlasterHwTrig the code has a different structure than create_commands in
         PulseBlaster. Here we first loop through pb_state_changes_laser for num_loops_laser and then loop through pb_states_changes_mw for num_loops_mw.
@@ -978,7 +1009,7 @@ class PulseBlasterHwTrig(B26PulseBlaster):
             An ordered list of PBComnmand objects to program the pulseblaster with.
         """
 
-        if len(pb_state_changes_laser) + len(pb_state_changes_mw) == 0:
+        if len(pb_state_changes_laser) + len(pb_state_changes_mw) + len(pb_state_changes_mw2) == 0:
             print('0 state changes requested; create_commands() did not produce any PB commands.')
             return []
 
@@ -986,11 +1017,22 @@ class PulseBlasterHwTrig(B26PulseBlaster):
 
         # Briefly turn off all PB outputs before running sequence
         pb_commands.append(self.PBCommand(0, 1000, command='CONTINUE', command_arg=0))
-        for j in range(num_loops_laser):
+
+        pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=0))
+        for index in range(0, len(pb_state_changes_laser_mw) - 1):
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_laser_mw[index], command='CONTINUE')))
+        pb_commands += self._get_long_delay_breakdown(pb_state_changes_laser_mw[-1], command='CONTINUE', command_arg=0)
+
+        for j in range(num_loops_laser - 1):
             pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=0))
             for index in range(0, len(pb_state_changes_laser) - 1):
                 pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_laser[index], command='CONTINUE')))
             pb_commands += self._get_long_delay_breakdown(pb_state_changes_laser[-1], command='CONTINUE', command_arg=0)
+
+        pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=0))
+        for index in range(0, len(pb_state_changes_spacer) - 1):
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_spacer[index], command='CONTINUE')))
+        pb_commands += self._get_long_delay_breakdown(pb_state_changes_spacer[-1], command='CONTINUE', command_arg=0)
 
         loop_begin_index = len(pb_commands)
         pb_commands.append(self.PBCommand(0, 10, command='LOOP', command_arg=num_loops_mw))
@@ -999,6 +1041,15 @@ class PulseBlasterHwTrig(B26PulseBlaster):
         for index in range(0, len(pb_state_changes_mw)-1):
             pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_mw[index], command='CONTINUE')))
         pb_commands += self._get_long_delay_breakdown(pb_state_changes_mw[-1], command='END_LOOP', command_arg=loop_begin_index)
+
+        print('PB command debug')
+        print(pb_state_changes_mw[-1])
+        print(pb_commands[-1])
+
+        pb_commands.append(self.PBCommand(0, 10, command='WAIT', command_arg=len(pb_commands)))
+        for index in range(0, len(pb_state_changes_mw2) - 1):
+            pb_commands += list(reversed(self._get_long_delay_breakdown(pb_state_changes_mw2[index], command='CONTINUE')))
+        pb_commands += self._get_long_delay_breakdown(pb_state_changes_mw2[-1], command='END_LOOP', command_arg=loop_begin_index)
 
         pb_commands.append(self.PBCommand(0, 10, command='BRANCH', command_arg=1))
 
@@ -1030,11 +1081,19 @@ class PulseBlasterHwTrig(B26PulseBlaster):
 
 
 if __name__ == '__main__':
-    inst = PulseBlasterHwTrig()
-    inst.pb.pb_init()
-    inst.pb.pb_stop()
-    print('{:04b}'.format(inst.pb.pb_read_status()))
-    inst.pb.pb_close()
+
+    inst = B26PulseBlaster()
+
+    # pulse_collection = [Pulse('microwave_switch', 500, 50)]
+    # inst.program_pb(pulse_collection, num_loops=int(1), loopback=True)
+    #
+    # inst.pb.pb_start()
+    # inst.pb.pb_close()
+
+    inst.settings['constant_microwave_heat_load']['enable'] = True
+    inst.settings['constant_microwave_heat_load']['pulse_duration'] = 50
+    inst.settings['constant_microwave_heat_load']['duty_cycle'] = 0.05
+    inst.mw_duty_cycle_loop()
 
 if __name__ == '__main2__':
     for i in range(1):
@@ -1075,12 +1134,9 @@ if __name__ == '__main2__':
 
 
 
-        pulse_collection = [Pulse('atto_trig', 10, int(80)), Pulse('rf_i', 10, int(160))]
-
+        pulse_collection = [Pulse('mw_switch', 100, 200)]
         inst.program_pb(pulse_collection, num_loops=1)
 
-        print('{:04b}'.format(inst.pb.pb_read_status()))
-        inst.pb.pb_reset()
         inst.pb.pb_start()
         inst.pb.pb_close()
 

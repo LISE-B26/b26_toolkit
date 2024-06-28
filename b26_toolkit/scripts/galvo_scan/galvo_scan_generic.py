@@ -1,27 +1,27 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    pylabcontrol is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+pylabcontrol is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    pylabcontrol is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+pylabcontrol is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-import time
 from b26_toolkit.instruments import NI6259
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 import matplotlib.patheffects as pe
 from pylabcontrol.core import Script, Parameter
+
 
 class GalvoScanGeneric(Script):
     """
@@ -304,8 +304,7 @@ class GalvoScanGeneric(Script):
             data = self.data
 
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0], max_counts=self.settings['max_counts_plot'])
-
-        if self.safety_threshold_exceeded:
+        if 'safety_threshold' in self.settings and self.safety_threshold_exceeded:
             axes_list[0].text(0.5, 0.5, 'COUNTS \n EXCEEDED \n SAFETY!', fontsize=35, color='white', weight='bold',
                               horizontalalignment='center', verticalalignment='center', transform=axes_list[0].transAxes,
                               path_effects=[pe.withStroke(linewidth=4, foreground="red")])

@@ -20,10 +20,11 @@ from b26_toolkit.instruments import MaestroLightControl
 from pylabcontrol.core import Script, Parameter
 from copy import deepcopy
 
+
 class ApplyLightControlSettings(Script):
     """
-script that toggles between two different light control settings.
-If parameter on is set to true applies the settings from the script. If false it resets to the previous settings.
+    script that toggles between two different light control settings.
+    If parameter on is set to true applies the settings from the script. If false it resets to the previous settings.
     """
 
     _DEFAULT_SETTINGS = [

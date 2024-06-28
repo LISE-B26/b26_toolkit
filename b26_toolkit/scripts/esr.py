@@ -1,40 +1,14 @@
-# """
-#     This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-#     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
-#
-#     b26_toolkit is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
-#
-#     b26_toolkit is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
-#
-#     You should have received a copy of the GNU General Public License
-#     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
-# """
-from copy import copy
-
-from pylabcontrol.core import Script, Parameter
-
-# import standard libraries
-import numpy as np
-from b26_toolkit.scripts import FindNv
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, ANC300
-# from b26_toolkit.scripts.spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
-from b26_toolkit.plotting.plots_1d import plot_esr
-from scipy import optimize
-
-# from b26_toolkit.plotting.plots_1d import plot_diff_freq_vs_freq
-from b26_toolkit.data_processing.esr_signal_processing import fit_esr
-
 import time
 import random
+import numpy as np
+from copy import copy
+from scipy import optimize
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.scripts import FindNv
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402, B26PulseBlaster, ANC300
+from b26_toolkit.plotting.plots_1d import plot_esr
+from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 from b26_toolkit.data_processing.fit_functions import lorentzian
-# from b26_toolkit.data_processing.esr_signal_processing import find_nv_peaks as find_nv_peaks
-
 
 class EsrDaqFm(Script):
     """
@@ -705,11 +679,10 @@ class EsrSimple(Script):
         Parameter('save_timetrace', True, bool, 'check to save the measured fluorescence over time. This is identical to the full esr when the freq. are not randomized')
     ]
 
-    _INSTRUMENTS = {
-        'microwave_generator': MicrowaveGenerator,
-        'NI6259': NI6259,  # PCI
-        'NI9402': NI9402,  # cDAQ
-    }
+    _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator,
+                    'NI6259': NI6259,  # PCI
+                    'NI9402': NI9402,  # cDAQ
+                    }
 
     _SCRIPTS = {}
 
@@ -1069,7 +1042,7 @@ class AttoScanZ(EsrSimple):
             data = self.data
 
         plot_esr(axes_list[0], data['frequency'], data['data'], data['fit_params'], title='Attocube Z scan',
-                 xlabel='Attocube Vz', ylabel='kCounts/s')
+                 xlabel='Attocube Vz', ylabel='[kCt/s]')
 
 
 class EsrSimpleLowerUpper(Script):

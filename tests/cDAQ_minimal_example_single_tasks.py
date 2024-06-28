@@ -522,7 +522,7 @@ def RUN_ME():
         for i in range(0, int((len(x_array) / clockAdjust))):
             summedData[i] = np.sum(
                 diffData[(i * clockAdjust + 1):(i * clockAdjust + clockAdjust - 1)])
-        # also normalizing to kcounts/sec
+        # also normalizing to [kCt/s]ec
         data['image_data'][yNum] = summedData * (.001 / settings['time_per_pt'])
 
         return

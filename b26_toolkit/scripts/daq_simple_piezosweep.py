@@ -17,10 +17,7 @@
 """
 
 import time
-
 import numpy as np
-
-
 from b26_toolkit.instruments import NI6259,PiezoController, NI9263, NI9402
 from pylabcontrol.core import Parameter, Script
 

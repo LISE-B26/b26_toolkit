@@ -16,7 +16,7 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from b26_toolkit.data_processing import correlation, shift_NVs, compare_galvos
+from b26_toolkit.data_processing import correlation, compare_galvos
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts import GalvoScan

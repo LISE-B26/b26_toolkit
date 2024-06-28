@@ -1,7 +1,7 @@
+from pylabcontrol.core import Parameter
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, MicrowaveGenerator, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScanSafe
 from b26_toolkit.scripts.pulse_sequences.laser_pulses import LaserPulses
-from pylabcontrol.core import Script, Parameter
 
 class GalvoScanPulsed(GalvoScanSafe):
     """
@@ -10,6 +10,7 @@ class GalvoScanPulsed(GalvoScanSafe):
     Unlike GalvoScan, which leaves the laser on during the entire scan, this script sends in laser pulses
     Readout window is left on during the whole time (to minimize DAQ overhead), so for long time_per_pt, dark counts can wash out the fluorescence signal
     """
+
     _DEFAULT_SETTINGS = [
         Parameter('point_a',
                   [Parameter('x', 0, float, 'x-coordinate'),

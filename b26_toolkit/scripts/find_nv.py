@@ -17,11 +17,9 @@
 """
 
 from copy import deepcopy
-
 import numpy as np
 import trackpy as tp
 from matplotlib import patches
-
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan, GalvoScanSafe
 from b26_toolkit.scripts.galvo_scan.galvo_scan_pulses import GalvoScanPulsed
@@ -163,13 +161,13 @@ class FindNv(Script):
                     self.data['fluorescence'] = 0.0
                     break
 
-        self.log('Max fluorescence found: %i kcounts/s' % np.max(self.data['image_data']))
+        self.log('Max fluorescence found: %i kCt/s' % np.max(self.data['image_data']))
 
         # The first condition below is written for FindNvSafe. Won't matter for normal FindNv.
         # If counts exceed threshold, laser should be turned off automatically while running FindNvSafe
         # If that happens, we also don't want the script to leave the laser on the brightest spot (likely to be the micromagnet)
         # So we just move the laser to the initial point (usually where we think the NV is before running the script)
-        if self.scripts['take_image'].safety_threshold_exceeded:
+        if 'safety_threshold' in self.scripts['take_image'].settings and self.scripts['take_image'].safety_threshold_exceeded:
             self.scripts['set_laser'].settings['point'].update(self.settings['initial_point'])
             self.scripts['set_laser'].run(verbose=self.verbose)
         elif self.settings['adjust_laser']:
@@ -177,8 +175,8 @@ class FindNv(Script):
             self.scripts['set_laser'].run(verbose=self.verbose)
 
 
-    @staticmethod
-    def plot_data(axes_list, data):
+    # @staticmethod
+    def plot_data(self, axes_list, data):
         #plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
         initial_point = data['initial_point']
@@ -193,7 +191,7 @@ class FindNv(Script):
             axes_list[0].add_patch(patch)
             axes_list[0].text(maximum_point['x'], maximum_point['y'] - .002, 'found NV', color='r', fontsize=8)
 
-    def _plot(self, axes_list, data = None):
+    def _plot(self, axes_list, data=None):
         """
         plotting function for find_nv
         Args:
@@ -206,7 +204,7 @@ class FindNv(Script):
         if self._current_subscript_stage['current_subscript'] == self.scripts['take_image']:
             self.scripts['take_image']._plot(axes_list)
         else:
-            self.scripts['take_image']._plot(axes_list)
+            self.scripts['take_image']._plot(axes_list, self.data)
             self.plot_data(axes_list, data)
         axes_list[0].set_title('Confocal Image (FindNv)')
 
@@ -382,9 +380,10 @@ class FindNvStrobe(FindNvSafe):
 
     def _function(self):
         self.scripts['take_image'].update({'safety_threshold': self.settings['safety_threshold']})
-        self.scripts['take_image'].update({'turn_off_laser_after': self.settings['turn_off_laser_after']})
+        self.scripts['take_image'].update({'turn_off_laser_after': False})
         self.is_valid()
         super(FindNvStrobe, self)._function()
+
 
     def is_valid(self, pulse_sequences=None, verbose=True):
         """

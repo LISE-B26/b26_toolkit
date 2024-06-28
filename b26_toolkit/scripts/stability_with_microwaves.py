@@ -1,12 +1,7 @@
 from pylabcontrol.core import Script, Parameter
-
-# import standard libraries
 import numpy as np
 from b26_toolkit.instruments import MicrowaveGenerator, NI6259
-from collections import deque
-import time
-# from b26_toolkit.pylabcontrol.plotting.plots_1d import plot_esr
-# from b26_toolkit.pylabcontrol.data_processing.esr_signal_processing import fit_esr
+
 
 class Stability_With_Microwaves(Script):
     """
@@ -22,15 +17,12 @@ class Stability_With_Microwaves(Script):
         Parameter('interval_time', .01, float, 'binning time for each measurement window (s)')
     ]
 
-    _INSTRUMENTS = {
-        'microwave_generator': MicrowaveGenerator,
-        'daq': NI6259
-    }
-
+    _INSTRUMENTS = {'microwave_generator': MicrowaveGenerator, 'daq': NI6259}
     _SCRIPTS = {}
 
     def __init__(self, instruments, scripts = None, name=None, settings=None, log_function=None, data_path = None):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path = data_path)
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -70,13 +62,11 @@ class Stability_With_Microwaves(Script):
             self.data['time'] = np.linspace(0,measurement_time, int(measurement_time/interval_time))
             self.data[window] = np.diff(raw_data) * sample_rate / 1000
 
-
         self.progress = 50
         self.updateProgress.emit(self.progress)
 
 
     def _calc_progress(self):
-        #COMMENT_ME
         self.progress = 50
         return int(self.progress)
 

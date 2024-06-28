@@ -1,40 +1,31 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    pylabcontrol is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+pylabcontrol is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    pylabcontrol is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+pylabcontrol is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from b26_toolkit.instruments import SpectrumAnalyzer
-    # , MicrowaveGenerator, CryoStation
 from pylabcontrol.core import Script
 
 
 class SpecAnalyzerGetSpectrum(Script):
     # COMMENT_ME
 
-    _DEFAULT_SETTINGS = [
-        # Parameter('start_frequency', 2.7e9, float, 'start frequency of spectrum'),
-        # Parameter('stop_frequency', 3e9, float, 'end frequency of spectrum'),
-        # Parameter('output_power',0.0, float, 'output power (dBm)'),
-        # Parameter('output_on',True, bool, 'enable output'),
-    ]
+    _DEFAULT_SETTINGS = []
 
-    _INSTRUMENTS = {
-        'spectrum_analyzer' : SpectrumAnalyzer
-    }
-
+    _INSTRUMENTS = {'spectrum_analyzer': SpectrumAnalyzer}
     _SCRIPTS = {}
 
     def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
@@ -51,8 +42,6 @@ class SpecAnalyzerGetSpectrum(Script):
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
-
-
 
         instrument = self.instruments['spectrum_analyzer']['instance']
         settings = self.instruments['spectrum_analyzer']['settings']

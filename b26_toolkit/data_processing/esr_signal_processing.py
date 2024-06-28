@@ -1,28 +1,26 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from copy import deepcopy
-
 import numpy as np
 import scipy.signal as signal
-from peakutils.peak import indexes # package required https://pypi.python.org/pypi/PeakUtils
+from peakutils.peak import indexes  # package required https://pypi.python.org/pypi/PeakUtils
 import matplotlib.pyplot as plt
-
 from scipy import stats
 from scipy.optimize import minimize
 from b26_toolkit.data_processing.fit_functions import fit_lorentzian, get_lorentzian_fit_starting_values, fit_double_lorentzian, lorentzian, double_lorentzian
@@ -467,7 +465,7 @@ def get_background_idx(counts, counts_threshold, frequencies=None, show_plot=Fal
         plt.plot(frequencies, counts, label='full data')
 
         plt.xlabel('frequencies (Hz)')
-        plt.ylabel('counts (kCounts/s)')
+        plt.ylabel('counts [kCt/s]')
         plt.legend()
 
     return background_idx
@@ -611,7 +609,7 @@ def esr_normalize_background(esr_full, idx_data, frequencies, show_plot=False, v
         plt.plot(frequencies, corrected/np.mean(corrected), 'o', label='corrected')
 
         plt.xlabel('time')
-        plt.ylabel('counts (kCounts/s)')
+        plt.ylabel('counts [kCt/s]')
         plt.legend()
 
     return corrected

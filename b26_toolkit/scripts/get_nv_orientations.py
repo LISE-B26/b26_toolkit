@@ -1,19 +1,14 @@
-import numpy as np
-
-from pylabcontrol.core import Script, Parameter
+from pylabcontrol.core import Script
 
 
 class GetNVOrientations(Script):
     """
-This script points the laser to a point
+    This script points the laser to a point
     """
 
     _DEFAULT_SETTINGS = []
-
     _INSTRUMENTS = {}
-
     _SCRIPTS = {}
-
 
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """

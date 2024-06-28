@@ -15,15 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 
-
-# this is the gui for the measurment pc
-
 import ctypes
 import sys
-
 from PyQt5 import QtGui, QtWidgets
-
-# from .pylabcontrol.gui.gui_future_b26_toolkit import b26_gui
 from b26_toolkit.gui import b26_gui
 
 #work around to change taskbar icon
@@ -35,16 +29,16 @@ def run_gui(filepath=None):
 
     try:
         print("pylabcontrol  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \
-pylabcontrol is free software: you can redistribute it and/or modify \n \
-it under the terms of the GNU General Public License as published by \n \
-the Free Software Foundation, either version 3 of the License, or \n \
-(at your option) any later version. \n\n \
-pylabcontrol is distributed in the hope that it will be useful, \n \
-but WITHOUT ANY WARRANTY; without even the implied warranty of \n \
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the \n \
-GNU General Public License for more details. \n\n \
-You should have received a copy of the GNU General Public License \n \
-along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.")
+        pylabcontrol is free software: you can redistribute it and/or modify \n \
+        it under the terms of the GNU General Public License as published by \n \
+        the Free Software Foundation, either version 3 of the License, or \n \
+        (at your option) any later version. \n\n \
+        pylabcontrol is distributed in the hope that it will be useful, \n \
+        but WITHOUT ANY WARRANTY; without even the implied warranty of \n \
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the \n \
+        GNU General Public License for more details. \n\n \
+        You should have received a copy of the GNU General Public License \n \
+        along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.")
 
         ex = b26_gui.ControlMainWindowB26(filepath)
 

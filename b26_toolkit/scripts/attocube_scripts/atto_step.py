@@ -141,8 +141,8 @@ class AttoStepScanOpenLoop(Script):
             data = self.data
 
         if data:
-            axes_list[0].set_xlabel('steps')
-            axes_list[0].set_ylabel('kCounts/sec')
+            axes_list[0].set_xlabel('[steps]')
+            axes_list[0].set_ylabel('[kCt/s]')
 
             axes_list[0].plot(data['positions'][:len(data['counts'])], data['counts'], linewidth=2.0)
 

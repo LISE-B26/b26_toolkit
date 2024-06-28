@@ -16,18 +16,14 @@ You should have received a copy of the GNU General Public License
 along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from collections import deque
 import numpy as np
 import datetime
 import time
-
-from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts.hf2li_scripts import LockInDaqRead
 from b26_toolkit.scripts.pulse_sequences.pi_pulse_train import PiPulseTrainBackaction
-from b26_toolkit.instruments import MicrowaveGenerator, Hf2Li
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace
-from scipy.signal import periodogram as periodogram
+from b26_toolkit.instruments import MicrowaveGenerator, Hf2Li, B26PulseBlaster
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_freq, update_1d_simple
 
 class BackactionGeneric(Script):
     """
@@ -36,26 +32,21 @@ class BackactionGeneric(Script):
     _DEFAULT_SETTINGS = [
         Parameter('param_start', 2.87e9, float, 'start value of parameter sweep'),
         Parameter('param_stop', 1e8, float, 'end value of parameter sweep'),
+        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                  'start_stop: freq range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
         Parameter('param_points', 50, int, 'number of parameter points in scan'),
         Parameter('param_switching_time', .01, float, 'time wait after changing parameter value (s)'),
-        Parameter('num_averages', 1, int, 'number of sweeps to perform and average over')
+        Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
     ]
 
-    _INSTRUMENTS = {'mw_gen': MicrowaveGenerator, 'hf2li': Hf2Li}
-
+    _INSTRUMENTS = {'mw_gen': MicrowaveGenerator, 'hf2li': Hf2Li, 'PB': B26PulseBlaster}
     _SCRIPTS = {'backaction_pulse_seq': PiPulseTrainBackaction, 'lock_in_daq_read': LockInDaqRead}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path=data_path)
         self.params = []
-        self.sweep_params = {}
 
-    def define_sweep_parameters(self):
-        """
-        Define name of sweep parameters. Since this script is generic, it is coded with variables like 'param_start'.
-        This function redirects the code to look for the corresponding settings in _DEFAULT_SETTINGS
-        :return:
-        """
+        self.sweep_params = {}
         self.sweep_params['param_start'] = self.settings['param_start']
         self.sweep_params['param_stop'] = self.settings['param_stop']
         self.sweep_params['param_points'] = self.settings['param_points']
@@ -75,14 +66,14 @@ class BackactionGeneric(Script):
         """
         pass
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
         """
         raise NotImplementedError
 
-    def _configure_subscripts_start_of_sweep(self, param_current):
+    def _configure_subscripts_for_param(self, param_current):
         """
 
         :param param_current:
@@ -91,12 +82,32 @@ class BackactionGeneric(Script):
 
     def _configure_param_array(self):
         """
-        Contruct the parameter array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
+        Contruct the frequency array and store it in a variable called 'self.params'. Despite the naming, it's just a list of parameters to be swept;
         it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
         :return:
         """
 
         raise NotImplementedError
+
+
+    def _initialize_data(self):
+        """
+        Initialize arrays that will contain data
+        :return: None
+        """
+        self.data['params'] = self.params
+        self.data_labels = []
+        for demod in self.scripts['lock_in_daq_read'].settings['demods'].keys():
+            demod_num = int(demod)
+            if self.scripts['lock_in_daq_read'].settings['demods'][demod]['data']['x']:
+                self.data_labels.append('demod%i_x' % demod_num)
+            if self.scripts['lock_in_daq_read'].settings['demods'][demod]['data']['y']:
+                self.data_labels.append('demod%i_y' % demod_num)
+            if self.scripts['lock_in_daq_read'].settings['demods'][demod]['data']['freq']:
+                self.data_labels.append('demod%i_freq' % demod_num)
+
+        print('Found %i data labels: ' % len(self.data_labels))
+        self.data['value'] = np.zeros((len(self.data_labels), len(self.params)))
 
     def _function(self, in_data=None):
         """
@@ -115,23 +126,17 @@ class BackactionGeneric(Script):
         :return: Nothing
         """
 
-        self.define_sweep_parameters()
         self._configure_param_array()
         self._configure_instruments_start_of_script()
+        self._initialize_data()
 
-        self.data['params'] = self.params
-        self.data['value'] = []
-
-        # Divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
-        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
-        # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
-
-        self.pulse_sequences, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
-        self.num_averages = self.settings['num_averages']
+        # self.num_averages = self.settings['num_averages']
+        self.num_averages = 1
 
         # Keeps track of index of current pulse sequence for plotting
         self.sequence_index = 0
 
+        breaker = False
         for loop_index in range(self.num_averages):
             time_start = time.time()
             if breaker:
@@ -160,17 +165,13 @@ class BackactionGeneric(Script):
                     break
 
                 self.param_current = self.params[i]
-                self._configure_instruments_start_of_sweep(self.param_current)
-                self._configure_subscripts_start_of_sweep(self.param_current)
+                self._configure_instruments_for_param(self.param_current)
+                self._configure_subscripts_for_param(self.param_current)
                 time.sleep(self.sweep_params['param_switching_time'])
 
                 self.scripts['backaction_pulse_seq'].run()
                 self.scripts['lock_in_daq_read'].run()
-
-                """
-                Process daq data here
-                """
-
+                self.data['value'][:,i] = self.process_daq()
 
             #  Save data after each averaging block so that we can analyze data externally on the go
             if self.settings['save']:
@@ -181,10 +182,16 @@ class BackactionGeneric(Script):
                      (loop_index + 1, self.num_averages, str(datetime.timedelta(seconds=time_elapsed))[:-7]))
 
             # This is needed to update the plotting. We put it here after performing the fitting
-            self.updateProgress.emit(float(loop_index + 1) / int(self.num_1E5_avg_pb_programs) * 100)
+            self.updateProgress.emit(float(loop_index + 1) / int(self.num_averages) * 100)
 
         self._configure_instruments_end_of_script()
-        self.updateProgress.emit(float(loop_index + 1) / int(self.num_1E5_avg_pb_programs) * 100)
+
+    def process_daq(self):
+        """
+        Process the data collected by the daq after running self.scripts['lock_in_daq_read']
+        :return: 2D array (M*N): M = no. of demod channels (e.g. demod 4, quadrature X), N = length of data for each demod channel
+        """
+        raise NotImplementedError
 
 
 class BackactionMwFreqSweep(BackactionGeneric):
@@ -192,15 +199,151 @@ class BackactionMwFreqSweep(BackactionGeneric):
     Sweeps the MW freq of the pi-pulse train and measures the mechanical response using the lock-in DAQ
     """
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('freq_start', 2.87e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 1e8, float, 'end frequency of scan in Hz'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 50, int, 'number of frequencies in scan in Hz'),
-        Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')
+        Parameter('mw_sweep', [
+            Parameter('freq_start', 2.87e9, float, 'start frequency of scan in Hz'),
+            Parameter('freq_stop', 1e8, float, 'end frequency of scan in Hz'),
+            Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                      'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
+            Parameter('freq_points', 50, int, 'number of frequencies in scan in Hz'),
+            Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')]),
+        Parameter('fft_integration', [
+            Parameter('freq_start', 10, float, 'center frequency (Hz) of integration window over FFT obtained from lock-in DAQ'),
+            Parameter('freq_stop', 1, float, 'frequency span (Hz) of integration window over FFT obtained from lock-in DAQ'),
+            Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
+                      'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop')
+        ]),
+        Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence')
     ]
 
-    _INSTRUMENTS = {'mw_gen': MicrowaveGenerator}
+    _INSTRUMENTS = {'mw_gen': MicrowaveGenerator, 'hf2li': Hf2Li, 'PB': B26PulseBlaster}
+    _SCRIPTS = {'backaction_pulse_seq': PiPulseTrainBackaction, 'lock_in_daq_read': LockInDaqRead}
 
-    _SCRIPTS = {'pi_pulse_train_backaction': PiPulseTrainBackaction, 'lock_in_daq_read': LockInDaqRead}
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments, log_function=log_function, data_path=data_path)
+        self.params = []
+
+        self.sweep_params = {'param_start': self.settings['mw_sweep']['freq_start'],
+                             'param_stop': self.settings['mw_sweep']['freq_stop'],
+                             'param_points': self.settings['mw_sweep']['freq_points'],
+                             'param_switching_time': self.settings['mw_sweep']['mw_generator_switching_time']}
+
+    def _configure_instruments_start_of_script(self):
+        """
+        Configure instruments at the beginning of a script, e.g. enable IQ modulation
+        :return: None
+        """
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
+
+
+    def _configure_instruments_end_of_script(self):
+        """
+        Configure instruments right before the script finishes, e.g. turn off function generators
+        :return: None
+        """
+
+        # Normally this is just done for safety. Here it also reprograms the pulseblaster so that it stops responding to the HW trigger
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
+    def _configure_instruments_for_param(self, param_current):
+        """
+        Configure instruments before running a sweep. For example, change MW frequency
+        :return: None
+        """
+        # self.instruments['mw_gen']['instance'].update({'frequency': float(param_current)})
+        self.scripts['backaction_pulse_seq'].settings['mw_pulses']['mw_frequency'] = float(param_current)
+
+    def _configure_subscripts_for_param(self, param_current):
+        """
+
+        :param param_current:
+        :return:
+        """
+        # Enable FFT setting so that we have frequency domain data to process later
+        self.scripts['lock_in_daq_read'].settings['fft'] = True
+
+    def _configure_param_array(self):
+        """
+        Contruct the frequency array and store it in a variable called 'self.params'. Despite the naming, it's just a list of parameters to be swept;
+        it can be a MHz frequency array for a function generator, or even some constant voltage to a LED diode
+        :return:
+        """
+
+        mw_settings = self.settings['mw_sweep']
+        if mw_settings['range_type'] == 'start_stop':
+            if mw_settings['freq_start'] > mw_settings['freq_stop']:
+                self.log('Error: end freq must be larger than start freq when range_type is start_stop..', flag='error')
+                self._abort = True
+
+            if mw_settings['freq_start'] < 0 or mw_settings['freq_stop'] > 4.05E9:
+                self.log('Error: start or stop frequency out of bounds.', flag='error')
+                self._abort = True
+
+            self.params = np.linspace(mw_settings['freq_start'], mw_settings['freq_stop'], mw_settings['freq_points'])
+        elif mw_settings['range_type'] == 'center_range':
+            if mw_settings['freq_start'] < 2 * mw_settings['freq_stop']:
+                self.log('End freq(range) must be smaller than 2x start freq (center) when range_type is center_range.', flag='error')
+                self._abort = True
+            self.params = np.linspace(mw_settings['freq_start'] - mw_settings['freq_stop'] / 2,
+                                      mw_settings['freq_start'] + mw_settings['freq_stop'] / 2, mw_settings['freq_points'])
+
+    def process_daq(self):
+        integration_settings = self.settings['fft_integration']
+        if integration_settings['range_type'] == 'start_stop':
+            if integration_settings['freq_start'] > integration_settings['freq_stop']:
+                self.log('Error: end freq must be larger than start freq when range_type is start_stop.', flag='error')
+                self._abort = True
+            int_freq_min, int_freq_max = integration_settings['freq_start'], integration_settings['freq_stop']
+        elif integration_settings['range_type'] == 'center_range':
+            if integration_settings['freq_start'] < 2 * integration_settings['freq_stop']:
+                self.log('End freq(range) must be smaller than 2x start freq (center) when range_type is center_range.', flag='error')
+                self._abort = True
+            int_freq_min, int_freq_max = (integration_settings['freq_start'] - integration_settings['freq_stop'] / 2,
+                                          integration_settings['freq_start'] + integration_settings['freq_stop'] / 2)
+        else:
+            raise KeyError('Unrecognized key for FFT integration settings')
+
+        fft_freq = self.scripts['lock_in_daq_read'].data['fft_freq']
+        int_freq_min_i, int_freq_max_i = np.argmin(np.abs(fft_freq-int_freq_min)), np.argmin(np.abs(fft_freq-int_freq_max))
+
+        fft_integrals = []
+
+        if self.scripts['lock_in_daq_read'].settings['segment_num'] > 1:
+            self.log('Multiple segments detected in script "lock_in_daq_read". Data will be averaged over segments.')
+        for data_label in self.data_labels:
+            data = np.array(self.scripts['lock_in_daq_read'].data[data_label])
+            fft_integrals.append(np.sum(np.average(data,axis=0)[int_freq_min_i:int_freq_max_i+1]))
+        print(fft_integrals)
+        return fft_integrals
+
+    def _plot(self, axes_list, data=None):
+        """
+
+        :param axes_list:
+        :param data:
+        :return:
+        """
+        if data is None:
+            data = self.data
+        print('data[value]')
+        print(data['value'])
+        if len(data['value']) > 0:  # Make sure some data was written before plotting
+            data_plt = []
+            plt_labels = []
+            plot_1d_simple_freq(axes_list[0], data['params'], data['value'])
+            # axes_list[0].legend(plt_labels)
+
+        else:
+            print("Data not yet collected! No data plotted.")
+
+    def _update_plot(self, axes_list):
+        """
+        Updates plots specified in _plot above
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+        """
+
+        update_1d_simple(axes_list[0], self.data['params'], self.data['value'])
+

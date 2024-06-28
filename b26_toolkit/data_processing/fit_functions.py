@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
@@ -21,11 +21,8 @@ from scipy import optimize
 import scipy.optimize
 
 
-# ========= Gaussian fit functions =============================
-#===============================================================
 def fit_gaussian(x_values, y_values, starting_params=None, bounds=None):
     """
-
     Args:
         x_values: domain of fit function
         y_values: y-values to fit
@@ -49,8 +46,10 @@ def fit_gaussian(x_values, y_values, starting_params=None, bounds=None):
         return [0, 0, 0, 0]
     return fit_params
 
+
 def gaussian(x, constant_offset, amplitude, center, width):
     return constant_offset + amplitude * np.exp(-1.0 * (np.square((x - center)) / (2 * (width ** 2))))
+
 
 def guess_gaussian_parameter(x_values, y_values):
     """
@@ -69,9 +68,9 @@ def guess_gaussian_parameter(x_values, y_values):
 
     return [noise_guess, amplitude_guess, center_guess, width_guess]
 
+
 def fit_gaussian2D(x, y, starting_params=None, bounds=None):
     """
-
     Args:
         x: domain of fit function (array of 2D points)
         y: y-values to fit
@@ -101,8 +100,10 @@ def fit_gaussian2D(x, y, starting_params=None, bounds=None):
         return [0, 0, 0, 0, 0]
     return fit_params, np.sqrt(np.diag(pcov))
 
+
 def gaussian2D(x, constant_offset, amplitude, center_x, center_y, width):
     return constant_offset + amplitude * np.exp(-(np.square(x[0, :] - center_x) + np.square(x[1, :] - center_y)) / (2 * width ** 2))
+
 
 def guess_gaussian2D_parameter(x, y):
     """
@@ -121,8 +122,7 @@ def guess_gaussian2D_parameter(x, y):
 
     return [noise_guess, amplitude_guess, center_x_guess, center_y_guess, width_guess]
 
-# ========= Lorenzian fit functions =============================
-#===============================================================
+
 def get_lorentzian_fit_starting_values(x_values, y_values, negative_peak=True):
     """
     estimates the parameter for a Lorentzian fit to the data set
@@ -238,6 +238,7 @@ def fit_double_lorentzian(x_values, y_values, starting_params=None, bounds=None,
     else:
         return optimize.curve_fit(double_lorentzian, x_values, y_values, p0=starting_params)
 
+
 def fit_n_lorentzian(x_values, y_values, starting_params=None, bounds=None, return_cov=False):
     """
     fits to n lorentzians
@@ -303,6 +304,7 @@ def double_lorentzian(x, constant_offset, fwhm, amplitude_1, amplitude_2, center
     return lorentzian(x, constant_offset / 2, amplitude_1, center_1, fwhm) + lorentzian(x, constant_offset / 2,
                                                                                         amplitude_2, center_2, fwhm)
 
+
 def pulsed_odmr_double(freq, rabi_freq, baseline, contrast_1, contrast_2, freq_1, freq_2):
     """
     Pulsed ODMR signal with two resonances
@@ -322,6 +324,7 @@ def pulsed_odmr_double(freq, rabi_freq, baseline, contrast_1, contrast_2, freq_1
     func_1 = baseline*contrast_1*ratio_1*np.square(np.sin(np.pi/2*np.sqrt(ratio_1)))
     func_2 = baseline*contrast_2*ratio_2*np.square(np.sin(np.pi/2*np.sqrt(ratio_2)))
     return baseline - func_1 - func_2
+
 
 def pulsed_odmr_single(freq, rabi_freq, baseline, contrast_1, freq_1):
     """

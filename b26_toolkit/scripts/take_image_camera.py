@@ -15,9 +15,7 @@ class TakeImage(Script):
     ]
 
     _INSTRUMENTS = {'Camera': UEyeCamera}
-
     _SCRIPTS = {}
-
 
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """

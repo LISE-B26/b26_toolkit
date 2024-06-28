@@ -19,14 +19,14 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 from collections import deque
 import numpy as np
 import time
-from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.core import Script, Parameter
+from b26_toolkit.plotting.plots_1d import plot_psd
 from b26_toolkit.instruments import ZIHF2
 
 
 class ZISweeper(Script):
     """
-This script performs a frequency sweep with the Zurich Instrument HF2 Series Lock-in amplifier
+    This script performs a frequency sweep with the Zurich Instrument HF2 Series Lock-in amplifier
     """
     _DEFAULT_SETTINGS = [
         Parameter('start', 1.8e6, float, 'start value of sweep'),

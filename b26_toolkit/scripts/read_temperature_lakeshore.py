@@ -17,18 +17,16 @@
 """
 
 import numpy as np
-from matplotlib import patches
-
-from b26_toolkit.instruments import LakeShore211
-from pylabcontrol.core import Script, Parameter
 from collections import deque
 import time
-
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.instruments import LakeShore211
 from b26_toolkit.plotting.plots_1d import plot_temperature
+
 
 class ReadTemperatureLakeshore211(Script):
     """
-This script reads the temperature from the Lakeshore controller.
+    This script reads the temperature from the Lakeshore controller.
     """
 
     _DEFAULT_SETTINGS = [

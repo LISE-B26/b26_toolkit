@@ -16,25 +16,18 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import time
-
 import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
 import time
-from b26_toolkit.instruments import NI9263, NI6259
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.data_processing.fit_functions import fit_cose_parameter, cose
+from b26_toolkit.instruments import NI9263, NI6259
 from b26_toolkit.instruments.ni_daq import int_to_voltage, voltage_to_int
-from b26_toolkit.instruments import MaestroLightControl
-import datetime
 
 
 class Ni9263_BalancePolarization(Script):
     """
-Ni9263_BalancePolarization:
-script to balance photodetector to zero by adjusting polarization controller voltages
- uses the Ni9263 as output and the NI DAQ as input
+    Ni9263_BalancePolarization:
+    script to balance photodetector to zero by adjusting polarization controller voltages
+    uses the Ni9263 as output and the NI DAQ as input
     """
 
     _DEFAULT_SETTINGS = [

@@ -1,12 +1,8 @@
-from pylabcontrol.core import Script, Parameter
-
-# import standard libraries
 import numpy as np
-from b26_toolkit.instruments import MicrowaveGenerator, NI6259
-from collections import deque
 import time
-# from b26_toolkit.pylabcontrol.plotting.plots_1d import plot_esr
-# from b26_toolkit.pylabcontrol.data_processing.esr_signal_processing import fit_esr
+from collections import deque
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.instruments import MicrowaveGenerator, NI6259
 
 class EsrTwoFreqContinuous(Script):
     """
@@ -137,16 +133,15 @@ class EsrTwoFreqContinuous(Script):
         contrast = 100.*(data[1] - data[0])/(data[0] + data[1])
 
         axes_list[0].plot(contrast, 'b')
-        axes_list[0].plot([0,max_points],[0,0],'k-')
+        axes_list[0].plot([0,max_points], [0, 0], 'k-')
         axes_list[0].set_title('contrast')
         axes_list[1].plot(data[0], 'r')
         axes_list[1].plot(data[1], 'b')
         axes_list[1].set_title('esr from each freq. (1=r), (2=b)')
-        axes_list[0].set_xlabel('time (arb units)')
-        axes_list[1].set_xlabel('time (arb units)')
-        axes_list[1].set_ylabel('kCounts/s')
-        axes_list[0].set_ylabel('contrast (%)')
-
+        axes_list[0].set_xlabel('time [a.u.]')
+        axes_list[1].set_xlabel('time [a.u.]')
+        axes_list[1].set_ylabel('[kCt/s]')
+        axes_list[0].set_ylabel('contrast [%]')
 
     def _update_plot(self, axes_list, data = None):
         if data is None:
@@ -160,7 +155,7 @@ class EsrTwoFreqContinuous(Script):
         axes_list[0].relim()
         axes_list[0].autoscale_view()
 
-        axes_list[1].lines[0].set_xdata(list(range(0,len(data[0]))))
+        axes_list[1].lines[0].set_xdata(list(range(0, len(data[0]))))
         axes_list[1].lines[0].set_ydata(data[0])
         axes_list[1].lines[1].set_xdata(list(range(0, len(data[1]))))
         axes_list[1].lines[1].set_ydata(data[1])

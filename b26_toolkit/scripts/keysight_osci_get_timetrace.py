@@ -19,24 +19,14 @@
 from b26_toolkit.instruments import Oscilloscope
 from pylabcontrol.core import Script
 import numpy as np
-
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
+
 
 class KeysightOsciGetTimeTrace(Script):
     # COMMENT_ME
 
-    _DEFAULT_SETTINGS = [
-        # Parameter('start_frequency', 2.7e9, float, 'start frequency of spectrum'),
-        # Parameter('stop_frequency', 3e9, float, 'end frequency of spectrum'),
-        # Parameter('output_power',0.0, float, 'output power (dBm)'),
-        # Parameter('output_on',True, bool, 'enable output'),
-    ]
-
-    _INSTRUMENTS = {
-        'osci' : Oscilloscope
-    }
-
-
+    _DEFAULT_SETTINGS = []
+    _INSTRUMENTS = {'osci': Oscilloscope}
     _SCRIPTS = {}
 
     def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
@@ -54,8 +44,6 @@ class KeysightOsciGetTimeTrace(Script):
         will be overwritten in the __init__
         """
 
-
-
         instrument = self.instruments['osci']['instance']
         settings = self.instruments['osci']['settings']
 
@@ -66,8 +54,6 @@ class KeysightOsciGetTimeTrace(Script):
 
         self.data = {'voltage': trace, 'meta_data': preamble}
         print('acquired spectrum')
-
-
 
     def _plot(self, axes_list, data = None):
         '''
@@ -101,24 +87,11 @@ class KeysightOsciGetTimeTrace(Script):
             axes_list[1].set_yscale("log")
 
 
-
-
 if __name__ == '__main__':
     from pylabcontrol.core import Instrument
-    # from b26_toolkit.pylabcontrol.instruments import NI7845RMain
-    #
-    # fpga = NI7845RMain()
-    #
-    #
-    # g = GalvoScanFPGA(instruments={'NI7845RMain':fpga}, name='test_fpga_scan', settings=None, log_function=None, data_path=None)
-    # print(fpga)
-
-
-    # instruments, failed =  Instrument.load_and_append(instrument_dict ={'NI7845RMain': 'NI7845RMain'}, raise_errors=True )
 
     script, failed, instruments = Script.load_and_append(script_dict={'GalvoScanFPGA': 'GalvoScanFPGA'}, raise_errors=True)
-    #
+
     print(script)
     print(failed)
-    # # print(instruments)
 

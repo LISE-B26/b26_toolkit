@@ -1,29 +1,28 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter, FuncFormatter
+from matplotlib.ticker import FuncFormatter
 
 # todo: delete plot_fluorescence and refactor plot_fluorescence_new to plot_fluorescence
 def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, max_counts=-1, axes_colorbar=None,
                       labels = None):
     """
-
     Args:
         image_data: 2D - array
         extent: vector of length 4, i.e. [x_min, x_max, y_max, y_min]
@@ -35,7 +34,7 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
     """
     fig = axes_image.get_figure()
     if labels is None:
-        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
+        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', '[kCt/s]']
 
     if axes_colorbar is None:
         # try to figure out if there is a axis for the colorbar
@@ -55,10 +54,6 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
         axes_image.set_xlabel(x_label)
         axes_image.set_ylabel(y_label)
         axes_image.set_title(title)
-
-        #axes_image.set_xlabel(r'V$_x$ [V]')
-        #axes_image.set_ylabel(r'V$_y$ [V]')
-        #axes_image.set_title('Confocal Image')
     else:
         implot.set_data(image_data)
 
@@ -77,7 +72,6 @@ def plot_fluorescence(image_data, extent, axes_image, implot=None, cbar=None, ma
 
     return implot, cbar
 
-
 def update_fluorescence(image_data, axes_image, max_counts = -1):
     """
     updates a the data in a fluorescence  plot. This is more efficient than replotting from scratch
@@ -86,7 +80,6 @@ def update_fluorescence(image_data, axes_image, max_counts = -1):
         axes_image: axes object on which to plot
         implot: reference to image plot
     Returns:
-
     """
 
     if max_counts >= 0:
@@ -133,7 +126,7 @@ def plot_fluorescence_new(image_data, extent, axes_image, max_counts=-1, colorba
         image_data = np.clip(image_data, -1, max_counts)
 
     if labels is None:
-        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', 'kcounts/sec']
+        labels = ['Confocal Image', r'V$_x$ [V]', r'V$_y$ [V]', '[kCt/s]']
 
     if len(image_data[0]) == 1 or len(image_data) == 1:
         extra_x_extent, extra_y_extent = 0, 0
@@ -226,10 +219,10 @@ def plot_fluorescence_pos(image_data, extent, axes_image, max_counts = -1, color
         implot.autoscale()
 
     if colorbar is None:
-        colorbar = fig.colorbar(implot, label='kcounts/sec')
+        colorbar = fig.colorbar(implot, label='[kCt/s]')
         colorbar.set_ticks(colorbar_labels)
         colorbar.mappable.set_clim(colorbar_min, colorbar_max)
     else:
-        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='kcounts/sec')
+        colorbar = fig.colorbar(implot, cax=colorbar.ax, label='[kCt/s]')
         colorbar.set_ticks(colorbar_labels)
         colorbar.mappable.set_clim(colorbar_min, colorbar_max)

@@ -14,9 +14,6 @@ class GalvoScanZi3D(Script):
     _INSTRUMENTS = {'z_driver': SMC100}
 
     def __init__(self, scripts, instruments = None, name = None, settings = None, log_function = None, data_path = None):
-        """
-
-        """
         Script.__init__(self, name, settings, instruments, scripts, log_function= log_function, data_path = data_path)
 
     def _function(self):
@@ -29,7 +26,6 @@ class GalvoScanZi3D(Script):
             print(('zpos', z_pos))
             self._step_piezo(z_pos)
             self.scripts['galvoscanZI'].run()
-
 
     def _step_piezo(self, position):
         """

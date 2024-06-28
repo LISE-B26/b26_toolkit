@@ -186,7 +186,6 @@ class AttoLineScanPulsedEsr(AttoLineScanGeneric):
         # Copy over settings from PulsedEsrFaster to UpperLower script
         for key in self.scripts['PulsedEsrFaster'].settings.keys():
             if key in self.scripts['PulsedEsrUpperLower'].settings.keys() and key != 'tag':
-                print(key)
                 self.scripts['PulsedEsrUpperLower'].settings[key] = self.scripts['PulsedEsrFaster'].settings[key]
 
     def move_piezo(self, voltage):

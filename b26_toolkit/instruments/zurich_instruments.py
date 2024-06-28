@@ -1,28 +1,26 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pylabcontrol.core import Instrument, Parameter
 import numpy as np
 from zhinst.toolkit import Session
+from pylabcontrol.core import Instrument, Parameter
 
 
-# =============== ZURCIH INSTRUMENTS =======================
-# ==========================================================
 class ZIHF2(Instrument):
     """
 instrument class to control the Zurich instrument lockin-amplifier
@@ -280,9 +278,6 @@ class Hf2Li(Instrument):
 
     _PROBES = {}
 
-    '''
-    instrument class to talk to Zurich instrument HF2 lock in amplifier
-    '''
     def __init__(self, name=None, settings=None):
         super(Hf2Li, self).__init__(name, settings)
         self.session = Session(self.settings['ip_address'], self.settings['port'], hf2=True)
@@ -293,13 +288,12 @@ class Hf2Li(Instrument):
             self._is_connected = True
         self.update(self.settings)
 
-
     def update(self, settings):
-        '''
+        """
         updates the internal dictionary and sends changed values to instrument
         Args:
             commands: parameters to be set
-        '''
+        """
         # call the update_parameter_list to update the parameter list
         super(Hf2Li, self).update(settings)
 
@@ -325,7 +319,4 @@ class Hf2Li(Instrument):
 
 if __name__ == '__main__':
     zi = Hf2Li()
-    # zi.settings['demods']['0']['enable'] = True
-    # zi.settings['demods']['0']['oscselect'] = 2
-    # # zi.update({'demods': {'0': {'enable': True}}})
-    # # zi.update({'demods': {'0': {'oscselect': 4}}})
+

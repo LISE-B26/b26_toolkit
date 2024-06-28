@@ -1,27 +1,27 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import time
 import numpy as np
 from matplotlib import patches
-
-from b26_toolkit.instruments import NI6259, NI9263, PiezoController, NI9263_02, ANC300
 from pylabcontrol.core import Script, Parameter
-import time
+from b26_toolkit.instruments import NI6259, NI9263, PiezoController, NI9263_02, ANC300
+
 
 class SetLaser(Script):
     """
@@ -79,23 +79,11 @@ class SetLaser(Script):
 
         self._setup_daq()
 
-        t_start = time.time()
         task = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], pt)
         self.daq_out.run(task)
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
         self.log('laser set to Vx={:.4f}, Vy={:.4f}'.format(self.settings['point']['x'], self.settings['point']['y']))
-        print(time.time()-t_start)
-
-
-        # if self.settings['daq_type'] == 'PCI':
-        #     self.daq_out = self.instruments['NI6259']['instance']
-        # elif self.settings['daq_type'] == 'cDAQ':
-        #     if 'NI9263' in self.instruments:
-        #         self.daq_out = self.instruments['NI9263']['instance']
-        #     elif 'NI9263_02' in self.instruments:
-        #         print('using ni9263_02')
-        #         self.daq_out = self.instruments['NI9263_02']['instance']
 
     def scale(self):
         return 1
@@ -130,7 +118,9 @@ class SetLaser(Script):
             galvo_position = []
 
         return galvo_position
+
     #must be passed figure with galvo plot on first axis
+
     def plot(self, figure_list):
         axes_Image = figure_list[0].axes[0]
 
@@ -138,8 +128,6 @@ class SetLaser(Script):
         [child.remove() for child in axes_Image.get_children() if isinstance(child, patches.Circle)]
         xticks = axes_Image.get_xticks()
         radius = (xticks[-1]-xticks[0])*0.01
-
-
         patch = patches.Circle((self.settings['point']['x'], self.settings['point']['y']), radius, fc='r', alpha = .8)
         axes_Image.add_patch(patch)
 
@@ -155,9 +143,9 @@ class SetLaser_cDAQ(SetLaser):
                    Parameter('y', 0, float, 'y-coordinate')
                    ]),
         Parameter('DAQ_channels',
-            [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
-            Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
-            ])
+                  [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
+                   ])
     ]
 
     _INSTRUMENTS = {'daq_out':  NI9263}
@@ -215,7 +203,6 @@ class SetAttoPiezoController(SetLaser):
 
     def scale(self):
         voltage_limit = int(self.instruments['piezo_controller']['instance'].read_probes('voltage_limit'))
-        #print(voltage_limit)
         if voltage_limit == 75:
             scale = 7.5
         elif voltage_limit == 100:
@@ -236,6 +223,7 @@ class SetAtto(SetAttoPiezoController):
     Sets the voltages sent by the DAQ analog outputs to an Attocube controller. Basically same as SetLaser, but this script
     also requires the Attocube controller instrument to configure its outputs (e.g. enable DC input mode to accept DAQ voltages)
      """
+
     _DEFAULT_SETTINGS = [
         Parameter('point',
                   [Parameter('x', 0., float, 'x-coordinate'),
@@ -250,6 +238,7 @@ class SetAtto(SetAttoPiezoController):
                    ]),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
+
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9263': NI9263, 'ANC300': ANC300}
 
     def scale(self):
@@ -274,8 +263,6 @@ class SetAtto(SetAttoPiezoController):
             self.daq_out.waitToFinish(task)
             self.daq_out.stop(task)
             self.log('laser set to Vx={:.4}, Vy={:.4}'.format(float(x), float(y)))
-
-
 
         if self.settings['zero_first']:
             set_ao(0, 0)
@@ -306,9 +293,9 @@ class SetLaserSingleAxis(SetLaser):
         Parameter('point', 0, float, 'voltage (V)'),
         Parameter('axis', 'x', ['x', 'y'], 'galvo axis'),
         Parameter('DAQ_channels',
-            [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
-            Parameter('y_ao_channel', 'ao1', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
-            ]),
+                  [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao1', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
+                   ]),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
@@ -353,9 +340,9 @@ class SetAttoSingleAxis(SetAtto):
         Parameter('axis', 'x', ['x', 'y'], 'Attocube axis'),
         Parameter('zero_first', False, bool, 'Zero piezo inputs before moving to setpoint, to avoid hysteresis effects'),
         Parameter('DAQ_channels',
-            [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
-            Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
-            ]),
+                  [Parameter('x_ao_channel', 'ao2', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
+                   Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output')
+                   ]),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'Type of daq to use for scan')
     ]
 
@@ -376,7 +363,6 @@ class SetAttoSingleAxis(SetAtto):
             self._setup_daq()
             channel_dict = {'x': self.settings['DAQ_channels']['x_ao_channel'], 'y': self.settings['DAQ_channels']['y_ao_channel']}
             task = self.daq_out.setup_AO([channel_dict[self.settings['axis']]], [pt])
-            #task = self.daq_out.setup_AO([self.settings['DAQ_channels']['x_ao_channel'], self.settings['DAQ_channels']['y_ao_channel']], [pt])
             self.daq_out.run(task)
             self.daq_out.waitToFinish(task)
             self.daq_out.stop(task)

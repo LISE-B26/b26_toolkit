@@ -17,12 +17,9 @@
 """
 
 import time
-from collections import deque
 import numpy as np
-from copy import deepcopy
-
 from b26_toolkit.instruments import NI6259, NI9402, NI9219
-from b26_toolkit.plotting.plots_1d import plot_counts, update_counts,  plot_psd
+from b26_toolkit.plotting.plots_1d import plot_counts, update_counts,  plot_psd, plot_1d_simple_timetrace
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
 
@@ -42,10 +39,7 @@ class DaqReadCounterTimeTrace(Script):
     ]
 
     _INSTRUMENTS = {'NI6259':  NI6259, 'NI9402': NI9402}
-
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -59,12 +53,9 @@ class DaqReadCounterTimeTrace(Script):
 
         self.data = {'counts': []}
 
-
     def get_daq_task(self, number_of_samples):
-
         # initialize APD thread
-        ctrtask = self.daq.setup_counter(
-            self.settings['counter_channel'], number_of_samples + 1)
+        ctrtask = self.daq.setup_counter(self.settings['counter_channel'], number_of_samples + 1)
         return ctrtask
 
     def _function(self):
@@ -78,9 +69,7 @@ class DaqReadCounterTimeTrace(Script):
         elif self.settings['daq_type'] == 'cDAQ':
             self.daq = self.instruments['NI9402']['instance']
 
-
         sample_rate = float(1) / self.settings['integration_time']
-        # normalization = self.settings['integration_time']/.001
         self.daq.settings['digital_input'][self.settings['counter_channel']]['sample_rate'] = sample_rate
 
         # maximum number of samples if total_int_time > 0
@@ -104,9 +93,7 @@ class DaqReadCounterTimeTrace(Script):
         else:
             time_divisions = 100
 
-        print(time_divisions)
         for t in range(int(time_divisions)):
-            print(self.settings['total_int_time']/time_divisions)
             time.sleep(self.settings['total_int_time']/time_divisions)
             self.progress = float(t)/time_divisions*100
             self.updateProgress.emit(self.progress)
@@ -121,15 +108,15 @@ class DaqReadCounterTimeTrace(Script):
     def plot(self, figure_list):
         super(DaqReadCounterTimeTrace, self).plot(figure_list)
 
-    def _plot(self, axes_list, data = None):
+    def _plot(self, axes_list, data=None):
         # COMMENT_ME
-
         if data is None:
             data = self.data
 
-
-        if len(data['counts'])>0:
-            plot_counts(axes_list[0], data['counts'])
+        t = np.arange(0, len(data['counts']))*self.settings['integration_time']
+        if len(data['counts']) > 0:
+            # plot_counts(axes_list[0], data['counts'])
+            plot_1d_simple_timetrace(axes_list[0], t, [data['counts']], time_unit='s')
             freq, psd = power_spectral_density(data['counts'], self.settings['integration_time'])
             plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
 
@@ -137,7 +124,6 @@ class DaqReadCounterTimeTrace(Script):
         pass
         if self.data and 1 != 1:
             axis_timetrace, axis_fft = axes_list
-
             update_counts(axes_list[0], self.data['counts'])
 
 
@@ -304,10 +290,7 @@ class DaqTimeTraceNi9402Ni9219(Script):
     ]
 
     _INSTRUMENTS = {'daq_ai': NI9219, 'daq_counter': NI9402}
-
-    _SCRIPTS = {
-
-    }
+    _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -325,7 +308,7 @@ class DaqTimeTraceNi9402Ni9219(Script):
         """
         setup the tasks and return a list of tasks
 
-        be carefull to return the right order of tasks!
+        be careful to return the right order of tasks!
 
         Args:
             number_of_samples:
@@ -334,24 +317,19 @@ class DaqTimeTraceNi9402Ni9219(Script):
 
         """
 
-
         daq_counter = self.instruments['daq_counter']['instance']
         # initialize APD thread
-        ctrtask = daq_counter.setup_counter(
-            self.settings['counter_channel'], number_of_samples + 1,
-            continuous_acquisition=False
-        )
-
+        ctrtask = daq_counter.setup_counter(self.settings['counter_channel'], number_of_samples + 1,continuous_acquisition=False)
         daq_ai = self.instruments['daq_ai']['instance']
         aitask = daq_ai.setup_AI(self.settings['ai_channel'], number_of_samples,
-                                      continuous=False, # continuous sampling still reads every clock tick, here set to the clock of the counter
+                                      continuous=False,  # continuous sampling still reads every clock tick, here set to the clock of the counter
                                       clk_source=ctrtask)
 
         return [[daq_ai, aitask], [daq_counter, ctrtask]]
 
     def setup_daq(self, sample_rate):
         """
-        Here we set up the daqs that we need,
+        Here we set up the daqs that we need
 
         Returns:
 
@@ -359,7 +337,6 @@ class DaqTimeTraceNi9402Ni9219(Script):
         daq_counter = self.instruments['daq_counter']['instance']
 
         counter_channel = self.settings['counter_channel']
-
 
         daq_counter.settings['digital_input'][counter_channel]['sample_rate'] = sample_rate
 
@@ -380,20 +357,15 @@ class DaqTimeTraceNi9402Ni9219(Script):
                     raise KeyError('unknown daq type in read_daq_data()')
 
         return data
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
         will be overwritten in the __init__
         """
 
-        # if self.settings['daq_type'] == 'PCI':
-        #     self.daq = self.instruments['NI6259']['instance']
-        # elif self.settings['daq_type'] == 'cDAQ':
-        #     self.daq = self.instruments['NI9402']['instance']
-
         sample_rate = float(1) / self.settings['integration_time']
         self.setup_daq(sample_rate)
-
 
         # maximum number of samples if total_int_time > 0
         if self.settings['acquisition_time'] > 0:
@@ -425,7 +397,6 @@ class DaqTimeTraceNi9402Ni9219(Script):
 
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
-
         if data is None:
             data = self.data
 
@@ -434,24 +405,12 @@ class DaqTimeTraceNi9402Ni9219(Script):
         else:
             plotting_data = data['ai']
 
-
-        for signal in [plotting_data]: #ER 20190130
+        for signal in [plotting_data]:
             if len(signal) > 0:
-                # 20191105 ER get rid of normalization
-                #plot_counts(axes_list[0], signal/np.mean(signal))
                 plot_counts(axes_list[0], signal)
-                #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
                 freq, psd = power_spectral_density(signal, self.settings['integration_time'])
 
-               # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
                 plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
-
-
-    # def _update_plot(self, axes_list):
-    #     if self.data:
-    #         axis_timetrace, axis_fft = axes_list
-    #
-    #         update_counts(axes_list[0], self.data['counts'])
 
 
 class DaqTimeTraceNi6259(DaqTimeTraceNi9402Ni9219):
@@ -460,40 +419,23 @@ class DaqTimeTraceNi6259(DaqTimeTraceNi9402Ni9219):
 
 class DaqTimeTraceNi6259Pd(DaqTimeTraceNi9402Ni9219): # ER 20200731
 
-    '''
-
-
+    """
     Daq timetrace for NI6259 - plots both the counter APD data and the photodiode AI data.
-
-    '''
+    """
 
     _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
 
     def _plot(self, axes_list, data=None):
         # COMMENT_ME
-
         if data is None:
             data = self.data
 
-        # for signal in [data['counts']]: #, data['ai']]: ER 20190130
-        #     if len(signal) > 0:
-        #         # 20191105 ER get rid of normalization
-        #         #plot_counts(axes_list[0], signal/np.mean(signal))
-        #         plot_counts(axes_list[0], signal)
-        #         #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
-        #         freq, psd = power_spectral_density(signal, self.settings['integration_time'])
-        #        # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
-        #         plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin') # remove dc component ER 20190129
-
         for signal in data['ai']:
             if len(signal) > 0:
-                # 20191105 ER get rid of normalization
-                #plot_counts(axes_list[0], signal/np.mean(signal))
                 plot_counts(axes_list[0], signal)
-                #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
                 freq, psd = power_spectral_density(signal, self.settings['integration_time'])
-               # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
                 plot_psd(freq[1:], psd[1:], axes_list[1], y_scaling='log', x_scaling='lin', color='r') # remove dc component ER 20190129
+
 
 # if __name__ == '__main__':
 #     script = {}

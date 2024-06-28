@@ -19,8 +19,7 @@
 import time
 from collections import deque
 import numpy as np
-
-from b26_toolkit.instruments import NI6259, NI9215, B26PulseBlaster
+from b26_toolkit.instruments import NI6259, NI9215
 from b26_toolkit.plotting.plots_1d import plot_voltage
 from pylabcontrol.core import Parameter, Script
 

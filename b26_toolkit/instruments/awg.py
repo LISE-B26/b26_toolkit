@@ -1,32 +1,30 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import visa, time
+import visa
 import pyvisa.errors
 import numpy as np
 from pylabcontrol.core import Parameter, Instrument
 from b26_toolkit.instruments import Pulse
 
-
 # RANGE_MIN = 2025000000 #2.025 GHz
 RANGE_MIN = -3.4/2-0.1 # V, minimum voltage for the SRS IQ (should be -1, but we now have attenuators)
 RANGE_MAX = 3.4/2+0.1 #V, maximum voltage for the SRS IQ (should be +1, but we now have attenuators)
-
 RANGE_MAX = 10. #Vpp, maximum power for the SRS IQ
 
 FUNC_TYPE_TO_INTERNAL = {
@@ -43,22 +41,18 @@ FUNC_TYPE_TO_INTERNAL = {
     'Haversine': 'HAV'
 }
 
+
 class AFG3022C(Instrument):
     """
     This class implements the Tektronix AFG3022C. The class commuicates with the
     device over GPIB using pyvisa.
-
     It seems like pylabcontrol doesn't like nested instrument settings, so I flattened everything like in Grozny
     """
 
     _DEFAULT_SETTINGS = Parameter([
-      #  Parameter('connection_type', 'GPIB', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        #Parameter('port', 11, list(range(0,31)), 'GPIB port on which to connect'),
         Parameter('USB_num', 0, int, 'GPIB device on which to connect'),
-
         # if a non-arb function is selected, program properties of the waveform
         # NOTE: needed for pulses too
-
         Parameter('ch1_enable', False, bool, 'enable output CH1'),
         Parameter('ch1_function', 'DC',
                   ['Sine', 'Square', 'Ramp', 'Pulse', 'Arb', 'Sin(x)/x', 'Noise', 'DC', 'Gaussian', 'Lorentz',
@@ -103,12 +97,9 @@ class AFG3022C(Instrument):
     SIGNAL_MAX = 16382
     POINTS_MAX = 131027
 
-
     def __init__(self, name=None, settings=None):
 
         super().__init__(name, settings)
-
-        #===========================================
         # Issue where visa.ResourceManager() takes 4 minutes no longer happens after using pdb to debug (??? not sure why???)
         try:
             self._connect()
@@ -116,18 +107,13 @@ class AFG3022C(Instrument):
             print('No AWG Detected!. Check that you are using the correct communication type')
             raise
         except Exception as e:
-            raise(e)
-        #===========================================
-
-        #self.update(self.settings)
+            raise e
 
     def _connect(self):
         rm = visa.ResourceManager()
         self.afg = rm.open_resource(
             '::'.join(['USB' + str(self.settings['USB_num']), self.MANUFACTURER_ID, self.MODEL_CODE, self.SERIAL_NUMBER, 'INSTR']))
         self.afg.query('*IDN?')
-        #self.afg.write('SOUR2:FREQ:MODE CW')
-        #self.afg.write('SOUR1:FREQ:MODE CW')
         self.afg.write('SOUR2:VOLT:UNIT VPP')
         self.afg.write('SOUR1:VOLT:UNIT VPP')
 
@@ -144,7 +130,6 @@ class AFG3022C(Instrument):
             settings: a dictionary in the standard settings format
         """
         super(AFG3022C, self).update(settings)
-        # ===========================================
         for key, value in settings.items():
             if key != 'USB_num':
                 channel = key[2]
@@ -212,7 +197,7 @@ class AFG3022C(Instrument):
 
     @property
     def _PROBES(self):
-        return{
+        return {
             'ch1_enable':'enable output CH1',
             'ch1_function': 'function CH1',
             'ch1_run_mode': 'run mode of CH1',
@@ -337,9 +322,7 @@ class AFG3022C(Instrument):
             param: settings parameter, ex. enable_output
 
         Returns: GPIB command, ex. ENBR
-
         """
-        #print(param)
         if param == 'enable':
             if channel == 1:
                 return 'OUTP1:STAT'

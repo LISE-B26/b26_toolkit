@@ -16,20 +16,14 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import numpy as np
-from matplotlib import patches
-
 from b26_toolkit.instruments import ZIHF2
 from pylabcontrol.core import Script, Parameter
 import time
 
+
 class SetZIOutput(Script):
     """
-
-This script sets the ZI frequency, channel, amplitude, and offset, as well as turns the output on.
-
-ER 20181120
-
+    This script sets the ZI frequency, channel, amplitude, and offset, as well as turns the output on.
     """
 
     _DEFAULT_SETTINGS = [
@@ -45,9 +39,7 @@ ER 20181120
     ]
 
     _INSTRUMENTS = {'ZI': ZIHF2}
-
     _SCRIPTS = {}
-
 
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """
@@ -57,7 +49,6 @@ ER 20181120
             settings (optional): settings for this script, if empty same as default settings
         """
         Script.__init__(self, name, settings = settings, instruments = instruments, scripts = scripts, log_function= log_function, data_path = data_path)
-
 
     def _function(self):
         """

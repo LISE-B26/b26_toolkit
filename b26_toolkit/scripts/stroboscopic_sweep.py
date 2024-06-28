@@ -1,23 +1,6 @@
-# """
-#     This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-#     Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
-#
-#     b26_toolkit is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
-#
-#     b26_toolkit is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
-#
-#     You should have received a copy of the GNU General Public License
-#     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
-# """
-
 import numpy as np
-import time, random
+import time
+import random
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.instruments import NI6259, NI9402, AFG3021C
 
@@ -332,7 +315,7 @@ class StroboscopicSweep(Script):
 
         axis.set_title(title)
         axis.set_xlabel('Frequency (Hz)')
-        axis.set_ylabel('(Kcounts/s)^2')
+        axis.set_ylabel('(kCt/s)^2')
 
     def get_axes_layout(self, figure_list):
         """

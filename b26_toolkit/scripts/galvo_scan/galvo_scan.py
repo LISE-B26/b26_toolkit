@@ -1,31 +1,28 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
 import time
-
+from pylabcontrol.core import Parameter, Script
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from b26_toolkit.scripts.daq_read_counter_timetrace import DaqTimeTraceNi6259
 from b26_toolkit.scripts.set_laser import SetLaser
-from pylabcontrol.core import Parameter, Script
-from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-
 
 class GalvoScan(GalvoScanGeneric):
     """
@@ -62,7 +59,6 @@ class GalvoScan(GalvoScanGeneric):
     ]
 
     _INSTRUMENTS = {'NI6259':  NI6259, 'NI9263': NI9263, 'NI9402': NI9402}
-
     _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
@@ -83,18 +79,10 @@ class GalvoScan(GalvoScanGeneric):
         device_list = NI6259.get_connected_devices()
         if not (self.instruments['NI6259']['instance'].settings['device'] in device_list):
             self.settings['daq_type'] = 'cDAQ'
-        # # defines which daqs contain the input and output based on user selection of daq interface
-        # if self.settings['daq_type'] == 'PCI':
-        #     self.daq_in = self.instruments['NI6259']['instance']
-        #     self.daq_out = self.instruments['NI6259']['instance']
-        # elif self.settings['daq_type'] == 'cDAQ':
-        #     self.daq_in = self.instruments['NI9402']['instance']
-        #     self.daq_out = self.instruments['NI9263']['instance']
 
     def setup_scan(self):
         """
         setup the scan, i.e. identify the instruments and set up sample rate and such
-
 
         :return:
         """
@@ -268,7 +256,6 @@ class GalvoScanTimetrace(GalvoScanGeneric):
     ]
 
     _INSTRUMENTS = {}
-
     _SCRIPTS = {'Daq_timetrace': DaqTimeTraceNi6259, 'SetLaser': SetLaser}
 
     def __init__(self, name=None, settings=None, instruments=None, scripts=None, log_function=None, data_path=None):

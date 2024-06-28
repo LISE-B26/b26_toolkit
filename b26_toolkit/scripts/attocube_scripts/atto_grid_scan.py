@@ -32,6 +32,7 @@ from b26_toolkit.plotting.plots_1d import plot_1d_simple_freq
 from b26_toolkit.scripts.set_laser import SetAtto
 from b26_toolkit.data_analysis.nv_optical_response import B_field_from_esr
 
+nv_gyro = 2.8025e6
 
 class AttoGridScanGeneric(Script):
 
@@ -48,7 +49,7 @@ class AttoGridScanGeneric(Script):
                   [Parameter('x', 1.0, float, 'x-coordinate'),
                    Parameter('y', 1.0, float, 'y-coordinate')
                    ]),
-        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+        Parameter('RoI_mode', 'corner', ['corner', 'center'], 'mode to calculate region of interest.\n \
                                                corner: pta and ptb are diagonal corners of rectangle.\n \
                                                center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
@@ -84,9 +85,7 @@ class AttoGridScanGeneric(Script):
         else:
             self.linescan_axis = '2d'
 
-        self.data = {'point_value': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
-                     'extent': self.pts_to_extent(self.settings['point_a'], self.settings['point_b'],
-                                                 self.settings['RoI_mode'])}
+        self._initialize_data()  # Initialize self.data
 
         [xVmin, xVmax, yVmax, yVmin] = self.data['extent']
         if self.linescan_axis == 'x' and self.settings['RoI_mode'] == 'corner' and self.settings['point_a']['x'] > self.settings['point_b']['x']:
@@ -94,7 +93,6 @@ class AttoGridScanGeneric(Script):
         elif self.linescan_axis == 'y' and self.settings['RoI_mode'] == 'corner' and self.settings['point_a']['y'] > self.settings['point_b']['y']:
             yVmin, yVmax = self.settings['point_a']['y'], self.settings['point_b']['y']
 
-        print([xVmin, xVmax, yVmax, yVmin])
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
         self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
 
@@ -116,7 +114,6 @@ class AttoGridScanGeneric(Script):
         for yNum in range(0, Ny):
             self.move_piezo(0, self.y_array[yNum], direction='y')
             for xNum in xNum_array:
-                print(xNum_array)
                 if self._abort:
                     break
 
@@ -127,7 +124,7 @@ class AttoGridScanGeneric(Script):
                 self.progress = float(yNum * Nx + xNum) / (Nx * Ny) * 100
                 self.updateProgress.emit(int(self.progress))
                 self.point_index += 1
-                if 'tracking' in self.settings:
+                if 'Tracking' in self.settings:
                     if self.settings['Tracking']['on/off'] and int(self.point_index) % self.settings['Tracking']['every_N'] == 0:
                         self.scripts['find_nv'].run(verbose=False)
 
@@ -136,13 +133,11 @@ class AttoGridScanGeneric(Script):
                         self.move_piezo(self.x_array[xNum], self.y_array[yNum])
                         time.sleep(.5)
 
-                point_value = self.read_point()
+                point_value = self.read_point(yNum, xNum)
                 self.data['point_value'][yNum, xNum] = point_value
 
                 pixels_completed += 1
-                print(pixels_completed)
                 self.progress = float(pixels_completed) / (Nx * Ny) * 100
-                print(self.progress)
                 self.updateProgress.emit(int(self.progress))
 
             if 'scan_mode' in self.settings and self.settings['scan_mode'] == 'meander':
@@ -156,6 +151,10 @@ class AttoGridScanGeneric(Script):
         elif self.settings['ending_behavior'] == 'return_to_origin':
             self.move_piezo(0, 0)
 
+    def _initialize_data(self):
+        self.data = {'point_value': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
+                     'extent': self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode'])}
+
     def check_bounds(self):
         # Check if there are negative voltages in the scan range
         negative_voltage_err = 'Piezo voltage cannot be < 0 V'
@@ -167,7 +166,17 @@ class AttoGridScanGeneric(Script):
     def setup_scan(self):
         pass
 
-    def read_point(self):
+    def _read_point(self, yNum, xNum):
+        """
+        Wrapper function for read_point(). Normally just runs read_point(), but for things like gradient measurements, we can use
+        the wrapper function to run read_point with different parameters and extract a single value based on the multiple measurements
+        :param yNum: index number along y axis in the scan grid
+        :param xNum: index number along x axis in the scan grid
+        :return: None
+        """
+        return self.read_point(yNum, xNum)
+
+    def read_point(self, yNum, xNum):
         """
         Replace this with some data-taking script, e.g. read the counts (to perform a galvoscan with the attocubes
         instead) or take ESR (for a 2D scan of B field)
@@ -252,7 +261,7 @@ class AttoGridScanEsr(AttoGridScanGeneric):
                   [Parameter('x', 1.0, float, 'x-coordinate'),
                    Parameter('y', 1.0, float, 'y-coordinate')
                    ]),
-        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+        Parameter('RoI_mode', 'corner', ['corner', 'center'], 'mode to calculate region of interest.\n \
                                                    corner: pta and ptb are diagonal corners of rectangle.\n \
                                                    center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
@@ -269,31 +278,66 @@ class AttoGridScanEsr(AttoGridScanGeneric):
 
     _SCRIPTS = {'find_nv': FindNv, 'ESR_simple': EsrSimple, 'SetAttoANC300': SetAtto}
 
+    def _initialize_data(self):
+        self.data = {'point_value': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x'])),
+                     'extent': self.pts_to_extent(self.settings['point_a'], self.settings['point_b'], self.settings['RoI_mode']),
+                     'point_freq': np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))}
+        if 'measure_gradient' in self.settings and self.settings['measure_gradient']['enable']:
+            self.data['point_freq_2'] = np.zeros((self.settings['num_points']['y'], self.settings['num_points']['x']))
+
     def move_piezo(self, x, y, direction='both'):
         self.scripts['SetAttoANC300'].settings['point'].update({'x': float(x), 'y': float(y)})
         self.scripts['SetAttoANC300'].run()
-        time.sleep(.1)  # Wait for Find NV to settle
 
-        self.scripts['ESR_simple'].settings['tag'] = 'esr_simple_%.1f,%.1f' % (x, y)
-
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Take ESR (for a 2D scan of B field)
         Returns: measured value at given pt, with other data that won't be plotted
         """
+        self.scripts['ESR_simple'].settings['tag'] = 'esr_simple_%i,%i' % (yNum, xNum)
+
+        if self.settings['track_esr']:
+            if yNum == 0 and xNum == 0:
+                # For origin (where scan begins), simply use ESR subscript settings to set center freq
+                pass
+            elif xNum > 0:
+                # Center current ESR scan range around extracted frequency of the left adjacent (previous) point
+                predicted_freq = self.data['point_freq'][yNum][xNum - 1]
+                if predicted_freq != 0:
+                    print('Predicted freq: %.3e using pt: %i, %i' % (predicted_freq, yNum, xNum - 1))
+                    self.scripts['ESR_simple'].settings['range_type'] = 'center_range'
+                    self.scripts['ESR_simple'].settings['freq_start'] = float(predicted_freq)
+            elif xNum == 0:
+                # Center current ESR scan range around extracted frequency of the upper adjacent (previous) point
+                predicted_freq = self.data['point_freq'][yNum - 1][xNum]
+                if predicted_freq != 0:
+                    print('Predicted freq: %.3e using pt: %i, %i' % (predicted_freq, yNum - 1, xNum))
+                    self.scripts['ESR_simple'].settings['range_type'] = 'center_range'
+                    self.scripts['ESR_simple'].settings['freq_start'] = float(predicted_freq)
 
         self.scripts['ESR_simple'].run()
-        point_data = self.scripts['ESR_simple'].data['fit_params']
-        print(point_data)
-        if point_data is not None and len(point_data) == 6:
-            fp = point_data[5]
-            fn = point_data[4]
-            point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
-                                           gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
-            print(point_value)
-            print()
+
+        try:
+            point_data = self.scripts['ESR_simple'].data['fits']
+        except:
+            point_data = None
+
+        if point_data is not None:
+
+            if len(point_data) == 6:
+                fp = point_data[5]
+                fn = point_data[4]
+                self.data['point_freq'][yNum][xNum] = point_data[4]
+                point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
+                                               gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
+            elif len(point_data) == 4:
+                self.data['point_freq'][yNum][xNum] = point_data[3]
+                point_value = (point_data[3] - self.settings['zero_field_splitting']) / nv_gyro
         else:
+            self.data['point_freq'][yNum][xNum] = 0
             point_value = 0
+
+        return point_value
 
         return point_value
 
@@ -312,7 +356,7 @@ class AttoGridScanPulsedEsr(AttoGridScanEsr):
                   [Parameter('x', 1.0, float, 'x-coordinate'),
                    Parameter('y', 1.0, float, 'y-coordinate')
                    ]),
-        Parameter('RoI_mode', 'corner', ['corner'], 'mode to calculate region of interest.\n \
+        Parameter('RoI_mode', 'corner', ['corner', 'center'], 'mode to calculate region of interest.\n \
                                                    corner: pta and ptb are diagonal corners of rectangle.\n \
                                                    center: pta is center and pta is extend or rectangle'),
         Parameter('num_points',
@@ -320,6 +364,12 @@ class AttoGridScanPulsedEsr(AttoGridScanEsr):
                    Parameter('y', 5, int, 'number of y points to scan')
                    ]),
         Parameter('settle_time', 0.5, float, 'time (s) to wait after moving to a new point, before taking data'),
+        Parameter('track_esr', False, bool, 'center ESR scan around the frequency measured previously at a neighboring grid point'),
+        Parameter('measure_gradient', [
+            Parameter('enable', False, bool, 'measure field gradient by taking ESR at two Z values at each lateral grid point'),
+            Parameter('z1', 0, float, 'take first ESR at this Attocube Z voltage (V)'),
+            Parameter('z2', 0, float, 'take second ESR at this Attocube Z voltage (V)'),
+        ]),
         Parameter('Tracking', [
             Parameter('on/off', True, bool, 'used to turn on tracking'),
             Parameter('every_N', 1, int, 'track every n points')]),
@@ -327,40 +377,65 @@ class AttoGridScanPulsedEsr(AttoGridScanEsr):
                   'return to the corn')
     ]
 
-    _SCRIPTS = {'find_nv': FindNvStrobe, 'PulsedEsrFaster': PulsedEsrFast, 'SetAttoANC300': SetAtto}
+    _SCRIPTS = {'find_nv': FindNvStrobe, 'PulsedEsrFast': PulsedEsrFast, 'SetAttoANC300': SetAtto}
 
     def move_piezo(self, x, y, direction='both'):
         self.scripts['SetAttoANC300'].settings['point'].update({'x': float(x), 'y': float(y)})
-        self.scripts['SetAttoANC300'].run()
-        time.sleep(self.settings['settle_time'])  # Wait for Find NV to settle
+        self.scripts['SetAttoANC300'].run(verbose=False)
 
-        self.scripts['PulsedEsrFaster'].settings['tag'] = 'pulsedesrfaster_%.1f,%.1f' % (x, y)
-
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Take ESR (for a 2D scan of B field)
         Returns: measured value at given pt, with other data that won't be plotted
         """
 
-        self.scripts['PulsedEsrFaster'].run()
+        self.scripts['PulsedEsrFast'].settings['tag'] = 'pulsedesrfast_%i,%i' % (yNum, xNum)
+
+        if self.settings['track_esr']:
+            if yNum == 0 and xNum == 0:
+                # For origin (where scan begins), simply use ESR subscript settings to set center freq
+                pass
+            elif xNum > 0:
+                # Center current ESR scan range around extracted frequency of the left adjacent (previous) point
+                predicted_freq = self.data['point_freq'][yNum][xNum-1]
+                if predicted_freq != 0:
+                    print('Predicted freq: %.3e using pt: %i, %i' % (predicted_freq, yNum, xNum-1))
+                    self.scripts['PulsedEsrFast'].settings['range_type'] = 'center_range'
+                    self.scripts['PulsedEsrFast'].settings['freq_start'] = float(predicted_freq)
+            elif xNum == 0:
+                # Center current ESR scan range around extracted frequency of the upper adjacent (previous) point
+                predicted_freq = self.data['point_freq'][yNum - 1][xNum]
+                if predicted_freq != 0:
+                    print('Predicted freq: %.3e using pt: %i, %i' % (predicted_freq, yNum-1, xNum))
+                    self.scripts['PulsedEsrFast'].settings['range_type'] = 'center_range'
+                    self.scripts['PulsedEsrFast'].settings['freq_start'] = float(predicted_freq)
+
+        self.scripts['PulsedEsrFast'].run(verbose=False)
 
         try:
-            point_data = self.scripts['PulsedEsrFaster'].data['fits']
+            point_data = self.scripts['PulsedEsrFast'].data['fits']
         except:
             point_data = None
 
-        if point_data is not None and len(point_data) == 6:
-            fp = point_data[5]
-            fn = point_data[4]
-            point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
-                                           gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
+        if point_data is not None:
+
+            if len(point_data) == 6:
+                fp = point_data[5]
+                fn = point_data[4]
+                self.data['point_freq'][yNum][xNum] = point_data[4]
+                point_value = B_field_from_esr(fp, fn, D=self.settings['zero_field_splitting'],
+                                               gamma=27.969e9, angular_freq=False, verbose=False)[0] * 1e4
+            elif len(point_data) == 4:
+                self.data['point_freq'][yNum][xNum] = point_data[3]
+                point_value = (point_data[3] - self.settings['zero_field_splitting']) / nv_gyro
         else:
+            self.data['point_freq'][yNum][xNum] = 0
             point_value = 0
 
         return point_value
 
     def is_valid(self):
-        return self.scripts['PulsedEsrFaster'].is_valid()
+        return self.scripts['PulsedEsrFast'].is_valid()
 
     def _plot(self, axes_list, data=None):
 
@@ -369,29 +444,29 @@ class AttoGridScanPulsedEsr(AttoGridScanEsr):
         label = ['B field scan w/ Attocube', r'V$_x$ [V]', r'V$_y$ [V]', 'On-axis field (G)']
 
         if self.linescan_axis == '2d':
-            plot_fluorescence_new(data['point_value'], data['extent'], axes_list[0], max_counts=-1, labels=label)
+            plot_fluorescence_new(np.abs(data['point_value']), data['extent'], axes_list[0], max_counts=-1, labels=label)
         elif self.linescan_axis == 'x' or self.linescan_axis == 'y':
             raise NotImplementedError
 
         axes_list[1].clear()
 
         current_esr_data = None
-        if self._current_subscript_stage['current_subscript'] is self.scripts['PulsedEsrFaster'] and 'count_data' in self.scripts['PulsedEsrFaster'].data:
-            current_esr_data = self.scripts['PulsedEsrFaster'].data['count_data']
-            esr_freqs = self.scripts['PulsedEsrFaster'].data['params']
+        if self._current_subscript_stage['current_subscript'] is self.scripts['PulsedEsrFast'] and 'count_data' in self.scripts['PulsedEsrFast'].data:
+            current_esr_data = self.scripts['PulsedEsrFast'].data['count_data']
+            esr_freqs = self.scripts['PulsedEsrFast'].data['params']
 
         if current_esr_data is not None:
             plot_1d_simple_freq(axes_list[1], esr_freqs, [current_esr_data])
 
     def _update_plot(self, axes_list):
-        update_fluorescence(self.data['point_value'], axes_list[0], -1)
+        update_fluorescence(np.abs(self.data['point_value']), axes_list[0], -1)
 
         axes_list[1].clear()
 
         current_esr_data = None
-        if self._current_subscript_stage['current_subscript'] is self.scripts['PulsedEsrFaster'] and 'count_data' in self.scripts['PulsedEsrFaster'].data:
-            current_esr_data = self.scripts['PulsedEsrFaster'].data['count_data']
-            esr_freqs = self.scripts['PulsedEsrFaster'].data['params']
+        if self._current_subscript_stage['current_subscript'] is self.scripts['PulsedEsrFast'] and 'count_data' in self.scripts['PulsedEsrFast'].data:
+            current_esr_data = self.scripts['PulsedEsrFast'].data['count_data']
+            esr_freqs = self.scripts['PulsedEsrFast'].data['params']
 
         if current_esr_data is not None:
             plot_1d_simple_freq(axes_list[1], esr_freqs, [current_esr_data])
@@ -431,11 +506,9 @@ class AttoGridScanGalvoScan(AttoGridScanEsr):
     def move_piezo(self, x, y, direction='both'):
         self.scripts['SetAttoANC300'].settings['point'].update({'x': float(x), 'y': float(y)})
         self.scripts['SetAttoANC300'].run()
-        time.sleep(.1)  # Wait for Find NV to settle
-
         self.scripts['take_image'].settings['tag'] = 'take_image_%.1f,%.1f' % (x, y)
 
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Take ESR (for a 2D scan of B field)
         Returns: measured value at given pt, with other data that won't be plotted
@@ -482,7 +555,7 @@ class AttoGridScanEsrPiezoController(AttoGridScanGeneric):
         piezo.axis = 'y'
         piezo.voltage = y
 
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Take ESR (for a 2D scan of B field)
         Returns: measured value at given pt, with other data that won't be plotted
@@ -530,7 +603,7 @@ class GalvoGridScanPulsed(AttoGridScanGeneric):
 
     _SCRIPTS = {'set_laser': SetLaser, 'set_laser_single_axis': SetLaserSingleAxis, 'stroboscopic_readout': PulsedReadout}
 
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Replace this with some data-taking script, e.g. read the counts (to perform a galvoscan with the attocubes
         instead) or take ESR (for a 2D scan of B field)
@@ -554,7 +627,6 @@ class GalvoGridScanPulsed(AttoGridScanGeneric):
             self.scripts['set_laser'].settings['point']['x'] = x
             self.scripts['set_laser'].settings['point']['y'] = y
             self.scripts['set_laser'].run(verbose=False)
-        time.sleep(self.settings['settle_time'])
 
     def check_bounds(self):
         pass
@@ -622,7 +694,7 @@ class ServoGridScanFringes(AttoGridScanGeneric):
         else:
             raise ValueError
 
-    def read_point(self):
+    def read_point(self, yNum, xNum):
         """
         Take ESR (for a 2D scan of B field)
         Returns: measured value at given pt, with other data that won't be plotted

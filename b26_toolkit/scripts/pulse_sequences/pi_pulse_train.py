@@ -19,13 +19,8 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, PulseBlasterHwTrig, MicrowaveGenerator, Pulse, Commander
-from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, plot_1d_simple_timetrace, update_1d_simple
 from pylabcontrol.core import Parameter, Script
-import itertools, ctypes, time, warnings
-from copy import deepcopy
-import random
-import datetime
-import time as t
+import itertools
 
 
 class PiPulseTrainBackaction(PulsedExperimentGeneric):
@@ -36,9 +31,9 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
     _DEFAULT_SETTINGS = [
         Parameter('train_freq', 1.5e6, float, 'freq of pulse train in Hz. To drive the mechanics with pi pulses, this should be twice the mech freq'),
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'frequency of hyperfine transition'),
-            Parameter('microwave_channel', 'i', ['i', 'q', 'alternate i and q'], 'Channel to use for mw pulses, UNIMPLEMENTED'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q', 'alternate +i and +q'], 'Channel to use for mw pulses, UNIMPLEMENTED'),
             Parameter('tau_mw', 80, float, 'the time duration of the microwaves in ns. Make sure that 1/2f < tau_laser < 1/f.'),
             Parameter('n', 201, int, 'num of pi pulses, must be odd number')
         ]),
@@ -101,28 +96,15 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
         laser_tau = self.settings['laser_pulses']['tau_laser']
         n_reset = self.settings['laser_pulses']['n']
 
-        if self.settings['mw_pulses']['microwave_channel'] == 'alternate i and q':
+        if self.settings['mw_pulses']['microwave_channel'] == 'alternate +i and +q':
             alternate = True
-            microwave_channel_1 = 'microwave_i'
-            microwave_channel_2 = 'microwave_q'
-        elif self.settings['mw_pulses']['microwave_channel'] == 'alternate i_2 and q_2':
-            alternate = True
-            microwave_channel_1 = 'microwave_i_2'
-            microwave_channel_2 = 'microwave_q_2'
+            microwave_channel_1, microwave_channel_2 = 'microwave_+i', 'microwave_+q'
         else:
             alternate = False
             microwave_channel_1 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
 
         tau = self.settings['mw_pulses']['tau_mw']
         pulse_sequences = []
-
-        if (n_pi % 2) != 1:
-            self.log('Error: number of pi pulses must be an odd number.', flag='error')
-            self._abort = True
-
-        if (n_reset % 2) != 1:
-            self.log('Error: number of laser pulses must be an odd number.', flag='error')
-            self._abort = True
 
         pulse_sequence = [Pulse('atto_trig', 10, mw_tau), Pulse('rf_i', 10, int(tau_mech/2*1.2/10)*10)]
         pulse_sequences.append(pulse_sequence)
@@ -136,45 +118,47 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
         pulse_sequence_laser, pulse_sequence_mw: a list of pulse sequences, each corresponding to a different time 'tau' that is to be scanned over.
         Each pulse sequence is a list of pulse objects containing the desired pulses.
         """
-        
+
         tau_train = 1/self.settings['train_freq']*1e9
         tau_mw = self.settings['mw_pulses']['tau_mw']
         tau_laser = self.settings['laser_pulses']['tau_laser']
         n_pi = self.settings['mw_pulses']['n']
         n_reset = self.settings['laser_pulses']['n']
 
-        if self.settings['mw_pulses']['microwave_channel'] == 'alternate i and q':
+        if self.settings['mw_pulses']['microwave_channel'] == 'alternate +i and +q':
             alternate = True
-            microwave_channel_1 = 'microwave_i'
-            microwave_channel_2 = 'microwave_q'
-        elif self.settings['mw_pulses']['microwave_channel'] == 'alternate i_2 and q_2':
-            alternate = True
-            microwave_channel_1 = 'microwave_i_2'
-            microwave_channel_2 = 'microwave_q_2'
+            microwave_channel_1 = 'microwave_+i'
+            microwave_channel_2 = 'microwave_+q'
         else:
             alternate = False
             microwave_channel_1 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+            microwave_channel_2 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
 
-        if (n_pi % 2) != 1:
-            self.log('Error: number of pi pulses must be an odd number.', flag='error')
-            self._abort = True
-        if (n_reset % 2) != 1:
-            self.log('Error: number of laser pulses must be an odd number.', flag='error')
-            self._abort = True
-        if tau_mw > int(tau_train * .8):
+        if (n_pi % 2) != 0:
+            self.log('Error: number of pi pulses must be an even number.', flag='error')
+            # self._abort = True
+        if (n_reset % 2) != 0:
+            self.log('Error: number of laser pulses must be an even number.', flag='error')
+            # self._abort = True
+        if tau_mw > int(tau_train * .9):
             self.log('Error: MW pulse duration longer than 80% of the period of the pulse train.', flag='error')
             self._abort = True
-        if tau_laser > int(tau_train * .8):
+        if tau_laser > int(tau_train * .9):
             self.log('Error: Laser pulse duration longer than 80% of the period of the pulse train.', flag='error')
             self._abort = True
 
-        spacer_pulse = Pulse('rf_i', 10, int(tau_train/2*1.2/10)*10)
+        # spacer_pulse = Pulse('rf_i', 10, int(tau_train/2*1.2/10)*10)
+        spacer_pulse = Pulse('rf_i', 10, int(tau_train * 0.8 / 10) * 10)
         laser_delay = int(self.instruments['PB_hw_trig']['instance'].settings['laser']['delay_time'])
         mw_delay = int(self.instruments['PB_hw_trig']['instance'].settings['microwave_switch']['delay_time'])
-        pulse_sequence_mw = [Pulse(microwave_channel_1, 10 + laser_delay, tau_mw), spacer_pulse]
+        pulse_sequence_mw = [Pulse(microwave_channel_1, 10 + self.settings['mw_switch']['extra_time'] + laser_delay, tau_mw), spacer_pulse]
+        pulse_sequence_mw2 = [Pulse(microwave_channel_2, 10 + self.settings['mw_switch']['extra_time'] + laser_delay, tau_mw), spacer_pulse]
         pulse_sequence_laser = [Pulse('laser', 10 + mw_delay, tau_laser), spacer_pulse]
+        pulse_sequence_laser_mw = [Pulse('laser', 10 + mw_delay, tau_laser), Pulse(microwave_channel_1, 10 + laser_delay, tau_mw), spacer_pulse]
+        pulse_sequence_spacer = [spacer_pulse]
 
-        return [[pulse_sequence_laser], [pulse_sequence_mw]]
+
+        return [[pulse_sequence_laser], [pulse_sequence_mw], [pulse_sequence_mw2], [pulse_sequence_laser_mw], [pulse_sequence_spacer]]
 
     def create_pulse_sequences_segment(self, logging=True):
         """
@@ -193,43 +177,13 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
         """
 
         logging = self.verbose
-        # pulse_sequences_segment_raw = self._create_pulse_sequences_segment()
 
         pulse_sequences_segment = []
+
         for pulse_sequences in self._create_pulse_sequences_segment():
-            if 'mw_switch' in self.settings and self.settings['mw_switch']['add']:
-                if logging:
-                    self.log('Adding microwave switch to pulse sequences')
-                pulse_sequences = self._add_mw_switch_to_sequences(pulse_sequences)
-            if 'rf_switch' in self.settings and self.settings['rf_switch']['add']:
-                if logging:
-                    self.log('Adding rf switch to pulse sequences')
-                pulse_sequences = self._add_rf_switch_to_sequences(pulse_sequences)
-            pulse_sequences_segment.append(pulse_sequences)
-        print('Length of pulse sequences segment: %i'%len(pulse_sequences_segment))
+            pulse_sequences_segment.append(self.process_virtual_channels(pulse_sequences))
 
-        # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or requiring that pulses don't overlap
-
-        # valid_pulse_sequences_segment = []
-        # for pulse_sequences in pulse_sequences_segment:
-        #     valid_pulse_sequences = []
-        #     invalid_pulse_sequences = []
-        #     for pulse_sequence in pulse_sequences:
-        #         if not self._is_bad_pulse_sequence(pulse_sequence):
-        #             valid_pulse_sequences.append(pulse_sequence)
-        #         else:
-        #             invalid_pulse_sequences.append(pulse_sequence)
-        #             print('Invalid sequence is: ', pulse_sequence)
-        #
-        #     if logging:
-        #         if len(invalid_pulse_sequences) == 0:
-        #             self.log("All generated pulse sequences are valid. No tau times will be skipped.")
-        #         else:
-        #             self.log("Not all pulse sequences are valid. %i sequences will be skipped"%len(invalid_pulse_sequences))
-        #
-        #         self.log("{:d} different tau times have passed validation".format(len(valid_pulse_sequences)))
-        #     valid_pulse_sequences_segment.append(valid_pulse_sequences)
-        #     print('Length of valid pulse sequences segment: %i' % len(valid_pulse_sequences_segment))
+        print('Length of pulse sequences segment: %i' % len(pulse_sequences_segment))
         print('Valid pulse sequences:')
         print(pulse_sequences_segment)
         return pulse_sequences_segment
@@ -251,8 +205,8 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
             daq = self.instruments['NI9402']['instance']
 
         try:
-            pulse_sequence_laser, pulse_sequence_mw = self.create_pulse_sequences_segment()
-            self.instruments['PB']['instance'].program_pb(pulse_sequence_laser[0], pulse_sequence_mw[0],
+            pulse_sequence_laser, pulse_sequence_mw, pulse_sequence_mw2, pulse_sequence_laser_mw, pulse_sequence_spacer = self.create_pulse_sequences_segment()
+            self.instruments['PB']['instance'].program_pb(pulse_sequence_laser[0], pulse_sequence_mw[0], pulse_sequence_mw2[0], pulse_sequence_laser_mw[0], pulse_sequence_spacer[0],
                                                           num_loops_laser=self.settings['laser_pulses']['n'],
                                                           num_loops_mw=self.settings['mw_pulses']['n'])
         except AssertionError:
@@ -347,40 +301,11 @@ class PiPulseTrainBackaction(PulsedExperimentGeneric):
                 self.log('Adding rf switch to pulse sequences')
             pulse_sequences = self._add_rf_switch_to_sequences(pulse_sequences)
 
-        # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or
-        # requiring that pulses don't overlap
-
-        # valid_pulse_sequences = [pulse_sequences]
-        # valid_tau_list = []
-        # invalid_tau_list = []
-        # for pulse_sequence, tau in zip(pulse_sequences, tau_list):
-        #     if not self._is_bad_pulse_sequence(pulse_sequence):
-        #         valid_pulse_sequences.append(pulse_sequence)
-        #         valid_tau_list.append(tau)
-        #     else:
-        #         invalid_tau_list.append(tau)
-        #         print('Invalid sequence is: ', pulse_sequence)
-        #
-        # if logging:
-        #     if invalid_tau_list:
-        #         self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
-        #                  "included: " + str(invalid_tau_list), flag='reminder')
-        #     else:
-        #         self.log("All generated pulse sequences are valid. No tau times will be skipped.")
-        #
-        #     self.log("{:d} different tau times have passed validation".format(len(valid_tau_list)))
-
         return pulse_sequences, tau_list, measurement_gate_width
 
     def stop(self):
-        """
-        Stop currently executed pulse blaster sequence
-        NOT CURRENTLY WORKING, WILL CRASH PULSEBLASTER
-        """
-        # self.instruments['PB']['instance'].stop()
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        print('Stopped pi pulse train, MW switch turned off')
         super(PulsedExperimentGeneric, self).stop()
-        print('STOP NOT IMPLEMENTED!!')
-
-
 
 

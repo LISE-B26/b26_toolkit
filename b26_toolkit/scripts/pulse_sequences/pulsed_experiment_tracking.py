@@ -16,10 +16,8 @@ You should have received a copy of the GNU General Public License
 along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator
 from pylabcontrol.core import Script, Parameter
-#from b26_toolkit.scripts import FindNv
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 
 
@@ -45,8 +43,7 @@ class PulsedExperimentTracking(PulsedExperimentGeneric):
             Parameter('before_block', False, bool, 'run FindNv before each averaging block')])
     ]
 
-    #_DEFAULT_SETTINGS = PulsedExperimentGeneric._DEFAULT_SETTINGS + _DEFAULT_SETTINGS
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     # To enable tracking in a child script, simply enable the following script(s). The name given to the script (in parentheses, e.g. 'fin_nv') must be
     # the same as the following, but the script (e.g. FindNV) can be chosen as desired
@@ -61,7 +58,6 @@ class PulsedExperimentTracking(PulsedExperimentGeneric):
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        #self._DEFAULT_SETTINGS = self._DEFAULT_SETTINGS + PulsedExperimentGeneric._DEFAULT_SETTINGS
         self._DEFAULT_SETTINGS += PulsedExperimentGeneric._DEFAULT_SETTINGS
         self._DEFAULT_SETTINGS += PulsedExperimentTracking._DEFAULT_SETTINGS
 

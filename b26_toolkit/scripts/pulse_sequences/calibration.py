@@ -1,19 +1,19 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
@@ -32,9 +32,9 @@ class ReadoutStartTime(PulsedExperimentGeneric):  # ER 10.21.2017
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulse', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
             Parameter('pi_time', 30.0, float, 'pi time in ns')
         ]),
         Parameter('tau_times', [
@@ -168,7 +168,7 @@ class ReadoutDuration(PulsedExperimentGeneric):
       """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulse', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
             Parameter('pi_time', 30.0, float, 'pi time in ns')
@@ -293,16 +293,15 @@ class ReadoutDuration(PulsedExperimentGeneric):
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-
 class ChoppedInit(PulsedExperimentGeneric):
     """
   This script sweeps the number of chopped laser pulses to find the optimum for initialization.
       """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulse', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
             Parameter('pi_time', 30.0, float, 'pi time in ns')
         ]),
         Parameter('initialization_laser', [
@@ -328,11 +327,14 @@ class ChoppedInit(PulsedExperimentGeneric):
 
     def _function(self):
         # COMMENT_ME
-
         self.data['fits'] = None
+
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
         super(ChoppedInit, self)._function(self.data)
 
         counts = self.data['counts'][:, 1]  # / self.data['counts'][:, 0]

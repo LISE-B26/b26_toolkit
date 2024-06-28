@@ -19,14 +19,12 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 from b26_toolkit.scripts.pulse_sequences.rabi import Rabi
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
-from b26_toolkit.data_processing.fit_functions import fit_rabi_decay, cose_with_decay
+from b26_toolkit.data_processing.fit_functions import cose_with_decay
 import numpy as np
 
-MAX_AVERAGES_PER_SCAN = 1000000  # 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
-                                 #pulseblaster stores this value in 22 bits in its register
-                                # DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
-                                # if too large
-
+MAX_AVERAGES_PER_SCAN = 1000000
+# 1E6, the max number of loops per point allowed at one time (true max is ~4E6 since
+# pulseblaster stores this value in 22 bits in its register
 MAX_NUM_PULSES = 4096
 
 
@@ -37,7 +35,7 @@ class Ramsey(Rabi):
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
             Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),

@@ -2,7 +2,6 @@ from pylabcontrol.core import Parameter, Instrument
 import ctypes
 import time
 import clr
-import os
 
 class TLI_DeviceInfo(ctypes.Structure):
     _fields_ = [("typeID", ctypes.c_ulong),
@@ -639,7 +638,7 @@ class LockboxToggleArm(KDC001):
 if __name__ == '__main__':
     a = LockboxToggleArm()
     print(a.get_position(verbose=True))
-    a.settings['position'] = 26
-    a.set_position()
+    # a.settings['position'] = 26
+    # a.set_position()
     print(a.get_position(verbose=True))
     a._close_device()

@@ -17,18 +17,15 @@
 """
 
 import time
-
 import numpy as np
-
-
-from b26_toolkit.instruments import NI6259,PiezoController
+from b26_toolkit.instruments import NI6259, PiezoController
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
+
 
 # JG: NOT FINISHED JUST COPIED CODE AND DIDN"T ADAPT IT YET
 class SimplePiezoSweep(Script):
     """
-SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo voltages
+    SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo voltages
     """
 
     _DEFAULT_SETTINGS = [
@@ -41,13 +38,9 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         Parameter('ai_channel', 'ai0', ['ai0', 'ai1', 'ai2', 'ai3'], 'Daq channel used for voltage analog input')
     ]
 
-    _SCRIPTS = {
-    }
+    _SCRIPTS = {}
+    _INSTRUMENTS = {'daq': NI6259, 'z_piezo': PiezoController}
 
-    _INSTRUMENTS = {
-        'daq':NI6259,
-        'z_piezo': PiezoController
-    }
     def __init__(self, instruments, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """
         Example of a script that emits a QT signal for the gui
@@ -77,8 +70,6 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
             self.progress = 100. * index / len(sweep_voltages)
             self.updateProgress.emit(self.progress if self.progress < 100 else 99)
 
-
-
     def _step_piezo(self, voltage, wait_time):
         """
         steps the piezo.  Has to be overwritten specifically for each different hardware realization
@@ -102,7 +93,6 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
 
         return voltage
 
-
     def _plot(self, axes_list, data=None):
         # fit the data and set piezo to focus spot
         if data is None:
@@ -117,9 +107,10 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         axis_focus.set_xlabel('Piezo Voltage [V]')
         axis_focus.set_ylabel('Detector Voltage [V]')
 
+
 class DaqTimeTrace(Script):
     """
-SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo voltages
+    SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo voltages
     """
 
     _DEFAULT_SETTINGS = [
@@ -128,12 +119,9 @@ SimplePiezoSweep: Reads analog input (e.g. from photodiode) at different piezo v
         Parameter('acquisition_time', 10, float, 'time to acquire (s)')
     ]
 
-    _SCRIPTS = {
-    }
+    _SCRIPTS = {}
+    _INSTRUMENTS = {'daq': NI6259}
 
-    _INSTRUMENTS = {
-        'daq':NI6259
-    }
     def __init__(self, instruments, scripts = None, name = None, settings = None, log_function = None, data_path = None):
         """
         Example of a script that emits a QT signal for the gui

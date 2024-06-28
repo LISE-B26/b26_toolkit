@@ -16,21 +16,18 @@ You should have received a copy of the GNU General Public License
 along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from collections import deque
 import numpy as np
-import time
-
+from scipy.signal import periodogram as periodogram
 import zhinst.utils
-
-from b26_toolkit.plotting.plots_1d import plot_psd
 from pylabcontrol.core import Script, Parameter
+from b26_toolkit.plotting.plots_1d import plot_psd
 from b26_toolkit.instruments import Hf2Li
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace
-from scipy.signal import periodogram as periodogram
+
 
 class LockInDaqRead(Script):
     """
-This script performs a frequency sweep with the Zurich Instrument HF2 Series Lock-in amplifier
+    This script performs a frequency sweep with the Zurich Instrument HF2 Series Lock-in amplifier
     """
     _DEFAULT_SETTINGS = [
         Parameter('demods',
@@ -190,6 +187,11 @@ This script performs a frequency sweep with the Zurich Instrument HF2 Series Loc
                                                  return_onesided=True, scaling='density')
                         self.data['fft_freq'] = freqs
                         self.data['%s_fft' % data_label].append(sxx)
+
+        # Convert to numpy array for easier access by other scripts
+        if self.settings['fft']:
+            for node, data_label in zip(self.sample_nodes, self.data_labels):
+                self.data['%s_fft' % data_label] = np.array(self.data['%s_fft' % data_label])
 
     def _plot(self, axes_list, data=None):
         """

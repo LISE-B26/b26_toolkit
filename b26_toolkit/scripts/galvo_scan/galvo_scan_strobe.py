@@ -1,8 +1,8 @@
 import numpy as np
+from pylabcontrol.core import Parameter
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, B26PulseBlaster
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScanSafe
 from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_galvo_line_scan import PulsedGalvoLineScan
-from pylabcontrol.core import Parameter
 
 
 class GalvoScanStrobe(GalvoScanSafe):

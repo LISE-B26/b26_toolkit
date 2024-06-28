@@ -15,24 +15,24 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 import numpy as np
+from pylabcontrol.core import Parameter
 from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_esr import PulsedEsr
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator, AFG3022C, Commander, AFG3022C_02
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-from pylabcontrol.core import Parameter
-import time as t
-
 
 laser_pulse_end_delay = 100  # Time of end of PB pulse to AOM minus time of end of laser pulse
+
 
 class PulsedEsrMwGen2(PulsedEsr):
     """
     Same as PulsedEsr but for a second microwave generator.
     """
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('microwave_channel', 'i_2', ['i_2', 'q_2'], 'Channel to use for mw pulses'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
@@ -66,7 +66,7 @@ class PulsedEsrMwGen2(PulsedEsr):
         self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_power']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
@@ -76,7 +76,7 @@ class PulsedEsrMwGen2(PulsedEsr):
 
 class PulsedEsrFastMwGen2(PulsedEsr):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
@@ -217,7 +217,7 @@ class PulsedNmr(PulsedEsr):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         for channel in [1, 2]:
             self.instruments['afg']['instance'].update({'ch%i_frequency' % channel: float(param_current)})
 
@@ -276,7 +276,7 @@ class PulsedNmrSrs(PulsedNmr):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['rf_gen']['instance'].update({'frequency': param_current})
 
 
@@ -433,7 +433,7 @@ class PulsedEsrPolarized(PulsedNmr):
         self.instruments['afg']['instance'].update({'ch1_phase': 0})
         self.instruments['afg']['instance'].update({'ch2_phase': 3.1415926})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
@@ -811,7 +811,7 @@ class CnotFidelity(PulsedEsrPolarized):
         self.instruments['mw_gen_2']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency_1']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
@@ -866,14 +866,14 @@ class CnotPowerSweep(PulsedEsr):
         mw_tau = self.settings['mw_pulses']['tau_mw']
         spacing = self.settings['mw_pulses']['spacing']
 
-        if self.settings['mw_pulses']['microwave_channel'] == 'alternate i and q':
+        if self.settings['mw_pulses']['microwave_channel'] == 'alternate +i and +q':
             alternate = True
-            microwave_channel_1 = 'microwave_i'
-            microwave_channel_2 = 'microwave_q'
+            microwave_channel_1 = 'microwave_+i'
+            microwave_channel_2 = 'microwave_+q'
         elif self.settings['mw_pulses']['microwave_channel'] == 'alternate i_2 and q_2':
             alternate = True
-            microwave_channel_1 = 'microwave_i_2'
-            microwave_channel_2 = 'microwave_q_2'
+            microwave_channel_1 = 'microwave_+i_2'
+            microwave_channel_2 = 'microwave_+q_2'
         else:
             alternate = False
             microwave_channel_1 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -901,9 +901,9 @@ class CnotPowerSweep(PulsedEsr):
                     else:
                         pulse_sequence.append(Pulse(microwave_channel_1, current_time, mw_tau))
                     current_time += mw_tau + spacing
-
-            pulse_sequence.append(Pulse('laser', current_time, nv_reset_time))
-            pulse_sequence.append(Pulse('apd_readout', current_time + delay_readout, meas_time))
+            current_time -= spacing  # get rid of last spacer
+            pulse_sequence.append(Pulse('laser', current_time + delay_mw_readout, nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout', current_time + delay_mw_readout + delay_readout, meas_time))
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
@@ -914,7 +914,7 @@ class CnotPowerSweep(PulsedEsr):
         # print('successfully turned off microwave switch')
 
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
+        if mw_channel == '+i' or mw_channel == '-i' or mw_channel == '+q' or mw_channel == '-q' or mw_channel == 'alternate +i and +q':
             mw_gen_instrument = 'mw_gen'
         elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
@@ -937,15 +937,15 @@ class CnotPowerSweep(PulsedEsr):
                              'param_switching_time': self.settings['mw_generator_switching_time']}
 
 
-    def _configure_instruments_start_of_sweep(self, power_current):
+    def _configure_instruments_for_param(self, power_current):
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
+        if mw_channel == '+i' or mw_channel == '-i' or mw_channel == '+q' or mw_channel == '-q' or mw_channel == 'alternate +i and +q':
             mw_gen_instrument = 'mw_gen'
         elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
 
         self.instruments[mw_gen_instrument]['instance'].update({'amplitude': float(power_current)})
-        self.instruments[mw_gen_instrument]['instance'].update({'enable_modulation': False})
+        # self.instruments[mw_gen_instrument]['instance'].update({'enable_modulation': False})
 
     def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
@@ -973,7 +973,7 @@ class RabiPowerSweep(CnotPowerSweep):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_frequency', 2.82e9, float, 'frequency of hyperfine transition'),
-            Parameter('microwave_channel', 'i', ['i', 'q', 'alternate i and q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q', 'alternate +i and +q'], 'Channel to use for mw pulses'),
             Parameter('tau_mw', 80, float, 'the time duration of the microwaves in ns'),
             Parameter('n', 0, int, 'number of pi-pulses, the larger n is the more accurate we can determine the correct power for a pi-pulse'),
             Parameter('spacing', 100, float, 'spacing in ns between consecutive pi-pulses')
@@ -1001,7 +1001,7 @@ class RabiPowerSweep(CnotPowerSweep):
 
 class FieldProfilePulsed(PulsedEsr):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
@@ -1148,7 +1148,7 @@ class FieldProfilePulsed(PulsedEsr):
 
 class FieldProfileCw(FieldProfilePulsed):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
@@ -1506,7 +1506,7 @@ class TransportDqmaRfPhase(PulsedEsrPolarized):
             self.instruments['afg']['instance'].update({'ch2_phase': 0})
 
 
-    def _configure_instruments_start_of_sweep(self, ch2_phase_current):
+    def _configure_instruments_for_param(self, ch2_phase_current):
         if ch2_phase_current == self.settings['rf_phase']['max_phase'] + 2000:
             print('Norm meas for min fluor')
             self.instruments['afg']['instance'].update({'ch2_phase': np.pi})
@@ -1872,7 +1872,7 @@ class TransportDqmaMwPhase(PulsedEsrPolarized):
         self.instruments['afg']['instance'].update({'ch1_phase': 0})
         self.instruments['afg']['instance'].update({'ch2_phase': 3.1415926})
 
-    def _configure_instruments_start_of_sweep(self, phase_current):
+    def _configure_instruments_for_param(self, phase_current):
         self.instruments['mw_gen_2']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen_2']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_2_power']})
@@ -2058,7 +2058,7 @@ class MicrowaveRotationAxis(PulsedEsrPolarized):
         for channel in [1, 2]:
             self.instruments['afg_iq']['instance'].update({'ch%i_enable' % channel: True})
 
-    def _configure_instruments_start_of_sweep(self, phase_current):
+    def _configure_instruments_for_param(self, phase_current):
         self.instruments['afg_iq']['instance'].configure_iq(angle=phase_current,
                                                             pulse_length=self.settings['mw_pulses']['mw_2_pi_half_time'] + 30 * 2 + 400,
                                                             angle_idle=self.settings['mw_phase']['idle_phase'])
@@ -2083,7 +2083,7 @@ class RamseyFreqSweep(PulsedEsr):
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('pi_half_pulse_time', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('tau', 80, float, 'the time duration of the phase accumulation time in the Ramsey sequence (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),

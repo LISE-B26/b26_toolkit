@@ -16,22 +16,16 @@ You should have received a copy of the GNU General Public License
 along with pylabcontrol.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import random
+import datetime
+import time as t
 import itertools
 from copy import deepcopy
 import numpy as np
 import time
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple
 from pylabcontrol.core import Script, Parameter
-import random
-import datetime
-import time as t
-
-# ER 20210302 CHANGE HERE TO 1e4 if you want
-# MAX_AVERAGES_PER_SCAN = 5e4  # 1E5, the max number of loops per point allowed at one time (true max is ~4E6 since
-# pulseblaster stores this value in 22 bits in its register
-# DS 20191216: changed from 1e5 to 1e6 since loop register is 20 bits. PB will throw error
-# if too large
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple
 
 
 class PulsedExperimentGeneric(Script):
@@ -65,7 +59,7 @@ class PulsedExperimentGeneric(Script):
             Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps'),
             Parameter('before_block', False, bool, 'run FindNv before each averaging block')])
     ]
-    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     # Leave _SCRIPTS = {}. To enable tracking, use pulsed_experiment_tracking instead!
     _SCRIPTS = {}
@@ -221,6 +215,15 @@ class PulsedExperimentGeneric(Script):
         if (len(self.data['counts'][0]) == 1) and not self._abort:
             self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
 
+        if self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable']:
+            self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+            self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+            self.instruments['mw_gen']['instance'].update({'amplitude': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_power']})
+            self.instruments['mw_gen']['instance'].update({'frequency': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_frequency']})
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+            self.instruments['mw_gen']['instance'].update({'enable_output': True})
+            self.instruments['PB']['instance'].mw_duty_cycle_loop()
+
     def _initialize_data(self, num_daq_reads, in_data):
         signal = [0.0]
         norms = np.repeat([0.0], (num_daq_reads - 1))
@@ -326,12 +329,10 @@ class PulsedExperimentGeneric(Script):
             # loops: tau and averaging blocks. In pulsed_esr, there are 3 loops: MW frequency, tau (with 1 value), and
             # averaging blocks. Because of this different structure I added self.result_current so that I can do the
             # averaging in _function()
-            self.result_current = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width,
-                                                         num_loops_sweep)
+            self.result_current = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
 
             # for tracking ER 20210331
-            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width,
-                                                         num_loops_sweep)
+            counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
             counts_temp = counts_to_check[self.ref_index]  # ref_index is set as 0 by default when script is initialized
 
             if 'commander' in self.instruments:
@@ -427,6 +428,11 @@ class PulsedExperimentGeneric(Script):
         if num_daq_reads != 0:
             daq.stop(task)
             #print('Time after stop task: %.2e' % (time.time() - timer_start))
+
+        # if num_daq_reads == 0:
+        #     # If we're reading DAQ samples, we know that an expected number of sequences has run when we've collected enough samples
+        #     # If there are no DAQ samples to wait for, we need to manually wait for the estimated pulse seq duration
+        #     time.sleep(self.instruments['PB']['instance'].estimated_runtime*1e-3)
 
         if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
             print('stopping pulse seq: ')
@@ -528,13 +534,25 @@ class PulsedExperimentGeneric(Script):
                     pulse_end_times.append(pulse.start_time + pulse.duration)
                     if pulse.channel_id == 'laser':
                         laser_duration += pulse.duration
-                    if pulse.channel_id == 'microwave_i' or pulse.channel_id == 'microwave_q':
+                    if pulse.channel_id == 'microwave_switch':
                         mw_duration += pulse.duration
 
             sequence_duration = np.max(pulse_end_times)
             self.sequence_durations.append(sequence_duration)
             self.laser_duties.append(laser_duration/sequence_duration)
             self.mw_duties.append(mw_duration/sequence_duration)
+            if 'mw_power' in self.settings:
+                power_dbm = self.settings['mw_power']
+            elif 'mw_pulses' in self.settings and 'mw_power' in self.settings['mw_pulses']:
+                power_dbm = self.settings['mw_pulses']['mw_power']
+            elif 'mw_pulse' in self.settings and 'mw_power' in self.settings['mw_pulses']:
+                power_dbm = self.settings['mw_pulse']['mw_power']
+            else:
+                power_dbm = -100
+                print('No microwave power setting found in script!')
+
+            # power_dbm = self.instruments['mw_gen']['instance'].settings['amplitude']
+            self.mw_avg_power = np.array(self.mw_duties) * 0.001 * 10**(power_dbm/10)
 
         if verbose:
             if len(pulse_sequences) == 1:
@@ -544,17 +562,19 @@ class PulsedExperimentGeneric(Script):
                     laser_duty_str = str('%.2e' % self.laser_duties[0])
                 if self.mw_duties[0] == 0:
                     mw_duty_str = 'None'
+                    mw_avg_power_str = 'None'
                 else:
                     mw_duty_str = str('%.2e' % self.mw_duties[0])
+                    mw_avg_power_str = str('%.2e' % self.mw_avg_power[0])
 
-                log_str = (self.sequence_durations[0]*1e-9, laser_duty_str, mw_duty_str)
-                self.log('Sequence duration: %.2e, laser duty cycle: %s, MW duty cycle: %s' %
-                         log_str)
+                log_str = (self.sequence_durations[0]*1e-9, laser_duty_str, mw_duty_str, mw_avg_power_str)
+                self.log('Seq duration: %.2e, laser duty: %s, MW duty: %s, MW avg power: %s' % log_str)
             else:
                 log_str = (np.min(self.sequence_durations) * 1e-9, np.max(self.sequence_durations) * 1e-9,
                           np.min(self.laser_duties), np.max(self.laser_duties),
-                          np.min(self.mw_duties), np.max(self.mw_duties))
-                self.log('Sequence duration: %.2e to %.2e s, laser duty cycle: %.2e to %.2e, MW duty cycle: %.2e to %.2e' %
+                          np.min(self.mw_duties), np.max(self.mw_duties),
+                           np.min(self.mw_avg_power), np.max(self.mw_avg_power))
+                self.log('Seq duration: %.2e to %.2e s, laser duty: %.2e to %.2e, MW duty: %.2e to %.2e, MW avg power: %.2e to %.2e' %
                          log_str)
 
         return True
@@ -892,6 +912,9 @@ class PulsedExperimentGeneric(Script):
 
         pulse_sequences, tau_list, measurement_gate_width = self._create_pulse_sequences()
         logging = self.verbose
+        pulse_sequences = self.process_virtual_channels(pulse_sequences)
+
+        """
         # Adding microwave switch
         if 'mw_switch' in self.settings and self.settings['mw_switch']['add']:
             if logging:
@@ -904,6 +927,7 @@ class PulsedExperimentGeneric(Script):
 
         # look for bad pulses, i.e. that don't comply with the requirements, e.g. given the pulse-blaster specs or
         # requiring that pulses don't overlap
+        """
 
         valid_pulse_sequences = []
         valid_tau_list = []
@@ -932,8 +956,22 @@ class PulsedExperimentGeneric(Script):
         Stop currently executed pulse blaster sequence
         NOT CURRENTLY WORKING, WILL CRASH PULSEBLASTER
         """
-        # self.instruments['PB']['instance'].stop()
+
+
         super(PulsedExperimentGeneric, self).stop()
+
+        # self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        # print('Stopping PB generic')
+        #
+        # print('Pulsed exp generic end behavior')
+        # self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        # self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+        # # self.instruments['mw_gen']['instance'].update({'amplitude': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_power']})
+        # self.instruments['mw_gen']['instance'].update(
+        #     {'frequency': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_frequency']})
+        # self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        # self.instruments['mw_gen']['instance'].update({'enable_output': True})
+        # self.instruments['PB']['instance'].mw_duty_cycle_loop()
 
     def _track_nv(self, scenario, counts_temp=None):
         """
@@ -976,6 +1014,72 @@ class PulsedExperimentGeneric(Script):
                              flag='reminder')
 
         return abort_script
+
+    def process_virtual_channels(self, pulse_sequences):
+        '''
+        Helper function that converts virtual channels into physical channels while adding microwave switch gating
+        properly. This function includes the processing step done in _add_mw_switch_to_sequences.
+        TODO: incorporate _add_rf_switch_to_sequences in this function.
+        The output is defaulted to microwave_+i.
+        Outputting to -i means that we're sending in a pulse to microwave_polarity channel.
+        Outputting to +q means that we're sending in a pulse to microwave_iq channel.
+        Outputting to -q means that we're sending in a pulse to both microwave_polarity and microwave_iq.
+        '''
+        gating = self.settings['mw_switch']['gating']
+        mw_switch_time = self.settings['mw_switch']['extra_time']
+
+        processed_pulse_sequences = []
+        for pulse_sequence in pulse_sequences:
+            if 'mw_switch' in self.settings and self.settings['mw_switch']['add']:
+                mw_switch_pulses = []
+                for pulse in pulse_sequence:
+                    if pulse.channel_id in ['microwave_+i', 'microwave_-i', 'microwave_+q', 'microwave_-q']:
+                        if gating == 'mw_iq':
+                            mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time - mw_switch_time,
+                                                          pulse.duration + 2 * mw_switch_time))
+                        if gating == 'mw_switch':
+                            mw_switch_pulses.append(Pulse('microwave_switch', pulse.start_time, pulse.duration))
+                            # replace the i and q pulses with wider pulses. Due to some flipping issue with the switch
+                            # we're giving it more time in the initial flip to stabilize the output before mw_switch is turned on.
+                            # new_pulse = Pulse(pulse.channel_id, pulse.start_time - 2 * mw_switch_time,
+                            #                   pulse.duration + 3 * mw_switch_time)
+                            # pulse.start_time = pulse.start_time - 2 * mw_switch_time
+                            # pulse.duration = pulse.duration + 3 * mw_switch_time
+
+                            new_pulse = Pulse(pulse.channel_id, pulse.start_time - 1 * mw_switch_time,
+                                              pulse.duration + 2 * mw_switch_time)
+                            pulse.start_time = pulse.start_time - 1 * mw_switch_time
+                            pulse.duration = pulse.duration + 2 * mw_switch_time
+
+                        pulse_sequence.extend(mw_switch_pulses)
+
+                        # combine overlapping pulses and those that are within 2*mw_switch_extra_time
+                        pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_+i',
+                                                              overlap_window=2 * mw_switch_time)
+                        pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_-i',
+                                                              overlap_window=2 * mw_switch_time)
+                        pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_+q',
+                                                              overlap_window=2 * mw_switch_time)
+                        pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_-q',
+                                                              overlap_window=2 * mw_switch_time)
+                        pulse_sequence = self._combine_pulses(pulse_sequence, channel_id='microwave_switch',
+                                                              overlap_window=2 * mw_switch_time)
+
+            new_pulse_sequence = []
+            for pulse in pulse_sequence:
+                if pulse.channel_id == 'microwave_+i':
+                    pass
+                elif pulse.channel_id == 'microwave_-i':
+                    new_pulse_sequence.append(Pulse('microwave_polarity', pulse.start_time, pulse.duration))
+                elif pulse.channel_id == 'microwave_+q':
+                    new_pulse_sequence.append(Pulse('microwave_iq', pulse.start_time, pulse.duration))
+                elif pulse.channel_id == 'microwave_-q':
+                    new_pulse_sequence.append(Pulse('microwave_iq', pulse.start_time, pulse.duration))
+                    new_pulse_sequence.append(Pulse('microwave_polarity', pulse.start_time, pulse.duration))
+                else:
+                    new_pulse_sequence.append(pulse)
+            processed_pulse_sequences.append(new_pulse_sequence)
+        return processed_pulse_sequences
 
 
 if __name__ == '__main__':

@@ -17,13 +17,9 @@
 # """
 
 from pylabcontrol.core import Script, Parameter
-
-# import standard libraries
 import numpy as np
 from b26_toolkit.instruments import MicrowaveGenerator, NI6259, NI9263, NI9402
 from b26_toolkit.plotting.plots_1d import plot_esr
-
-from b26_toolkit.data_processing.esr_signal_processing import fit_esr
 import time
 
 class EsrFmDither(Script):

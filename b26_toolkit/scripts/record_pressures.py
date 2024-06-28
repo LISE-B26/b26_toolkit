@@ -15,57 +15,29 @@
     You should have received a copy of the GNU General Public License
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-import time
 import numpy as np
-
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
-
-from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
-from b26_toolkit.instruments import CryoStation
 from datetime import datetime
-
-"""
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
-"""
 import time
-import numpy as np
-from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, update_1d_simple
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import ChamberPressureGauge, PumpLinePressureGauge, TemperatureController
-from b26_toolkit.instruments import CryoStation
+from b26_toolkit.instruments import ChamberPressureGauge, TemperatureController
 
 class RecordPressures(Script):
     # COMMENT_ME
     _DEFAULT_SETTINGS = [
         Parameter('time_interval', 60.0, float, 'Time between points (s)'),
     ]
-    _INSTRUMENTS = {
-        'chamber_pressure_gauge' : ChamberPressureGauge,
-        # 'pump_line_pressure_gauge': PumpLinePressureGauge,
-        # 'temp_controller': TemperatureController,
-        # 'cryo_station': CryoStation
-    }
+    _INSTRUMENTS = {'chamber_pressure_gauge': ChamberPressureGauge}
     _SCRIPTS = {}
-    def __init__(self, instruments = None, name = None, settings = None, log_function = None, data_path = None):
+
+    def __init__(self, instruments=None, name=None, settings=None, log_function=None, data_path=None):
         """
         Example of a script that emits a QT signal for the gui
         Args:
             name (optional): name of script, if empty same as class name
             settings (optional): settings for this script, if empty same as default settings
         """
-        Script.__init__(self, name, settings = settings, instruments = instruments, log_function= log_function, data_path=data_path)
+        Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function, data_path=data_path)
+
     def _function(self):
         """
         This is the actual function that will be executed. It uses only information that is provided in the settings property
@@ -99,44 +71,30 @@ class RecordPressures(Script):
             self.progress = 50
             self.updateProgress.emit(int(self.progress))
             time.sleep(self.settings['time_interval'])
+
     def _plot(self, axes_list):
         '''
         Args:
             axes_list: list of axes objects on which to plot the keyseight spectrun on the first axes object
             data: data (dictionary that contains keys amplitudes, frequencies) if not provided use self.data
         '''
+
         time = self.data['time']
-        if max(time)>3600:
+        if max(time) > 3600:
             time = np.array(self.data['time'])/3600
             time_label = 'time (h)'
-        elif max(time)>60:
+        elif max(time) > 60:
             time = np.array(self.data['time'])/60
             time_label = 'time (min)'
         else:
             time = np.array(self.data['time'])
             time_label = 'time (s)'
-        # axes_list[1].plot(time, self.data['Platform_Temp'],
-        #                   time, self.data['Stage_1_Temp'],
-        #                   time, self.data['Stage_2_Temp']
-        #                   )
-        # axes_list[1].set_xlabel(time_label)
-        # axes_list[1].set_ylabel('temparatures (K)')
-        #
-        # axes_list[1].legend(labels=('Platform', 'Stage 1', 'Stage 2'), fontsize=8)
+
         #10/13/16 AK: pump line connection was broken, temporarily comment out
-        axes_list[0].semilogy(time, self.data['chamber_pressures']
-                          # time, self.data['pump_line_pressures']
-                          )
-        # axes_list[0].set_yscale('log')
-        # axes_list[0].plot(time, self.data['chamber_pressures'])
+        axes_list[0].semilogy(time, self.data['chamber_pressures'])
+
         axes_list[0].set_xlabel(time_label)
         axes_list[0].set_ylabel('pressure (Torr)')
-        #
-        # ax2 = axes_list[0].twinx()
-        # ax2.plot(time, self.data['temperatures'], 'r')
-        # ax2.set_ylabel('Temperature (K)', color='r')
-        # axes_list[0].legend(labels='chamber', fontsize=8)
-
 
 
 class RecordPressuresTemperature(Script):
@@ -291,14 +249,12 @@ class RecordPressuresTemperature(Script):
         axes_list[0].set_yscale('log')
 
         axes_list[0].set_ylabel('Pressure (Torr)')
-        #axes_list[0].ticklabel_format(axis='y', style='sci',scilimits=(0,0))
         axes_list[1].set_ylabel('Temperature A (K)')
         axes_list[2].set_ylabel('Temperature B (K)')
         axes_list[-1].set_xlabel(time_label)
 
         lns = lns1 + lns2 + lns3
         labs = [l.get_label() for l in lns]
-        #ax2.legend(lns, labs, loc=0)
 
         axes_list[0].set_title('Pressure: %.3e Torr; Temp A: %.3f ${{\pm}}$%.3f K; Temp B: %.3f ${{\pm}}$%.3f K'%
                                (self.data['chamber_pressures'][-1],

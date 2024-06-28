@@ -1,14 +1,10 @@
 from pylabcontrol.core.script_iterator import ScriptIterator
 from pylabcontrol.core import Script, Parameter
-import numpy as np
 
 class ScriptIteratorB26(ScriptIterator):
-
     ITER_TYPES = ScriptIterator.ITER_TYPES + ['iter nvs', 'iter points', 'test']
-
     def __init__(self, scripts, name=None, settings=None, log_function=None, data_path=None):
         super(ScriptIteratorB26, self).__init__(scripts=scripts, name=name, settings=settings, log_function=log_function, data_path=data_path)
-
 
     @staticmethod
     def get_iterator_type(script_settings, subscripts={}):
@@ -53,12 +49,9 @@ class ScriptIteratorB26(ScriptIterator):
     @staticmethod
     def get_iterator_default_script(iterator_type):
         """
-
-
         Returns:
             sub_scripts: a dictionary with the default scripts for the script_iterator
             script_settings: a dictionary with the script_settingsfor the default scripts
-
         """
 
         sub_scripts = {}
@@ -147,7 +140,6 @@ class ScriptIteratorB26(ScriptIterator):
     @staticmethod
     def get_script_order(script_order):
         """
-
         Args:
             script_order:
                 a dictionary giving the order that the scripts in the ScriptIterator should be executed.

@@ -1,36 +1,36 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import matplotlib.patches as patches
 import numpy as np
+import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
 import matplotlib.ticker as mticker
-
 from b26_toolkit.data_processing.fit_functions import lorentzian, double_lorentzian
 
 def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
-    '''
+    """
     plots the power spectral density on to the canvas axes
     :param freq: x-values array of length N
     :param psd: y-values array of length N
     :param axes: target axes object
     :return: None
-    '''
+    """
+
     unit = 'Hz'
     c_unit = 1.0
     if x_scaling == 'lin':
@@ -40,7 +40,6 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
         elif np.mean(freq) > 1e3:
             c_unit = 1e-3
             unit = 'kHz'
-
 
     if y_scaling == 'log' and x_scaling == 'log':
         axes.loglog(c_unit*freq, psd)
@@ -56,7 +55,7 @@ def plot_psd(freq, psd, axes, y_scaling = 'log', x_scaling = 'lin'):
     axes.set_xlim([min(c_unit*freq), max(c_unit*freq)])
 
 def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', plot_marker_fit = 'r',
-             linestyle = '-', marker = '.',title='ESR',xlabel='Frequency (Hz)',ylabel='Kcounts/s'):
+             linestyle = '-', marker = '.',title='ESR',xlabel='Frequency [Hz]',ylabel='[kCt/s]'):
     """
     plots the esr
     Args:
@@ -67,11 +66,9 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
         plot_marker:  (str) plot marker
 
     Returns:
-
     """
 
-    #  ======== plot data =========
-    axes.clear() # ER 20181012 - matplotlib axes.hold() removed in update to 3.0.0
+    axes.clear()
     if len(np.array(counts).shape) == 1:
         if np.shape(frequency) == np.shape(counts): # ER 20190129
             axes.plot(frequency, counts, plot_marker_data, linestyle = linestyle, marker = marker)
@@ -80,11 +77,8 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
             if np.shape(frequency) == np.shape(count_row):  # ER 20190129
                 axes.plot(frequency, count_row, plot_marker_data, linestyle=linestyle, marker=marker)
 
-    #axes.hold(True) #ER 20181012
-
     fit_data = None
 
-    #  ======== plot fit =========
     if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
         if len(fit_params) == 4:
             # single peak
@@ -101,11 +95,6 @@ def plot_esr(axes, frequency, counts, fit_params=None, plot_marker_data = 'b', p
     if fit_data is not None:
         axes.plot(frequency, fit_data, plot_marker_fit)
 
-    # if fit_data is not None:  # plot esr and fit data
-    #     lines = axes.plot(frequency, data, 'b', frequency, fit_data, 'r')
-    # else:  # plot just esr data
-    #     lines = axes.plot(frequency, data, 'b')
-
     axes.set_title(title)
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
@@ -121,12 +110,10 @@ def plot_pulsedesr(axes, frequency, fit_params=None, plot_marker_fit = 'r'):
         plot_marker:  (str) plot marker
 
     Returns:
-
     """
 
     fit_data = None
 
-    #  ======== plot fit =========
     if fit_params is not None and len(fit_params) and fit_params[0] != -1:  # check if fit valid
         if len(fit_params) == 4:
             # single peak
@@ -149,7 +136,6 @@ def plot_pulses(axis, pulse_collection, pulse_colors=None):
         pulse_colors: a dictionary of {channel_id:matplotlib_color} that maps channels to colors
 
     Returns:
-
     """
 
     # create a list of unique instruments from the pulses
@@ -293,7 +279,7 @@ def plot_counts(axis, data):
     # axis.hold(False)
 
     axis.set_xlabel('time [s]')
-    axis.set_ylabel('[kCounts/s]')
+    axis.set_ylabel('[kCt/s]')
 
 def update_counts(axis, data, data_size=1):
     if data is None:
@@ -362,7 +348,7 @@ def plot_temperature(axis, data, sample_rate, update=False):
     axis.set_xlabel(label)
     axis.set_ylabel('temperature (K)')
 
-def plot_1d_simple_timetrace(axis, times, data_list, y_label='kCounts/sec', title=None, time_unit='ns'):
+def plot_1d_simple_timetrace(axis, times, data_list, xlabel='no label',y_label='[kCt/s]', title=None, time_unit='ns'):
     """
     plots a time trace for a list of data assuming that the times are give in ns
     Args:
@@ -411,7 +397,7 @@ def plot_1d_simple_timetrace(axis, times, data_list, y_label='kCounts/sec', titl
         axis.set_title(title)
     axis.set_xlim([min(times), max(times)])
 
-def plot_1d_simple_freq(axis, freqs, data_list, y_label='kCounts/sec', x_label = None, title=None,alpha=1):
+def plot_1d_simple_freq(axis, freqs, data_list, y_label='[kCt/s]', x_label = None, title=None,alpha=1):
     """
     plots a time trace for a list of data assuming that the times are give in ns
     Args:
@@ -459,9 +445,7 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
         fitting: if fitting is True, then account for the fact that the number of lines in the existing plot will be more than the length of the counts list
 
     Returns:
-
     """
-
 
     if len(np.shape(counts_list)) == 1:
         counts_list = [counts_list]
@@ -480,10 +464,9 @@ def update_1d_simple(axis, times, counts_list, fit_in_plot=False):
         axis.relim()
         axis.autoscale_view()
 
-def plot_counts_vs_pos(axis, data, pos, ylabel = 'kCounts/s'):
+def plot_counts_vs_pos(axis, data, pos, ylabel = '[kCt/s]'):
     """
     plots magnet position vs. counts for aligning the field with fluorescence
-
     """
     axis.set_xlabel('position (mm)')
     axis.set_ylabel(ylabel)
@@ -492,9 +475,7 @@ def plot_counts_vs_pos(axis, data, pos, ylabel = 'kCounts/s'):
 
 def update_counts_vs_pos(axis, data, pos):
     """
-
     updates the plot of the position vs counts when scanning the magnet
-
     """
 
     if data is None:

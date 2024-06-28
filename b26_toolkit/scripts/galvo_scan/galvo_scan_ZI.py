@@ -1,6 +1,6 @@
-from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
-from pylabcontrol.core import Script, Parameter
 import numpy as np
+from pylabcontrol.core import Script, Parameter
+from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 from b26_toolkit.scripts import SetLaser, ZISweeper
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
 
@@ -16,15 +16,14 @@ class GalvoScanZi(GalvoScanGeneric):
                    [Parameter('x_ao_channel', 'ao0', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for x voltage analog output'),
                     Parameter('y_ao_channel', 'ao3', ['ao0', 'ao1', 'ao2', 'ao3'], 'Daq channel used for y voltage analog output'),
                     Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter')
-                  ])
+                    ])
     ]
 
     _SCRIPTS = {'setlaser': SetLaser, 'get_spectrum': ZISweeper}
-
     _ACQ_TYPE = 'point'
 
     def __init__(self, scripts, name=None, settings=None, log_function=None, data_path=None):
-        '''
+        """
         Initializes GalvoScan script for use in gui
 
         Args:
@@ -33,8 +32,7 @@ class GalvoScanZi(GalvoScanGeneric):
             settings: dictionary of new settings to pass in to override defaults
             log_function: log function passed from the gui to direct log calls to the gui log
             data_path: path to save data
-
-        '''
+        """
         self._DEFAULT_SETTINGS = self._DEFAULT_SETTINGS + GalvoScanGeneric._DEFAULT_SETTINGS
         Script.__init__(self, name, settings=settings, scripts=scripts, log_function=log_function, data_path = data_path)
 
@@ -44,10 +42,8 @@ class GalvoScanZi(GalvoScanGeneric):
 
         [xVmin, xVmax, yVmax, yVmin] = self.pts_to_extent(self.settings['point_a'],self.settings['point_b'],self.settings['RoI_mode'])
 
-
         self.x_array = np.linspace(xVmin, xVmax, self.settings['num_points']['x'], endpoint=True)
         self.y_array = np.linspace(yVmin, yVmax, self.settings['num_points']['y'], endpoint=True)
-
 
     def get_galvo_location(self):
         """
@@ -82,19 +78,16 @@ class GalvoScanZi(GalvoScanGeneric):
             y_pos: y position of the scan
 
         Returns:
-
         """
 
         # point laser to new position
         galvo_position = {'x':float(x_pos), 'y':float(y_pos)}
         self.set_galvo_location(galvo_position)
 
-
         # acquire timetrace with osci
         self.scripts['get_spectrum'].run()
 
         return self.scripts['get_spectrum'].data[-1]['r']
-
 
     def _plot(self, axes_list, data=None):
         """
@@ -111,7 +104,6 @@ class GalvoScanZi(GalvoScanGeneric):
         plot_fluorescence_new(data['image_data'], data['extent'], axes_list[0])
 
         self.scripts['get_spectrum']._plot([axes_list[1]], trace_only = True)
-
 
     def _update_plot(self, axes_list):
         """

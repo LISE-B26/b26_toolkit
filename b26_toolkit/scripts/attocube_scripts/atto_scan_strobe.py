@@ -64,7 +64,7 @@ class AttoScanAnc300Pulsed(GalvoScanStrobe):
 
         Parameter('microwaves',
                   [Parameter('enable', False, bool, 'enable microwaves'),
-                   Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+                   Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
                    Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
                    Parameter('freq', 2.87e9, float, 'start frequency of scan in Hz'),
                    Parameter('normalize_scan', False, bool, 'Normalize scan by taking each line twice, with MW off and on')

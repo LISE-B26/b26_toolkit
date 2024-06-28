@@ -16,19 +16,16 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import numpy as np
-from matplotlib import patches
-
 from b26_toolkit.instruments import NI6259, NI9263
 from pylabcontrol.core import Script, Parameter
 
 
 class SetLaserPower(Script):
     """
-This script sets the laser power by changing the analog voltage on the fiber coupled attenuator. ER 20180308
+    This script sets the laser power by changing the analog voltage on the fiber coupled attenuator. ER 20180308
 
-Spec sheet at https://www.thorlabs.com/drawings/3df25d052232c1a0-4F4D2098-BE71-279F-FAD6F90E43F9341F/V450A-SpecSheet.pdf
-V450A
+    Spec sheet at https://www.thorlabs.com/drawings/3df25d052232c1a0-4F4D2098-BE71-279F-FAD6F90E43F9341F/V450A-SpecSheet.pdf
+    V450A
     """
 
     _DEFAULT_SETTINGS = [

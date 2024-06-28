@@ -27,7 +27,7 @@ uInt32 = ctypes.c_ulong
 uInt64 = ctypes.c_ulonglong
 float64 = ctypes.c_double
 
-#define built-in error codes
+# define built-in error codes
 NCB_Ok = 0
 NCB_Error = -1
 NCB_Timeout = 1
@@ -142,13 +142,12 @@ class Attocube(Instrument):
         raise NotImplementedError
 
 class ANC300(Attocube):
-    '''
+    """
     Class to control an attocube using a supplied ANC300 controller. Has been tested controlling a stack of two
     ANPx101res and one ANPz101res, but it should work with any controllers supporting the same low level serial
     commands. The commands can be found in the ANC300 manual. The class communicates with the device over the USB slave
     port.
-    '''
-
+    """
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('port', 'COM3', str, 'serial port on which to connect'),
@@ -168,12 +167,13 @@ class ANC300(Attocube):
     _WRITE_TIMEOUT = 0.03  # in seconds
 
     def __init__(self, name=None, settings=None):
-        '''
+        """
         Connects to attocube controller ANC300 through USB using PySerial. Throws exception if unable to connect.
         baudrate was not specified in manual but 9600 seems to work.
         :param name: name of instruments
         :param settings: settings to update instrument with
-        '''
+        """
+
         super().__init__(name, settings)
         self._is_connected = False
         try:
@@ -183,6 +183,7 @@ class ANC300(Attocube):
             self.serial_numbers = {}
             for axis in ANC300_axes.values():
                 self.serial_numbers[axis] = self._get_serial(axis)
+            print('Detected serial numbers: ')
             print(self.serial_numbers)
 
         except Exception as e:
@@ -190,11 +191,12 @@ class ANC300(Attocube):
             raise e
 
     def update(self, settings):
-        '''
+        """
         Updates the internal settings, updating voltage or frequency
         Args:
             settings: a dictionary in the same form as settings with the new values
-        '''
+        """
+
         super().update(settings)
         for key, value in settings.items():
             split_key = key.split('_', 1)
@@ -225,12 +227,12 @@ class ANC300(Attocube):
                     raise ValueError('No such key')
 
     def _connect(self, port, baudrate=38400, timeout=1.):
-        '''
+        """
         Connects to ANC300 through USB serial connection. Throws exception if unable to connect
         :param port: virtual port to connect to (usually COM)
         :param baudrate: baudrate of connection
         :param timeout: connection timeout in seconds
-        '''
+        """
         self.ser = serial.Serial(port=port,
                                  baudrate=baudrate,
                                  timeout=timeout,
@@ -238,57 +240,57 @@ class ANC300(Attocube):
         self._is_connected = True
 
     def __del__(self):
-        '''
+        """
         close connection upon destruction of instance
-        '''
+        """
         if self._is_connected:
             self.ser.close()
 
     def _get_serial(self, axis):
-        '''
+        """
         Sets serial of attocube axis
         :param axis: axis number to set (int)
-        '''
+        """
         return self._get_param(axis, 'getser', '')
 
     def _set_frequency(self, axis, freq):
-        '''
+        """
         Sets frequency of attocube axis
         :param axis: axis number to set (int)
         :param freq: frequency to set axis to in Hz (int)
-        '''
+        """
         self.ser.write('setf {} {}\n'.format(axis, freq).encode())
         self._get_OK()
 
     def _get_frequency(self, axis):
-        '''
+        """
         Gets frequency of attocube axis
         :param axis: axis number to set (int)
-        '''
+        """
         return int(self._get_param(axis, 'getf', 'frequency'))
 
     def _set_amplitude(self, axis, amplitude):
-        '''
+        """
         Sets amplitude of attocube axis
         :param axis: axis number to set (int)
         :param amplitude: amplitude to set axis to in V (float)
-        '''
+        """
         self.ser.write('setv {} {}\n'.format(axis, amplitude).encode())
         self._get_OK()
 
     def _get_amplitude(self, axis):
-        '''
+        """
         Gets amplitude of attocube axis
         :param axis: axis number to set (int)
-        '''
+        """
         return self._get_param(axis, 'getv', 'voltage')
 
     def _set_offset(self, axis, offset):
-        '''
+        """
         Sets offset voltage of attocube axis
         :param axis: axis number to set (int)
         :param offset: offset to set axis to in V (float)
-        '''
+        """
         if self.serial_numbers[axis][:6] == 'ANM300':
             # self._set_filter(axis, bandwidth=16)
             self._set_mode(axis, 'offset')
@@ -298,10 +300,10 @@ class ANC300(Attocube):
             print('Module {} has no offset functionality'.format(axis))
 
     def _get_offset(self, axis):
-        '''
+        """
         Gets offset voltage of attocube axis
         :param axis: axis number to set (int)
-        '''
+        """
 
         if self.serial_numbers[axis][:6] == 'ANM300':
             return self._get_param(axis, 'geta', 'voltage')
@@ -310,11 +312,11 @@ class ANC300(Attocube):
             return 0
 
     def _set_filter(self, axis, bandwidth):
-        '''
+        """
         Sets filter bandwidth of attocube axis (only for DC ouputs, not for stepping)
         :param axis: axis number to set (int)
         :param bandwidth: bandwidth of low pass filter
-        '''
+        """
 
         if self.serial_numbers[axis][:6] == 'ANM300':
             assert bandwidth == 16 or bandwidth == 160
@@ -353,7 +355,7 @@ class ANC300(Attocube):
                 #self._set_filter(axis, 16)
 
     def get_pattern(self, axis, dir):
-        '''
+        """
         Get step pattern from attocube controller
         :param axis: axis number to acquire parameter from (int)
         :param dir: direction of up or down pattern; up = 0, down = 1
@@ -361,7 +363,7 @@ class ANC300(Attocube):
 
         A signal is generated from 256 sequential values, with the values ranging from 0 to 255. The voltage for each
         step is V = value/256*voltage_per_step. Time for each individual step is t= 1/256 * 1/step_freq.
-        '''
+        """
 
         # Send command to get param
         if dir in [0, 1]:
@@ -388,7 +390,7 @@ class ANC300(Attocube):
         return pattern
 
     def set_pattern(self, axis, dir, pattern):
-        '''
+        """
         Write step pattern to attocube controller
         :param axis: axis number to acquire parameter from (int)
         :param dir: direction of up or down pattern; up = 0, down = 1
@@ -397,7 +399,7 @@ class ANC300(Attocube):
 
         A signal is generated from 256 sequential values, with the values ranging from 0 to 255. The voltage for each
         step is V = value/256*voltage_per_step. Time for each individual step is t= 1/256 * 1/step_freq.
-        '''
+        """
 
         # Send command to get param
         if dir in [0, 1]:
@@ -427,10 +429,10 @@ class ANC300(Attocube):
 
 
     def _cap_measure(self, axis):
-        '''
+        """
         Measures capacitance for specified axis
         :param axis: axis number to set (int)
-        '''
+        """
 
         # Start capacitance measurement
         self._set_mode(axis, 'capacitance')
@@ -447,13 +449,13 @@ class ANC300(Attocube):
         return self._get_param(axis, 'getc', 'capacitance')
 
     def _get_param(self, axis, command, param):
-        '''
+        """
         Get parameter (frequency, amplitude, etc) from attocube controller
         :param axis: axis number to acquire parameter from (int)
         :param command: command for getting parameter (i.e. getf, getc) (str)
         :param param: name of paramter to be read (str)
         :return: parameter value
-        '''
+        """
         # Send command to get param
         self.ser.write((command + ' {}\n').format(axis).encode())
 
@@ -480,11 +482,11 @@ class ANC300(Attocube):
         return result
 
     def step(self, axis, dir):
-        '''
+        """
         Take single step
         :param axis: axis to take step along (str: x, y, z)
         :param dir: direction to take step in (int: 0 for positive, 1 for negative)
-        '''
+        """
         # If positive direction
         if dir == 0:
             self.multistep(axis, 1)
@@ -496,11 +498,11 @@ class ANC300(Attocube):
             raise ValueError
 
     def multistep(self, axis, num_steps):
-        '''
+        """
         Take multiple steps
         :param axis: axis to take step along (str: x, y, z)
         :param num_steps: number of steps to take. num_steps < 0 for negative direction (int)
-        '''
+        """
 
         # Do nothing if no steps
         if num_steps == 0:
@@ -532,20 +534,20 @@ class ANC300(Attocube):
 
 
     def _convert_axis(self, axis):
-        '''
+        """
         Convert axis name to number
         :param axis: axis name (x, y, z) (str)
         :return: axis number
-        '''
+        """
         if axis not in self._AXES:
             raise ValueError('No such axis available')
 
         return ANC300_axes[axis]
 
     def _get_OK(self):
-        '''
+        """
         Read acknowledgment line after command.
-        '''
+        """
 
         # Read command recently written and then what should be OK
         line1 = self.ser.readline().decode()
@@ -592,7 +594,7 @@ class ANC300(Attocube):
             return self._get_offset(self._convert_axis(key.split('_')[0]))
 
 class ANC350(Attocube):
-    '''
+    """
     Class to control an attocube using a supplied controller. Has been tested on an
     ANC350 controlling a stack of two ANPx101res and one ANPz101res, but it should
     work with any controllers supporting the same low level dll commands.
@@ -600,7 +602,7 @@ class ANC350(Attocube):
     Note that we use the 1.5 version of the dll, the 2.0 version cannot be read properly
     and may be written in a non-ctypes compatible language
     The class communicates with the device over USB.
-    '''
+    """
 
     def __init__(self, name = None, settings = None):
         # Load DLL and check that attocube is connected to computer. If no DLL, continue to work but throw a warning
@@ -628,12 +630,12 @@ class ANC350(Attocube):
         super().__init__(name, settings)
 
     def update(self, settings):
-        '''
+        """
         Updates the internal settings, as well as turning the attocube channel on or off, updating
         voltage or frequency, or moving to the given position
         Args:
             settings: a dictionary in the same form as settings with the new values
-        '''
+        """
         super().update(settings)
         for key, value in settings.items():
             split_key = key.split('_')
@@ -653,10 +655,10 @@ class ANC350(Attocube):
 
     @property
     def is_connected(self):
-        '''
+        """
         Check if attocube controller is connected
         Returns: True if controller is connected, false otherwise
-        '''
+        """
         #connecting fails if device is not connected, so this catches that error
         try:
             device_handle = int32()
@@ -667,21 +669,21 @@ class ANC350(Attocube):
             return False
 
     def _toggle_axis(self, axis, on):
-        '''
+        """
         Turn axis on or off
         :param axis: axis_x, axis_y, or axis_z
         :param on: True or False
-        '''
+        """
         device_handle = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
         self._check_error(self.attocube.PositionerSetOutput(device_handle, axis, ctypes.c_bool(on)))
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def _set_frequency(self, axis, freq):
-        '''
+        """
         :param axis: axis_x, axis_y, or axis_z
         :param freq: frequency to set in Hz
-        '''
+        """
         assert (freq <= 2000)
         device_handle = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -689,10 +691,10 @@ class ANC350(Attocube):
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def _get_frequency(self, axis):
-        '''
+        """
         :param axis: axis_x, axis_y, or axis_z
         :return: current frequency of axis in Hz
-        '''
+        """
         device_handle = int32()
         freq = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -701,10 +703,10 @@ class ANC350(Attocube):
         return freq.value
 
     def _set_amplitude(self, axis, amplitude):
-        '''
+        """
         :param axis: axis: axis_x, axis_y, or axis_z
         :param amplitude: amplitude in V
-        '''
+        """
         assert(amplitude <= 60)
         device_handle = int32()
         amplitude *= 1000
@@ -713,10 +715,10 @@ class ANC350(Attocube):
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def _get_amplitude(self, axis):
-        '''
+        """
         :param axis: axis_x, axis_y, or axis_z
         :return: amplitude in V
-        '''
+        """
         device_handle = int32()
         amplitude = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -725,10 +727,10 @@ class ANC350(Attocube):
         return (amplitude.value / 1000.0)
 
     def _get_position(self, axis):
-        '''
+        """
         :param axis: axis_x, axis_y, or axis_z
         :return: position of axis in um
-        '''
+        """
         device_handle = int32()
         position = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -740,10 +742,10 @@ class ANC350(Attocube):
         return position.value/1000.0
 
     def _cap_measure(self, axis):
-        '''
+        """
         :param axis: axis_x, axis_y, or axis_z
         :return: Capacitance in uF
-        '''
+        """
         device_handle = int32()
         capacitance = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -752,25 +754,25 @@ class ANC350(Attocube):
         return capacitance.value
 
     def move_absolute(self, axis, position):
-        '''
+        """
         Precondition: Must set voltage and frequency sufficiently low that ANC's internal feedback will be able to
         settle on the appropriate position (ex. 7V, 100Hz). Otherwise, fluctuates around target position and never stops
         :param axis: axis_x, axis_y, or axis_z
         :param position: position of axis to move to in um
-        '''
+        """
         device_handle = int32()
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
         self._check_error(self.attocube.PositionerMoveAbsolute(device_handle, self._convert_axis(axis), int32(int(position * 1000.0))))
         self._check_error(self.attocube.PositionerClose(device_handle))
 
     def step(self, axis, dir):
-        '''
+        """
         Move a single step on the given axis in the given direction
         Args:
             axis: 'x', 'y', or 'z'
             dir: 0 for forwards, 1 for backwards
 
-        '''
+        """
         device_handle = int32()
         axis = self._convert_axis(axis)
         self._check_error(self.attocube.PositionerConnect(0, ctypes.byref(device_handle)))
@@ -787,20 +789,19 @@ class ANC350(Attocube):
             self._check_error(self.attocube.PositionerMoveSingleStep(device_handle, axis, int32(dir)))
         self._check_error(self.attocube.PositionerClose(device_handle))
 
-
     def _convert_axis(self, axis):
         if axis not in self._AXES:
             raise ValueError('No such axis available')
-
         return ANC350_axes[axis]
 
     @staticmethod
     def _check_error(code):
-        '''
+        """
         Translates error codes to human readable message
         :param code: input error code (integer 0-8)
         :poststate: message printed to stdout
-        '''
+        """
+
         if(code == NCB_Ok):
             return
         elif(code == NCB_BootIgnored):
@@ -865,37 +866,8 @@ class ANC350(Attocube):
             return self._cap_measure(self._convert_axis(key[0]))
 
 if __name__ == '__main__':
-    #print((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.txt')))
-
-    """
-    try:
-        a = ANC300()
-        def triangle(t,a):
-            if t < a:
-                result = t/a
-            elif t > 255 - a:
-                result = 1 + (t - (255 - a)) * (-1 / a)
-            else:
-                result = 1
-        def triangle(t,a):
-            if np.abs(t) < np.abs(a):
-                result = 1 - np.abs(t/a)
-            else:
-                result = 0
-            return result
-
-        pattern = [triangle(t-128, 128) for t in range(256)]
-        pattern = [(element-np.min(pattern))/(np.max(pattern)-np.min(pattern)) for element in pattern]
-        pattern = [int(element*255) for element in pattern]
-
-        a.set_pattern(axis=1, dir=0, pattern=pattern)
-        pattern = a.get_pattern(axis=1, dir=0)
-        print(pattern)
-        
-    """
     print('start')
     a = ANC300()
-    #a.update({'z_offset': 34})
     print(a)
     t = time.localtime()
     current_time = time.strftime("%H:%M:%S", t)
@@ -904,10 +876,6 @@ if __name__ == '__main__':
     a._set_mode(1, 'ground')
     a._set_mode(2, 'ground')
     a._set_mode(3, 'ground')
-
-    #a.update({'z_step_amplitude': 25})
-    #print(a.read_probes('z_step_amplitude'))
-    #a._get_serial(1)
 
 
 

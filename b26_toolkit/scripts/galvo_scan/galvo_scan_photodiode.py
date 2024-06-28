@@ -1,32 +1,29 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-
-from b26_toolkit.instruments import NI6259, NI9263, NI9402, NI9215, NI9263_02
 from pylabcontrol.core import Script, Parameter
+from b26_toolkit.instruments import NI6259, NI9402, NI9215, NI9263_02
 from b26_toolkit.scripts.galvo_scan.galvo_scan_generic import GalvoScanGeneric
 
 
 class GalvoScanPhotodiode(GalvoScanGeneric):
-
-    '''
-
+    """
     This GalvoScan records the analog voltage coming out of a photodiode, and which is assumed to be connected to an
     analog input voltage on a daq.
 
@@ -37,8 +34,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
     However, we need to be sure to place the galvo position to the iron on the resonator to get the maximum signal.
     To do so we need to setup this galvo scan to make sure the photodiode is 'seeing' the same galvo xy voltages for the
     center of the iron piece as the APD does.
-
-    '''
+    """
 
     _DEFAULT_SETTINGS = [
         Parameter('point_a',
@@ -73,11 +69,10 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
     ]
 
     _INSTRUMENTS = {'NI9215': NI9215, 'NI9402': NI9402, 'NI9263_02': NI9263_02}
-
     _SCRIPTS = {}
 
     def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
-        '''
+        """
         Initializes GalvoScan script for use in gui
 
         Args:
@@ -86,8 +81,7 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
             settings: dictionary of new settings to pass in to override defaults
             log_function: log function passed from the gui to direct log calls to the gui log
             data_path: path to save data
-
-        '''
+        """
         Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
                         data_path=data_path)
 
@@ -95,11 +89,8 @@ class GalvoScanPhotodiode(GalvoScanGeneric):
         """
         setup the scan, i.e. identify the instruments and set up sample rate and such
 
-
         :return:
         """
-
-
         # ER commented out 20181221 - still need to merge daq code with other scripts correctly
 
         # defines which daqs contain the input and output based on user selection of daq interface

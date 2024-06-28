@@ -1,10 +1,5 @@
-import glob
-import pandas as pd
-import numpy as np
 import time
-import threading
 from copy import deepcopy
-
 from pylabcontrol.core import Script, Parameter
 from b26_toolkit.scripts import FindNv, SetMagneticCoils, Esr, TakeAndCorrelateImages
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
