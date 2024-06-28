@@ -33,13 +33,13 @@ This script measures Rabi oscillations of a nuclear spin coupled to an NV center
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('mw_tau', 300, float, 'microwave pi-pulse duration in ns'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
         ]),
         Parameter('rf_pulses', [
-            Parameter('rf_power', -45.0, float, 'microwave power in dB'),
+            Parameter('rf_power', -45.0, float, 'microwave power in dBm'),
             Parameter('rf_frequency', 3e6, float, 'frequency of hyperfine interaction in Hz'),
             Parameter('rf_channel', 'i', ['i', 'q'], 'Channel to use for rf pulses'),
             Parameter('rf_settle', 2000, float, 'settling time before and after RF pulse in ns'),
@@ -221,13 +221,13 @@ This script measures Rabi oscillations of a nuclear spin coupled to an NV center
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('mw_tau', 300, float, 'microwave pi-pulse duration in ns'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses')
         ]),
         Parameter('rf_pulses', [
-            Parameter('rf_power', -45.0, float, 'microwave power in dB'),
+            Parameter('rf_power', -45.0, float, 'microwave power in dBm'),
             Parameter('rf_frequency', 3e6, float, 'frequency of hyperfine interaction in Hz'),
             Parameter('rf_channel', 'i', ['i', 'q'], 'Channel to use for rf pulses'),
             Parameter('rf_settle', 2000, float, 'settling time before and after RF pulse in ns, for pulses like nuclear polarization')

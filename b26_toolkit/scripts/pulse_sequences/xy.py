@@ -1,34 +1,36 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-import numpy as np
 
+import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
 
-class XY8_k(PulsedExperimentGeneric): # ER 5.25.2017
+
+class XY8_k(PulsedExperimentGeneric):
     """
-This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+    This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
     """
+
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
             Parameter('microwave_channel_pi2', 'q', ['i', 'q'], 'Channel to use for the mw pi/2 pulses'),
@@ -55,13 +57,10 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
-#    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator} #ER 20181218
-  #  _INSTRUMENTS = {'daq': NI6259, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
-        #COMMENT_ME
-
+        # COMMENT_ME
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
@@ -80,8 +79,7 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             self.log('t2 fit failed')
 
     def _create_pulse_sequences(self):
-        '''
-
+        """
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
@@ -89,14 +87,8 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
-
-        '''
+        """
         pulse_sequences = []
-        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
-        #                  self.settings['tau_times']['time_step'])
-        # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        #tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
-
         tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],
                              self.settings['tau_times']['time_step'])
         tau_list = np.ndarray.tolist(tau_list)  # 20180731 ER convert to list
@@ -125,7 +117,6 @@ This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize t
                 Pulse(microwave_channel_pi2, laser_off_time, pi_half_time), # pi/2 pulse
             ]
 
-          #  next_pi_t = laser_off_time + pi_half_time/2. + tau/2 - pi_time/2.
             next_pi_t = laser_off_time + pi_half_time + tau/2 #- pi_time/2.
 
             N = self.settings['mw_pulses']['pi_pulse_blocks_k']*8
@@ -235,7 +226,7 @@ todo(emma): (make double_init scheme)
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses',[
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             # Parameter('mw_switch_extra_time', 15, int, 'Time to add before and after microwave switch is turned on'),
             Parameter('pi_pulse_time', 50, float, 'time duration of pi-pulse (in ns)'),
@@ -268,7 +259,7 @@ todo(emma): (make double_init scheme)
         super(XY4, self)._function()
 
     def _create_pulse_sequences(self):
-        '''
+        """
 
         Returns: pulse_sequences, num_averages, tau_list
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
@@ -278,7 +269,7 @@ todo(emma): (make double_init scheme)
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
 
-        '''
+        """
         pulse_sequences = []
         # tau_list = range(int(max(15, self.settings['min_delay_time'])), int(self.settings['max_delay_time'] + 15),
         #                  self.settings['delay_time_step'])
@@ -299,11 +290,8 @@ todo(emma): (make double_init scheme)
 
         number_of_pulse_blocks = self.settings['mw_pulses']['number_of_pulse_blocks']
 
-
         for tau in tau_list:
-
             pulse_sequence = []
-
             #initialize and pi/2 pulse
             pulse_sequence.extend([Pulse('laser', 0, reset_time - ref_meas_off_time - 15 - meas_time),
                                    Pulse('apd_readout', reset_time - 15 - meas_time, meas_time),
@@ -366,14 +354,16 @@ todo(emma): (make double_init scheme)
         axislist[0].set_title('XY4')
         axislist[0].legend(labels=('Ref Fluorescence', 'XY4 data'), fontsize=8)
 
+
 class XYXY(PulsedExperimentGeneric): # ER 5.25.2017
     """
-Pulse sequence is X Y X Y X Y X Y .... to accumulate pulse errors and calibrate phase - typically a very short tau should be used
-Uses double_init scheme
+    Pulse sequence is X Y X Y X Y X Y .... to accumulate pulse errors and calibrate phase - typically a very short tau should be used
+    Uses double_init scheme
     """
+
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pi pulses'),
             Parameter('microwave_channel_pi2', 'q', ['i', 'q'], 'Channel to use for the mw pi/2 pulses'),
@@ -402,7 +392,7 @@ Uses double_init scheme
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
-        #COMMENT_ME
+        # COMMENT_ME
 
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
@@ -422,8 +412,7 @@ Uses double_init scheme
             self.log('t2 fit failed')
 
     def _create_pulse_sequences(self):
-        '''
-
+        """
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
@@ -431,12 +420,10 @@ Uses double_init scheme
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
+        """
 
-        '''
         pulse_sequences = []
-        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
-        #                  self.settings['tau_times']['time_step'])
-        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+
         tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
@@ -453,7 +440,6 @@ Uses double_init scheme
         laser_off_time = self.settings['read_out']['laser_off_time']
         meas_time = self.settings['read_out']['meas_time']
         delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
 
         for tau in tau_list:
             pulse_sequence = \
@@ -528,10 +514,8 @@ Uses double_init scheme
 
         return pulse_sequences, tau_list, meas_time
 
-
-
     def _plot(self, axislist, data = None):
-        '''
+        """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
         Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
@@ -540,7 +524,7 @@ Uses double_init scheme
         Args:
             axes_list: list of axes to write plots to (uses first 2)
             data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
-        '''
+        """
 
         if data is None:
             data = self.data
@@ -551,7 +535,6 @@ Uses double_init scheme
             fits = data['fits']
 
             axislist[0].plot(tau, counts, 'b')
-         #   axislist[0].hold(True) ER 20181012
 
             axislist[0].plot(tau, exp_offset(tau, fits[0], fits[1], fits[2]))
             axislist[0].set_title('T2 decay time (simple exponential, p = 1): {:2.1f} ns'.format(fits[1]))

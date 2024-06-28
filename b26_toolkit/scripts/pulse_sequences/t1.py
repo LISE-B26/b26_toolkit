@@ -1,38 +1,35 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import numpy as np
+from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_tracking import PulsedExperimentTracking
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
-from pylabcontrol.core import Parameter, Script
-from pylabcontrol.scripts import SelectPoints
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay
-from b26_toolkit.scripts import Esr, FindNv
-from .rabi import Rabi
 
-class T1(PulsedExperimentGeneric):  # ER 10.21.2017
+
+class T1(PulsedExperimentGeneric):
     """
     This script sweeps the readout pulse duration. Uses a double_init scheme
     """
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulse', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
             Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
             Parameter('pi_time', 30.0, float, 'pi time in ns')
@@ -49,27 +46,23 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
                       'minimum laser off time before taking measurements (ns)'),
             Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
             Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
-            Parameter('readout_ref_same_pulse', False, bool, 'take reference fluorescence at the end of the readout pulse, which should be sufficiently long to initialize the NV')
+            Parameter('readout_ref_same_pulse', False, bool,
+                      'take reference fluorescence at the end of the readout pulse, which should be sufficiently long to initialize the NV')
         ]),
         Parameter('num_averages', 100000, int, 'number of averages'),
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
-    _SCRIPTS = {'find_nv': FindNv, 'esr': Esr}
-
-
     def _function(self):
         # COMMENT_ME
-
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
         super(T1, self)._function(self.data)
 
-
-        counts = (self.data['counts'][:, 0]  - self.data['counts'][:,1]) / (self.data['counts'][:, 0] + self.data['counts'][:,1])
+        counts = (self.data['counts'][:, 0] - self.data['counts'][:, 1]) / (self.data['counts'][:, 0] + self.data['counts'][:, 1])
         tau = self.data['tau']
 
         try:
@@ -80,8 +73,7 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
             self.log('fit failed')
 
     def _create_pulse_sequences(self):
-        '''
-
+        """
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
@@ -89,14 +81,13 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
-
-        '''
+        """
         pulse_sequences = []
         # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
         #                  self.settings['tau_times']['time_step'])
         # JG 16-08-25 changed (15ns min spacing is taken care of later):
         tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         int(self.settings['tau_times']['time_step'])))
+                              int(self.settings['tau_times']['time_step'])))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -121,8 +112,8 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
                     pulse_sequence += [Pulse(microwave_channel, laser_off_time + nv_reset_time + laser_off_time + tau, pi_time)]
 
                 pulse_sequence += [
-                    Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2*tau, nv_reset_time),
-                    Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + 2*tau, meas_time)
+                    Pulse('laser', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + 2 * tau, nv_reset_time),
+                    Pulse('apd_readout', laser_off_time + nv_reset_time + laser_off_time + delay_mw_readout + delay_readout + 2 * tau, meas_time)
                 ]
                 # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
                 # if tau == 0 or tau>=15:
@@ -155,7 +146,7 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
         return pulse_sequences, tau_list, meas_time
 
     def _plot(self, axislist, data=None):
-        '''
+        """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
         Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
@@ -164,13 +155,13 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
         Args:
             axes_list: list of axes to write plots to (uses first 2)
             data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
-        '''
+        """
 
         if data is None:
             data = self.data
 
         if data['fits'] is not None:
-            counts = (data['counts'][:, 0] - data['counts'][:, 1]) /(data['counts'][:, 1] + data['counts'][:, 0])
+            counts = (data['counts'][:, 0] - data['counts'][:, 1]) / (data['counts'][:, 1] + data['counts'][:, 0])
             tau = data['tau']
             fits = data['fits']  # amplitude, frequency, phase, offset
 
@@ -185,93 +176,8 @@ class T1(PulsedExperimentGeneric):  # ER 10.21.2017
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
-class T1Resonant(T1):
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_pulse', [
-            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
-            Parameter('pi_time', 30.0, float, 'pi time in ns')
-        ]),
-        Parameter('tau_times', [
-            Parameter('min_time', 15, float, 'minimum time for T1 (in ns)'),
-            Parameter('max_time', 200, float, 'total time for T1 (in ns)'),
-            Parameter('time_step', 5,
-                      [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 50000, 100000, 500000, 1000000, 5000000],
-                      'time step increment of readout pulse duration (in ns)')
-        ]),
-        Parameter('read_out', [
-            Parameter('nv_reset_time', 7000, int, 'time with laser on to reset state'),
-            Parameter('meas_time', 1000, float, 'measurement time after rabi sequence (in ns)'),
-            Parameter('laser_off_time', 1000, int,
-                      'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
-            Parameter('red_on_time', 1000, int, 'time that red laser is on'),
-            Parameter('red_off_time', 1000, int, 'time off after red laser'),
-        ]),
-        Parameter('num_averages', 100000, int, 'number of averages'),
-    ]
 
-    def _create_pulse_sequences(self):
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list, meas_time
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-        pulse_sequences = []
-        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
-        #                  self.settings['tau_times']['time_step'])
-        # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
-                         int(self.settings['tau_times']['time_step'])))
-
-        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
-        tau_list = [x for x in tau_list if x == 0 or x >= 15]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-        pi_time = self.settings['mw_pulse']['pi_time']
-        meas_time = self.settings['read_out']['meas_time']
-        red_off_time = self.settings['read_out']['red_off_time']
-        red_on_time = self.settings['read_out']['red_on_time']
-
-        for tau in tau_list:
-            pulse_sequence = [Pulse('laser', red_off_time, nv_reset_time)]
-
-            pulse_sequence += [
-                Pulse('red_laser', red_off_time + nv_reset_time + laser_off_time + tau, red_on_time),
-                Pulse('apd_readout', red_off_time + nv_reset_time + laser_off_time + tau + delay_readout, meas_time)
-            ]
-
-            end_of_first = red_off_time + nv_reset_time + laser_off_time + tau + red_on_time + red_off_time
-
-            pulse_sequence += [Pulse('laser', end_of_first, nv_reset_time)]
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [Pulse(microwave_channel, end_of_first + nv_reset_time + laser_off_time, pi_time)]
-
-            pulse_sequence += [
-                Pulse('red_laser', end_of_first + nv_reset_time + laser_off_time + pi_time + tau + delay_mw_readout, red_on_time),
-                Pulse('apd_readout', end_of_first + nv_reset_time + laser_off_time + pi_time + tau + delay_mw_readout + delay_readout, meas_time)
-            ]
-
-            pulse_sequences.append(pulse_sequence)
-
-        return pulse_sequences, tau_list, meas_time
-
-
-class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
+class T1SingleInit(PulsedExperimentTracking):  # ER 5.25.2017
     """
     This script measures the T1 by measuring the decay of the ms = 0 population,into +/-1. To avoid needing a pi pulse we only do this once on ms = 0
     """
@@ -280,7 +186,7 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
             Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
             Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
             Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
-                  'time step increment of rabi pulse duration (in ns)')
+                      'time step increment of rabi pulse duration (in ns)')
         ]),
         Parameter('read_out', [
             Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
@@ -296,14 +202,12 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
 
     def _function(self):
-        #COMMENT_ME
+        # COMMENT_ME
 
         self.data['fits'] = None
-
         super(T1SingleInit, self)._function(self.data)
         counts = self.data['counts']
         tau = self.data['tau']
-
 
         try:
             fits = fit_exp_decay(tau, counts, varibale_phase=True)
@@ -313,8 +217,7 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
             self.log('exp fit failed')
 
     def _create_pulse_sequences(self):
-        '''
-
+        """
         Returns: pulse_sequences, num_averages, tau_list, meas_time
             pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
             scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
@@ -322,13 +225,11 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
-
-        '''
+        """
         pulse_sequences = []
-        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
-        #                  self.settings['tau_times']['time_step'])
-        # JG 16-08-25 changed (15ns min spacing is taken care of later):
-        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),self.settings['tau_times']['time_step']))
+
+        tau_list = list(
+            range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']), self.settings['tau_times']['time_step']))
 
         # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
         tau_list = [x for x in tau_list if x == 0 or x >= 15]
@@ -341,8 +242,8 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
 
         for tau in tau_list:
             pulse_sequence = \
-                [Pulse('laser', laser_off_time + tau + 2*40, nv_reset_time),
-                 Pulse('apd_readout', laser_off_time + tau + 2*40 + delay_readout, meas_time),
+                [Pulse('laser', laser_off_time + tau + 2 * 40, nv_reset_time),
+                 Pulse('apd_readout', laser_off_time + tau + 2 * 40 + delay_readout, meas_time),
                  ]
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
@@ -350,10 +251,8 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
 
         return pulse_sequences, tau_list, meas_time
 
-
-
-    def _plot(self, axislist, data = None):
-        '''
+    def _plot(self, axislist, data=None):
+        """
         Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
         received for each time
         Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
@@ -362,15 +261,15 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
         Args:
             axes_list: list of axes to write plots to (uses first 2)
             data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
-        '''
+        """
 
         if data is None:
             data = self.data
 
         if data['fits'] is not None:
-            counts = data['counts'][:,1]/ data['counts'][:,0]
+            counts = data['counts'][:, 1] / data['counts'][:, 0]
             tau = data['tau']
-            fits = data['fits'] # amplitude, frequency, phase, offset
+            fits = data['fits']  # amplitude, frequency, phase, offset
 
             axislist[0].plot(tau, counts, 'b')
             axislist[0].hold(True)
@@ -381,62 +280,3 @@ class T1SingleInit(PulsedExperimentTracking): # ER 5.25.2017
             super(T1SingleInit, self)._plot(axislist)
             axislist[0].set_title('T1 decay of ms = 0 population')
 
-# class T1_double_init_many_NVs(Script):
-#     _DEFAULT_SETTINGS = [
-#         Parameter('esr_peak', 'upper', ['upper', 'lower', 'both'], 'if ESR fits two peaks, defines which one to use')
-#     ]
-#     _INSTRUMENTS = {}
-#     _SCRIPTS = {'select_NVs': SelectPoints, 'ESR': ESR, 'Rabi': Rabi, 'T1': T1}
-#
-#     def _function(self):
-#         for num, nv_loc in enumerate(self.scripts['select_NVs'].data['nv_locations']):
-#             if self._abort:
-#                 break
-#             find_NV_rabi = self.scripts['Rabi'].scripts['find_nv']
-#             find_NV_rabi.settings['initial_point']['x'] = nv_loc[0]
-#             find_NV_rabi.settings['initial_point']['y'] = nv_loc[1]
-#             find_NV_rabi.run()
-#             self.scripts['ESR'].settings['tag'] = 'esr_NV' + str(num)
-#             self.scripts['ESR'].run()
-#             fit_params = self.scripts['ESR'].data['fit_params']
-#             if fit_params is None:
-#                 continue
-#             if len(fit_params) == 4:
-#                 freqs = [fit_params[2]]
-#             elif len(fit_params == 6):
-#                 if self.settings['esr_peak'] == 'lower':
-#                     freqs = [fit_params[4]]
-#                 elif self.settings['esr_peak'] == 'upper':
-#                     freqs = [fit_params[5]]
-#                 elif self.settings['esr_peak'] == 'both':
-#                     freqs = [fit_params[4], fit_params[5]]
-#             for freq in freqs:
-#                 if self._abort:
-#                     break
-#                 rabi = self.scripts['Rabi']
-#                 rabi.settings['tag'] = 'rabi_NV' + str(num)
-#                 rabi.settings['mw_pulses']['mw_frequency'] = float(freq)
-#                 rabi.run()
-#                 rabi_fit = rabi.data['fits']
-#                 if rabi_fit is None:
-#                     continue
-#                 pi_time = abs((np.pi - rabi_fit[2])/rabi_fit[1])
-#                 pi_time = min(max(np.round(pi_time / 2.5) * 2.5, 15.), 300.) #round to nearest 2.5 ns
-#                 find_NV_T1 = self.scripts['T1'].scripts['find_nv']
-#                 find_NV_T1.settings['initial_point']['x'] = find_NV_rabi.data['maximum_point']['x']
-#                 find_NV_T1.settings['initial_point']['y'] = find_NV_rabi.data['maximum_point']['y']
-#                 T1 = self.scripts['T1']
-#                 T1.settings['mw_pulse']['mw_frequency'] = float(freq)
-#                 T1.settings['mw_pulse']['pi_time'] = float(pi_time)
-#                 T1.settings['tag'] = 't1_' + '_NV' + str(num)
-#                 T1.run()
-#
-#     def plot(self, figure_list):
-#         if self._current_subscript_stage is not None:
-#             if self._current_subscript_stage['current_subscript'] is not None:
-#                 self._current_subscript_stage['current_subscript'].plot(figure_list)
-#
-#
-#     def skip_next(self):
-#         for script in self.scripts.values():
-#             script.stop()

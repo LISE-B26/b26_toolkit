@@ -15,28 +15,24 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 import numpy as np
+from pylabcontrol.core import Parameter
 from b26_toolkit.scripts.pulse_sequences.param_sweep.pulsed_esr import PulsedEsr
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator, MicrowaveGenerator2, RFGenerator, AFG3022C, Commander, AFG3022C_02
 from b26_toolkit.plotting.plots_1d import plot_1d_simple_timetrace, plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new, update_fluorescence
-from b26_toolkit.scripts import FindNv, Esr, FindNvPulsed
-from pylabcontrol.core import Script, Parameter
-from b26_toolkit.data_processing.esr_signal_processing import fit_esr, fit_double_lorentzian, double_lorentzian
-import time
-import datetime
-from copy import deepcopy
-
 
 laser_pulse_end_delay = 100  # Time of end of PB pulse to AOM minus time of end of laser pulse
 
+
 class PulsedEsrMwGen2(PulsedEsr):
     """
-Pulsed version of ESR. This script applies a microwave pulse at fixed power and durations for varying frequencies.
+    Same as PulsedEsr but for a second microwave generator.
     """
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('microwave_channel', 'i_2', ['i_2', 'q_2'], 'Channel to use for mw pulses'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
@@ -70,274 +66,17 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
         self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_power']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
         """
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
-class PulsedESRFast(PulsedESR):
-    """
-    Faster version of PulsedESR. PulsedESR is the "proper" sequence for it has separate readout windows for reference and signal fluorescence, but the DAQ read
-    speed limits how quickly one can repeat one single pulse sequence, e.g.  despite only requiring ~600 ns to reinitialize, PulsedESR requires 1.5 us initialization
-    time to artificially slow down the pulse sequence repetition to avoid a DAQ crash.
 
-    This fast version chains together multiple PulsedESR sequences while only using one long readout window. There is loss of contrast from the readout window
-    being on during initialization and laser off times, but the effective pulse sequence repetition rate is now much higher, leading to an overall reduction in
-    averaging time needed.
-    """
-
-    #_DEFAULT_SETTINGS += [Parameter('mw_generator_switching_time', .01, float, 'time wait after switching center frequencies on generator (s)')]
+class PulsedEsrFastMwGen2(PulsedEsr):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('repetitions', 4, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-    _SCRIPTS = {'find_nv': FindNvPulsed, 'esr': Esr}
-
-    def _create_pulse_sequences(self):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel = 'microwave_i'
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        meas_time = self.settings['read_out']['meas_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = []
-            current_time = 0
-            for part in range(int(self.settings['repetitions'])):  # Repeat pulse sequence 4 times because DAQ crashes if we run really short pulse sequences (~ several us long)
-                # if tau is 0 there is actually no mw pulse
-                if tau > 0:
-                    pulse_sequence += [
-                        Pulse(microwave_channel, current_time + laser_off_time, tau)]
-
-                pulse_sequence += [
-                    Pulse('laser',
-                          current_time + laser_off_time + tau + delay_mw_readout,
-                          nv_reset_time)
-                ]
-                current_time += laser_off_time + tau + delay_mw_readout + nv_reset_time
-
-            meas_time_long = current_time - (laser_off_time + tau + delay_mw_readout + delay_readout) - nv_reset_time + delay_readout + meas_time
-            pulse_sequence += [Pulse('apd_readout',
-                                     laser_off_time + tau + delay_mw_readout + delay_readout, meas_time_long)]
-
-            pulse_sequences.append(pulse_sequence)
-        return pulse_sequences, tau_list, meas_time_long
-
-class PulsedESRResonant(PulsedEsr):
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('freq_stop', 2.92e9, float, 'end frequency of scan in Hz'),
-        Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
-                  'start_stop: freq. range from freq_start to freq_stop. center_range: centered at freq_start and width freq_stop'),
-        Parameter('freq_points', 100, int, 'number of frequencies in scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('red_on_time', 1000, int, 'time that red laser is on'),
-            Parameter('red_off_time', 1000, int, 'time off after red laser'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)'),
-        Parameter('measure_ref', True, bool, 'add sequence to measure ms=0 state as reference')
-    ]
-
-    def _create_pulse_sequences(self):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        red_on_time = self.settings['read_out']['red_on_time']
-        red_off_time = self.settings['read_out']['red_off_time']
-        delay_readout = self.settings['read_out']['delay_readout']
-        microwave_channel = 'microwave_' + self.settings['microwave_channel']
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        meas_time = self.settings['read_out']['meas_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = [Pulse('laser', red_off_time + tau + 2 * 40, nv_reset_time)]
-
-            # if tau is 0 there is actually no mw pulse
-            if tau > 0:
-                pulse_sequence += [
-                    Pulse(microwave_channel, red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time, tau)]
-
-            pulse_sequence += [
-                Pulse('red_laser',
-                      red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout,
-                      red_on_time),
-                Pulse('apd_readout',
-                      red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout + delay_readout,
-                      meas_time)
-            ]
-
-            if self.settings['measure_ref']:
-                end_first_seq = red_off_time + tau + 2 * 40 + nv_reset_time + laser_off_time + tau + 2 * 40 + delay_mw_readout + delay_readout + red_on_time + red_off_time
-
-                pulse_sequence += [
-                    Pulse('laser', end_first_seq, nv_reset_time),
-                    Pulse('red_laser', end_first_seq + nv_reset_time + laser_off_time, red_on_time),
-                    Pulse('apd_readout', end_first_seq + nv_reset_time + laser_off_time + delay_readout, meas_time)
-                ]
-
-            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
-            # if tau == 0 or tau>=15:
-            pulse_sequences.append(pulse_sequence)
-        return pulse_sequences, tau_list, self.settings['read_out']['meas_time']
-
-class PulsedESRFastSingle(PulsedESRFast):
-    """
-    Single frequency version of PulsedESRFast
-    """
-
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('read_out', [
-            Parameter('meas_time', 250, float, 'measurement time (in ns)'),
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
-        ]),
-        Parameter('repetitions', 4, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-class PulsedESRSingleBlind(PulsedESRFast):
-    """
-    Single frequency version of PulsedESR, with no readout window, to be run in the background while another script does the readout
-    """
-
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
-        Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
-        Parameter('num_averages', 1000000, int, 'number of averages'),
-        Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
-        Parameter('read_out', [
-            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
-            Parameter('laser_off_time', 1000, int, 'minimum laser off time before taking measurements (ns)'),
-            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
-        ]),
-        Parameter('repetitions', 100, int, 'number of repetitions of Pulsed ESR sequence consisting of MW pi-pulse and reinitialization'),
-        Parameter('mw_generator_switching_time', .01, float,
-                  'time wait after switching center frequencies on generator (s)')
-    ]
-
-    def _create_pulse_sequences(self, get_duration=False):
-
-        '''
-
-        Returns: pulse_sequences, num_averages, tau_list
-            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
-            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
-            sequence must have the same number of daq read pulses
-            num_averages: the number of times to repeat each pulse sequence
-            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
-            meas_time: the width (in ns) of the daq measurement
-
-        '''
-
-        tau = self.settings['tau_mw']
-        pulse_sequences = []
-        tau_list = [tau]
-
-        nv_reset_time = self.settings['read_out']['nv_reset_time']
-        microwave_channel = 'microwave_i'
-
-        laser_off_time = self.settings['read_out']['laser_off_time']
-        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
-
-        for tau in tau_list:
-            pulse_sequence = []
-            current_time = 0
-            for part in range(int(self.settings['repetitions'])):  # Repeat pulse sequence 4 times because DAQ crashes if we run really short pulse sequences (~ several us long)
-                # if tau is 0 there is actually no mw pulse
-                if tau > 0:
-                    pulse_sequence += [
-                        Pulse(microwave_channel, current_time + laser_off_time, tau)]
-
-                pulse_sequence += [
-                    Pulse('laser',
-                          current_time + laser_off_time + tau + delay_mw_readout,
-                          nv_reset_time)
-                ]
-                current_time += laser_off_time + tau + delay_mw_readout + nv_reset_time
-
-            pulse_sequences.append(pulse_sequence)
-
-        if get_duration:
-            # Return total sequence duration and total laser duration
-            return current_time
-        else:
-            return pulse_sequences, tau_list, 100
-
-class PulsedESRFast_MWGen2(PulsedEsr):
-
-    _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan in Hz'),
@@ -478,7 +217,7 @@ class PulsedNmr(PulsedEsr):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         for channel in [1, 2]:
             self.instruments['afg']['instance'].update({'ch%i_frequency' % channel: float(param_current)})
 
@@ -537,7 +276,7 @@ class PulsedNmrSrs(PulsedNmr):
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['rf_gen']['instance'].update({'frequency': param_current})
 
 
@@ -694,7 +433,7 @@ class PulsedEsrPolarized(PulsedNmr):
         self.instruments['afg']['instance'].update({'ch1_phase': 0})
         self.instruments['afg']['instance'].update({'ch2_phase': 3.1415926})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
@@ -1072,7 +811,7 @@ class CnotFidelity(PulsedEsrPolarized):
         self.instruments['mw_gen_2']['instance'].update({'frequency': self.settings['mw_pulses']['mw_frequency_1']})
         self.instruments['mw_gen_2']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
 
@@ -1127,14 +866,14 @@ class CnotPowerSweep(PulsedEsr):
         mw_tau = self.settings['mw_pulses']['tau_mw']
         spacing = self.settings['mw_pulses']['spacing']
 
-        if self.settings['mw_pulses']['microwave_channel'] == 'alternate i and q':
+        if self.settings['mw_pulses']['microwave_channel'] == 'alternate +i and +q':
             alternate = True
-            microwave_channel_1 = 'microwave_i'
-            microwave_channel_2 = 'microwave_q'
+            microwave_channel_1 = 'microwave_+i'
+            microwave_channel_2 = 'microwave_+q'
         elif self.settings['mw_pulses']['microwave_channel'] == 'alternate i_2 and q_2':
             alternate = True
-            microwave_channel_1 = 'microwave_i_2'
-            microwave_channel_2 = 'microwave_q_2'
+            microwave_channel_1 = 'microwave_+i_2'
+            microwave_channel_2 = 'microwave_+q_2'
         else:
             alternate = False
             microwave_channel_1 = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
@@ -1162,9 +901,9 @@ class CnotPowerSweep(PulsedEsr):
                     else:
                         pulse_sequence.append(Pulse(microwave_channel_1, current_time, mw_tau))
                     current_time += mw_tau + spacing
-
-            pulse_sequence.append(Pulse('laser', current_time, nv_reset_time))
-            pulse_sequence.append(Pulse('apd_readout', current_time + delay_readout, meas_time))
+            current_time -= spacing  # get rid of last spacer
+            pulse_sequence.append(Pulse('laser', current_time + delay_mw_readout, nv_reset_time))
+            pulse_sequence.append(Pulse('apd_readout', current_time + delay_mw_readout + delay_readout, meas_time))
             # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
             # if tau == 0 or tau>=15:
             pulse_sequences.append(pulse_sequence)
@@ -1175,7 +914,7 @@ class CnotPowerSweep(PulsedEsr):
         # print('successfully turned off microwave switch')
 
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
+        if mw_channel == '+i' or mw_channel == '-i' or mw_channel == '+q' or mw_channel == '-q' or mw_channel == 'alternate +i and +q':
             mw_gen_instrument = 'mw_gen'
         elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
@@ -1198,15 +937,15 @@ class CnotPowerSweep(PulsedEsr):
                              'param_switching_time': self.settings['mw_generator_switching_time']}
 
 
-    def _configure_instruments_start_of_sweep(self, power_current):
+    def _configure_instruments_for_param(self, power_current):
         mw_channel = self.settings['mw_pulses']['microwave_channel']
-        if mw_channel == 'i' or mw_channel == 'q' or mw_channel == 'alternate i and q':
+        if mw_channel == '+i' or mw_channel == '-i' or mw_channel == '+q' or mw_channel == '-q' or mw_channel == 'alternate +i and +q':
             mw_gen_instrument = 'mw_gen'
         elif mw_channel == 'i_2' or mw_channel == 'q_2' or mw_channel == 'alternate i_2 and q_2':
             mw_gen_instrument = 'mw_gen_2'
 
         self.instruments[mw_gen_instrument]['instance'].update({'amplitude': float(power_current)})
-        self.instruments[mw_gen_instrument]['instance'].update({'enable_modulation': False})
+        # self.instruments[mw_gen_instrument]['instance'].update({'enable_modulation': False})
 
     def _configure_param_array(self):
         # Contruct the frequency array and store it in a variable called 'mw_frequencies'. Despite the naming, it's just a list of parameters to be swept;
@@ -1234,7 +973,7 @@ class RabiPowerSweep(CnotPowerSweep):
     _DEFAULT_SETTINGS = [
         Parameter('mw_pulses', [
             Parameter('mw_frequency', 2.82e9, float, 'frequency of hyperfine transition'),
-            Parameter('microwave_channel', 'i', ['i', 'q', 'alternate i and q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q', 'alternate +i and +q'], 'Channel to use for mw pulses'),
             Parameter('tau_mw', 80, float, 'the time duration of the microwaves in ns'),
             Parameter('n', 0, int, 'number of pi-pulses, the larger n is the more accurate we can determine the correct power for a pi-pulse'),
             Parameter('spacing', 100, float, 'spacing in ns between consecutive pi-pulses')
@@ -1262,7 +1001,7 @@ class RabiPowerSweep(CnotPowerSweep):
 
 class FieldProfilePulsed(PulsedEsr):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
@@ -1409,7 +1148,7 @@ class FieldProfilePulsed(PulsedEsr):
 
 class FieldProfileCw(FieldProfilePulsed):
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('freq_start', 2.82e9, float, 'start frequency of scan'),
         Parameter('freq_stop', 2.92e9, float, 'end frequency of scan'),
         Parameter('range_type', 'start_stop', ['start_stop', 'center_range'],
@@ -1767,7 +1506,7 @@ class TransportDqmaRfPhase(PulsedEsrPolarized):
             self.instruments['afg']['instance'].update({'ch2_phase': 0})
 
 
-    def _configure_instruments_start_of_sweep(self, ch2_phase_current):
+    def _configure_instruments_for_param(self, ch2_phase_current):
         if ch2_phase_current == self.settings['rf_phase']['max_phase'] + 2000:
             print('Norm meas for min fluor')
             self.instruments['afg']['instance'].update({'ch2_phase': np.pi})
@@ -2133,7 +1872,7 @@ class TransportDqmaMwPhase(PulsedEsrPolarized):
         self.instruments['afg']['instance'].update({'ch1_phase': 0})
         self.instruments['afg']['instance'].update({'ch2_phase': 3.1415926})
 
-    def _configure_instruments_start_of_sweep(self, phase_current):
+    def _configure_instruments_for_param(self, phase_current):
         self.instruments['mw_gen_2']['instance'].update({'modulation_type': 'IQ'})
         self.instruments['mw_gen_2']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen_2']['instance'].update({'amplitude': self.settings['mw_pulses']['mw_2_power']})
@@ -2319,7 +2058,7 @@ class MicrowaveRotationAxis(PulsedEsrPolarized):
         for channel in [1, 2]:
             self.instruments['afg_iq']['instance'].update({'ch%i_enable' % channel: True})
 
-    def _configure_instruments_start_of_sweep(self, phase_current):
+    def _configure_instruments_for_param(self, phase_current):
         self.instruments['afg_iq']['instance'].configure_iq(angle=phase_current,
                                                             pulse_length=self.settings['mw_pulses']['mw_2_pi_half_time'] + 30 * 2 + 400,
                                                             angle_idle=self.settings['mw_phase']['idle_phase'])
@@ -2344,7 +2083,7 @@ class RamseyFreqSweep(PulsedEsr):
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('pi_half_pulse_time', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('tau', 80, float, 'the time duration of the phase accumulation time in the Ramsey sequence (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),

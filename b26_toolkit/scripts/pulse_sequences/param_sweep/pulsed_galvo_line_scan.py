@@ -19,17 +19,15 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 RENAME THIS TO pusled_line_scan WHEN YOU GET THE CHANCE!!
 """
+
 import numpy as np
 import scipy as sp
-from timeit import timeit as timeit
+from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts.pulse_sequences.param_sweep.param_sweep_generic import ParamSweepFastGeneric
 from b26_toolkit.scripts.set_laser import SetLaserSingleAxis
 from b26_toolkit.instruments.piezo_controller import MDT693A
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, Commander
-from pylabcontrol.core import Parameter, Script
-from b26_toolkit.plotting.plots_1d import plot_pulses, plot_1d_simple_freq
-import time as t
-
+from b26_toolkit.plotting.plots_1d import plot_1d_simple_freq
 
 laser_pulse_end_delay = 100  # Time of end of PB pulse to AOM minus time of end of laser pulse
 
@@ -84,11 +82,8 @@ class PulsedGalvoLineScan(ParamSweepFastGeneric):
                              'param_points': self.settings['voltage_points'],
                              'param_switching_time': self.settings['settle_time']}
 
-
-
     def _create_pulse_sequences(self, get_duration=False):
-
-        '''
+        """
         New version where the MW pulse is after the laser pulse.
 
         Returns: pulse_sequences, num_averages, tau_list
@@ -98,8 +93,7 @@ class PulsedGalvoLineScan(ParamSweepFastGeneric):
             num_averages: the number of times to repeat each pulse sequence
             tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
             meas_time: the width (in ns) of the daq measurement
-
-        '''
+        """
 
         tau = 200  # Placeholder, since we need to generate a tau list for the generic script to "sweep" through
         pulse_sequences = []
@@ -139,7 +133,7 @@ class PulsedGalvoLineScan(ParamSweepFastGeneric):
         """
         pass
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
@@ -245,7 +239,7 @@ class AutofocusPulsedLineScan(PulsedGalvoLineScan):
             self.log('Error setting piezo voltage')
             self._abort = True
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Updates z-piezo voltage
         :return: None
@@ -347,7 +341,7 @@ class PulsedEsrLineScan(PulsedGalvoLineScan):
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('axis', 'x', ['x', 'y'], 'galvo scan axis'),
@@ -422,7 +416,7 @@ class PulsedEsrLineScan(PulsedGalvoLineScan):
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['freq']})
         self.instruments['mw_gen']['instance'].update({'enable_output': True})
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None

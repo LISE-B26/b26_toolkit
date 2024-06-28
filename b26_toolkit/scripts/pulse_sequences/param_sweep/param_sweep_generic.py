@@ -1,29 +1,31 @@
 """
-    This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
-    Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
+This file is part of b26_toolkit, a pylabcontrol add-on for experiments in Harvard LISE B26.
+Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell
 
-    b26_toolkit is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+b26_toolkit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    b26_toolkit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+b26_toolkit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
-import numpy as np
-import time, datetime, itertools
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
+import datetime
+import itertools
+import time
+import time as t
 from copy import deepcopy
-from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Commander
-from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
+import numpy as np
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import fit_pulsed_odmr, pulsed_odmr_double, pulsed_odmr_single
-import time as t
+from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Commander
+from b26_toolkit.plotting.plots_1d import plot_pulses, update_pulse_plot, update_1d_simple, plot_1d_simple_freq
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 
 
 class ParamSweepGeneric(PulsedExperimentGeneric):
@@ -31,7 +33,7 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
     Pulsed version of ESR. This script applies a microwave pulse at fixed power and duration while varying its frequency.
     """
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
@@ -77,7 +79,7 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
         """
         pass
 
-    def _configure_instruments_start_of_sweep(self, param_current):
+    def _configure_instruments_for_param(self, param_current):
         """
         Configure instruments before running a sweep. For example, change MW frequency
         :return: None
@@ -114,7 +116,6 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
         self.data['fits'] = None
 
         self._configure_instruments_start_of_script()
-
         self._configure_param_array()
 
         # Divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
@@ -181,7 +182,7 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
                     break
 
                 self.param_current = self.params[i]
-                self._configure_instruments_start_of_sweep(self.param_current)
+                self._configure_instruments_for_param(self.param_current)
                 time.sleep(self.sweep_params['param_switching_time'])
 
                 self.current_averages = (average_loop + 1) * self.settings['averaging_block_size']
@@ -244,6 +245,15 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
         if (len(self.data['counts'][0]) == 1) and not self._abort:
             self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
 
+        if self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable']:
+            self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+            self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+            self.instruments['mw_gen']['instance'].update({'amplitude': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_power']})
+            self.instruments['mw_gen']['instance'].update({'frequency': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_frequency']})
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+            self.instruments['mw_gen']['instance'].update({'enable_output': True})
+            self.instruments['PB']['instance'].mw_duty_cycle_loop()
+
     def _daq_action_before_param_sweep(self, num_daq_reads):
         """
         DAQ action before sweeping through all the MW freq/param values. Usually we want to setup and start the DAQ here and
@@ -286,7 +296,10 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
 
         if 'count_data' in data.keys():
             plot_1d_simple_freq(axes_list[0], data['params'], [data['count_data']])
-            plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
+            try:
+                plot_pulses(axes_list[1], self.pulse_sequences[self.sequence_index])
+            except AttributeError:
+                print('Pulse sequences not found, pulses not plotted')
         if 'fits' in data.keys() and data['fits'] is not None:
             if len(data['fits']) == 6:
                 # rabi_freq, baseline, contrast_1, contrast_2, freq_1, freq_2
@@ -349,8 +362,10 @@ class ParamSweepGeneric(PulsedExperimentGeneric):
                     plot_1d_simple_freq(axes_list[0], x_data_fine, [pulsed_odmr_double(x_data_fine, *data['fits'])], alpha=0.7)
                 elif len(data['fits']) == 4:
                     plot_1d_simple_freq(axes_list[0], x_data_fine, [pulsed_odmr_single(x_data_fine, *data['fits'])], alpha=0.7)
-
-        update_pulse_plot(axes_list[1], self.pulse_sequences[self.sequence_index])
+        try:
+            update_pulse_plot(axes_list[1], self.pulse_sequences[self.sequence_index])
+        except AttributeError:
+            print('Pulse sequences not found, pulses not plotted')
 
     def _create_pulse_sequences(self):
 
@@ -390,7 +405,7 @@ class ParamSweepFastGeneric(ParamSweepGeneric):
     """
 
     _DEFAULT_SETTINGS = [
-        Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+        Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
         Parameter('tau_mw', 80, float, 'the time duration of the microwaves (in ns)'),
         Parameter('num_averages', 1000000, int, 'number of averages'),
         Parameter('param_start', 2.87e9, float, 'start frequency of scan in Hz'),
