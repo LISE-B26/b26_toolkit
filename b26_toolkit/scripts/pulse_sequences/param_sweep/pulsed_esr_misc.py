@@ -73,6 +73,14 @@ class PulsedEsrMwGen2(PulsedEsr):
         """
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
+# <<<<<<< HEAD
+# =======
+# class PulsedESRFast(PulsedEsr):
+#     """
+#     Faster version of PulsedESR. PulsedESR is the "proper" sequence for it has separate readout windows for reference and signal fluorescence, but the DAQ read
+#     speed limits how quickly one can repeat one single pulse sequence, e.g.  despite only requiring ~600 ns to reinitialize, PulsedESR requires 1.5 us initialization
+#     time to artificially slow down the pulse sequence repetition to avoid a DAQ crash.
+# >>>>>>> df8c13d94535fe499bc21427f9a78effe5d47493
 
 class PulsedEsrFastMwGen2(PulsedEsr):
     _DEFAULT_SETTINGS = [

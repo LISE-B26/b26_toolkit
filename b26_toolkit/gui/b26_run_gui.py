@@ -32,6 +32,7 @@ from b26_toolkit.gui import b26_gui
 
 def run_gui(filepath=None):
     app = QtWidgets.QApplication(sys.argv)
+    sys.dont_write_bytecode = True
 
     try:
         print("pylabcontrol  Copyright (C) <2016>  Arthur Safira, Jan Gieseler, Aaron Kabcenell \n\n \

@@ -3,7 +3,6 @@ import time
 
 from b26_toolkit.instruments import NI6259, NI9263, NI9402, PiezoController, MicrowaveGenerator, ANC300, B26PulseBlaster, Pulse
 from b26_toolkit.scripts.galvo_scan.galvo_scan import GalvoScan
-from b26_toolkit.scripts.galvo_scan.galvo_scan import AttoScanANC300
 # from b26_toolkit.scripts.pulse_sequences.pulsed_esr import PulsedESRFastSingle, PulsedESRSingleBlind
 from pylabcontrol.core import Parameter
 from b26_toolkit.scripts.set_laser import SetLaser

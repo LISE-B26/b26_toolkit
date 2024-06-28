@@ -18,6 +18,7 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
+from b26_toolkit.scripts import FindNvPulsed, Esr
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse
 from pylabcontrol.core import Parameter
 from b26_toolkit.data_processing.fit_functions import cose_with_decay, fit_exp_decay
@@ -478,6 +479,7 @@ class ReadoutStartTimeWithoutMW(PulsedExperimentGeneric):
         Parameter('reset_time', 10000, int, 'How long to wait for laser to turn off and reach steady state'),
     ]
 
+    _SCRIPTS = {'find_nv': FindNvPulsed, 'esr': Esr}
     def _create_pulse_sequences(self):
         '''
         Creates a pulse sequence with no pulses for a reset time, then the laser on for a count_source_pulse_width time.
@@ -527,15 +529,15 @@ class ReadoutStartTimeWithoutMW(PulsedExperimentGeneric):
         axis2 = axes_list[1]
         plot_pulses(axis2, self.pulse_sequences[self.sequence_index])
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    from pylabcontrol.core.scripts import Script # import script, AS and ER 20180426
-
-    script = {}
-    instr = {}
-    script, failed, instr = Script.load_and_append({'PulseDelays': 'PulseDelays'}, script, instr)
-
-    print(script)
-    print(('failed', failed))
-    print(instr)
+    # from pylabcontrol.core.scripts import Script # import script, AS and ER 20180426
+    #
+    # script = {}
+    # instr = {}
+    # script, failed, instr = Script.load_and_append({'PulseDelays': 'PulseDelays'}, script, instr)
+    #
+    # print(script)
+    # print(('failed', failed))
+    # print(instr)
 

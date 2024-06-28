@@ -19,13 +19,13 @@
 
 import numpy as np
 from pylabcontrol.core import Parameter, Script
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_tracking import PulsedExperimentTracking
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, Pulse, MicrowaveGenerator
 from b26_toolkit.plotting.plots_1d import plot_counts, update_counts_vs_pos
 from b26_toolkit.scripts import Esr
 
 
-class StroboscopicReadout(PulsedExperimentBaseScript):
+class StroboscopicReadout(PulsedExperimentGeneric):
 
     _DEFAULT_SETTINGS = [
         Parameter('cycle_period', 10000, int, 'laser and readout off time'),
@@ -50,7 +50,7 @@ class StroboscopicReadout(PulsedExperimentBaseScript):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
-    _SCRIPTS = {'esr': ESR}
+    _SCRIPTS = {'esr': Esr}
 
     def _function(self):
         #COMMENT_ME no
@@ -62,14 +62,14 @@ class StroboscopicReadout(PulsedExperimentBaseScript):
         super()._function()
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
-        self._DEFAULT_SETTINGS += PulsedExperimentBaseScript._DEFAULT_SETTINGS
+        self._DEFAULT_SETTINGS += PulsedExperimentGeneric._DEFAULT_SETTINGS
 
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
 
         self.ref_index = 0
 
-        if self.settings['averaging_block_size'] > PulsedExperimentBaseScript.MAX_BLOCK_SIZE:
+        if self.settings['averaging_block_size'] > PulsedExperimentGeneric.MAX_BLOCK_SIZE:
             raise Exception('block size too large')
 
     def _create_pulse_sequences(self):

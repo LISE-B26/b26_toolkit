@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib import patches
 
-from pylabcontrol.core.scripts import Script
+from pylabcontrol.core import Script
 
 from b26_toolkit.plotting.plots_2d import plot_fluorescence_new
 
