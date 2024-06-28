@@ -77,7 +77,7 @@ Pulsed version of ESR. This script applies a microwave pulse at fixed power and 
         """
         self.instruments['mw_gen_2']['instance'].update({'frequency': float(param_current)})
 
-class PulsedESRFast(PulsedESR):
+class PulsedESRFast(PulsedEsr):
     """
     Faster version of PulsedESR. PulsedESR is the "proper" sequence for it has separate readout windows for reference and signal fluorescence, but the DAQ read
     speed limits how quickly one can repeat one single pulse sequence, e.g.  despite only requiring ~600 ns to reinitialize, PulsedESR requires 1.5 us initialization

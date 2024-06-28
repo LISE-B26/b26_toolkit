@@ -21,7 +21,7 @@ from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import Pulsed
 from b26_toolkit.instruments import NI6259, NI9402, NI9263_02, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
-from b26_toolkit.scripts import FindNvPulsed, AutoFocusDAQPulsed
+from b26_toolkit.scripts import FindNvPulsed, AutoFocusDAQPulsed, Esr
 
 
 class HahnEcho(PulsedExperimentGeneric):  # ER 5.25.2017

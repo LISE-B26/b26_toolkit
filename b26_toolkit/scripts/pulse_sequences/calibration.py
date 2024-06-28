@@ -600,7 +600,7 @@ class ReadoutStartTimeWithoutMW(PulsedExperimentGeneric):
         Parameter('reset_time', 10000, int, 'How long to wait for laser to turn off and reach steady state'),
     ]
 
-    _SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    _SCRIPTS = {'find_nv': FindNvPulsed, 'esr': Esr}
 
     def _create_pulse_sequences(self):
         '''

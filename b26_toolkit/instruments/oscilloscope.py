@@ -659,27 +659,27 @@ class RigolOscilloscope(Instrument):
 #
 #         return str(n) + '.0' + nr3
 
-if __name__ == '__main__':
-
-        print('create oscilloscope instance:')
-        oscil = rigol_Oscilloscope()
-        print(oscil.is_connected())
-
-
-        print('=============')
-        # oscil.update({'waveform':{'CHAN1':{'vert_scale':0.5}}})
-
-        # print((oscil.settings))
-
-        # oscil.osci.write(':SINGLE')  # start a single acquisition
-        # oscil.osci.write(':TFORce')
-
-        data, preambleBlock = oscil.get_timetrace()
-
-        dt = preambleBlock['dt']
-        time = dt*np.arange(len(data))
-        print(('data', data))
-        plt.plot(time, data, '-x')
-
-        plt.show()
-
+# if __name__ == '__main__':
+#
+#         print('create oscilloscope instance:')
+#         oscil = rigol_Oscilloscope()
+#         print(oscil.is_connected())
+#
+#
+#         print('=============')
+#         # oscil.update({'waveform':{'CHAN1':{'vert_scale':0.5}}})
+#
+#         # print((oscil.settings))
+#
+#         # oscil.osci.write(':SINGLE')  # start a single acquisition
+#         # oscil.osci.write(':TFORce')
+#
+#         data, preambleBlock = oscil.get_timetrace()
+#
+#         dt = preambleBlock['dt']
+#         time = dt*np.arange(len(data))
+#         print(('data', data))
+#         plt.plot(time, data, '-x')
+#
+#         plt.show()
+#

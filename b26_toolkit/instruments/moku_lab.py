@@ -163,18 +163,19 @@ class MokuLockInAmplifier(MokuLab):
     ])
 
     _PROBES = {
-        'low_pass_filter': _DEFAULT_SETTINGS.info['low_pass_filter'],
-        'demodulation': _DEFAULT_SETTINGS.info['demodulation'],
-        'output_aux_amplitude': _DEFAULT_SETTINGS.info['output_aux_amplitude']
+        # 'low_pass_filter': _DEFAULT_SETTINGS.info['low_pass_filter'],
+        # 'demodulation': _DEFAULT_SETTINGS.info['demodulation'],
+        # 'output_aux_amplitude': _DEFAULT_SETTINGS.info['output_aux_amplitude']
     }
 
     def read_probes(self, key):
-        if key == 'low_pass_filter':
-            return self._instrument.get_filter()
-        elif key == 'demodulation':
-            return self._instrument.get_demodulation()
-        elif key == 'output_aux_amplitude':
-            return self._instrument.get_aux_output()['amplitude']
+        pass
+        # if key == 'low_pass_filter':
+        #     return self._instrument.get_filter()
+        # elif key == 'demodulation':
+        #     return self._instrument.get_demodulation()
+        # elif key == 'output_aux_amplitude':
+        #     return self._instrument.get_aux_output()['amplitude']
 
     def __init__(self, name=None, settings=None):
         super().__init__(name, settings)
@@ -196,7 +197,7 @@ class MokuLockInAmplifier(MokuLab):
                 self._instrument.set_demodulation(**self.settings[key])
             elif key == 'low_pass_filter':
                 self.settings[key].update(value)
-                self._instrument.set_filter(self.settings[key]['corner_freq'],
+                self._instrument.set_filter(self.settings[key]['corner_frequency'],
                                             slope=self.settings[key]['slope'])
             elif key == 'gain':
                 self.settings[key].update(value)

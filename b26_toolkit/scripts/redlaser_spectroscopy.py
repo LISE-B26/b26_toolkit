@@ -1,5 +1,6 @@
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import StroboscopicReadout
+
 from b26_toolkit.instruments import NI9263, WlmMonitorSiV
 
 import numpy as np

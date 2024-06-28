@@ -32,7 +32,7 @@ This class builds on the Loaddialog and adds more options for script iterators
 
 if __name__ == '__main__':
     import sys
-    from PyQt4 import QtGui
+    from PyQt5 import QtGui
 
     app = QtGui.QApplication(sys.argv)
     # ex = LoadDialog(elements_type = 'instruments', elements_old=instuments, filename="Z:\Lab\Cantilever\Measurements\\__tmp\\test.b26")

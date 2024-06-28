@@ -3,8 +3,8 @@ from pylabcontrol.core import Script, Parameter
 # import standard libraries
 import numpy as np
 from scipy.signal import periodogram
-from b26_toolkit.instruments import RFGenerator, NI6259, NI9402, MokuLockInAmplifier
-from b26_toolkit.tools.utils import get_freq_array
+from b26_toolkit.instruments import RFGenerator, MokuLockInAmplifier
+from b26_toolkit.tools.utils import get_param_array
 
 
 from b26_toolkit.data_processing.esr_signal_processing import fit_esr
@@ -35,7 +35,6 @@ class LockInAmpliferFreqSweep(Script):
 
     _INSTRUMENTS = {
         'lia': MokuLockInAmplifier,
-        'NI6259': NI6259,
     }
 
     _SCRIPTS = {}
@@ -88,7 +87,7 @@ class LockInAmpliferFreqSweep(Script):
 
         # get the frequencices of the sweep
 
-        freq_values = get_freq_array(self.settings['freq_start'],
+        freq_values = get_param_array(self.settings['freq_start'],
                                      self.settings['freq_stop'],
                                      self.settings['freq_points'],
                                      self.settings['range_type'])

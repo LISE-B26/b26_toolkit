@@ -28,27 +28,27 @@ from pylabcontrol.core import Instrument,Parameter
 
 
 
-class Plant(Instrument):
-    _DEFAULT_SETTINGS = Parameter([
-        Parameter('set_point', 0.0, float, 'setpoint to which to stabilize'),
-        Parameter('gains', [
-            Parameter('proportional', 0.0, float, 'proportional gain'),
-            Parameter('integral', 0.0, float, 'integral gain')
-        ]),
-        Parameter('time_step', 1.0, float, 'time_step of loop'),
-        Parameter('output_range', [
-            Parameter('min', -10000, float, 'min allowed value for PI-loop output'),
-            Parameter('max', 10000, float, 'max allowed value for PI-loop output')
-        ]),
-    ])
-    _PROBES = {}
-
-    def __init__(self, name=None, settings=None):
-        super(PIControler, self).__init__(name, settings)
-        self.reset()
-
-    def update(self, settings):
-        super(PIControler, self).update(settings)
-
-if __name__ == '__main__':
-    pi = PIControler()
+# class Plant(Instrument):
+#     _DEFAULT_SETTINGS = Parameter([
+#         Parameter('set_point', 0.0, float, 'setpoint to which to stabilize'),
+#         Parameter('gains', [
+#             Parameter('proportional', 0.0, float, 'proportional gain'),
+#             Parameter('integral', 0.0, float, 'integral gain')
+#         ]),
+#         Parameter('time_step', 1.0, float, 'time_step of loop'),
+#         Parameter('output_range', [
+#             Parameter('min', -10000, float, 'min allowed value for PI-loop output'),
+#             Parameter('max', 10000, float, 'max allowed value for PI-loop output')
+#         ]),
+#     ])
+#     _PROBES = {}
+#
+#     def __init__(self, name=None, settings=None):
+#         super(PIControler, self).__init__(name, settings)
+#         self.reset()
+#
+#     def update(self, settings):
+#         super(PIControler, self).update(settings)
+#
+# if __name__ == '__main__':
+#     pi = PIControler()

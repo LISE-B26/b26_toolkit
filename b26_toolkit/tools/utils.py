@@ -1,6 +1,6 @@
 import numpy as np
 
-def get_freq_array(freq_a, freq_b, num_points, range_type='start_stop'):
+def get_param_array(a, b, num_points, range_type='start_stop'):
     '''
     Construct a list of values through which we will sweep a parameter.
     Function is called get_freq_array, but the array does not have to be frequency. Can be e.g. voltage values for a piezo
@@ -11,15 +11,15 @@ def get_freq_array(freq_a, freq_b, num_points, range_type='start_stop'):
     '''
 
     if range_type == 'start_stop':
-        if freq_a > freq_b:
+        if a > b:
             raise ValueError('end freq. must be larger than start freq when range_type is start_stop. Abort script')
 
-        return np.linspace(freq_a, freq_b, num_points)
+        return np.linspace(a, b, num_points)
 
     elif range_type == 'center_range':
-        if freq_a < 2 * freq_b:
+        if a < 2 * b:
             raise ValueError('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
-        return np.linspace(freq_a - freq_b / 2, freq_a + freq_b / 2, num_points)
+        return np.linspace(a - b / 2, a + b / 2, num_points)
 
     else:
         raise KeyError('unknown range parameter. Abort script')

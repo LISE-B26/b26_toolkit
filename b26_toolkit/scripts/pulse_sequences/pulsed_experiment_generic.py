@@ -56,6 +56,7 @@ class PulsedExperimentGeneric(Script):
         ]),
         Parameter('daq_type', 'cDAQ', ['PCI', 'cDAQ'], 'daq to be used for pulse sequence'),
         Parameter('save_full', False, bool, 'save every average'),
+        Parameter('save_raw', False, bool, 'save every shot'),
         Parameter('track_nv', [
             Parameter('below_threshold', False, bool, 'run FindNv whenever counts fall below a given threshold'),
             Parameter('threshold', 0.85, float, 'run FindNv whenever counts fall below this threshold'),
