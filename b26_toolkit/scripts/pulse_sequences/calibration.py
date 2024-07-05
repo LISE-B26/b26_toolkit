@@ -163,6 +163,113 @@ class ReadoutStartTime(PulsedExperimentGeneric):  # ER 10.21.2017
             axislist[0].set_title('Readout pulse width counts')
             axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
 
+class ReadoutStartTimeResonant(ReadoutStartTime):
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulse', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dB'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
+            Parameter('pi_time', 30.0, float, 'pi time in ns')
+        ]),
+        Parameter('tau_times', [
+            Parameter('min_time', 15, float, 'minimum time for rabi oscillations (in ns)'),
+            Parameter('max_time', 200, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 5, [5, 10, 20, 50, 100, 200, 500, 1000, 10000, 100000, 500000],
+                      'time step increment of readout pulse duration (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)'),
+            Parameter('readout_window', 300, int, 'length of readout window'),
+            Parameter('red_on_time', 1000, int, 'red laser on time [ns]'),
+            Parameter('red_off_time', 1000, int, 'red laser off time [ns]')
+        ]),
+        Parameter('with_pi_seq', True, bool, 'add mw pulse sequence'),
+        Parameter('num_averages', 100000, int, 'number of averages'),
+    ]
+
+
+    def _function(self):
+        # COMMENT_ME
+
+        self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
+        self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
+        super(ReadoutStartTime, self)._function(self.data)
+
+    def _create_pulse_sequences(self):
+        '''
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+        '''
+        pulse_sequences = []
+        # tau_list = range(int(max(15, self.settings['tau_times']['time_step'])), int(self.settings['tau_times']['max_time'] + 15),
+        #                  self.settings['tau_times']['time_step'])
+        # JG 16-08-25 changed (15ns min spacing is taken care of later):
+        tau_list = list(range(int(self.settings['tau_times']['min_time']), int(self.settings['tau_times']['max_time']),
+                         self.settings['tau_times']['time_step']))
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        tau_list = [x for x in tau_list if x == 0 or x >= 15]
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulse']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+        pi_time = self.settings['mw_pulse']['pi_time']
+        meas_time = self.settings['read_out']['readout_window']
+        red_on_time = self.settings['read_out']['red_on_time']
+        red_off_time = self.settings['read_out']['red_off_time']
+
+        for tau in tau_list:
+            pulse_sequence = [
+                Pulse('laser', red_off_time, nv_reset_time),
+                Pulse('red_laser', red_off_time + nv_reset_time + laser_off_time, red_on_time),
+                Pulse('apd_readout', red_off_time + nv_reset_time + laser_off_time + delay_readout + tau, meas_time),
+            ]
+
+            end_of_first_meas = red_off_time + nv_reset_time + laser_off_time + red_on_time + red_off_time
+
+            if self.settings['with_pi_seq']:
+                pulse_sequence += [
+                    Pulse('laser', end_of_first_meas, nv_reset_time),
+                    Pulse(microwave_channel, end_of_first_meas + nv_reset_time + laser_off_time, pi_time),
+                    Pulse('red_laser', end_of_first_meas + nv_reset_time + laser_off_time + pi_time + delay_mw_readout, red_on_time),
+                    Pulse('apd_readout', end_of_first_meas + nv_reset_time + laser_off_time + pi_time + delay_mw_readout + delay_readout + tau, meas_time)
+                ]
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+    def _plot(self, axislist, data=None):
+        '''
+        Plot 1: self.data['tau'], the list of times specified for a given experiment, verses self.data['counts'], the data
+        received for each time
+        Plot 2: the pulse sequence performed at the current time (or if plotted statically, the last pulse sequence
+        performed
+        Args:
+            axes_list: list of axes to write plots to (uses first 2)
+            data (optional) dataset to plot (dictionary that contains keys counts, tau, fits), if not provided use self.data
+        '''
+
+        if data is None:
+            data = self.data
+
+        super(ReadoutStartTime, self)._plot(axislist)
+        axislist[0].set_title('Readout pulse width counts')
+        axislist[0].legend(labels=('Ref Fluorescence', 'Pi pulse Data'), fontsize=8)
+
 class ReadoutDuration(PulsedExperimentGeneric):
     """
   This script sweeps the readout pulse duration. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time

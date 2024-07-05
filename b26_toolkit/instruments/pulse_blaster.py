@@ -165,7 +165,7 @@ class PulseBlaster(Instrument):
     # LONG_DELAY_THRESHOLD = 640
     # Had some issues with setting it to 640 (why was it even 640??). We only need the long delay feature when 32 bits aren't enough to specify the length of
     # the pulse; for a 500 MHz clock, this is 8.59s (just as website specified: https://www.spincore.com/products/PulseBlasterESR-PRO/)
-    LONG_DELAY_THRESHOLD = 8.5e9
+    LONG_DELAY_THRESHOLD = 640
 
 
     PB_INSTRUCTIONS = {
@@ -671,7 +671,7 @@ class PulseBlaster(Instrument):
             #                                       self.PB_INSTRUCTIONS[pb_instruction.command],
             #                                       ctypes.c_int(int(pb_instruction.command_arg)),
             #                                       ctypes.c_double(int(pb_instruction.duration)))
-            return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits),
+            return_value = self.pb.pb_inst_pbonly(ctypes.c_int(pb_instruction.channel_bits | 0xE00000),
                                                   self.PB_INSTRUCTIONS[pb_instruction.command],
                                                   ctypes.c_int(int(pb_instruction.command_arg)),
                                                   ctypes.c_double(int(pb_instruction.duration)))
@@ -679,7 +679,7 @@ class PulseBlaster(Instrument):
                 print('Pulseblaster instruction error!')
                 print(pb_commands)
                 print(pb_instruction.duration)
-                print(pb_instruction)
+
             assert return_value >= 0, 'There was an error while programming the pulseblaster'
         self.pb.pb_stop_programming()
 
@@ -741,7 +741,7 @@ class B26PulseBlaster(PulseBlaster):
         Parameter('laser', [
             Parameter('channel', 0, int, 'channel to which laser is connected'),
             Parameter('status', False, bool, 'True if voltage is high to the laser, false otherwise'),
-            Parameter('delay_time', 350.2, float, 'delay time between pulse sending time and laser switch on [ns]')
+            Parameter('delay_time', 400., float, 'delay time between pulse sending time and laser switch on [ns]')
         ]),
         Parameter('apd_readout', [
             Parameter('channel', 1, int, 'channel to which the daq is connected to'),
@@ -754,39 +754,31 @@ class B26PulseBlaster(PulseBlaster):
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave iq trigger [ns]')
         ]),
         Parameter('microwave_polarity', [
-            Parameter('channel', 8, int, 'channel to which the microwave polarity trigger is connected to'),
+            Parameter('channel', 3, int, 'channel to which the microwave polarity trigger is connected to'),
             Parameter('status', False, bool, 'True if input voltage is negative, False if input voltage is positive.'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave polarity trigger [ns]')
         ]),
         Parameter('microwave_switch', [
-            Parameter('channel', 3, int, 'channel to which the microwave switch is connected to'),
+            Parameter('channel', 4, int, 'channel to which the microwave switch is connected to'),
             Parameter('status', False, bool, 'True if voltage is high to the microwave switch, false otherwise'),
             Parameter('delay_time', 0.2, float, 'delay time between pulse sending time and microwave switch [ns]')
         ]),
-        Parameter('atto_trig', [
-            Parameter('channel', 4, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
+        Parameter('red_laser', [
+            Parameter('channel', 5, int, 'channel used to trigger function generator which in turn is connected to an Attocube'),
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
             Parameter('delay_time', 0, float, 'delay time between pulse sending time and atto_trig on [ns]')
         ]),
-        Parameter('rf_i', [
-            Parameter('channel', 5, int, 'channel to which the rf p trigger is connected to'),
+        Parameter('ir_laser', [
+            Parameter('channel', 6, int,
+                      'channel used to trigger function generator which in turn is connected to an Attocube'),
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
-            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and atto_trig on [ns]')
         ]),
-        Parameter('rf_switch', [
-            Parameter('channel', 6, int, 'channel to which the rf switch is connected to'),
+        Parameter('bead_drive', [
+            Parameter('channel', 8, int,
+                      'channel used to trigger function generator which in turn is connected to an Attocube'),
             Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
-            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
-        ]),
-        Parameter('microwave_i_2', [
-            Parameter('channel', 7, int, 'channel to which the microwave p trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
-            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
-        ]),
-        Parameter('microwave_q_2', [
-            Parameter('channel', 9, int, 'channel to which the microwave q trigger is connected to'),
-            Parameter('status', False, bool, 'True if voltage is high to the off-channel, false otherwise'),
-            Parameter('delay_time', 0, float, 'delay time between pulse sending time and off channel on [ns]')
+            Parameter('delay_time', 0, float, 'delay time between pulse sending time and atto_trig on [ns]')
         ]),
         Parameter('spacer', [
             Parameter('channel', 10, int, 'placeholder channel to control the length of pulse sequences, do not actually use the physical output!'),

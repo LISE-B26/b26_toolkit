@@ -166,6 +166,95 @@ class Rabi(PulsedExperimentGeneric):
             axislist[0].set_title('Rabi mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'Rabi Data'), fontsize=8)
 
+class RabiResonant(Rabi):
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses')
+        ]),
+        Parameter('tau_times', [
+            Parameter('min_time', 20, float, 'minimum time for rabi oscillations (in ns)'),
+            Parameter('max_time', 400, float, 'total time of rabi oscillations (in ns)'),
+            Parameter('time_step', 20., [2.5, 4., 5., 10., 20., 50., 100., 200., 500., 1000., 10000., 100000., 500000.],
+                  'time step increment of rabi pulse duration (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('red_on_time', 1000, int, 'time that red laser is on'),
+            Parameter('red_off_time', 1000, int, 'time that red laser is off'),
+            Parameter('delay_mw_readout', 100, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 1000000, int, 'number of averages'),
+        Parameter('measure_ref', True, bool, 'add sequence to measure ms=0 state as reference')
+    ]
+
+    def _create_pulse_sequences(self):
+        """
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+        """
+        pulse_sequences = []
+
+        max_range = int(np.floor((self.settings['tau_times']['max_time']-self.settings['tau_times']['min_time'])/self.settings['tau_times']['time_step']))
+        tau_list = np.array([self.settings['tau_times']['min_time'] + i*self.settings['tau_times']['time_step'] for i in range(max_range)])
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+
+        #MM: update 15 to min_pulse_duration
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        short_pulses = [x for x in tau_list if x < min_pulse_dur]
+        print('Found short pulses: ', short_pulses)
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        red_on_time = self.settings['read_out']['red_on_time']
+        red_off_time = self.settings['read_out']['red_off_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+            pulse_sequence = [Pulse('laser', red_off_time, nv_reset_time)]
+
+            # if tau is 0 there is actually no mw pulse
+            if tau > 0:
+                pulse_sequence.append(Pulse(microwave_channel,
+                                            red_off_time + nv_reset_time + laser_off_time,
+                                            tau))
+
+            pulse_sequence.append(Pulse('red_laser',
+                                        red_off_time + nv_reset_time + laser_off_time + tau + delay_mw_readout,
+                                        red_on_time))
+            pulse_sequence.append(Pulse('apd_readout',
+                                        red_off_time + nv_reset_time + laser_off_time + tau + delay_mw_readout + delay_readout,
+                                        meas_time))
+
+            if self.settings['measure_ref']:
+                end_first_seq = red_off_time + nv_reset_time + laser_off_time + tau + delay_mw_readout + red_on_time + red_off_time
+                pulse_sequence += [
+                    Pulse('laser', end_first_seq, nv_reset_time),
+                    Pulse('red_laser', end_first_seq + nv_reset_time + laser_off_time, red_on_time),
+                    Pulse('apd_readout', end_first_seq + nv_reset_time + laser_off_time + delay_readout, meas_time)
+                ]
+
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
 class RabiChoppedInit(PulsedExperimentGeneric):
     """
     This script applies a microwave pulse at fixed power for varying durations to measure Rabi oscillations.

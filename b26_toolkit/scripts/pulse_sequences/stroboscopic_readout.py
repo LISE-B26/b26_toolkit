@@ -43,7 +43,7 @@ class StroboscopicReadout(PulsedExperimentGeneric):
             Parameter('delay_mw_readout', 210, int, 'delay after mw pulse before readout [ns]'),
             Parameter('mw_power', -45.0, float, 'microwave power in dB'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
             Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
         ])
 
@@ -69,12 +69,12 @@ class StroboscopicReadout(PulsedExperimentGeneric):
 
         self.ref_index = 0
 
-        if self.settings['averaging_block_size'] > PulsedExperimentGeneric.MAX_BLOCK_SIZE:
-            raise Exception('block size too large')
+        # if self.settings['averaging_block_size'] > PulsedExperimentGeneric.MAX_BLOCK_SIZE:
+        #     raise Exception('block size too large')
 
     def _create_pulse_sequences(self):
-        if self.settings['pulses_per_seq'] > self.instruments['PB']['instance'].MAX_COMMANDS / 2:
-            raise Exception('pulses_per_seq exceeds pulseblaster maximum of {}'.format(self.instruments['PB']['instance'].MAX_COMMANDS))
+        # if self.settings['pulses_per_seq'] > self.instruments['PB']['instance'].MAX_COMMANDS / 2:
+        #     raise Exception('pulses_per_seq exceeds pulseblaster maximum of {}'.format(self.instruments['PB']['instance'].MAX_COMMANDS))
         pulseSequences = []
 
         period = self.settings['cycle_period']
@@ -132,8 +132,9 @@ class StroboscopicReadoutRealtime(Script):
         meas_count = 0
         while meas_count != num_meas and not self._abort:
             readout.run()
-            counts = readout.data['counts']
-            self.data['counts'].append(counts)
+            counts = np.array(readout.data['counts'])
+            if len(counts.shape) == 1:
+                self.data['counts'].append(counts[0])
 
             self.updateProgress.emit(int(self.progress))
             meas_count += 1
@@ -142,16 +143,27 @@ class StroboscopicReadoutRealtime(Script):
         if data is None:
             data = self.data
 
-        if len(data['counts']) > 0:
-            settings = self.scripts['strobe_readout'].settings
-            counts = np.array(data['counts']).flatten()
-            plot_counts(axes_list[0], counts, settings['num_averages'] * settings['cycle_period'] * 1e-9)
+
+        settings = self.scripts['strobe_readout'].settings
+
+        counts = data['counts']
+        print(counts)
+        self._plot_line = axes_list[0].plot(settings['num_averages'] * settings['cycle_period'] * 1e-9 * np.arange(len(counts)), counts, linewidth=1.25)
+        # axis.hold(False)
+
+        axes_list[0].set_xlabel('time [s]')
+        axes_list[0].set_ylabel('[kCounts/s]')
 
     def _update_plot(self, axes_list, data=None):
         if data is None:
             data = self.data
 
-        if data:
+        if data and len(data) > 0:
             settings = self.scripts['strobe_readout'].settings
-            counts = np.array(data['counts']).flatten()
-            update_counts_vs_pos(axes_list[0], counts, settings['num_averages'] * settings['cycle_period'] * np.arange(len(counts)) * 1e-9)
+            counts = data['counts']
+
+            self._plot_line[0].set_ydata(counts)
+            self._plot_line[0].set_xdata(settings['num_averages'] * settings['cycle_period'] * np.arange(len(counts)) * 1e-9)
+            axes_list[0].relim()
+            axes_list[0].autoscale_view()
+

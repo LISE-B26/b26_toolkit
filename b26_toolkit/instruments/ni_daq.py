@@ -1000,8 +1000,8 @@ class DAQ(Instrument):
             voltages.append(v)
 
         voltages = np.array([voltages]).T
-        if len(voltages[0]) > 1:
-            voltages = (np.repeat(voltages, 2, axis=1))
+        # if len(voltages[0]) > 1:
+        voltages = (np.repeat(voltages, 2, axis=1))
 
         # pt = np.transpose(np.column_stack((pt[0],pt[1])))
         # pt = (np.repeat(pt, 2, axis=1))

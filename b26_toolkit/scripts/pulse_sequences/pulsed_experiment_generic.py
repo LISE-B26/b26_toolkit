@@ -546,7 +546,7 @@ class PulsedExperimentGeneric(Script):
                 power_dbm = self.settings['mw_power']
             elif 'mw_pulses' in self.settings and 'mw_power' in self.settings['mw_pulses']:
                 power_dbm = self.settings['mw_pulses']['mw_power']
-            elif 'mw_pulse' in self.settings and 'mw_power' in self.settings['mw_pulses']:
+            elif 'mw_pulse' in self.settings and 'mw_power' in self.settings['mw_pulse']:
                 power_dbm = self.settings['mw_pulse']['mw_power']
             else:
                 power_dbm = -100
@@ -912,7 +912,7 @@ class PulsedExperimentGeneric(Script):
         """
 
         pulse_sequences, tau_list, measurement_gate_width = self._create_pulse_sequences()
-        logging = self.verbose
+        # logging = self.verbose
         pulse_sequences = self.process_virtual_channels(pulse_sequences)
 
         """
@@ -944,7 +944,7 @@ class PulsedExperimentGeneric(Script):
         if logging:
             if invalid_tau_list:
                 self.log("The pulse sequences corresponding to the following tau's were *invalid*, thus will not be "
-                         "included: " + str(invalid_tau_list), flag='reminder')
+                         "included: " + str(invalid_tau_list))
             else:
                 self.log("All generated pulse sequences are valid. No tau times will be skipped.")
 

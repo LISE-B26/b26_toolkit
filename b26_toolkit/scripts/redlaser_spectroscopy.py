@@ -27,7 +27,7 @@ class RedLaserSpectroscopy(Script):
     _VOLT_MAX = 3.
     _VOLT_MIN = -3.
 
-    _FREQ_MAX = 471.
+    _FREQ_MAX = 480.
     _FREQ_MIN = 470.
 
     _PLOTTING_DETUNING = 470.4
@@ -59,8 +59,8 @@ class RedLaserSpectroscopy(Script):
                 self.log('end freq. (range) must be smaller than 2x start freq (center) when range_type is center_range. Abort script')
                 self._abort = True
 
-                sweep_values = np.linspace(point_a - point_b / 2,
-                                          point_a + point_b / 2, self.settings['num_points'])
+            sweep_values = np.linspace(point_a - point_b / 2,
+                                      point_a + point_b / 2, self.settings['num_points'])
 
         else:
             self.log('unknown range parameter. Abort script')

@@ -16,7 +16,11 @@
     along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-# # from test_script import ScriptTest
+import platform
+if platform.release() != '7':
+    from .zi_sweeper import ZISweeper
+    from .zi_high_res_sweep import ZISweeperHighResolution
+
 from .galvo_scan.galvo_scan import GalvoScan, GalvoScanTimetrace
 
 from .galvo_scan.galvo_scan_photodiode import GalvoScanPhotodiode
@@ -28,8 +32,6 @@ from .esr import Esr, EsrTracking, EsrSimpleLowerUpper, EsrSimple
 from .esr_dithering import EsrFmDither
 from .esr_two_freq_continuous import EsrTwoFreqContinuous
 from .spec_analyzer_get_spectrum import SpecAnalyzerGetSpectrum
-from .zi_sweeper import ZISweeper
-from .zi_high_res_sweep import ZISweeperHighResolution
 from b26_toolkit.scripts.attocube_scripts.atto_step import AttoStep
 from .pulse_sequences.rabi import Rabi
 from .esr_and_rabi import EsrAndRabi

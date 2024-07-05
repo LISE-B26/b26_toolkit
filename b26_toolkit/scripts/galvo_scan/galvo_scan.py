@@ -131,12 +131,10 @@ class GalvoScan(GalvoScanGeneric):
             pass
 
         sample_rate = float(1) / self.settings['settle_time']
-        if 'x' in self.settings['point_a']:
-            self.daq_out.settings['analog_output'][
-                self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate
-        if 'y' in self.settings['point_a']:
-            self.daq_out.settings['analog_output'][
-                self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = sample_rate
+        self.daq_out.settings['analog_output'][
+            self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = sample_rate
+        self.daq_out.settings['analog_output'][
+            self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = sample_rate
         self.daq_in.settings['digital_input'][
             self.settings['DAQ_channels']['counter_channel']]['sample_rate'] = sample_rate
 
@@ -157,9 +155,6 @@ class GalvoScan(GalvoScanGeneric):
 
         self.initPt = [self.x_array[0], y_pos]
         timer_start = time.time()
-
-        self.daq_out.settings['analog_output'][self.settings['DAQ_channels']['x_ao_channel']]['sample_rate'] = 10000
-        self.daq_out.settings['analog_output'][self.settings['DAQ_channels']['y_ao_channel']]['sample_rate'] = 10000
 
         self.daq_out.set_analog_voltages(
             {self.settings['DAQ_channels']['x_ao_channel']: self.initPt[0],
