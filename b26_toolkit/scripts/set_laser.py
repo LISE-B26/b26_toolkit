@@ -85,7 +85,7 @@ class SetLaser(Script):
         self.daq_out.waitToFinish(task)
         self.daq_out.stop(task)
         self.log('laser set to Vx={:.4f}, Vy={:.4f}'.format(self.settings['point']['x'], self.settings['point']['y']))
-        print(time.time()-t_start)
+        # print(time.time()-t_start)
 
 
         # if self.settings['daq_type'] == 'PCI':

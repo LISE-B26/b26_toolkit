@@ -25,6 +25,8 @@ class GalvoScanPulsed(GalvoScan):
                    Parameter('y', 64, int, 'number of y points to scan')
                    ]),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
+        Parameter('time_per_pt', .002, float, 'time in s to measure at each point'),
+        Parameter('settle_time', .0002, float, 'wait time between points to allow galvo to settle'),
         Parameter('ending_behavior', 'return_to_start', ['return_to_start', 'return_to_origin', 'leave_at_corner'],
                   'return to the corn'),
         Parameter('daq_type', 'PCI', ['PCI', 'cDAQ'], 'Type of daq to use for scan')

@@ -1,7 +1,7 @@
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import StroboscopicReadout
 
-from b26_toolkit.instruments import NI9263, WlmMonitorSiV
+from b26_toolkit.instruments import NI9263, WlmMonitorSiV, TLB6300LN
 
 import numpy as np
 import random
@@ -130,7 +130,8 @@ class RedLaserSpectroscopy(Script):
             if sweep_param == 'voltage':
                 daq_ao.set_analog_voltages({ao_channel: 0})
 
-        except RuntimeError:
+        except RuntimeError as e:
+            self.log(str(e))
             self.log('DAQ possible in use')
 
     def _plot(self, axes_list, data=None):
@@ -167,3 +168,88 @@ class RedLaserSpectroscopy(Script):
                 axes_list[1].lines[0].set_xdata((freqs - self._PLOTTING_DETUNING) * 1e3)
                 axes_list[1].relim()
                 axes_list[1].autoscale_view()
+
+class CoarseSpectroscopy(Script):
+    _SPEED_OF_LIGHT = 299792458.
+    _PLOTTING_DETUNING = 470.4
+    _PLOTTING_FREQ = 20
+
+
+    _DEFAULT_SETTINGS = [
+        Parameter('start_wavelength', 636, float, 'start wavelength of scan'),
+        Parameter('stop_wavelength', 637., float, 'end wavelength of scan'),
+        Parameter('fwd_scan_speed', 0.01, float, 'scanning speed in nm/s'),
+        Parameter('full_range', True, bool, 'set scan to full range')
+    ]
+
+    _INSTRUMENTS = {'laser_box': TLB6300LN, 'wlm': WlmMonitorSiV}
+    _SCRIPTS = {'strobe_readout': StroboscopicReadout}
+
+    def _function(self):
+        self.plot_run = False
+
+
+        laser_box = self.instruments['laser_box']['instance']
+        wlm = self.instruments['wlm']['instance']
+        readout = self.scripts['strobe_readout']
+        slew_rate = self.settings['fwd_scan_speed']
+
+        if self.settings['full_range']:
+            laser_box.update({'fwd_scan_speed': self.settings['fwd_scan_speed']})
+            laser_box.set_full_range()
+            self.settings['start_wavelength'] = laser_box.start_wavelength
+            self.settings['stop_wavelength'] = laser_box.stop_wavelength
+
+        else:
+            laser_box.update({k: self.settings[k] for k in self.settings if k in ['start_wavelength',
+                                                                              'stop_wavelength',
+                                                                              'fwd_scan_speed']})
+
+
+        start_wavelength = self.settings['start_wavelength']
+        self.data = {'counts': [], 'wavelength': []}
+
+        try:
+            laser_box.start_scan_wavelength()
+            scan_time = (self.settings['stop_wavelength'] - self.settings['start_wavelength']) / self.settings['fwd_scan_speed']
+
+            self.log('Scan will take: {} s'.format(scan_time))
+            start_time = time.time()
+            while not laser_box.scan_finished():
+                readout.run()
+                if self._abort:
+                    break
+                self.data['counts'].append(readout.data['counts'][0])
+                curr_time = time.time()
+                self.data['wavelength'].append(wlm.frequency)
+
+                if len(self.data['counts']) % self._PLOTTING_FREQ == 0:
+                    self.progress = int(100. * (curr_time - start_time) / scan_time)
+                    self.updateProgress.emit(int(self.progress))
+
+        except RuntimeError:
+            self.log('idk')
+
+        laser_box.stop_scan_wavelength()
+
+    def _plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        if len(data['counts']) > 0 and len(data['wavelength']) > 0:
+            axes_list[0].plot((np.array(data['wavelength']) - self._PLOTTING_DETUNING) * 1e3, data['counts'], linewidth=1.25)
+            axes_list[0].set_xlabel('frequency [GHz]')
+            axes_list[0].set_ylabel('[kCounts/s]')
+            axes_list[0].set_title('Coarse spectroscopy (detuned from {} GHz)'.format(self._PLOTTING_DETUNING))
+            self.plot_run = True
+
+    def _update_plot(self, axes_list, data=None):
+        if data is None:
+            data = self.data
+
+        if data and self.plot_run:
+            min_length = np.min([len(data['wavelength']), len(data['counts'])])
+            axes_list[0].lines[0].set_xdata((np.array(data['wavelength'][:min_length]) - self._PLOTTING_DETUNING) * 1e3)
+            axes_list[0].lines[0].set_ydata(data['counts'][:min_length])
+            axes_list[0].relim()
+            axes_list[0].autoscale_view()

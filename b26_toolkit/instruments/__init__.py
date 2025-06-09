@@ -40,6 +40,6 @@ from .optotune_lens import OptotuneLens
 from .arduino import ArduinoZero
 from .commander import Commander
 from .temperature_controller import TemperatureController, LakeShore211
-from .red_laser import WlmMonitorSiV
+from .red_laser import WlmMonitorSiV, TLB6300LN
 from .moku_lab import MokuLockInAmplifier
 from .afg import AFG3021C

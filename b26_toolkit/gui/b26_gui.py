@@ -29,7 +29,7 @@ class ControlMainWindowB26(MainWindow):
         else:
             self.sound = False
 
-        self.setWindowIcon(QtGui.QIcon('poop.png'))
+        self.setWindowIcon(QtGui.QIcon('../media/icon/shrek.png'))
 
 
     def load_scripts(self, verbose=False):

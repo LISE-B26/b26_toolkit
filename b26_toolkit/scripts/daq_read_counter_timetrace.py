@@ -22,7 +22,7 @@ import numpy as np
 import time
 from copy import deepcopy
 
-from b26_toolkit.instruments import NI6259, NI9402, NI9219
+from b26_toolkit.instruments import NI6259, NI9402, NI9219, RFGenerator
 from b26_toolkit.plotting.plots_1d import plot_counts, update_counts,  plot_psd
 from pylabcontrol.core import Parameter, Script
 from pylabcontrol.data_processing.signal_processing import power_spectral_density
@@ -105,9 +105,9 @@ class DaqReadCounterTimeTrace(Script):
         else:
             time_divisions = 100
 
-        print(time_divisions)
+        # print(time_divisions)
         for t in range(int(time_divisions)):
-            print(self.settings['total_int_time']/time_divisions)
+            # print(self.settings['total_int_time']/time_divisions)
             time.sleep(self.settings['total_int_time']/time_divisions)
             self.progress = float(t)/time_divisions*100
             self.updateProgress.emit(self.progress)
@@ -395,13 +395,13 @@ class DaqTimeTraceNi9402Ni9219(Script):
         #     self.daq = self.instruments['NI9402']['instance']
         self.data = {'counts': [], 'ai':[]}
 
-        sample_rate = float(1) / self.settings['integration_time']
+        sample_rate = 1 / float(self.settings['integration_time'])
         self.setup_daq(sample_rate)
 
 
         # maximum number of samples if total_int_time > 0
         if self.settings['acquisition_time'] > 0:
-            number_of_samples = int(np.floor(self.settings['acquisition_time'] / self.settings['integration_time']))
+            number_of_samples = int(np.floor(self.settings['acquisition_time'] / float(self.settings['integration_time'])))
         else:
             self.log('total measurement time must be positive. Abort script')
             return
@@ -454,7 +454,6 @@ class DaqTimeTraceNi9402Ni9219(Script):
             plotting_data = np.array(data['ai'])
         if len(plotting_data) == 0:
             return
-        print(plotting_data.shape)
         # plot_counts(axes_list[0], plotting_data[0], int_time=self.settings['integration_time'])
         psdAvg = np.zeros(int(plotting_data.shape[0] / 2 + 1))
 
@@ -463,7 +462,7 @@ class DaqTimeTraceNi9402Ni9219(Script):
                 # 20191105 ER get rid of normalization
                 #plot_counts(axes_list[0], signal/np.mean(signal))
                 #freq, psd = power_spectral_density(signal/np.mean(signal), self.settings['integration_time'])
-                freq, psd = power_spectral_density(plotting_data[:, i], self.settings['integration_time'])
+                freq, psd = power_spectral_density(plotting_data[:, i], float(self.settings['integration_time']))
                 psdAvg += psd
 
                # plot_psd(freq, psd, axes_list[1], y_scaling='log', x_scaling='log')
@@ -480,6 +479,34 @@ class DaqTimeTraceNi9402Ni9219(Script):
 class DaqTimeTraceNi6259(DaqTimeTraceNi9402Ni9219):
     _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259}
 
+class DaqTimeTrace_RFControl(DaqTimeTraceNi6259):
+    _RF_GEN_FREQ_MAX = 150000.
+    _RF_GEN_FREQ_MIN = 1000
+
+    _DEFAULT_SETTINGS = [
+        Parameter('rf_freq', 50000, float, 'srs center frequency in Hz'),
+    ]
+    _INSTRUMENTS = {'daq_ai': NI6259, 'daq_counter': NI6259, 'rf_gen': RFGenerator}
+    _SCRIPTS = {}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        """
+        Standard script initialization
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        self._DEFAULT_SETTINGS += super()._DEFAULT_SETTINGS
+
+        super().__init__(instruments, scripts=scripts, name=name, settings=settings, log_function=log_function,
+                         data_path=data_path)
+
+    def _function(self):
+        freq = self.settings['rf_freq']
+        if freq < self._RF_GEN_FREQ_MIN or freq > self._RF_GEN_FREQ_MAX:
+            raise ValueError('invalid frequency')
+        self.instruments['rf_gen']['instance'].update({'frequency': freq})
+        super()._function()
 
 class DaqTimeTraceNi6259Pd(DaqTimeTraceNi9402Ni9219): # ER 20200731
 

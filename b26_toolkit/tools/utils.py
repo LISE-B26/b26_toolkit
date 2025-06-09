@@ -23,3 +23,7 @@ def get_param_array(a, b, num_points, range_type='start_stop'):
 
     else:
         raise KeyError('unknown range parameter. Abort script')
+
+def vpp_to_dBm(vpp, impedance=50):
+    return 10. * np.log10(vpp ** 2 / (8 * impedance)) + 30.
+    # return 30. * np.log10(vpp ** 2 / (8 * impedance))

@@ -17,7 +17,7 @@ along with b26_toolkit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric
+from b26_toolkit.scripts.pulse_sequences.pulsed_experiment_generic import PulsedExperimentGeneric, PulsedExperimentGenericNoDAQ
 from b26_toolkit.instruments import NI6259, NI9402, B26PulseBlaster, MicrowaveGenerator, Pulse, Commander
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.data_processing.fit_functions import fit_exp_decay, exp_offset
@@ -56,8 +56,8 @@ class HahnEcho(PulsedExperimentGeneric):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
-    from b26_toolkit.scripts.find_nv import FindNvStrobe
-    _SCRIPTS = {'find_nv': FindNvStrobe}
+    from b26_toolkit.scripts.find_nv_pulsed import FindNVPulsed
+    _SCRIPTS = {'find_nv': FindNVPulsed}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -268,6 +268,132 @@ class HahnEcho(PulsedExperimentGeneric):
             axislist[0].set_title('Hahn Echo mw-power:{:0.1f}dBm, mw_freq:{:0.3f} GHz'.format(self.settings['mw_pulses']['mw_power'], self.settings['mw_pulses']['mw_frequency']*1e-9))
             axislist[0].legend(labels=('Ref Fluorescence', 'T2 Data'), fontsize=8)
 
+class HahnEchoResonant(HahnEcho):
+    """
+    This script runs a Hahn echo on the NV to find the Hahn echo T2. To symmetrize the sequence between the 0 and +/-1 state we reinitialize every time
+    """
+    _DEFAULT_SETTINGS = [
+        Parameter('mw_pulses', [
+            Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
+            Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
+            Parameter('pi_pulse_time', 50.0, float, 'time duration of a pi pulse (in ns)'),
+            Parameter('pi_half_pulse_time', 25.0, float, 'time duration of a pi/2 pulse (in ns)'),
+            # We keep this but this is for legacy.
+            Parameter('3pi_half_pulse_time', 75.0, float, 'time duration of a 3pi/2 pulse (in ns)')
+        ]),
+        Parameter('tau_times', [
+            Parameter('min_time', 500, float, 'minimum time between pi pulses'),
+            Parameter('max_time', 10000, float, 'maximum time between pi pulses'),
+            Parameter('time_step', 5, float,
+                  'time step increment of time between pi pulses (in ns)')
+        ]),
+        Parameter('read_out', [
+            Parameter('meas_time', 250, float, 'measurement time after rabi sequence (in ns)'),
+            Parameter('nv_reset_time', 1750, int, 'time with laser on to reset state'),
+            Parameter('laser_off_time', 1000, int,
+                      'minimum laser off time before taking measurements (ns)'),
+            Parameter('red_on_time', 1000, int, 'time that red laser is on'),
+            Parameter('red_off_time', 1000, int, 'time that red laser is off'),
+            Parameter('delay_mw_readout', 1000, int, 'delay between mw and readout (in ns)'),
+            Parameter('delay_readout', 30, int, 'delay between laser on and readout (given by spontaneous decay rate)')
+        ]),
+        Parameter('num_averages', 100000, int, 'number of averages')
+    ]
+
+    _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
+    from b26_toolkit.scripts.find_nv_pulsed import FindNVPulsed
+    _SCRIPTS = {'find_nv': FindNVPulsed}
+
+    def _create_pulse_sequences(self):
+        """
+
+        Returns: pulse_sequences, num_averages, tau_list, meas_time
+            pulse_sequences: a list of pulse sequences, each corresponding to a different time 'tau' that is to be
+            scanned over. Each pulse sequence is a list of pulse objects containing the desired pulses. Each pulse
+            sequence must have the same number of daq read pulses
+            num_averages: the number of times to repeat each pulse sequence
+            tau_list: the list of times tau, with each value corresponding to a pulse sequence in pulse_sequences
+            meas_time: the width (in ns) of the daq measurement
+        """
+
+        pulse_sequences = []
+        tau_list = np.arange(self.settings['tau_times']['min_time'], self.settings['tau_times']['max_time'],self.settings['tau_times']['time_step'])
+        tau_list = np.ndarray.tolist(tau_list) # 20180731 ER convert to list
+
+        # ignore the sequence if the mw-pulse is shorter than 15ns (0 is ok because there is no mw pulse!)
+        # MM: updated to min_pulse_dur
+        min_pulse_dur = self.instruments['PB']['instance'].settings['min_pulse_dur']
+        tau_list = [x for x in tau_list if x == 0 or x >= min_pulse_dur]
+
+        nv_reset_time = self.settings['read_out']['nv_reset_time']
+        delay_readout = self.settings['read_out']['delay_readout']
+        red_on_time = self.settings['read_out']['red_on_time']
+        red_off_time = self.settings['read_out']['red_off_time']
+
+        microwave_channel = 'microwave_' + self.settings['mw_pulses']['microwave_channel']
+
+        if microwave_channel[-2] == '+':
+            negative_channel = microwave_channel[:-2] + '-' + microwave_channel[-1]
+        elif microwave_channel[-2] == '-':
+            negative_channel = microwave_channel[:-2] + '+' + microwave_channel[-1]
+
+        pi_time = self.settings['mw_pulses']['pi_pulse_time']
+        pi_half_time = self.settings['mw_pulses']['pi_half_pulse_time']
+
+        laser_off_time = self.settings['read_out']['laser_off_time']
+        meas_time = self.settings['read_out']['meas_time']
+        delay_mw_readout = self.settings['read_out']['delay_mw_readout']
+
+        for tau in tau_list:
+
+            pulse_sequence = [
+                 Pulse('laser', red_off_time, nv_reset_time),
+            ]
+            end_of_init = red_off_time + nv_reset_time + laser_off_time
+
+            pulse_sequence += \
+            [
+                Pulse(microwave_channel, end_of_init, pi_half_time),
+                Pulse(microwave_channel, end_of_init + pi_half_time + tau, pi_time),
+                Pulse(microwave_channel, end_of_init + pi_half_time + tau + pi_time + tau, pi_half_time)
+            ]
+
+            end_of_first_HE = end_of_init + pi_half_time + tau + pi_time + tau + pi_half_time + delay_mw_readout
+
+            pulse_sequence += [
+                 Pulse('red_laser', end_of_first_HE, red_on_time),
+                 Pulse('apd_readout', end_of_first_HE + delay_readout, meas_time),
+            ]
+
+            start_of_second_HE = end_of_first_HE + red_on_time + red_off_time
+
+            pulse_sequence += [
+                 Pulse('laser', start_of_second_HE, nv_reset_time),
+            ]
+
+            end_of_init_2 = start_of_second_HE + nv_reset_time + laser_off_time
+
+            pulse_sequence += \
+            [
+                Pulse(microwave_channel, end_of_init_2, pi_half_time),
+                Pulse(microwave_channel, end_of_init_2 + pi_half_time + tau, pi_time),
+                Pulse(negative_channel, end_of_init_2 + pi_half_time + tau + pi_time + tau, pi_half_time)
+            ]
+
+            end_of_second_HE = end_of_init_2 + pi_half_time + tau + pi_time + tau + pi_half_time + delay_mw_readout
+
+            pulse_sequence += [
+                Pulse('red_laser', end_of_second_HE, red_on_time),
+                Pulse('apd_readout', end_of_second_HE + delay_readout, meas_time)
+            ]
+            # ignore the sequence is the mw is shorter than 15ns (0 is ok because there is no mw pulse!)
+            # if tau == 0 or tau>=15:
+            pulse_sequences.append(pulse_sequence)
+
+        return pulse_sequences, tau_list, meas_time
+
+
 class XY8k(HahnEcho): # ER 5.25.2017
     """
     Frankie's version of XY8k; the original one by Emma seems to have a mistake right before the last pi/2 or 3pi/2 pulse.
@@ -371,3 +497,6 @@ class XY8k(HahnEcho): # ER 5.25.2017
 
             pulse_sequences.append(pulse_sequence)
         return pulse_sequences, tau_list, meas_time
+
+
+

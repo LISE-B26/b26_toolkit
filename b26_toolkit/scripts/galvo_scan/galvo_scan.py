@@ -273,6 +273,7 @@ class GalvoScanTimetrace(GalvoScan):
         """
         self.scripts['SetLaser'].settings['daq_type'] = 'PCI'
         self.data['counts'] = []
+        self._tag = self.scripts['Daq_timetrace'].settings['tag']
 
     def read_line(self, y_pos):
         set_laser_script = self.scripts['SetLaser']
@@ -288,7 +289,7 @@ class GalvoScanTimetrace(GalvoScan):
 
             set_laser_script.settings['point']['x'] = self.x_array[i]
             set_laser_script.run()
-
+            self.scripts['Daq_timetrace'].settings['tag'] = self._tag + '_' + str(i)
             self.scripts['Daq_timetrace'].run()
             counts = self.scripts['Daq_timetrace'].data['counts']
 

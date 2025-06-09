@@ -21,7 +21,7 @@ from collections import deque
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d
 import matplotlib.pyplot as plt
-from b26_toolkit.instruments import NI6259, NI9402, NI9215, MicrowaveGenerator, PiezoController
+from b26_toolkit.instruments import NI6259, NI9402, NI9215, MicrowaveGenerator, PiezoController, RFGenerator
 from b26_toolkit.plotting.plots_1d import plot_counts, update_1d_simple, update_counts_vs_pos, update_counts
 from pylabcontrol.core import Parameter, Script
 from b26_toolkit.scripts import FindNv
@@ -35,7 +35,7 @@ class DaqReadCounter(Script):
     """
     _DEFAULT_SETTINGS = [
         Parameter('integration_time', .25, float, 'Time per data point (s)'),
-        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr2'], 'Daq channel used for counter'),
+        Parameter('counter_channel', 'ctr0', ['ctr0', 'ctr1'], 'Daq channel used for counter'),
         Parameter('total_int_time', -1, float, 'Total time to integrate (s) (if -1 then it will go indefinitely)'),
         Parameter('trim_plot', -1, int, 'Keep only the last n data points to keep plot decluttered (saved data unaffected), (if -1 then no trim)'),
         Parameter('num_plot', False, bool, 'Show a big number showing the last Daq value instead of a time series plot')
@@ -193,7 +193,6 @@ class DaqReadCounterNi6259(DaqReadCounter):
     If you want to use it make sure that the right instrument is defined in _INSTRUMENTS = {'daq': NI9402} in the python code.
     """
     _INSTRUMENTS = {'daq': NI6259}
-
 
 class DaqReadCounter2Channel(Script):
     """

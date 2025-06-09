@@ -37,6 +37,7 @@ class PulsedExperimentGeneric(Script):
     To use this class, the inheriting class need only overwrite _create_pulse_sequences to create the proper pulse sequence
     for a given experiment
     """
+
     _DEFAULT_SETTINGS = [
         Parameter('averaging_block_size', 50000, int, 'number of averages in each averaging block, '
                                                       'too small of a block size probably introduces a larger relative overhead from reading DAQ/updating plots'),
@@ -65,7 +66,7 @@ class PulsedExperimentGeneric(Script):
     # Leave _SCRIPTS = {}. To enable tracking, use pulsed_experiment_tracking instead!
     _SCRIPTS = {}
 
-    def __init__(self, instruments, name=None, settings=None, log_function=None, data_path=None):
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
         '''
         Initializes GalvoScan script for use in gui
 
@@ -79,8 +80,8 @@ class PulsedExperimentGeneric(Script):
         '''
 
         self._DEFAULT_SETTINGS += PulsedExperimentGeneric._DEFAULT_SETTINGS
-        Script.__init__(self, name, settings=settings, instruments=instruments, log_function=log_function,
-                        data_path = data_path)
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
 
         # Index of the daq read bin that will be used to check if FindNv is needed
         # e.g. Typically, if this is 0, that means we will check the reference fluor (from the first daq read)
@@ -235,6 +236,8 @@ class PulsedExperimentGeneric(Script):
         if self.settings['save_full']: # ER 20210331
             print('num avgs in initialize ', self.num_averages)
             self.data['full_contrast'] = np.zeros((int(self.num_averages/self.settings['averaging_block_size']), len(self.pulse_sequences)))
+            self.data['raw1']= np.zeros((int(self.num_averages/self.settings['averaging_block_size']), len(self.pulse_sequences)))
+            self.data['raw2']= np.zeros((int(self.num_averages/self.settings['averaging_block_size']), len(self.pulse_sequences)))
 
     def _plot(self, axes_list, data=None):
         """
@@ -322,6 +325,7 @@ class PulsedExperimentGeneric(Script):
             self._configure_instruments_for_tau(self.tau_list[rand_index])
 
             timer_start = time.time()
+
             result = self._run_single_sequence(pulse_sequences[rand_index], num_loops_sweep, num_daq_reads)  # keep entire array
 
             #print('Time for running single seq: %.2e' % float(time.time() - timer_start))
@@ -333,7 +337,10 @@ class PulsedExperimentGeneric(Script):
             self.result_current = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
 
             # for tracking ER 20210331
+            # print(result)
+
             counts_to_check = self._normalize_to_kCounts(np.array(result), self.measurement_gate_width, num_loops_sweep)
+
             counts_temp = counts_to_check[self.ref_index]  # ref_index is set as 0 by default when script is initialized
 
             if 'commander' in self.instruments:
@@ -359,6 +366,9 @@ class PulsedExperimentGeneric(Script):
             if self.settings['save_full']:
                 self.data['full_contrast'][int(self.current_averages/self.settings['averaging_block_size'])-1][rand_index] = \
                     (counts_to_check[1]-counts_to_check[0])/np.mean(counts_to_check)
+                self.data['raw1'][int(self.current_averages/self.settings['averaging_block_size'])-1][rand_index] = counts_to_check[1]
+                self.data['raw2'][int(self.current_averages / self.settings['averaging_block_size']) - 1][rand_index] = \
+                counts_to_check[0]
 
             self.count_data[rand_index] = self.count_data[rand_index] + result
             self.data['counts'][rand_index] = self._normalize_to_kCounts(self.count_data[rand_index], self.measurement_gate_width,
@@ -988,11 +998,11 @@ class PulsedExperimentGeneric(Script):
 
         if scenario == 'before_block' and self.settings['track_nv']['before_block']:
             self.log('Running FindNv before averaging block')
-            self.scripts['find_nv'].run(verbose=True)
+            self.scripts['find_nv'].run()
             self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
         if scenario == 'force':
             self.log('Running FindNv on manual request')
-            self.scripts['find_nv'].run(verbose=True)
+            self.scripts['find_nv'].run()
             self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
         elif scenario == 'check_threshold' and self.settings['track_nv']['below_threshold']:
             threshold = self.settings['track_nv']['threshold']
@@ -1001,18 +1011,18 @@ class PulsedExperimentGeneric(Script):
             counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
             while counts_unsatisfactory:
                 self.log('Counts are below threshold; running FindNv')
-                self.scripts['find_nv'].run(verbose=True)
+                self.scripts['find_nv'].run()
                 self.scripts['find_nv'].settings['initial_point'] = self.scripts['find_nv'].data['maximum_point']
                 findnv_attempts += 1
                 threshold *= 0.9
                 counts_unsatisfactory = (1 + (1 - threshold)) * init_fluor < counts_temp or threshold * init_fluor > counts_temp
                 if findnv_attempts >= 3:
-                    self.log('FindNv was unsuccessful after 5 attempts. Aborting script', flag='error')
+                    self.log('FindNv was unsuccessful after 5 attempts. Aborting script')#, flag='error')
                     abort_script = True
                     break
                 elif counts_unsatisfactory:
-                    self.log('Counts still below threshold after FindNv, running FindNv again with lower threshold of %.1f kCt/s' % (threshold*init_fluor),
-                             flag='reminder')
+                    self.log('Counts still below threshold after FindNv, running FindNv again with lower threshold of %.1f kCt/s' % (threshold*init_fluor))
+                             #, flag='reminder')
 
         return abort_script
 
@@ -1082,6 +1092,237 @@ class PulsedExperimentGeneric(Script):
             processed_pulse_sequences.append(new_pulse_sequence)
         return processed_pulse_sequences
 
+class PulsedExperimentGenericNoDAQ(PulsedExperimentGeneric):
+    """
+        This class is a base class that should be inherited by all classes that utilize the pulseblaster for experiments. The
+        _function part of this class takes care of high-level interaction with the pulseblaster for experiment control and optionally
+        the daq for reading counter input (usually from the APD). It also provides all of the functionality needed to run a
+        standard Script such as plotting.
+        To use this class, the inheriting class need only overwrite _create_pulse_sequences to create the proper pulse sequence
+        for a given experiment
+        """
+    _DEFAULT_SETTINGS = [
+        Parameter('averaging_block_size', 50000, int, 'number of averages in each averaging block, '
+                                                      'too small of a block size probably introduces a larger relative overhead from reading DAQ/updating plots'),
+        Parameter('randomize', True, bool, 'check to randomize runs of the pulse sequence'),
+        Parameter('mw_switch', [
+            Parameter('add', True, bool,
+                      'check to add mw switch to every i/q pulse and to use switch to carve out pulses. Note that iq pulses become longer by 2*extra-time'),
+            Parameter('extra_time', 60, int,
+                      'extra time that is added before and after the time of the i/q pulses in ns'),
+            Parameter('gating', 'mw_switch', ['mw_switch', 'mw_iq'],
+                      'determines if mw pulses are carved out by mw-switch or by i and q channels of mw source '),
+            Parameter('no_iq_overlap', True, bool,
+                      'Toggle to check for overlapping i q output. In general i and q channels should not be on simultaneously.')
+        ]),
+        Parameter('save_full', False, bool, 'save every average'),
+        Parameter('save_raw', False, bool, 'save every shot'),
+        Parameter('ir_on', False, bool, 'leave IR on for the pulse sequence'),
+        Parameter('track_nv', [
+            Parameter('below_threshold', False, bool, 'run FindNv whenever counts fall below a given threshold'),
+            Parameter('threshold', 0.85, float, 'run FindNv whenever counts fall below this threshold'),
+            Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps'),
+            Parameter('before_block', False, bool, 'run FindNv before each averaging block')]),
+        Parameter('track_focus', [
+            Parameter('threshold', 0.85, float, 'run FindNv whenever counts fall below this threshold'),
+            Parameter('init_fluor', 20., float, 'initial fluorescence of the NV to compare to, in kcps'),
+            Parameter('before_block', False, bool, 'run FindNv before each averaging block')])
+    ]
+    _INSTRUMENTS = {'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator}
+
+    _SCRIPTS = {}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        '''
+        Initializes GalvoScan script for use in gui
+
+        Args:
+            instruments: list of instrument objects
+            name: name to give to instantiated script object
+            settings: dictionary of new settings to pass in to override defaults
+            log_function: log function passed from the gui to direct log calls to the gui log
+            data_path: path to save data
+
+        '''
+
+        self._DEFAULT_SETTINGS += PulsedExperimentGenericNoDAQ._DEFAULT_SETTINGS
+        Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
+                        log_function=log_function, data_path=data_path)
+
+        # e.g. Typically, if this is 0, that means we will check the reference fluor (from the first daq read)
+        self.ref_index = 0
+
+    def _function(self, in_data=None):
+        """
+        This is the core loop in which the desired experiment specified by the inheriting script's pulse sequence
+        is performed.
+
+        in_data: input data dictionary, caution 'tau' and 'counts' will be overwritten here!
+
+        Poststate: self.data contains two key/value pairs, 'tau' and 'counts'
+            'tau': a list of the times tau that are scanned over for the relative experiment (ex wait times between pulses)
+             'counts': the counts received from the experiment. This is a len('tau') list, with each element being a list
+             of length 1, 2, or 3 corresponding to the sum over all trials for a single tau time. In this sublist, the
+             first value is the signal, the second (optional) value is counts in the |0> state (the maximum counts for
+             normalization), and the third (optional) value is the counts in the |1> state (the minimum counts for
+             normalization)
+
+        """
+
+        self._configure_instruments_start_of_script()
+
+        # make sure the microwave_switch is turned off so that we don't burn any steel cables. ER 20181017
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        # Remember if laser was on prior to this script
+        self.laser_status_before_script = self.instruments['PB']['instance'].settings['laser']['status']
+        if self.settings['ir_on']:
+            self.instruments['PB']['instance'].update({'ir_laser': {'status': True}})
+
+        # Keeps track of index of current pulse sequence for plotting
+        self.sequence_index = 0
+
+        # self.is_valid and create pulses
+        self.pulse_sequences, self.tau_list, self.measurement_gate_width = self.create_pulse_sequences()
+        self.num_averages = self.settings['num_averages']
+
+        if in_data is None:
+            in_data = {}
+
+        # calculates the number of daq reads per loop requested in the pulse sequence by asking how many apd reads are
+        # called for. if this is not calculated properly, daq will either end too early (number too low) or hang since it
+        # never receives the rest of the counts (number too high)
+        num_daq_reads = 0
+
+        for pulse in self.pulse_sequences[0]:
+            if pulse.channel_id == 'apd_readout':
+                num_daq_reads += 1
+
+        if num_daq_reads > 0:
+            self._initialize_data(num_daq_reads, in_data)
+        else:
+            self._initialize_data(1, in_data)
+
+        # divides the total number of averages requested into a number of slices of MAX_AVERAGES_PER_SCAN and a remainder.
+        # This is required because the pulseblaster won't accept more than ~4E6 loops (22 bits available to store loop
+        # number) so need to break it up into smaller chunks (use 1E6 so initial results display faster)
+        (num_1E5_avg_pb_programs, remainder) = divmod(self.num_averages, self.settings['averaging_block_size']) # Name is not accurate anymore, block size is no longer fixed to 1e5, FF
+
+        self.log("Averaging over %i blocks of %.1e" % (num_1E5_avg_pb_programs, self.settings['averaging_block_size']))
+
+        for average_loop in range(int(num_1E5_avg_pb_programs)):
+            time_start = t.time()
+            if self._abort:
+                print('Aborting!!')
+                # ER 20200828 stop the pulseblaster
+                if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+                    print('Stopping pulse seq: abort!! ')
+                    self.instruments['PB']['instance'].stop_pulse_seq()
+
+                self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+
+                self.log('Aborted pulseblaster script during loop')
+                break
+
+            self._track_nv(scenario='before_block')
+            self.current_averages = (average_loop + 1) * self.settings['averaging_block_size']
+            self._run_sweep(self.pulse_sequences, self.settings['averaging_block_size'], num_daq_reads)
+
+            # save data on the fly so that we can start to analyze it while the experiment is running!
+            if self.settings['save']:
+                self.save_data()
+
+            time_elapsed = t.time() - time_start
+            self.log("Completed average block %i of %i in %s" %
+                     (average_loop + 1, int(num_1E5_avg_pb_programs), str(datetime.timedelta(seconds=time_elapsed))[:-7]))
+            if 'loop_delay' in self.settings:
+                time.sleep(self.settings['loop_delay'])
+
+        if remainder != 0 and not self._abort:
+            self.current_averages = self.num_averages
+            self._run_sweep(self.pulse_sequences, remainder, num_daq_reads)
+
+        if (len(self.data['counts'][0]) == 1) and not self._abort:
+            self.data['counts'] = np.array([item for sublist in self.data['counts'] for item in sublist])
+
+        if self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['enable']:
+            self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+            self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
+            self.instruments['mw_gen']['instance'].update({'amplitude': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_power']})
+            self.instruments['mw_gen']['instance'].update({'frequency': self.instruments['PB']['instance'].settings['constant_microwave_heat_load']['mw_frequency']})
+            self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+            self.instruments['mw_gen']['instance'].update({'enable_output': True})
+            self.instruments['PB']['instance'].mw_duty_cycle_loop()
+
+    def _run_single_sequence(self, pulse_sequence, num_loops, num_daq_reads):
+        '''
+        Runs a single pulse sequence, num_loops consecutive times
+        Args:
+            pulse_sequence: a list of Pulse objects specifying a pulse sequence
+            num_loops: number of times to repeat the pulse sequence
+            num_daq_reads: number of times sequence requires that the
+
+        Returns: a list containing, 1, 2, or 3 values depending on the pulse sequence
+        counts, the second is the number of
+
+        '''
+
+        # if self.settings['daq_type'] == 'PCI':
+        #     daq = self.instruments['NI6259']['instance']
+        # elif self.settings['daq_type'] == 'cDAQ':
+        #     daq = self.instruments['NI9402']['instance']
+
+        timer_start = time.time()
+        # print('entering correct single sweep')
+        try:
+            self.instruments['PB']['instance'].program_pb(pulse_sequence, num_loops=num_loops)
+        except AssertionError:
+            self.log('Error programming PB, aborting script')
+            self._abort = True
+            return np.zeros(num_daq_reads)
+
+        #print('Time after program PB: %.2e' % (time.time() - timer_start))
+
+        # TODO(AK): figure out if timeout is actually needed
+        timeout = 2 * self.instruments['PB']['instance'].estimated_runtime
+
+        # if num_daq_reads != 0:
+        #     task = daq.setup_gated_counter('ctr0', int(num_loops * num_daq_reads))
+        #     #print('Time after setup counter: %.2e' % (time.time() - timer_start))
+        #     daq.run(task)
+        #     #print('Time after run daq: %.2e' % (time.time() - timer_start))
+
+        self.instruments['PB']['instance'].start_pulse_seq()
+        #print('Time after start seq: %.2e' % (time.time() - timer_start))
+
+        result = []
+        # print(num_daq_reads)
+        if num_daq_reads == 0:
+            result = [0]
+
+        # if num_daq_reads != 0:
+        #     result_array, temp = daq.read(task)   # thread waits on DAQ getting the right number of gates
+        #     #print('Time after read daq: %.2e' % (time.time() - timer_start))
+        #     #t4 = t.perf_counter()
+        #     for i in range(num_daq_reads):
+        #         result.append(sum(itertools.islice(result_array, i, None, num_daq_reads)))
+        #     #print('Time after slice: %.2e' % (time.time() - timer_start))
+
+        # clean up APD tasks
+        # if num_daq_reads != 0:
+        #     daq.stop(task)
+        #     #print('Time after stop task: %.2e' % (time.time() - timer_start))
+
+        if num_daq_reads == 0:
+            # If we're reading DAQ samples, we know that an expected number of sequences has run when we've collected enough samples
+            # If there are no DAQ samples to wait for, we need to manually wait for the estimated pulse seq duration
+            print(self.instruments['PB']['instance'].estimated_runtime*1e-3)
+            time.sleep(self.instruments['PB']['instance'].estimated_runtime*1e-3)
+
+        if self.instruments['PB']['instance'].settings['PB_type'] == 'USB':
+            print('stopping pulse seq: ')
+            self.instruments['PB']['instance'].stop_pulse_seq()
+
+        return result
 
 if __name__ == '__main__':
     """

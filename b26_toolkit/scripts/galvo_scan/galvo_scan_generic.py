@@ -195,7 +195,7 @@ class GalvoScanGeneric(Script):
                     self.progress = float(yNum * Nx + 1 + xNum) / (Nx * Ny) * 100
 
                     # JG: tmp print info about progress
-                    print(('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress)))
+                    # print(('current acquisition {:02d}/{:02d} ({:0.2f}%)'.format(yNum * Nx + xNum, Nx * Ny, self.progress)))
 
                     self.updateProgress.emit(int(self.progress))
 

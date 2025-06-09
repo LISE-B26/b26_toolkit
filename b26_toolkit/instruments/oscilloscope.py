@@ -232,6 +232,9 @@ class RigolOscilloscope(Instrument):
     def get_std_voltage(self):
         return float(self._query(':MEAS:ITEM? VAR, ' + self.settings['channel']))
 
+    def get_vpp(self):
+        return float(self._query(':MEAS:ITEM? VPP, ' + self.settings['channel']))
+
 
     def get_timetrace(self):
         """

@@ -27,6 +27,8 @@ class GalvoScanOsci(GalvoScanGeneric):
                    ]),
         Parameter('time_per_pt', .002, [.0005, .001, .002, .005, .01, .015, .02, .05, .08, .1],
                   'time in s to measure at each point'),
+        Parameter('settle_time', .0002, float, 'wait time between points to allow galvo to settle'),
+        Parameter('data_mode', 'vpp', ['var', 'vpp'], 'Plot variance or VPP on galvoscan'),
         Parameter('offset', 0.0, float, 'voltage offset [V]'),
         Parameter('vert_scale', 0.001, float, 'voltage scale [V]'),
         Parameter('max_counts_plot', -1, int, 'Rescales colorbar with this as the maximum counts on replotting'),
@@ -78,7 +80,10 @@ class GalvoScanOsci(GalvoScanGeneric):
             set_laser_script.settings['point']['x'] = self.x_array[i]
             set_laser_script.run()
             time.sleep(self.settings['time_per_pt'])
-            line_data[i] = self.oscope.get_std_voltage()
+            if self.settings['data_mode'] == 'var':
+                line_data[i] = self.oscope.get_std_voltage()
+            elif self.settings['data_mode'] == 'vpp':
+                line_data[i] = self.oscope.get_vpp()
 
         return line_data
 

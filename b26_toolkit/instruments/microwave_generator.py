@@ -32,7 +32,7 @@ class MicrowaveGenerator(Instrument):
     """
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 22, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('port', 25, list(range(0, 31)), 'GPIB or COM port on which to connect'), ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_output', False, bool, 'Type-N output enabled'),
         Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
@@ -331,7 +331,7 @@ class RFGenerator(MicrowaveGenerator):
 
     _DEFAULT_SETTINGS = Parameter([
         Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
-        Parameter('port', 19, list(range(0, 31)), 'GPIB or COM port on which to connect'),
+        Parameter('port', 24, list(range(0, 31)), 'GPIB or COM port on which to connect'),
         ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
         Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
         Parameter('enable_rf_output', False, bool, 'BNC output enabled'),
@@ -364,6 +364,31 @@ class RFGenerator(MicrowaveGenerator):
             'dev_width': 'Width of deviation from center frequency in FM',
             'mod_rate': 'Rate of modulation in Hz'
         }
+
+class RFGenerator2(RFGenerator):
+    """
+        Just a clone of RFGenerator, for a second instrument
+    """
+    _DEFAULT_SETTINGS = Parameter([
+        Parameter('connection_type', 'RS232', ['GPIB', 'RS232'], 'type of connection to open to controller'),
+        Parameter('port', 25, list(range(0, 31)), 'GPIB or COM port on which to connect'),
+        ## JG: what out for the ports this might be different on each computer and might cause issues when running export default
+        Parameter('GPIB_num', 0, int, 'GPIB device on which to connect'),
+        Parameter('enable_rf_output', False, bool, 'BNC output enabled'),
+        Parameter('frequency', 3e9, float, 'frequency in Hz, or with label in other units ex 300 MHz'),
+        Parameter('amplitude_rf', -60, float, 'BNC amplitude in dBm'),
+        Parameter('phase', 0, float, 'output phase'),
+        Parameter('enable_modulation', True, bool, 'enable modulation'),
+        Parameter('modulation_type', 'FM', ['AM', 'FM', 'PhaseM', 'Freq sweep', 'Pulse', 'Blank', 'IQ'],
+                  'Modulation Type: 0= AM, 1=FM, 2= PhaseM, 3= Freq sweep, 4= Pulse, 5 = Blank, 6=IQ'),
+        Parameter('modulation_function', 'External', ['Sine', 'Ramp', 'Triangle', 'Square', 'Noise', 'External'],
+                  'Modulation Function: 0=Sine, 1=Ramp, 2=Triangle, 3=Square, 4=Noise, 5=External'),
+        Parameter('pulse_modulation_function', 'External', ['Square', 'Noise(PRBS)', 'External'],
+                  'Pulse Modulation Function: 3=Square, 4=Noise(PRBS), 5=External'),
+        Parameter('dev_width', 32e6, float, 'Width of deviation from center frequency in FM'),
+        Parameter('mod_rate', 1e7, float, 'Rate of modulation [Hz]')
+
+    ])
 
 if __name__ == '__main__':
     # from pylabcontrol.core import Instrument

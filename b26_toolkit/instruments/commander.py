@@ -46,7 +46,7 @@ class Commander(Instrument):
     """
 
     _DEFAULT_SETTINGS = Parameter([
-        Parameter('find_nv', False, bool, 'run FindNV'),
+        Parameter('find_nv', False, bool, 'run FindNv'),
         Parameter('autofocus', False, bool, 'run AutoFocus')
         ])
 

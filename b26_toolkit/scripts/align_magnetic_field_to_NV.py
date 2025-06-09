@@ -24,7 +24,7 @@ This script determines the orientation of a given NV
 
     _INSTRUMENTS = {}
 
-    _SCRIPTS = {'FindNV': FindNv, 'SetMagneticCoils': SetMagneticCoils, 'ESR': Esr, 'Correlate': TakeAndCorrelateImages}
+    _SCRIPTS = {'FindNv': FindNv, 'SetMagneticCoils': SetMagneticCoils, 'ESR': Esr, 'Correlate': TakeAndCorrelateImages}
 
 
     def __init__(self, instruments = None, scripts = None, name = None, settings = None, log_function = None, data_path = None):
@@ -80,7 +80,7 @@ This script determines the orientation of a given NV
                         return None
 
 
-        init_pt = deepcopy(self.scripts['FindNV'].settings['initial_point'])
+        init_pt = deepcopy(self.scripts['FindNv'].settings['initial_point'])
 
         mag = self.settings['field_magnitude']
         self.scripts['SetMagneticCoils'].settings['magnetic_fields']['coordinate_system'] = 'Cartesian'
@@ -103,9 +103,9 @@ This script determines the orientation of a given NV
             self.scripts['Correlate'].run()
             shift = self.scripts['Correlate'].data['shift']
             new_pt = {'x': init_pt['x'] + shift[0], 'y': init_pt['y'] + shift[1]}
-            self.scripts['FindNV'].settings['initial_point'].update(new_pt)
+            self.scripts['FindNv'].settings['initial_point'].update(new_pt)
 
-            self.scripts['FindNV'].run()
+            self.scripts['FindNv'].run()
             self.scripts['ESR'].run()
 
             fit_params = fit_esr(self.scripts['ESR'].data['frequency'], self.scripts['ESR'].data['data'])
@@ -137,8 +137,8 @@ This script determines the orientation of a given NV
 
     #must be passed figure with galvo plot on first axis
     def _plot(self, axes_list):
-        if self._current_subscript_stage['current_subscript'] == self.scripts['FindNV']:
-            self.scripts['FindNV']._plot(axes_list)
+        if self._current_subscript_stage['current_subscript'] == self.scripts['FindNv']:
+            self.scripts['FindNv']._plot(axes_list)
         elif self._current_subscript_stage['current_subscript'] == self.scripts['ESR']:
             self.scripts['ESR']._plot(axes_list)
         elif self._current_subscript_stage['current_subscript'] == self.scripts['Correlate']:
@@ -146,8 +146,8 @@ This script determines the orientation of a given NV
 
     #must be passed figure with galvo plot on first axis
     def _update_plot(self, axes_list):
-        if self._current_subscript_stage['current_subscript'] == self.scripts['FindNV']:
-            self.scripts['FindNV']._update_plot(axes_list)
+        if self._current_subscript_stage['current_subscript'] == self.scripts['FindNv']:
+            self.scripts['FindNv']._update_plot(axes_list)
         elif self._current_subscript_stage['current_subscript'] == self.scripts['ESR']:
             self.scripts['ESR']._update_plot(axes_list)
         elif self._current_subscript_stage['current_subscript'] == self.scripts['Correlate']:

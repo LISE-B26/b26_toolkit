@@ -48,3 +48,4 @@ from .arduino_servo_flip import ToggleCameraView
 from .read_temperature_lakeshore import ReadTemperatureLakeshore211
 from .daq_read_counter_timetrace import DaqTimeTraceNi6259, DaqTimeTraceNi9402Ni9219
 from .pulse_sequences.stroboscopic_readout import StroboscopicReadout
+from .find_nv_pulsed import FindNVPulsed

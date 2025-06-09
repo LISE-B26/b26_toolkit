@@ -52,8 +52,8 @@ class PulsedEsr(ParamSweepGeneric):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
-    from b26_toolkit.scripts.find_nv import FindNvStrobe
-    _SCRIPTS = {'find_nv': FindNvStrobe}
+    from b26_toolkit.scripts.find_nv_pulsed import FindNVPulsed
+    _SCRIPTS = {'find_nv': FindNVPulsed}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """
@@ -297,8 +297,8 @@ class PulsedEsrFast(ParamSweepFastGeneric):
                   'time wait after switching center frequencies on generator (s)')
     ]
 
-    from b26_toolkit.scripts.find_nv import FindNvStrobe
-    _SCRIPTS = {'find_nv': FindNvStrobe}
+    from b26_toolkit.scripts.find_nv_pulsed import FindNVPulsed
+    _SCRIPTS = {'find_nv': FindNVPulsed}
 
     def __init__(self, instruments, scripts, name=None, settings=None, log_function=None, data_path=None):
         """

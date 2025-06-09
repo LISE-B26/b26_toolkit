@@ -418,7 +418,7 @@ class AutoFocusDAQ(AutoFocusGeneric):
     # _DEFAULT_SETTINGS = []
 
     _INSTRUMENTS = {
-        'z_piezo': PiezoController
+        'z_piezo': MDT693A
     }
     _SCRIPTS = {
         'take_image': GalvoScan
@@ -525,7 +525,7 @@ class AutoFocusDAQCold(AutoFocusDAQ):
     """
 
     _INSTRUMENTS = {
-        'z_piezo': PiezoControllerCold
+        'z_piezo': MDT693A
     }
 
 

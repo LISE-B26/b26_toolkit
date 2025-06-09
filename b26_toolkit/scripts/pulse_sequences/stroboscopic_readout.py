@@ -147,7 +147,7 @@ class StroboscopicReadoutRealtime(Script):
         settings = self.scripts['strobe_readout'].settings
 
         counts = data['counts']
-        print(counts)
+        # print(counts)
         self._plot_line = axes_list[0].plot(settings['num_averages'] * settings['cycle_period'] * 1e-9 * np.arange(len(counts)), counts, linewidth=1.25)
         # axis.hold(False)
 

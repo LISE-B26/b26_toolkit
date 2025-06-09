@@ -52,7 +52,8 @@ class Rabi(PulsedExperimentGeneric):
     ]
 
     _INSTRUMENTS = {'NI6259': NI6259, 'NI9402': NI9402, 'PB': B26PulseBlaster, 'mw_gen': MicrowaveGenerator, 'commander': Commander}
-    #_SCRIPTS = {'find_nv': FindNV, 'esr': ESR}
+    from b26_toolkit.scripts.find_nv_pulsed import FindNVPulsed
+    _SCRIPTS = {'find_nv': FindNVPulsed}
 
     def _configure_instruments_start_of_script(self):
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})

@@ -31,7 +31,7 @@ class T1(PulsedExperimentGeneric):
         Parameter('mw_pulse', [
             Parameter('mw_power', -45.0, float, 'microwave power in dBm'),
             Parameter('mw_frequency', 2.87e9, float, 'microwave frequency in Hz'),
-            Parameter('microwave_channel', 'i', ['i', 'q'], 'Channel to use for mw pulses'),
+            Parameter('microwave_channel', '+i', ['+i', '-i', '+q', '-q'], 'Channel to use for mw pulses'),
             Parameter('pi_time', 30.0, float, 'pi time in ns')
         ]),
         Parameter('tau_times', [
@@ -58,8 +58,11 @@ class T1(PulsedExperimentGeneric):
         # COMMENT_ME
         self.data['fits'] = None
         self.instruments['mw_gen']['instance'].update({'modulation_type': 'IQ'})
+        self.instruments['mw_gen']['instance'].update({'enable_modulation': True})
         self.instruments['mw_gen']['instance'].update({'amplitude': self.settings['mw_pulse']['mw_power']})
         self.instruments['mw_gen']['instance'].update({'frequency': self.settings['mw_pulse']['mw_frequency']})
+        self.instruments['PB']['instance'].update({'microwave_switch': {'status': False}})
+        self.instruments['mw_gen']['instance'].update({'enable_output': True})
         super(T1, self)._function(self.data)
 
         counts = (self.data['counts'][:, 0] - self.data['counts'][:, 1]) / (self.data['counts'][:, 0] + self.data['counts'][:, 1])

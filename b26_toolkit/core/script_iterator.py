@@ -73,14 +73,14 @@ class ScriptIteratorB26(ScriptIterator):
             sub_scripts.update(
                 {'select_points': getattr(module, 'SelectPoints')}
             )
-            module = Script.get_script_module('FindNV', package)
+            module = Script.get_script_module('FindNv', package)
             sub_scripts.update(
                 #      {'find_nv': getattr(module, 'FindNV_cDAQ')}
-                {'find_nv': getattr(module, 'FindNV')}
+                {'find_nv': getattr(module, 'FindNv')}
             )
-            module = Script.get_script_module('Take_And_Correlate_Images', package)
+            module = Script.get_script_module('TakeAndCorrelateImages', package)
             sub_scripts.update(
-                {'correlate_iter': getattr(module, 'Take_And_Correlate_Images', package)}
+                {'correlate_iter': getattr(module, 'TakeAndCorrelateImages', package)}
             )
             script_settings['script_order'] = {'select_points': -3, 'correlate_iter': -2, 'find_nv': -1}
 
@@ -93,9 +93,9 @@ class ScriptIteratorB26(ScriptIterator):
             sub_scripts.update(
                 {'set_laser': getattr(module, 'SetLaser')}
             )
-            module = Script.get_script_module('Take_And_Correlate_Images', package)
+            module = Script.get_script_module('TakeAndCorrelateImages', package)
             sub_scripts.update(
-                {'correlate_iter': getattr(module, 'Take_And_Correlate_Images')}
+                {'correlate_iter': getattr(module, 'TakeAndCorrelateImages')}
             )
             script_settings['script_order']={'select_points': -3, 'correlate_iter': -2, 'set_laser': -1}
 

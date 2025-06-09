@@ -1,6 +1,7 @@
 from pylabcontrol.core import Script, Parameter
-from b26_toolkit.instruments import B26PulseBlaster
+from b26_toolkit.instruments import B26PulseBlaster, NI6259, RFGenerator
 from b26_toolkit.scripts import DaqTimeTraceNi6259
+from b26_toolkit.tools.utils import vpp_to_dBm
 
 import time
 import numpy as np
@@ -10,9 +11,10 @@ class Ringdown(DaqTimeTraceNi6259):
         Parameter('holdon', 1., float, 'time to hold on in s'),
         Parameter('holdoff', 1., float, 'time to hold off in s'),
         Parameter('pb_channel', 'atto_trig', str, 'channel to trigger drive'),
+        Parameter('ring up', False, bool, 'Ring up instead of down')
     ]
 
-    _INSTRUMENTS = {'PB': B26PulseBlaster}
+    _INSTRUMENTS = {'PB': B26PulseBlaster, 'daq_ai': NI6259, 'daq_counter': NI6259}
     _SCRIPTS = {}
 
     def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
@@ -23,7 +25,6 @@ class Ringdown(DaqTimeTraceNi6259):
             settings (optional): settings for this script, if empty same as default settings
         """
         self._DEFAULT_SETTINGS += super()._DEFAULT_SETTINGS
-        self._INSTRUMENTS.update(super()._INSTRUMENTS)
 
         Script.__init__(self, name, settings=settings, scripts=scripts, instruments=instruments,
                         log_function=log_function, data_path=data_path)
@@ -36,13 +37,13 @@ class Ringdown(DaqTimeTraceNi6259):
 
         self.data = {'counts': []}
 
-        sample_rate = float(1) / self.settings['integration_time']
+        sample_rate = float(1) / float(self.settings['integration_time'])
         self.setup_daq(sample_rate)
 
 
         # maximum number of samples if total_int_time > 0
         if self.settings['acquisition_time'] > 0:
-            number_of_samples = int(np.floor(self.settings['acquisition_time'] / self.settings['integration_time']))
+            number_of_samples = int(np.floor(self.settings['acquisition_time'] / float(self.settings['integration_time'])))
         else:
             self.log('total measurement time must be positive. Abort script')
             return
@@ -84,6 +85,43 @@ class Ringdown(DaqTimeTraceNi6259):
                     daq.stop(task)
 
         self.data['counts'] = np.array(self.data['counts']).transpose()
+
+
+class RingdownRfControl(Ringdown):
+    _RF_GEN_VPP_MAX = 1.
+    _RF_GEN_VPP_MIN = 0.003
+    _RF_GEN_DBM_MAX = 10
+    _RF_GEN_DBM_MIN = -44
+    _DEFAULT_SETTINGS = [
+        Parameter('rf_amp', 0.01, float, 'srs amplitube in Vpp'),
+        Parameter('dbm_or_vpp', True, bool, 'true if amp is in dBm, otherwise vpp')
+    ]
+    _INSTRUMENTS = {'PB': B26PulseBlaster, 'daq_ai': NI6259, 'daq_counter': NI6259, 'rf_gen': RFGenerator}
+    _SCRIPTS = {}
+
+    def __init__(self, instruments, scripts=None, name=None, settings=None, log_function=None, data_path=None):
+        """
+        Standard script initialization
+        Args:
+            name (optional): name of script, if empty same as class name
+            settings (optional): settings for this script, if empty same as default settings
+        """
+        self._DEFAULT_SETTINGS += super()._DEFAULT_SETTINGS
+
+        super().__init__(instruments, scripts=scripts, name=name, settings=settings, log_function=log_function, data_path=data_path)
+
+    def _function(self):
+        amp = self.settings['rf_amp']
+        if not self.settings['dbm_or_vpp']:
+            if amp < self._RF_GEN_VPP_MIN or amp > self._RF_GEN_VPP_MAX:
+                raise ValueError('invalid vpp')
+            amp = vpp_to_dBm(amp)
+        elif amp < self._RF_GEN_DBM_MIN or amp > self._RF_GEN_DBM_MAX:
+            raise ValueError('invalid dBm')
+
+        self.instruments['rf_gen']['instance'].update({'amplitude_rf': amp})
+        super()._function()
+
 
 # class RingdownLia(Ringdown):
 #     _SCRIPTS = {'pll': PhaseLockedLoop}
